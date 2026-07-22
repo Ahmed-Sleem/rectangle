@@ -1,0 +1,111 @@
+{
+  "collectedAt": "2026-07-22",
+  "legend": {
+    "0": "None / not applicable",
+    "1": "Basic or via workaround",
+    "2": "Solid production",
+    "3": "Category leading / deep"
+  },
+  "note": "Scores are research synthesis estimates for planning — not audited product tests.",
+  "features": [
+    "tasks_kanban",
+    "gantt_cpm",
+    "p6_interop",
+    "evm_cost",
+    "risk_register",
+    "drawings_markup",
+    "rfi_submittals",
+    "daily_log_punch",
+    "docs_versions",
+    "approvals_workflow",
+    "portfolio_pmo",
+    "strategy_bsc",
+    "chat_collab",
+    "meetings_ai",
+    "mobile_offline",
+    "ai_agents",
+    "arabic_rtl",
+    "bim_model",
+    "reality_capture",
+    "self_host"
+  ],
+  "scores": {
+    "tornix": {
+      "tasks_kanban": 3, "gantt_cpm": 2, "p6_interop": 2, "evm_cost": 2,
+      "risk_register": 3, "drawings_markup": 1, "rfi_submittals": 1, "daily_log_punch": 1,
+      "docs_versions": 2, "approvals_workflow": 3, "portfolio_pmo": 3, "strategy_bsc": 3,
+      "chat_collab": 3, "meetings_ai": 3, "mobile_offline": 2, "ai_agents": 3,
+      "arabic_rtl": 3, "bim_model": 1, "reality_capture": 0, "self_host": 0
+    },
+    "procore": {
+      "tasks_kanban": 2, "gantt_cpm": 2, "p6_interop": 2, "evm_cost": 2,
+      "risk_register": 2, "drawings_markup": 3, "rfi_submittals": 3, "daily_log_punch": 3,
+      "docs_versions": 3, "approvals_workflow": 3, "portfolio_pmo": 2, "strategy_bsc": 1,
+      "chat_collab": 2, "meetings_ai": 1, "mobile_offline": 3, "ai_agents": 3,
+      "arabic_rtl": 1, "bim_model": 2, "reality_capture": 1, "self_host": 0
+    },
+    "acc_forma": {
+      "tasks_kanban": 2, "gantt_cpm": 2, "p6_interop": 2, "evm_cost": 1,
+      "risk_register": 2, "drawings_markup": 3, "rfi_submittals": 3, "daily_log_punch": 3,
+      "docs_versions": 3, "approvals_workflow": 3, "portfolio_pmo": 2, "strategy_bsc": 1,
+      "chat_collab": 2, "meetings_ai": 1, "mobile_offline": 3, "ai_agents": 2,
+      "arabic_rtl": 1, "bim_model": 3, "reality_capture": 2, "self_host": 0
+    },
+    "p6": {
+      "tasks_kanban": 1, "gantt_cpm": 3, "p6_interop": 3, "evm_cost": 2,
+      "risk_register": 2, "drawings_markup": 0, "rfi_submittals": 0, "daily_log_punch": 0,
+      "docs_versions": 1, "approvals_workflow": 1, "portfolio_pmo": 3, "strategy_bsc": 1,
+      "chat_collab": 0, "meetings_ai": 0, "mobile_offline": 1, "ai_agents": 1,
+      "arabic_rtl": 1, "bim_model": 0, "reality_capture": 0, "self_host": 2
+    },
+    "openproject": {
+      "tasks_kanban": 3, "gantt_cpm": 3, "p6_interop": 1, "evm_cost": 2,
+      "risk_register": 1, "drawings_markup": 0, "rfi_submittals": 0, "daily_log_punch": 0,
+      "docs_versions": 2, "approvals_workflow": 2, "portfolio_pmo": 3, "strategy_bsc": 1,
+      "chat_collab": 1, "meetings_ai": 0, "mobile_offline": 1, "ai_agents": 0,
+      "arabic_rtl": 2, "bim_model": 1, "reality_capture": 0, "self_host": 3
+    },
+    "plane": {
+      "tasks_kanban": 3, "gantt_cpm": 2, "p6_interop": 0, "evm_cost": 0,
+      "risk_register": 1, "drawings_markup": 0, "rfi_submittals": 0, "daily_log_punch": 0,
+      "docs_versions": 2, "approvals_workflow": 2, "portfolio_pmo": 2, "strategy_bsc": 1,
+      "chat_collab": 2, "meetings_ai": 1, "mobile_offline": 1, "ai_agents": 3,
+      "arabic_rtl": 1, "bim_model": 0, "reality_capture": 0, "self_host": 3
+    },
+    "erpnext": {
+      "tasks_kanban": 2, "gantt_cpm": 2, "p6_interop": 0, "evm_cost": 2,
+      "risk_register": 1, "drawings_markup": 0, "rfi_submittals": 0, "daily_log_punch": 0,
+      "docs_versions": 1, "approvals_workflow": 3, "portfolio_pmo": 1, "strategy_bsc": 0,
+      "chat_collab": 0, "meetings_ai": 0, "mobile_offline": 1, "ai_agents": 1,
+      "arabic_rtl": 2, "bim_model": 0, "reality_capture": 0, "self_host": 3
+    },
+    "fieldwire": {
+      "tasks_kanban": 3, "gantt_cpm": 1, "p6_interop": 0, "evm_cost": 0,
+      "risk_register": 1, "drawings_markup": 3, "rfi_submittals": 2, "daily_log_punch": 3,
+      "docs_versions": 2, "approvals_workflow": 1, "portfolio_pmo": 0, "strategy_bsc": 0,
+      "chat_collab": 2, "meetings_ai": 0, "mobile_offline": 3, "ai_agents": 0,
+      "arabic_rtl": 1, "bim_model": 0, "reality_capture": 0, "self_host": 0
+    },
+    "buildots": {
+      "tasks_kanban": 1, "gantt_cpm": 2, "p6_interop": 1, "evm_cost": 0,
+      "risk_register": 2, "drawings_markup": 1, "rfi_submittals": 0, "daily_log_punch": 1,
+      "docs_versions": 1, "approvals_workflow": 1, "portfolio_pmo": 2, "strategy_bsc": 0,
+      "chat_collab": 0, "meetings_ai": 0, "mobile_offline": 2, "ai_agents": 2,
+      "arabic_rtl": 0, "bim_model": 3, "reality_capture": 3, "self_host": 0
+    },
+    "alice": {
+      "tasks_kanban": 0, "gantt_cpm": 3, "p6_interop": 3, "evm_cost": 2,
+      "risk_register": 2, "drawings_markup": 2, "rfi_submittals": 0, "daily_log_punch": 0,
+      "docs_versions": 0, "approvals_workflow": 0, "portfolio_pmo": 1, "strategy_bsc": 0,
+      "chat_collab": 0, "meetings_ai": 0, "mobile_offline": 0, "ai_agents": 2,
+      "arabic_rtl": 0, "bim_model": 1, "reality_capture": 0, "self_host": 0
+    },
+    "planview": {
+      "tasks_kanban": 2, "gantt_cpm": 2, "p6_interop": 1, "evm_cost": 2,
+      "risk_register": 2, "drawings_markup": 0, "rfi_submittals": 0, "daily_log_punch": 0,
+      "docs_versions": 1, "approvals_workflow": 3, "portfolio_pmo": 3, "strategy_bsc": 3,
+      "chat_collab": 1, "meetings_ai": 1, "mobile_offline": 1, "ai_agents": 2,
+      "arabic_rtl": 1, "bim_model": 0, "reality_capture": 0, "self_host": 1
+    }
+  }
+}

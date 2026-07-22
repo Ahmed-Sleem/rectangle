@@ -1,0 +1,172 @@
+{
+  "collectedAt": "2026-07-22",
+  "source": "https://tornix.ai/ comparison table (vendor self-scored)",
+  "disclaimer": "Scores and availability marks are from Tornix marketing, not independent benchmarks.",
+  "scores": {
+    "Tornix": 10,
+    "Primavera P6": 6,
+    "MS Project": 4,
+    "Procore": 5
+  },
+  "legend": {
+    "yes": "Available",
+    "partial": "Partial",
+    "limited": "Limited",
+    "no": "Not available"
+  },
+  "rows": [
+    {
+      "section": "AI capabilities",
+      "featureEn": "Auto Scheduling from BOQ",
+      "featureAr": "الجدولة التلقائية من BOQ",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "no",
+      "Procore": "no"
+    },
+    {
+      "section": "AI capabilities",
+      "featureEn": "Risk Detection",
+      "featureAr": "كشف المخاطر",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "no",
+      "Procore": "no"
+    },
+    {
+      "section": "AI capabilities",
+      "featureEn": "Monte Carlo Simulation",
+      "featureAr": "محاكاة مونت كارلو",
+      "Tornix": "yes",
+      "Primavera P6": "limited",
+      "MS Project": "no",
+      "Procore": "no"
+    },
+    {
+      "section": "AI capabilities",
+      "featureEn": "Status Report Generator",
+      "featureAr": "مولّد تقارير الحالة",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "no",
+      "Procore": "no"
+    },
+    {
+      "section": "AI capabilities",
+      "featureEn": "Resource Optimization",
+      "featureAr": "تحسين الموارد",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "no",
+      "Procore": "no"
+    },
+    {
+      "section": "AI capabilities",
+      "featureEn": "Gantt Chart Generator",
+      "featureAr": "مولّد مخطط جانت",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "no",
+      "Procore": "no"
+    },
+    {
+      "section": "AI capabilities",
+      "featureEn": "Super Agent",
+      "featureAr": "الوكيل الخارق",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "no",
+      "Procore": "no"
+    },
+    {
+      "section": "AI capabilities",
+      "featureEn": "Automation",
+      "featureAr": "الأتمتة",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "no",
+      "Procore": "no"
+    },
+    {
+      "section": "AI capabilities",
+      "featureEn": "Strategy Generator",
+      "featureAr": "مولّد الاستراتيجية",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "no",
+      "Procore": "no"
+    },
+    {
+      "section": "AI capabilities",
+      "featureEn": "PMO & C-Level Analysis",
+      "featureAr": "تحليل PMO والمستوى التنفيذي",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "no",
+      "Procore": "no"
+    },
+    {
+      "section": "Scheduling & control",
+      "featureEn": "Critical Path (CPM)",
+      "featureAr": "المسار الحرج (CPM)",
+      "Tornix": "yes",
+      "Primavera P6": "partial",
+      "MS Project": "partial",
+      "Procore": "limited"
+    },
+    {
+      "section": "Scheduling & control",
+      "featureEn": "Earned Value (EVM)",
+      "featureAr": "القيمة المكتسبة (EVM)",
+      "Tornix": "yes",
+      "Primavera P6": "partial",
+      "MS Project": "limited",
+      "Procore": "no"
+    },
+    {
+      "section": "Scheduling & control",
+      "featureEn": "P6 Import / Export",
+      "featureAr": "استيراد / تصدير P6",
+      "Tornix": "yes",
+      "Primavera P6": "partial",
+      "MS Project": "limited",
+      "Procore": "partial"
+    },
+    {
+      "section": "MENA & usability",
+      "featureEn": "Arabic RTL Support",
+      "featureAr": "دعم العربية RTL",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "limited",
+      "Procore": "no"
+    },
+    {
+      "section": "MENA & usability",
+      "featureEn": "Built for Construction",
+      "featureAr": "مخصص للبناء",
+      "Tornix": "yes",
+      "Primavera P6": "partial",
+      "MS Project": "limited",
+      "Procore": "partial"
+    },
+    {
+      "section": "MENA & usability",
+      "featureEn": "Modern UI",
+      "featureAr": "واجهة حديثة",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "limited",
+      "Procore": "partial"
+    },
+    {
+      "section": "MENA & usability",
+      "featureEn": "Easy to Learn",
+      "featureAr": "سهل التعلم",
+      "Tornix": "yes",
+      "Primavera P6": "no",
+      "MS Project": "limited",
+      "Procore": "partial"
+    }
+  ]
+}

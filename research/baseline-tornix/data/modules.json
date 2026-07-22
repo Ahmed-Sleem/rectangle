@@ -1,0 +1,225 @@
+{
+  "collectedAt": "2026-07-22",
+  "claims": {
+    "moduleCount": "17+",
+    "groups": {
+      "projectExecution": 5,
+      "collaboration": 4,
+      "costAndControl": 4,
+      "intelligence": 3
+    }
+  },
+  "navItems": [
+    {"id": "home", "ar": "الرئيسية", "en": "Home"},
+    {"id": "projects", "ar": "المشاريع", "en": "Projects"},
+    {"id": "tasks", "ar": "المهام", "en": "Tasks"},
+    {"id": "mail", "ar": "البريد", "en": "Mail"},
+    {"id": "chats", "ar": "المحادثات", "en": "Chats"},
+    {"id": "calendar", "ar": "التقويم", "en": "Calendar"},
+    {"id": "meetings", "ar": "الاجتماعات", "en": "Meetings"},
+    {"id": "risks", "ar": "المخاطر والمشاكل", "en": "Risks & Issues"},
+    {"id": "documents", "ar": "المستندات", "en": "Documents"},
+    {"id": "requests", "ar": "الطلبات", "en": "Requests"},
+    {"id": "team", "ar": "الفريق", "en": "Team"},
+    {"id": "procurement", "ar": "المشتريات", "en": "Procurement"},
+    {"id": "costs", "ar": "التكاليف", "en": "Costs"},
+    {"id": "library", "ar": "المكتبة", "en": "Library"},
+    {"id": "strategy", "ar": "الاستراتيجية", "en": "Strategy"},
+    {"id": "pmo", "ar": "لوحة PMO", "en": "PMO Dashboard"}
+  ],
+  "modules": [
+    {
+      "id": "dashboard",
+      "ar": "لوحة التحكم",
+      "en": "Dashboard / Command Center",
+      "summaryEn": "Instant stakeholder snapshot of on-track, at-risk, and decision-needed items.",
+      "summaryAr": "مشروعك بنظرة واحدة قبل قهوتك الأولى — وضوح فوري بدون بحث أو مكالمات."
+    },
+    {
+      "id": "projects",
+      "ar": "المشاريع",
+      "en": "Projects",
+      "summaryEn": "Manage one site or fifty; AI can build structure from BOQ.",
+      "summaryAr": "مكان واحد لكل مشروع؛ الذكاء الاصطناعي يبني الهيكل من جدول الكميات."
+    },
+    {
+      "id": "tasks",
+      "ar": "المهام",
+      "en": "Tasks",
+      "summaryEn": "Kanban/list, priorities, deadlines, auto follow-up.",
+      "summaryAr": "كانبان أو قائمة، أولويات ومواعيد ومتابعة تلقائية."
+    },
+    {
+      "id": "calendar",
+      "ar": "التقويم",
+      "en": "Calendar",
+      "summaryEn": "Deadlines, milestones, meetings, inspections in one timeline.",
+      "summaryAr": "يربط المواعيد النهائية والمعالم والاجتماعات والفحوصات."
+    },
+    {
+      "id": "library",
+      "ar": "مكتبة إدارة المشاريع",
+      "en": "PM Library",
+      "summaryEn": "Searchable institutional knowledge: templates, BOQs, lessons, compliance.",
+      "summaryAr": "معرفة مؤسسية قابلة للبحث وإعادة الاستخدام مع مساعدة AI."
+    },
+    {
+      "id": "documents",
+      "ar": "المستندات",
+      "en": "Documents",
+      "summaryEn": "Single source of truth with version control; CAD/blueprint support.",
+      "summaryAr": "مصدر حقيقة واحد للعقود والرسوم مع التحكم بالإصدارات."
+    },
+    {
+      "id": "chats",
+      "ar": "المحادثات",
+      "en": "Chats",
+      "summaryEn": "Project-linked chat; AI thread summaries; AR/EN.",
+      "summaryAr": "محادثات مربوطة بالمشروع؛ AI يلخص؛ بديل عن ضياع قرارات واتساب."
+    },
+    {
+      "id": "mail",
+      "ar": "البريد",
+      "en": "Mail",
+      "summaryEn": "In-platform email auto-linked to projects and tasks.",
+      "summaryAr": "بريد مهني مدمج مربوط تلقائياً بالسياق."
+    },
+    {
+      "id": "meetings",
+      "ar": "الاجتماعات",
+      "en": "Meetings",
+      "summaryEn": "Schedule/join, auto-transcription, smart summaries.",
+      "summaryAr": "جدولة وانضمام مع تفريغ وتلخيص ذكي."
+    },
+    {
+      "id": "risks",
+      "ar": "المخاطر والمشاكل",
+      "en": "Risks & Issues",
+      "summaryEn": "Register, 5x5 matrix, AI scoring, mitigations, critical-path impact.",
+      "summaryAr": "تسجيل وتقييم وتخفيف مع مصفوفة 5×5 وتحليل AI."
+    },
+    {
+      "id": "requests",
+      "ar": "الطلبات والموافقات",
+      "en": "Requests & Approvals",
+      "summaryEn": "Approval workflows; visual DAG builder; templates.",
+      "summaryAr": "دورة موافقات ذكية من التقديم للاعتماد النهائي."
+    },
+    {
+      "id": "team",
+      "ar": "الفريق",
+      "en": "Team",
+      "summaryEn": "Roles, permissions, workload, sentiment, skills coverage.",
+      "summaryAr": "أدوار وصلاحيات وعبء عمل ومعنويات الفريق."
+    },
+    {
+      "id": "procurement",
+      "ar": "المشتريات",
+      "en": "Procurement",
+      "summaryEn": "AI-assisted RFQ/RFP/PO/contracts and vendor management.",
+      "summaryAr": "طلبات وموردون وعقود بمساعدة الذكاء الاصطناعي."
+    },
+    {
+      "id": "costs",
+      "ar": "التكاليف",
+      "en": "Costs",
+      "summaryEn": "Baseline vs actual, change orders, cash flow, CPI/SPI/EVM.",
+      "summaryAr": "ميزانية فعلية مقابل الأساس مع القيمة المكتسبة."
+    },
+    {
+      "id": "strategy",
+      "ar": "الاستراتيجية",
+      "en": "Strategy",
+      "summaryEn": "BSC, live KPIs, four perspectives, benefits tracking.",
+      "summaryAr": "بطاقة أداء متوازن وKPI حية وربط الأهداف بالمشاريع."
+    },
+    {
+      "id": "pmo",
+      "ar": "لوحة PMO",
+      "en": "PMO Dashboard / Portfolio",
+      "summaryEn": "Portfolio budgets, risks, strategic alignment, program health.",
+      "summaryAr": "محفظة كاملة بميزانيات ومخاطر وتوافق استراتيجي."
+    },
+    {
+      "id": "time_tracking",
+      "ar": "تتبع الوقت",
+      "en": "Time Tracking",
+      "summaryEn": "Hours per task with exportable billing/analysis reports.",
+      "summaryAr": "تسجيل ساعات لكل مهمة وتقارير قابلة للتصدير."
+    }
+  ],
+  "aiAgents": [
+    {"id": "super_agent", "ar": "الوكيل الخارق", "en": "AI Super Agent / AI Twin"},
+    {"id": "scheduling", "ar": "وكيل الجدولة", "en": "Scheduling agent"},
+    {"id": "cost", "ar": "وكيل التكلفة", "en": "Cost agent"},
+    {"id": "risk", "ar": "وكيل المخاطر", "en": "Risk agent"},
+    {"id": "reporting", "ar": "وكيل التقارير", "en": "Reporting agent"},
+    {"id": "documents", "ar": "وكيل المستندات", "en": "Documents agent"},
+    {"id": "memory", "ar": "وكيل الذاكرة", "en": "Memory agent"},
+    {"id": "pmo", "ar": "وكيل PMO", "en": "PMO agent"}
+  ],
+  "aiCapabilities": [
+    "Auto scheduling from BOQ",
+    "Risk detection",
+    "Monte Carlo simulation",
+    "Status report generator",
+    "Resource optimization",
+    "Gantt chart generator",
+    "Strategy generator",
+    "PMO & C-level analysis",
+    "Meeting transcription & summaries",
+    "AI notetaker",
+    "Blueprint item extraction",
+    "Voice-to-AI assistant",
+    "Interactive AI cards/charts",
+    "Team sentiment analysis"
+  ],
+  "pmControls": [
+    "CPM (Critical Path Method)",
+    "EVM (Earned Value Management)",
+    "CPI / SPI",
+    "P6 import/export",
+    "Baseline comparison",
+    "Resource leveling",
+    "Delay detection",
+    "5x5 risk matrix"
+  ],
+  "capabilityChips": [
+    {"ar": "الاجتماعات", "en": "Meetings"},
+    {"ar": "الجدولة", "en": "Scheduling"},
+    {"ar": "لوحات كانبان", "en": "Kanban boards"},
+    {"ar": "المستندات", "en": "Documents"},
+    {"ar": "مخططات جانت", "en": "Gantt charts"},
+    {"ar": "الاعتمادات", "en": "Approvals"},
+    {"ar": "الأتمتة", "en": "Automation"},
+    {"ar": "عرض المستوى التنفيذي", "en": "Executive view"},
+    {"ar": "الأولويات", "en": "Priorities"},
+    {"ar": "التبعيات", "en": "Dependencies"},
+    {"ar": "رادار مخاطر AI", "en": "AI Risk Radar"},
+    {"ar": "التذكيرات", "en": "Reminders"},
+    {"ar": "الوكيل الخارق AI", "en": "AI Super Agent"},
+    {"ar": "التوقعات", "en": "Forecasts"},
+    {"ar": "خرائط الطريق", "en": "Roadmaps"},
+    {"ar": "ملخص الصحة", "en": "Health summary"},
+    {"ar": "قوائم المراجعة", "en": "Checklists"},
+    {"ar": "مكتبة PM", "en": "PM Library"},
+    {"ar": "التقارير", "en": "Reports"},
+    {"ar": "القوالب", "en": "Templates"},
+    {"ar": "رسومات CAD", "en": "CAD drawings"},
+    {"ar": "تقدير الوقت", "en": "Time estimation"},
+    {"ar": "بحث متقدم", "en": "Advanced search"},
+    {"ar": "لوحات التحكم", "en": "Dashboards"},
+    {"ar": "عروض AI", "en": "AI presentations"},
+    {"ar": "تحسين الموارد", "en": "Resource optimization"},
+    {"ar": "تتبع الوقت", "en": "Time tracking"},
+    {"ar": "الاستراتيجية", "en": "Strategy"},
+    {"ar": "تحليل التكاليف", "en": "Cost analysis"},
+    {"ar": "مدوّن AI", "en": "AI Notetaker"},
+    {"ar": "الفرق", "en": "Teams"},
+    {"ar": "البريد", "en": "Mail"},
+    {"ar": "المهام", "en": "Tasks"},
+    {"ar": "التقويم", "en": "Calendar"},
+    {"ar": "المعالم", "en": "Milestones"},
+    {"ar": "المحفظة", "en": "Portfolio"}
+  ]
+}

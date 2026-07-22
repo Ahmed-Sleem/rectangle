@@ -1,0 +1,140 @@
+{
+  "collectedAt": "2026-07-22",
+  "projects": [
+    {
+      "id": "openproject",
+      "name": "OpenProject",
+      "url": "https://www.openproject.org",
+      "github": "https://github.com/opf/openproject",
+      "license": "GPL-3.0 (Enterprise commercial)",
+      "stack": {
+        "backend": "Ruby on Rails 8",
+        "frontend": "Angular + Stimulus/Turbo",
+        "api": "Grape HAL+JSON",
+        "db": "PostgreSQL",
+        "jobs": "Redis + GoodJob"
+      },
+      "strengths": ["gantt", "hybrid_pm", "budgets_evm", "self_host", "permissions"],
+      "weaknesses": ["dated_ux", "weak_ai", "no_construction_field_objects"],
+      "bestFor": "Self-hosted enterprise PM with Gantt/EVM",
+      "profile": "open-source/openproject.md"
+    },
+    {
+      "id": "plane",
+      "name": "Plane",
+      "url": "https://plane.so",
+      "github": "https://github.com/makeplane/plane",
+      "license": "Open core (verify current)",
+      "stack": {
+        "backend": "Django",
+        "frontend": "Next.js historically; React Router+Vite migration noted 2026",
+        "db": "PostgreSQL",
+        "cache": "Redis/Valkey",
+        "queue": "RabbitMQ (full deploy)",
+        "storage": "S3/MinIO"
+      },
+      "strengths": ["modern_ux", "ai_agents", "views", "self_host_airgap"],
+      "weaknesses": ["no_evm", "no_construction_native", "ops_complexity"],
+      "bestFor": "AI-native work management base ideas",
+      "profile": "open-source/plane.md"
+    },
+    {
+      "id": "erpnext",
+      "name": "ERPNext",
+      "url": "https://erpnext.com",
+      "github": "https://github.com/frappe/erpnext",
+      "license": "GPL-3.0",
+      "stack": {
+        "framework": "Frappe",
+        "language": "Python + JS",
+        "db": "MariaDB/Postgres"
+      },
+      "strengths": ["project_costing", "workflows", "accounting_link", "doctype_speed"],
+      "weaknesses": ["not_field_drawing_ux", "construction_needs_custom"],
+      "bestFor": "SME contractor ERP+projects",
+      "profile": "open-source/erpnext-odoo.md"
+    },
+    {
+      "id": "odoo_project",
+      "name": "Odoo Project",
+      "url": "https://www.odoo.com",
+      "license": "LGPL core / Enterprise proprietary modules",
+      "strengths": ["ecosystem", "accounting", "planning"],
+      "weaknesses": ["edition_split", "vertical_depth_via_partners"],
+      "profile": "open-source/erpnext-odoo.md"
+    },
+    {
+      "id": "taiga",
+      "name": "Taiga",
+      "license": "MPL",
+      "strengths": ["agile_ux"],
+      "weaknesses": ["limited_portfolio_cost"],
+      "profile": "open-source/other-oss-pm.md"
+    },
+    {
+      "id": "leantime",
+      "name": "Leantime",
+      "strengths": ["lean_goals"],
+      "profile": "open-source/other-oss-pm.md"
+    },
+    {
+      "id": "vikunja",
+      "name": "Vikunja",
+      "stack": {"backend": "Go"},
+      "strengths": ["simple_tasks"],
+      "profile": "open-source/other-oss-pm.md"
+    },
+    {
+      "id": "focalboard",
+      "name": "Focalboard",
+      "strengths": ["boards", "mattermost_pair"],
+      "profile": "open-source/other-oss-pm.md"
+    },
+    {
+      "id": "kanboard",
+      "name": "Kanboard",
+      "strengths": ["minimal_kanban"],
+      "profile": "open-source/other-oss-pm.md"
+    },
+    {
+      "id": "projectlibre",
+      "name": "ProjectLibre",
+      "type": "desktop",
+      "strengths": ["cpm_desktop", "msp_alternative"],
+      "profile": "open-source/other-oss-pm.md"
+    },
+    {
+      "id": "ganttproject",
+      "name": "GanttProject",
+      "type": "desktop",
+      "strengths": ["gantt_teaching"],
+      "profile": "open-source/other-oss-pm.md"
+    },
+    {
+      "id": "tuleap",
+      "name": "Tuleap",
+      "strengths": ["full_alm"],
+      "weaknesses": ["heavy"],
+      "profile": "open-source/other-oss-pm.md"
+    },
+    {
+      "id": "nocobase",
+      "name": "NocoBase",
+      "strengths": ["plugin_platform", "custom_systems", "ai_employees_direction"],
+      "bestFor": "Build vertical apps quickly",
+      "profile": "open-source/other-oss-pm.md"
+    },
+    {
+      "id": "budibase",
+      "name": "Budibase",
+      "bestFor": "Internal tools approvals dashboards",
+      "profile": "open-source/other-oss-pm.md"
+    },
+    {
+      "id": "appsmith",
+      "name": "Appsmith",
+      "bestFor": "Internal admin tools",
+      "profile": "open-source/other-oss-pm.md"
+    }
+  ]
+}

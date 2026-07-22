@@ -1,0 +1,33 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.code-workspace
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*
+.gh-token
+
+# Dependencies / build (if code is added later)
+node_modules/
+.venv/
+__pycache__/
+dist/
+build/
+.next/
+coverage/
+.turbo/
+
+# Internal / local only (never publish)
+_working_docs/
+uploads/
+edgepilot-ai/
+*.local.md
+thinking/

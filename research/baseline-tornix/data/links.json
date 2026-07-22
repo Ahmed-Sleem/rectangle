@@ -1,0 +1,73 @@
+{
+  "collectedAt": "2026-07-22",
+  "brand": {
+    "nameEn": "Tornix",
+    "nameAr": "تورنكس",
+    "taglineEn": "Your Workflow Is Slowing You Down. Tornix Fixes That.",
+    "taglineAr": "سير عملك يبطئك — تورنكس يحل ذلك",
+    "promiseEn": "Ten years of productivity for your upcoming projects.",
+    "promiseAr": "عشر سنوات من الإنتاجية لمشاريعك القادمة.",
+    "category": "AI-Powered Construction Management / Enterprise PMO"
+  },
+  "urls": {
+    "marketing": "https://tornix.ai/",
+    "marketingWww": "https://www.tornix.ai/",
+    "appLogin": "https://app.tornix.ai/login",
+    "appRegister": "https://app.tornix.ai/register",
+    "appSignup": "https://app.tornix.ai/signup",
+    "iosAppStore": "https://apps.apple.com/sa/app/tornix-pmo/id6760791222",
+    "androidPlay": "https://play.google.com/store/apps/details?id=ai.tornix.mobile",
+    "ailigent": "https://ailigent.ai/",
+    "ailigentTornixCase": "https://ailigent.ai/work/tornix/",
+    "privacyReferencedIos": "https://www.tornix.ai/privacy-policy",
+    "privacyAndroidListing": "https://aboelmakarem.pro/privacy",
+    "robots": "https://tornix.ai/robots.txt",
+    "sitemap": "https://tornix.ai/sitemap.xml",
+    "openGraphImage": "https://tornix.ai/opengraph-image",
+    "twitterImage": "https://tornix.ai/twitter-image"
+  },
+  "appDeepLinksLabeled": [
+    "https://app.tornix.ai/dashboard",
+    "https://app.tornix.ai/strategy",
+    "https://app.tornix.ai/tasks",
+    "https://app.tornix.ai/assistant",
+    "https://app.tornix.ai/flows",
+    "https://app.tornix.ai/timeline",
+    "https://app.tornix.ai/portfolio",
+    "https://app.tornix.ai/approvals"
+  ],
+  "storeIds": {
+    "iosAppId": "6760791222",
+    "iosName": "Tornix PMO",
+    "androidPackage": "ai.tornix.mobile",
+    "androidName": "Tornix"
+  },
+  "contacts": {
+    "androidSupportEmail": "info@ailigent.ai",
+    "ailigentDemo": "https://ailigent.ai/#contact"
+  },
+  "people": {
+    "ceo": {
+      "name": "Dr. Ahmed Alsenosy",
+      "role": "Ailigent Founder & CEO",
+      "linkedin": "https://www.linkedin.com/in/alsenosy/"
+    },
+    "coFounder": {
+      "name": "Dr. Karem / Abo-Elmakarem Shohoud",
+      "role": "Ailigent Co-Founder",
+      "linkedin": "https://www.linkedin.com/in/abo-el-makarem-shohoud-745367244/",
+      "site": "https://aboelmakarem.pro",
+      "twitter": "https://twitter.com/karem_shohud",
+      "github": "https://github.com/karem505"
+    },
+    "iosDeveloperListing": "Ahmed Ibrahim",
+    "androidDeveloperListing": "Ailigent AI"
+  },
+  "statusAtCollection": {
+    "privacyOnTornixAi": "404",
+    "pricingPage": "not_found",
+    "termsPage": "not_found",
+    "sitemapEntries": ["https://tornix.ai"],
+    "sitemapLastmod": "2026-06-13T12:32:23.273Z"
+  }
+}
