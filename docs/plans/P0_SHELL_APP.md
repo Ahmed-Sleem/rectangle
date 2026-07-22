@@ -1,8 +1,8 @@
 # P0 — Rectangle shell app (GUI only, no feature pages)
 
-**Status:** DRAFT — awaiting product owner confirmation before execution  
+**Status:** EXECUTED — P0 complete (validated before push)  
 **Goal:** Production-ready **main shell** (dark chrome + white rectangle work surface) with **feature registry plumbing**, **zero real feature pages**, Railway-ready deploy config, tests, and CI hygiene.  
-**After confirmation:** Execute this file **strictly top-to-bottom** as a checklist. Do not skip steps. Do not implement feature pages (Overview content, Projects CRUD, etc.) in P0.
+**Execution:** Followed checklist A→J. Feature pages intentionally empty (P1+).
 
 ---
 

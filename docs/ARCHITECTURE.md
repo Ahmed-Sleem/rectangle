@@ -377,16 +377,21 @@ Reserve full micro-frontends for a future scale problem you don’t have yet.
 
 ## 12. Decision checklist (for product owner)
 
-Detailed executable plan: **[plans/P0_SHELL_APP.md](./plans/P0_SHELL_APP.md)** (confirm before coding).
+Detailed plan: **[plans/P0_SHELL_APP.md](./plans/P0_SHELL_APP.md)**.
 
-When ready to implement P0:
+### P0 status: **COMPLETE**
 
-- [ ] Owner replies `CONFIRM P0` on the plan  
-- [ ] Create `apps/web` with Vite React TS  
-- [ ] Port shell from `design/demo/shell.html`  
-- [ ] Add `FeatureModule` type + registry (empty pages only)  
-- [ ] Connect Railway → `apps/web`  
-- [ ] Confirm URL + auto-deploy on push  
+- [x] `apps/web` Vite + React + TypeScript shell  
+- [x] Design system shell (collapse, tokens, empty feature routes)  
+- [x] Feature registry (`import.meta.glob`)  
+- [x] Tests / lint / typecheck / production build  
+- [x] Railway config (`railway.toml` + `apps/web` docs)  
+- [ ] Owner connects Railway → GitHub (manual)  
+
+### Next (P1)
+
+- [ ] Real Overview / feature page content  
+- [ ] i18n + RTL  
 
 ---
 

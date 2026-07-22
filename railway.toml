@@ -1,0 +1,12 @@
+# Rectangle web shell — use when Railway root is the monorepo root.
+# Prefer setting Railway "Root Directory" to apps/web and simpler commands there.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm ci --prefix apps/web && npm run build --prefix apps/web"
+
+[deploy]
+startCommand = "npm run start --prefix apps/web"
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"

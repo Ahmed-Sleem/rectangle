@@ -1,0 +1,69 @@
+/**
+ * Rectangle design tokens
+ * Source of truth: design/tokens/shell.tokens.json (monorepo root)
+ */
+:root {
+  --rect-chrome-bg: #0b0b0b;
+  --rect-nav-text: rgba(255, 255, 255, 0.5);
+  --rect-nav-text-emphasis: #ffffff;
+  --rect-nav-hover-bg: rgba(255, 255, 255, 0.06);
+  --rect-nav-active-bg: rgba(255, 255, 255, 0.08);
+  --rect-logo: #ffffff;
+
+  --rect-surface-bg: #ffffff;
+  --rect-surface-border: #000000;
+  --rect-surface-divider: #f0f0f0;
+  --rect-text-primary: #111111;
+  --rect-text-secondary: #888888;
+  --rect-text-muted: #aaaaaa;
+  --rect-card-bg: #f8f9fa;
+  --rect-card-border: #eaeaea;
+  --rect-badge-bg: #f5f5f5;
+  --rect-badge-border: #e0e0e0;
+  --rect-badge-text: #333333;
+
+  --rect-toggle-bg: #ffffff;
+  --rect-toggle-bg-hover: #f5f5f5;
+  --rect-toggle-border: #e8e8e8;
+  --rect-toggle-border-hover: #cccccc;
+  --rect-toggle-icon: #333333;
+
+  --rect-body-padding: 16px;
+  --rect-body-padding-mobile: 8px;
+  --rect-app-gap: 12px;
+  --rect-menu-width: 160px;
+  --rect-menu-width-collapsed: 52px;
+  --rect-menu-padding-x: 6px;
+  --rect-menu-padding-y: 12px;
+  --rect-panel-radius: 32px;
+  --rect-panel-radius-mobile: 24px;
+  --rect-panel-border-width: 4px;
+  --rect-panel-padding: 28px 32px;
+  --rect-panel-padding-mobile: 16px;
+  --rect-nav-item-radius: 10px;
+  --rect-card-radius: 16px;
+  --rect-pill-radius: 40px;
+  --rect-toggle-size: 34px;
+  --rect-toggle-size-mobile: 28px;
+  --rect-nav-icon: 22px;
+  --rect-min-nav-item-height: 44px;
+  --rect-panel-stack-gap: 24px;
+
+  --rect-shadow-panel: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  --rect-shadow-panel-hover: 0 30px 60px -12px rgba(0, 0, 0, 0.9);
+  --rect-shadow-toggle: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --rect-shadow-toggle-hover: 0 6px 24px rgba(0, 0, 0, 0.15);
+
+  --rect-motion-menu: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  --rect-motion-nav: 0.2s ease;
+  --rect-motion-toggle: 0.25s ease;
+  --rect-motion-spring: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --rect-motion-label: 0.3s ease;
+
+  --rect-z-menu: 1;
+  --rect-z-panel: 2;
+  --rect-z-edge: 25;
+  --rect-z-toggle: 30;
+
+  --rect-font: "Inter", system-ui, -apple-system, sans-serif;
+}

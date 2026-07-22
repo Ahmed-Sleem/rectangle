@@ -31,3 +31,10 @@ uploads/
 edgepilot-ai/
 *.local.md
 thinking/
+
+# App
+apps/web/dist/
+apps/*/node_modules/
+*.tsbuildinfo
+.vite/
+coverage/

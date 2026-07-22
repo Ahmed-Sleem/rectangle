@@ -4,9 +4,37 @@
 
 I kept running into the same mess on real projects: schedules in one tool, costs in another, risks in a spreadsheet, drawings in WhatsApp, and executives asking for a status that was already wrong by the time it was pasted into a slide.
 
-This repository is the **single home** for Rectangle: product research now, application code next.
+This repository is the **single home** for Rectangle: research, design system, and application code.
 
 > *Every side of the project. One frame.*
+
+---
+
+## Quick start (web shell)
+
+```bash
+cd apps/web
+npm ci
+npm run dev
+```
+
+Open http://localhost:5173 — dark chrome + white rectangle shell, collapsible nav, empty feature routes.
+
+```bash
+npm test && npm run lint && npm run typecheck && npm run build
+npm run start   # production static serve on PORT (default 3000)
+```
+
+More detail: [apps/web/README.md](./apps/web/README.md).
+
+### Railway
+
+1. New Project → Deploy from GitHub → `Ahmed-Sleem/rectangle`
+2. **Root Directory:** `apps/web` (recommended)
+3. Build: `npm ci && npm run build` · Start: `npm run start`
+4. Or use root [`railway.toml`](./railway.toml) with monorepo root
+
+Auto-deploy on `main` push. No secrets required for the shell.
 
 ---
 
@@ -14,47 +42,27 @@ This repository is the **single home** for Rectangle: product research now, appl
 
 ```text
 rectangle/
+├── apps/web/                # Vite + React shell (P0)
+├── design/                  # Approved GUI + tokens
+├── docs/                    # Architecture, naming, plans
+├── research/                # Product intelligence
+├── railway.toml
 ├── README.md
-├── LICENSE
-├── design/                  # Approved GUI direction + design system
-│   ├── README.md
-│   ├── DESIGN_SYSTEM.md
-│   ├── demo/shell.html      # Interactive shell demo
-│   └── tokens/
-├── docs/
-│   ├── NAMING.md
-│   └── ARCHITECTURE.md      # Shell + features + Railway
-└── research/                # Product intelligence
-    ├── INDEX.md
-    ├── baseline-tornix/
-    ├── landscape/
-    ├── competitors/
-    ├── open-source/
-    ├── building-blocks/
-    ├── synthesis/
-    ├── pricing/
-    ├── data/
-    └── sources/
+└── LICENSE
 ```
-
-App source (when added) lives alongside `design/` and `research/` (e.g. `apps/web`) — **same repo**.
 
 ---
 
-## Start with the research
+## Documentation
 
 | Doc | Why |
 |-----|-----|
-| [research/INDEX.md](./research/INDEX.md) | Full navigation |
-| [research/landscape/01-landscape-map.md](./research/landscape/01-landscape-map.md) | How the market is layered |
-| [research/synthesis/06-build-recommendations.md](./research/synthesis/06-build-recommendations.md) | Concrete build thesis |
-| [research/building-blocks/00-INDEX.md](./research/building-blocks/00-INDEX.md) | What you can fork, embed, or integrate |
-| [research/pricing/market-pricing-bands.md](./research/pricing/market-pricing-bands.md) | Min/max pricing of similar tools |
-| [docs/NAMING.md](./docs/NAMING.md) | Brand notes |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Shell + feature modules + Railway |
-| [docs/plans/P0_SHELL_APP.md](./docs/plans/P0_SHELL_APP.md) | **Executable P0 plan** (shell app checklist) |
+| [apps/web/README.md](./apps/web/README.md) | Run / build / Railway for the app |
 | [design/DESIGN_SYSTEM.md](./design/DESIGN_SYSTEM.md) | GUI tokens & shell spec |
-| [design/demo/shell.html](./design/demo/shell.html) | Open-in-browser design demo |
+| [design/demo/shell.html](./design/demo/shell.html) | Original HTML design demo |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Shell + feature modules + Railway |
+| [docs/plans/P0_SHELL_APP.md](./docs/plans/P0_SHELL_APP.md) | P0 execution plan |
+| [research/INDEX.md](./research/INDEX.md) | Research pack navigation |
 
 ---
 
@@ -63,31 +71,15 @@ App source (when added) lives alongside `design/` and `research/` (e.g. `apps/we
 | Phase | State |
 |-------|--------|
 | Competitive & OSS research | Complete (snapshot 2026-07-22) |
-| Building-block inventory | Complete |
-| Pricing landscape | Complete (third-party ranges) |
-| Product name | **Rectangle** (locked) |
-| Design direction | **Approved** (dark chrome + white rectangle shell) |
-| Monorepo | **This repo** — research + design; app scaffold pending |
-| Architecture direction | **Shell + feature modules** (modular monolith); Railway auto-deploy |
-| P0 shell plan | **Ready for confirmation** — [docs/plans/P0_SHELL_APP.md](./docs/plans/P0_SHELL_APP.md) |
-| Application code | Not started (awaiting `CONFIRM P0`) |
-
----
-
-## What this is *not*
-
-- Not a clone of any single vendor  
-- Not internal process notes or private credentials  
+| Design direction | **Approved** |
+| Product name | **Rectangle** |
+| **P0 shell app** | **Done** — registry + empty routes, tests green |
+| Feature pages | Not started (P1+) |
+| Railway connect | Owner: connect GitHub (config ready) |
 
 ---
 
 ## License
 
-Documentation in this repository is released under [MIT](./LICENSE) unless a subdirectory states otherwise.  
-Third-party products, trademarks, and linked projects remain the property of their owners. Research summaries are independent and may include vendor marketing claims marked as such.
-
----
-
-## Contributing
-
-Prefer small, factual PRs with sources when extending research. See [research/sources/bibliography.md](./research/sources/bibliography.md).
+MIT — see [LICENSE](./LICENSE).  
+Third-party products and trademarks remain their owners’.
