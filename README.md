@@ -16,22 +16,27 @@ This repository is the **single home** for Rectangle: product research now, appl
 rectangle/
 ├── README.md
 ├── LICENSE
+├── design/                  # Approved GUI direction + design system
+│   ├── README.md
+│   ├── DESIGN_SYSTEM.md
+│   ├── demo/shell.html      # Interactive shell demo
+│   └── tokens/
 ├── docs/
-│   └── NAMING.md            # Brand lock
-└── research/                # Product intelligence (current)
+│   └── NAMING.md
+└── research/                # Product intelligence
     ├── INDEX.md
-    ├── baseline-tornix/     # Reference product deep-dive
-    ├── landscape/           # Market map + feature taxonomy
-    ├── competitors/         # Commercial products
-    ├── open-source/         # OSS platforms
-    ├── building-blocks/     # Libraries & integration recipes
-    ├── synthesis/           # UX, backend, gaps, build plan
-    ├── pricing/             # Market pricing bands
-    ├── data/                # JSON matrices
-    └── sources/             # Bibliography
+    ├── baseline-tornix/
+    ├── landscape/
+    ├── competitors/
+    ├── open-source/
+    ├── building-blocks/
+    ├── synthesis/
+    ├── pricing/
+    ├── data/
+    └── sources/
 ```
 
-App source (when added) will live alongside `research/` (for example `apps/`, `packages/`) — **same repo**, not a second project.
+App source (when added) lives alongside `design/` and `research/` (e.g. `apps/web`) — **same repo**.
 
 ---
 
@@ -45,6 +50,8 @@ App source (when added) will live alongside `research/` (for example `apps/`, `p
 | [research/building-blocks/00-INDEX.md](./research/building-blocks/00-INDEX.md) | What you can fork, embed, or integrate |
 | [research/pricing/market-pricing-bands.md](./research/pricing/market-pricing-bands.md) | Min/max pricing of similar tools |
 | [docs/NAMING.md](./docs/NAMING.md) | Brand notes |
+| [design/DESIGN_SYSTEM.md](./design/DESIGN_SYSTEM.md) | GUI tokens & shell spec |
+| [design/demo/shell.html](./design/demo/shell.html) | Open-in-browser design demo |
 
 ---
 
@@ -56,7 +63,8 @@ App source (when added) will live alongside `research/` (for example `apps/`, `p
 | Building-block inventory | Complete |
 | Pricing landscape | Complete (third-party ranges) |
 | Product name | **Rectangle** (locked) |
-| Monorepo | **This repo** — research in tree; app scaffold pending |
+| Design direction | **Approved** (dark chrome + white rectangle shell) |
+| Monorepo | **This repo** — research + design; app scaffold pending |
 | Application code | Not started |
 
 ---

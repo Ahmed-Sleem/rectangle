@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard — Collapsible Menu</title>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+    <!-- Favicon: just "R" in Inter -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Ctext x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-family='Inter, sans-serif' font-size='48' font-weight='900' fill='%23000000'%3ER%3C/text%3E%3C/svg%3E" />
+    <style>
+        /* ── Reset & Base ── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0b0b0b;
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            display: flex;
+            padding: 16px;
+            color: #ffffff;
+            user-select: none;
+        }
+
+        /* ── App Container ── */
+        .app {
+            display: flex;
+            width: 100%;
+            gap: 12px;
+            transition: gap 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            z-index: 0;
+        }
+
+        /* ── LEFT MENU ── */
+        .menu {
+            display: flex;
+            flex-direction: column;
+            width: 160px;
+            flex-shrink: 0;
+            padding: 12px 6px;
+            gap: 2px;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Collapsed state ── */
+        .app.collapsed .menu {
+            width: 52px;
+            padding: 12px 4px;
+        }
+
+        .app.collapsed .menu .logo .logo-full {
+            display: none;
+        }
+        .app.collapsed .menu .logo .logo-short {
+            display: inline;
+        }
+
+        .app.collapsed .menu .menu-item {
+            padding: 10px 0;
+            justify-content: center;
+        }
+
+        .app.collapsed .menu .menu-item .menu-label {
+            display: none;
+        }
+
+        .app.collapsed .menu .menu-item .menu-icon {
+            margin-right: 0;
+        }
+
+        .app.collapsed .menu .menu-item .menu-icon svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        /* ── Logo (no animations) ── */
+        .logo {
+            font-family: 'Inter', sans-serif;
+            font-weight: 900;
+            font-size: 2rem;
+            letter-spacing: -0.03em;
+            color: #ffffff;
+            margin-bottom: 28px;
+            padding: 0 8px;
+            line-height: 1;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            transition: font-size 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: default;
+        }
+
+        .logo .logo-short {
+            display: none;
+        }
+
+        .app.collapsed .logo {
+            font-size: 1.8rem;
+            letter-spacing: 0;
+            text-align: center;
+            padding: 0;
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* ── Menu Items ── */
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            cursor: default;
+            letter-spacing: -0.01em;
+            gap: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            min-height: 44px;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #ffffff;
+        }
+
+        .menu-item.active {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .menu-item .menu-icon {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            margin-right: 4px;
+            transition: margin 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .menu-item .menu-icon svg {
+            width: 22px;
+            height: 22px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .menu-item .menu-label {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .app.collapsed .menu-item .menu-label {
+            opacity: 0;
+            transform: translateX(-8px);
+            width: 0;
+            overflow: hidden;
+            display: none;
+        }
+
+        .menu-spacer {
+            flex: 1;
+        }
+
+        /* ── RIGHT MAIN PANEL ── */
+        .main-panel {
+            flex: 1;
+            background: #ffffff;
+            border-radius: 32px;
+            border: 4px solid #000000;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            padding: 28px 32px;
+            overflow: visible;
+            transition: box-shadow 0.3s ease, border-radius 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .main-panel:hover {
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.9);
+        }
+
+        /* ── TOGGLE BUTTON ── */
+        .toggle-btn {
+            position: absolute;
+            left: -16px;
+            top: 50%;
+            transform: translateY(-50%) scale(0.85);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid #e8e8e8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.2s ease, background 0.2s ease;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            color: #333;
+            outline: none;
+            padding: 0;
+        }
+
+        .toggle-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            margin-left: 2px;
+        }
+
+        .main-panel .edge-hover-zone {
+            position: absolute;
+            left: -12px;
+            top: 0;
+            width: 32px;
+            height: 100%;
+            z-index: 25;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            border-top-left-radius: 32px;
+            border-bottom-left-radius: 32px;
+        }
+
+        .main-panel .edge-hover-zone:hover+.toggle-btn,
+        .main-panel .edge-hover-zone:hover~.toggle-btn,
+        .main-panel .toggle-btn:hover,
+        .main-panel .toggle-btn:focus-visible,
+        .app.collapsed .toggle-btn {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(-50%) scale(1);
+        }
+
+        .toggle-btn:hover {
+            background: #f5f5f5;
+            border-color: #ccc;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+        }
+
+        .toggle-btn:active {
+            transform: translateY(-50%) scale(0.92) !important;
+        }
+
+        .app.collapsed .toggle-btn svg {
+            transform: rotate(180deg);
+        }
+
+        /* ── Panel Content ── */
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 18px;
+        }
+
+        .panel-header h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #111;
+            letter-spacing: -0.02em;
+        }
+
+        .panel-header .badge {
+            background: #f5f5f5;
+            color: #333;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid #e0e0e0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 18px 20px;
+            border-radius: 16px;
+            border: 1px solid #eaeaea;
+        }
+
+        .stat-card .label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #111;
+            margin-top: 4px;
+            letter-spacing: -0.02em;
+        }
+
+        .chart-placeholder {
+            flex: 1;
+            background: #f8f9fa;
+            border-radius: 16px;
+            border: 1px solid #eaeaea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            font-weight: 600;
+            min-height: 160px;
+            background-image: linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
+                linear-gradient(-45deg, #f0f0f0 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #f0f0f0 75%),
+                linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        .chart-placeholder span {
+            background: white;
+            padding: 10px 24px;
+            border-radius: 40px;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+            font-size: 0.9rem;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            body {
+                padding: 8px;
+            }
+            .app {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .menu {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                padding: 8px 4px;
+                gap: 2px;
+                height: auto;
+                z-index: 1;
+            }
+            .logo {
+                font-size: 1.6rem;
+                margin-bottom: 8px;
+                width: 100%;
+            }
+            .menu-item {
+                padding: 6px 12px;
+                font-size: 0.85rem;
+                min-height: 36px;
+            }
+            .menu-item .menu-label {
+                display: inline;
+            }
+            .menu-item .menu-icon {
+                margin-right: 8px;
+            }
+            .menu-spacer {
+                display: none;
+            }
+            .main-panel {
+                padding: 16px;
+                border-radius: 24px;
+                z-index: 2;
+            }
+            .panel-header h1 {
+                font-size: 1.2rem;
+            }
+            .stat-card .value {
+                font-size: 1.4rem;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .toggle-btn {
+                left: -12px;
+                width: 28px;
+                height: 28px;
+            }
+            .toggle-btn svg {
+                width: 14px;
+                height: 14px;
+            }
+            .main-panel .edge-hover-zone {
+                width: 24px;
+                left: -8px;
+            }
+            /* mobile collapsed overrides */
+            .app.collapsed .menu {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                padding: 8px 4px;
+                gap: 2px;
+            }
+            .app.collapsed .menu .logo {
+                font-size: 1.4rem;
+                width: 100%;
+                text-align: left;
+                padding: 0 8px;
+                margin-bottom: 6px;
+            }
+            .app.collapsed .menu .logo .logo-full {
+                display: inline;
+            }
+            .app.collapsed .menu .logo .logo-short {
+                display: none;
+            }
+            .app.collapsed .menu .menu-item {
+                padding: 6px 10px;
+                justify-content: flex-start;
+                min-height: 32px;
+            }
+            .app.collapsed .menu .menu-item .menu-label {
+                display: inline;
+                opacity: 1;
+                transform: none;
+                width: auto;
+                font-size: 0.8rem;
+            }
+            .app.collapsed .menu .menu-item .menu-icon {
+                margin-right: 6px;
+            }
+            .app.collapsed .menu .menu-item .menu-icon svg {
+                width: 16px;
+                height: 16px;
+            }
+            .app.collapsed .toggle-btn {
+                opacity: 0.8;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .menu-item .menu-label {
+                font-size: 0.7rem;
+            }
+            .app.collapsed .menu .menu-item .menu-label {
+                font-size: 0.7rem;
+            }
+            .panel-header h1 {
+                font-size: 1rem;
+            }
+            .stat-card .value {
+                font-size: 1.2rem;
+            }
+            .toggle-btn {
+                left: -10px;
+                width: 24px;
+                height: 24px;
+            }
+            .toggle-btn svg {
+                width: 12px;
+                height: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app" id="app">
+        <!-- LEFT MENU -->
+        <aside class="menu" id="menu">
+            <!-- Logo: full text & short "R" (no animations) -->
+            <div class="logo">
+                <span class="logo-full">rectangle</span>
+                <span class="logo-short">R</span>
+            </div>
+
+            <!-- Menu Items with SVG icons -->
+            <div class="menu-item active">
+                <span class="menu-icon">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                </span>
+                <span class="menu-label">Overview</span>
+            </div>
+
+            <div class="menu-item">
+                <span class="menu-icon">
+                    <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                </span>
+                <span class="menu-label">Projects</span>
+            </div>
+
+            <div class="menu-item">
+                <span class="menu-icon">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                </span>
+                <span class="menu-label">Analytics</span>
+            </div>
+
+            <div class="menu-item">
+                <span class="menu-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>
+                </span>
+                <span class="menu-label">Team</span>
+            </div>
+
+            <div class="menu-item">
+                <span class="menu-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v3m0 16v3M4.22 4.22l2.12 2.12m11.32 11.32l2.12 2.12M1 12h3m16 0h3M4.22 19.78l2.12-2.12m11.32-11.32l2.12-2.12"/></svg>
+                </span>
+                <span class="menu-label">Settings</span>
+            </div>
+
+            <div class="menu-spacer"></div>
+
+            <!-- Footer items -->
+            <div class="menu-item" style="margin-top:8px; opacity:0.6;">
+                <span class="menu-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21v-2a7 7 0 0 0-14 0v2"/></svg>
+                </span>
+                <span class="menu-label">Profile</span>
+            </div>
+            <div class="menu-item" style="opacity:0.5;">
+                <span class="menu-icon">
+                    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </span>
+                <span class="menu-label">Logout</span>
+            </div>
+        </aside>
+
+        <!-- RIGHT MAIN PANEL -->
+        <main class="main-panel" id="mainPanel">
+            <!-- Invisible hover zone on left edge -->
+            <div class="edge-hover-zone" id="edgeHoverZone"></div>
+
+            <!-- Toggle Button (circle) -->
+            <button class="toggle-btn" id="toggleBtn" aria-label="Collapse menu" title="Collapse menu">
+                <svg viewBox="0 0 24 24">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+            </button>
+
+            <!-- Panel Content -->
+            <div class="panel-header">
+                <h1>Good afternoon, User</h1>
+                <span class="badge">Dashboard</span>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="label">Revenue</div>
+                    <div class="value">$48,295</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Visitors</div>
+                    <div class="value">2,401</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Conversion</div>
+                    <div class="value">12.4%</div>
+                </div>
+            </div>
+
+            <div class="chart-placeholder">
+                <span>📊 Chart Placeholder</span>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        (function() {
+            const app = document.getElementById('app');
+            const toggleBtn = document.getElementById('toggleBtn');
+            const edgeHoverZone = document.getElementById('edgeHoverZone');
+            const mainPanel = document.getElementById('mainPanel');
+
+            function toggleCollapsed() {
+                app.classList.toggle('collapsed');
+                const isCollapsed = app.classList.contains('collapsed');
+                toggleBtn.setAttribute('aria-label', isCollapsed ? 'Expand menu' : 'Collapse menu');
+                toggleBtn.title = isCollapsed ? 'Expand menu' : 'Collapse menu';
+            }
+
+            toggleBtn.addEventListener('click', toggleCollapsed);
+
+            toggleBtn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleCollapsed();
+                }
+            });
+
+            edgeHoverZone.addEventListener('click', toggleCollapsed);
+
+            mainPanel.addEventListener('dblclick', (e) => {
+                const rect = mainPanel.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                if (x < 40) {
+                    toggleCollapsed();
+                }
+            });
+
+            console.log('✨ Dashboard ready — toggle the menu with the circle button on the left edge.');
+        })();
+    </script>
+
+</body>
+</html>

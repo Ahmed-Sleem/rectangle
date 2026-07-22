@@ -1,0 +1,116 @@
+{
+  "$description": "Rectangle shell design tokens extracted from approved demo GUI",
+  "meta": {
+    "source": "design/demo/shell.html",
+    "brand": "Rectangle",
+    "version": "0.1.0"
+  },
+  "font": {
+    "family": "Inter, system-ui, sans-serif",
+    "weights": [400, 500, 600, 700, 900]
+  },
+  "color": {
+    "chrome": {
+      "bg": "#0b0b0b",
+      "navText": "rgba(255, 255, 255, 0.5)",
+      "navTextEmphasis": "#ffffff",
+      "navHoverBg": "rgba(255, 255, 255, 0.06)",
+      "navActiveBg": "rgba(255, 255, 255, 0.08)",
+      "logo": "#ffffff"
+    },
+    "surface": {
+      "bg": "#ffffff",
+      "border": "#000000",
+      "divider": "#f0f0f0",
+      "textPrimary": "#111111",
+      "textSecondary": "#888888",
+      "textMuted": "#aaaaaa",
+      "cardBg": "#f8f9fa",
+      "cardBorder": "#eaeaea",
+      "badgeBg": "#f5f5f5",
+      "badgeBorder": "#e0e0e0",
+      "badgeText": "#333333"
+    },
+    "toggle": {
+      "bg": "#ffffff",
+      "bgHover": "#f5f5f5",
+      "border": "#e8e8e8",
+      "borderHover": "#cccccc",
+      "icon": "#333333"
+    }
+  },
+  "space": {
+    "bodyPadding": 16,
+    "bodyPaddingMobile": 8,
+    "appGap": 12,
+    "menuPaddingX": 6,
+    "menuPaddingY": 12,
+    "menuItemPadding": "10px 14px",
+    "panelPadding": "28px 32px",
+    "panelPaddingMobile": 16,
+    "statsGap": 16,
+    "panelStackGap": 24
+  },
+  "size": {
+    "menuWidthExpanded": 160,
+    "menuWidthCollapsed": 52,
+    "navIcon": 22,
+    "navIconCollapsed": 22,
+    "toggle": 34,
+    "toggleMobile": 28,
+    "minNavItemHeight": 44
+  },
+  "radius": {
+    "panel": 32,
+    "panelMobile": 24,
+    "navItem": 10,
+    "card": 16,
+    "pill": 40,
+    "toggle": 9999
+  },
+  "border": {
+    "panelWidth": 4,
+    "cardWidth": 1,
+    "headerDividerWidth": 2,
+    "toggleWidth": 2
+  },
+  "shadow": {
+    "panel": "0 25px 50px -12px rgba(0, 0, 0, 0.8)",
+    "panelHover": "0 30px 60px -12px rgba(0, 0, 0, 0.9)",
+    "toggle": "0 4px 16px rgba(0, 0, 0, 0.12)",
+    "toggleHover": "0 6px 24px rgba(0, 0, 0, 0.15)"
+  },
+  "motion": {
+    "menu": "0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+    "navHover": "0.2s ease",
+    "toggleAppear": "0.25s ease",
+    "toggleSpring": "0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+    "labelFade": "0.3s ease"
+  },
+  "type": {
+    "logo": { "weight": 900, "size": "2rem", "tracking": "-0.03em" },
+    "logoCollapsed": { "weight": 900, "size": "1.8rem" },
+    "title": { "weight": 700, "size": "1.6rem", "tracking": "-0.02em", "color": "surface.textPrimary" },
+    "nav": { "weight": 500, "size": "0.95rem", "tracking": "-0.01em" },
+    "statLabel": { "weight": 600, "size": "0.8rem", "transform": "uppercase", "tracking": "0.03em" },
+    "statValue": { "weight": 700, "size": "1.8rem", "tracking": "-0.02em" },
+    "badge": { "weight": 600, "size": "0.8rem" }
+  },
+  "zIndex": {
+    "menu": 1,
+    "panel": 2,
+    "edgeZone": 25,
+    "toggle": 30
+  },
+  "nav": {
+    "primary": ["Overview", "Projects", "Analytics", "Team", "Settings"],
+    "footer": ["Profile", "Logout"],
+    "productMapping": {
+      "Overview": "Today / command center",
+      "Projects": "Projects portfolio",
+      "Analytics": "PMO health / reports / EVM",
+      "Team": "Team & workload",
+      "Settings": "Org settings & integrations"
+    }
+  }
+}
