@@ -1,15 +1,17 @@
-/* Rectangle app shell — tokens from shared/styles/tokens.css */
+/* Rectangle app shell — soft modern chrome */
 
 .rect-app {
   display: flex;
   width: 100%;
   height: 100%;
+  min-height: 100dvh;
   gap: var(--rect-app-gap);
   padding: var(--rect-body-padding);
   position: relative;
   z-index: 0;
   transition: gap var(--rect-motion-menu);
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* ── Side nav ── */
@@ -20,7 +22,7 @@
   width: var(--rect-menu-width);
   flex-shrink: 0;
   padding: var(--rect-menu-padding-y) var(--rect-menu-padding-x);
-  gap: 2px;
+  gap: 1px;
   overflow: hidden;
   position: relative;
   z-index: var(--rect-z-menu);
@@ -31,16 +33,16 @@
 
 .rect-app--collapsed .rect-nav {
   width: var(--rect-menu-width-collapsed);
-  padding: var(--rect-menu-padding-y) 4px;
+  padding: var(--rect-menu-padding-y) 2px;
 }
 
 .rect-logo {
   font-family: var(--rect-font);
   font-weight: 900;
-  font-size: 2rem;
-  letter-spacing: -0.03em;
+  font-size: 1.75rem;
+  letter-spacing: -0.04em;
   color: var(--rect-logo);
-  margin-bottom: 28px;
+  margin-bottom: 18px;
   padding: 0 8px;
   line-height: 1;
   white-space: nowrap;
@@ -52,12 +54,15 @@
 
 .rect-logo__short {
   display: none;
+  font-weight: 900;
+  letter-spacing: -0.06em;
 }
 
 .rect-app--collapsed .rect-logo {
-  font-size: 1.8rem;
-  letter-spacing: 0;
+  font-size: 1.35rem;
+  letter-spacing: -0.05em;
   padding: 0;
+  margin-bottom: 14px;
   width: 100%;
   justify-content: center;
 }
@@ -73,30 +78,30 @@
 .rect-nav__list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   list-style: none;
 }
 
 .rect-nav__spacer {
   flex: 1;
-  min-height: 8px;
+  min-height: 6px;
 }
 
 .rect-nav__footer {
-  margin-top: 8px;
-  opacity: 0.65;
+  margin-top: 6px;
+  opacity: 0.72;
 }
 
 .rect-nav-item {
   display: flex;
   align-items: center;
-  padding: 10px 14px;
+  padding: 7px 10px;
   border-radius: var(--rect-nav-item-radius);
   color: var(--rect-nav-text);
   font-weight: 500;
-  font-size: 0.95rem;
+  font-size: 0.8125rem;
   letter-spacing: -0.01em;
-  gap: 12px;
+  gap: 9px;
   white-space: nowrap;
   overflow: hidden;
   min-height: var(--rect-min-nav-item-height);
@@ -120,8 +125,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
+}
+
+.rect-nav-item__icon svg {
+  width: var(--rect-nav-icon);
+  height: var(--rect-nav-icon);
 }
 
 .rect-nav-item__label {
@@ -131,9 +141,10 @@
 }
 
 .rect-app--collapsed .rect-nav-item {
-  padding: 10px 0;
+  padding: 8px 0;
   justify-content: center;
   gap: 0;
+  min-height: 36px;
 }
 
 .rect-app--collapsed .rect-nav-item__label {
@@ -148,11 +159,12 @@
   border: 0;
 }
 
-/* ── Main panel (the Rectangle) ── */
+/* ── Main panel (the Rectangle) — above nav so toggle is never buried ── */
 
 .rect-panel {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   background: var(--rect-surface-bg);
   border-radius: var(--rect-panel-radius);
   border: var(--rect-panel-border-width) solid var(--rect-surface-border);
@@ -167,18 +179,25 @@
   transition:
     box-shadow 0.3s ease,
     border-radius var(--rect-motion-menu);
-  overflow: hidden;
+  overflow: visible; /* allow toggle to sit on the seam outside the clip */
 }
 
 .rect-panel:hover {
   box-shadow: var(--rect-shadow-panel-hover);
 }
 
+/* Content clips inside; chrome controls can overflow */
+.rect-panel__header,
+.rect-panel__body {
+  position: relative;
+  z-index: 1;
+}
+
 .rect-panel__edge {
   position: absolute;
-  left: -12px;
+  left: -14px;
   top: 0;
-  width: 32px;
+  width: 28px;
   height: 100%;
   z-index: var(--rect-z-edge);
   cursor: pointer;
@@ -186,23 +205,24 @@
   border-bottom-left-radius: var(--rect-panel-radius);
 }
 
+/* Toggle: always on the panel seam, above menu */
 .rect-toggle {
   position: absolute;
-  left: -16px;
+  left: -14px;
   top: 50%;
-  transform: translateY(-50%) scale(0.85);
+  transform: translateY(-50%);
   width: var(--rect-toggle-size);
   height: var(--rect-toggle-size);
-  border-radius: 50%;
+  border-radius: 999px;
   background: var(--rect-toggle-bg);
-  border: 2px solid var(--rect-toggle-border);
+  border: 1.5px solid var(--rect-toggle-border);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: var(--rect-z-toggle);
-  opacity: 0;
-  pointer-events: none;
+  opacity: 0.92;
+  pointer-events: auto;
   color: var(--rect-toggle-icon);
   box-shadow: var(--rect-shadow-toggle);
   transition:
@@ -215,19 +235,17 @@
 }
 
 .rect-toggle svg {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   transition: transform var(--rect-motion-spring);
-  margin-left: 2px;
+  flex-shrink: 0;
 }
 
 .rect-panel__edge:hover + .rect-toggle,
 .rect-toggle:hover,
-.rect-toggle:focus-visible,
-.rect-app--collapsed .rect-toggle {
+.rect-toggle:focus-visible {
   opacity: 1;
-  pointer-events: auto;
-  transform: translateY(-50%) scale(1);
+  transform: translateY(-50%) scale(1.06);
 }
 
 .rect-toggle:hover {
@@ -237,7 +255,12 @@
 }
 
 .rect-toggle:active {
-  transform: translateY(-50%) scale(0.92) !important;
+  transform: translateY(-50%) scale(0.94) !important;
+}
+
+.rect-app--collapsed .rect-toggle {
+  opacity: 1;
+  left: -14px;
 }
 
 .rect-app--collapsed .rect-toggle svg {
@@ -248,26 +271,31 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid var(--rect-surface-divider);
-  padding-bottom: 18px;
+  gap: 12px;
+  border-bottom: 1px solid var(--rect-surface-divider);
+  padding-bottom: 14px;
   flex-shrink: 0;
 }
 
 .rect-panel__title {
-  font-size: 1.6rem;
-  font-weight: 700;
+  font-size: 1.15rem;
+  font-weight: 800;
   color: var(--rect-text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
 }
 
 .rect-panel__badge {
   background: var(--rect-badge-bg);
   color: var(--rect-badge-text);
-  padding: 6px 16px;
+  padding: 5px 12px;
   border-radius: var(--rect-pill-radius);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 600;
   border: 1px solid var(--rect-badge-border);
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
 }
 
 .rect-panel__body {
@@ -275,7 +303,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  position: relative;
+  overflow: auto;
+  border-radius: calc(var(--rect-panel-radius) - 12px);
 }
 
 .rect-panel__fallback {
@@ -285,7 +314,7 @@
   justify-content: center;
   color: var(--rect-text-muted);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 /* Empty state */
@@ -295,31 +324,33 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
+  min-height: 180px;
+  padding: 8px;
 }
 
 .rect-empty__card {
   background: var(--rect-card-bg);
   border: 1px solid var(--rect-card-border);
   border-radius: var(--rect-card-radius);
-  padding: 32px 40px;
+  padding: 28px 32px;
   text-align: center;
-  max-width: 360px;
+  max-width: 340px;
+  width: 100%;
 }
 
 .rect-empty__title {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--rect-text-primary);
   letter-spacing: -0.02em;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .rect-empty__text {
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   color: var(--rect-text-secondary);
   font-weight: 500;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   line-height: 1.45;
 }
 
@@ -329,8 +360,8 @@
   color: var(--rect-badge-text);
   border: 1px solid var(--rect-badge-border);
   border-radius: var(--rect-pill-radius);
-  padding: 4px 12px;
-  font-size: 0.75rem;
+  padding: 4px 11px;
+  font-size: 0.7rem;
   font-weight: 600;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -351,50 +382,71 @@
 
 .rect-error__title {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
 .rect-error__text {
   color: var(--rect-text-secondary);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
-/* Responsive */
+/* ── Tablet ── */
+
+@media (max-width: 900px) {
+  .rect-app {
+    --rect-menu-width: 148px;
+    --rect-body-padding: 12px;
+    --rect-app-gap: 8px;
+  }
+
+  .rect-panel {
+    --rect-panel-padding: 20px 22px;
+    --rect-panel-radius: 24px;
+  }
+}
+
+/* ── Mobile ── */
 
 @media (max-width: 768px) {
   .rect-app {
     flex-direction: column;
     padding: var(--rect-body-padding-mobile);
     height: auto;
-    min-height: 100%;
+    min-height: 100dvh;
+    overflow: auto;
+    gap: 8px;
   }
 
   .rect-nav {
     width: 100%;
     flex-direction: row;
     flex-wrap: wrap;
-    padding: 8px 4px;
+    align-items: center;
+    padding: 6px 4px;
     height: auto;
+    gap: 2px;
   }
 
   .rect-app--collapsed .rect-nav {
     width: 100%;
     flex-direction: row;
     flex-wrap: wrap;
-    padding: 8px 4px;
+    padding: 6px 4px;
   }
 
   .rect-logo {
-    font-size: 1.6rem;
-    margin-bottom: 8px;
+    font-size: 1.35rem;
+    margin-bottom: 4px;
     width: 100%;
+    padding: 0 6px;
   }
 
   .rect-app--collapsed .rect-logo {
-    font-size: 1.4rem;
+    font-size: 1.25rem;
     width: 100%;
     justify-content: flex-start;
-    padding: 0 8px;
+    padding: 0 6px;
+    margin-bottom: 4px;
   }
 
   .rect-app--collapsed .rect-logo__full {
@@ -408,6 +460,7 @@
   .rect-nav__list {
     flex-direction: row;
     flex-wrap: wrap;
+    gap: 2px;
   }
 
   .rect-nav__spacer {
@@ -418,19 +471,21 @@
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    opacity: 0.65;
+    opacity: 0.75;
     margin-top: 0;
   }
 
   .rect-nav-item {
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    min-height: 36px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    min-height: 32px;
+    gap: 6px;
   }
 
   .rect-app--collapsed .rect-nav-item {
     padding: 6px 10px;
     justify-content: flex-start;
+    min-height: 32px;
   }
 
   .rect-app--collapsed .rect-nav-item__label {
@@ -440,53 +495,95 @@
     margin: 0;
     clip: auto;
     overflow: visible;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
   }
 
   .rect-panel {
     padding: var(--rect-panel-padding-mobile);
     border-radius: var(--rect-panel-radius-mobile);
-    min-height: 50vh;
+    min-height: min(60dvh, 520px);
+    flex: 1;
+    overflow: hidden;
   }
 
   .rect-panel__title {
-    font-size: 1.2rem;
+    font-size: 0.95rem;
+    letter-spacing: 0.08em;
   }
 
+  .rect-panel__badge {
+    font-size: 0.68rem;
+    padding: 4px 10px;
+  }
+
+  /* On mobile, pin toggle top-left of panel so it is never under a side menu */
   .rect-toggle {
-    left: -12px;
+    left: 10px;
+    top: 10px;
+    transform: none;
     width: var(--rect-toggle-size-mobile);
     height: var(--rect-toggle-size-mobile);
+    opacity: 1;
+  }
+
+  .rect-panel__edge:hover + .rect-toggle,
+  .rect-toggle:hover,
+  .rect-toggle:focus-visible,
+  .rect-app--collapsed .rect-toggle {
+    transform: none;
+    opacity: 1;
+  }
+
+  .rect-toggle:active {
+    transform: scale(0.94) !important;
+  }
+
+  .rect-app--collapsed .rect-toggle {
+    left: 10px;
   }
 
   .rect-toggle svg {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
   }
 
   .rect-panel__edge {
-    width: 24px;
-    left: -8px;
+    display: none;
+  }
+
+  .rect-panel__header {
+    padding-left: 36px; /* room for floating toggle */
   }
 }
 
 @media (max-width: 480px) {
   .rect-nav-item {
     font-size: 0.7rem;
+    padding: 5px 8px;
   }
 
   .rect-panel__title {
-    font-size: 1rem;
+    font-size: 0.85rem;
   }
 
-  .rect-toggle {
-    left: -10px;
-    width: 24px;
-    height: 24px;
+  .rect-empty__card {
+    padding: 22px 18px;
   }
 
-  .rect-toggle svg {
-    width: 12px;
-    height: 12px;
+  .rect-logo {
+    font-size: 1.2rem;
+  }
+}
+
+/* Prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .rect-app,
+  .rect-nav,
+  .rect-nav-item,
+  .rect-toggle,
+  .rect-toggle svg,
+  .rect-panel,
+  .rect-logo {
+    transition: none !important;
   }
 }

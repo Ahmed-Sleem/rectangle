@@ -22,8 +22,8 @@ const ICON_MAP: Record<FeatureIconName, LucideIcon> = {
 
 export function FeatureIcon({
   name,
-  size = 22,
-  strokeWidth = 2,
+  size = 18,
+  strokeWidth = 1.85,
   className,
 }: {
   name: FeatureIconName;

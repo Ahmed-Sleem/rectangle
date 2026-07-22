@@ -4,6 +4,7 @@ import { AppShell } from "@/shell/AppShell";
 import { getFeatureByPath } from "@/shell/registry";
 
 const STORAGE_KEY = "rectangle.shell.collapsed";
+const PAGE_TITLE = "RECTANGLE";
 
 function readCollapsed(): boolean {
   if (typeof window === "undefined") return false;
@@ -28,8 +29,9 @@ export function AppShellLayout() {
   const location = useLocation();
   const feature = getFeatureByPath(location.pathname);
 
-  const title = feature?.title ?? "Not found";
-  const badge = feature?.title ?? "Rectangle";
+  /** Panel brand title is always RECTANGLE; badge shows active module. */
+  const title = PAGE_TITLE;
+  const badge = feature?.title ?? "Home";
 
   const onToggle = useCallback(() => {
     setCollapsed((prev) => {
@@ -40,10 +42,8 @@ export function AppShellLayout() {
   }, []);
 
   useEffect(() => {
-    document.title = feature
-      ? `${feature.title} — Rectangle`
-      : "Not found — Rectangle";
-  }, [feature]);
+    document.title = PAGE_TITLE;
+  }, [location.pathname]);
 
   return (
     <AppShell

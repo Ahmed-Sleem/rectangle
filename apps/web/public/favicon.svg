@@ -1,12 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- White bold Inter-style R on transparent (reads on dark browser chrome) -->
   <text
     x="50%"
     y="54%"
     dominant-baseline="middle"
     text-anchor="middle"
-    font-family="Inter, system-ui, sans-serif"
-    font-size="48"
+    font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    font-size="52"
     font-weight="900"
-    fill="#000000"
+    fill="#ffffff"
   >R</text>
 </svg>

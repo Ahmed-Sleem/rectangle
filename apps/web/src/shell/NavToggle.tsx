@@ -1,5 +1,9 @@
-import { ChevronLeft } from "lucide-react";
+import { ChevronsLeft } from "lucide-react";
 
+/**
+ * Seam control between chrome nav and the white rectangle.
+ * Always painted above the side menu (panel z-index > nav).
+ */
 export function NavToggle({
   collapsed,
   onToggle,
@@ -19,7 +23,7 @@ export function NavToggle({
       aria-label={collapsed ? "Expand menu" : "Collapse menu"}
       title={collapsed ? "Expand menu" : "Collapse menu"}
     >
-      <ChevronLeft strokeWidth={2.5} aria-hidden />
+      <ChevronsLeft strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
     </button>
   );
 }

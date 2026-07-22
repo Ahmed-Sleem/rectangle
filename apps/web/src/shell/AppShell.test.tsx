@@ -53,21 +53,20 @@ describe("AppShell", () => {
     window.localStorage.clear();
   });
 
-  it("renders the rectangle wordmark", async () => {
+  it("renders the rectangle wordmark and RECTANGLE title", async () => {
     renderApp("/");
     expect(await screen.findByText("rectangle")).toBeInTheDocument();
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Overview" }),
+      await screen.findByRole("heading", { level: 1, name: "RECTANGLE" }),
     ).toBeInTheDocument();
+    expect(document.title).toBe("RECTANGLE");
   });
 
-  it("toggles collapse and shows R", async () => {
+  it("toggles collapse", async () => {
     renderApp("/");
     await screen.findByText("rectangle");
 
     const toggle = screen.getByRole("button", { name: /collapse menu/i });
-    // Toggle is opacity/pointer-events gated until hover (demo parity).
-    // fireEvent exercises the handler without CSS pointer-events checks.
     fireEvent.click(toggle);
 
     expect(screen.getByTestId("app-shell")).toHaveClass("rect-app--collapsed");
@@ -79,14 +78,12 @@ describe("AppShell", () => {
   it("navigates to projects via nav", async () => {
     const user = userEvent.setup();
     renderApp("/");
-    await screen.findByRole("heading", { level: 1, name: "Overview" });
+    await screen.findByRole("heading", { level: 1, name: "RECTANGLE" });
 
     await user.click(screen.getByRole("link", { name: "Projects" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("heading", { level: 1, name: "Projects" }),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Projects", { selector: ".rect-panel__badge" })).toBeInTheDocument();
     });
 
     expect(
@@ -96,5 +93,6 @@ describe("AppShell", () => {
       "aria-current",
       "page",
     );
+    expect(document.title).toBe("RECTANGLE");
   });
 });
