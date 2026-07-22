@@ -377,14 +377,16 @@ Reserve full micro-frontends for a future scale problem you don’t have yet.
 
 ## 12. Decision checklist (for product owner)
 
-When ready to implement:
+Detailed executable plan: **[plans/P0_SHELL_APP.md](./plans/P0_SHELL_APP.md)** (confirm before coding).
 
+When ready to implement P0:
+
+- [ ] Owner replies `CONFIRM P0` on the plan  
 - [ ] Create `apps/web` with Vite React TS  
 - [ ] Port shell from `design/demo/shell.html`  
-- [ ] Add `FeatureModule` type + registry  
+- [ ] Add `FeatureModule` type + registry (empty pages only)  
 - [ ] Connect Railway → `apps/web`  
 - [ ] Confirm URL + auto-deploy on push  
-- [ ] Add `_template` feature and one real stub  
 
 ---
 

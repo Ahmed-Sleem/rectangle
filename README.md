@@ -52,6 +52,7 @@ App source (when added) lives alongside `design/` and `research/` (e.g. `apps/we
 | [research/pricing/market-pricing-bands.md](./research/pricing/market-pricing-bands.md) | Min/max pricing of similar tools |
 | [docs/NAMING.md](./docs/NAMING.md) | Brand notes |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Shell + feature modules + Railway |
+| [docs/plans/P0_SHELL_APP.md](./docs/plans/P0_SHELL_APP.md) | **Executable P0 plan** (shell app checklist) |
 | [design/DESIGN_SYSTEM.md](./design/DESIGN_SYSTEM.md) | GUI tokens & shell spec |
 | [design/demo/shell.html](./design/demo/shell.html) | Open-in-browser design demo |
 
@@ -68,7 +69,8 @@ App source (when added) lives alongside `design/` and `research/` (e.g. `apps/we
 | Design direction | **Approved** (dark chrome + white rectangle shell) |
 | Monorepo | **This repo** — research + design; app scaffold pending |
 | Architecture direction | **Shell + feature modules** (modular monolith); Railway auto-deploy |
-| Application code | Not started |
+| P0 shell plan | **Ready for confirmation** — [docs/plans/P0_SHELL_APP.md](./docs/plans/P0_SHELL_APP.md) |
+| Application code | Not started (awaiting `CONFIRM P0`) |
 
 ---
 
