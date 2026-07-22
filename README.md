@@ -29,12 +29,14 @@ More detail: [apps/web/README.md](./apps/web/README.md).
 
 ### Railway
 
-1. New Project → Deploy from GitHub → `Ahmed-Sleem/rectangle`
-2. **Root Directory:** `apps/web` (recommended)
-3. Build: `npm ci && npm run build` · Start: `npm run start`
-4. Or use root [`railway.toml`](./railway.toml) with monorepo root
+**Ready to connect** — step-by-step: [docs/DEPLOY_RAILWAY.md](./docs/DEPLOY_RAILWAY.md)
 
-Auto-deploy on `main` push. No secrets required for the shell.
+1. New Project → Deploy from GitHub → `Ahmed-Sleem/rectangle`
+2. **Root Directory:** `apps/web`
+3. Build: `npm ci --include=dev && npm run build` · Start: `npm run start`
+4. Generate domain · auto-deploy on `main`
+
+Local parity check: `cd apps/web && npm run verify:deploy`
 
 ---
 
@@ -62,6 +64,7 @@ rectangle/
 | [design/demo/shell.html](./design/demo/shell.html) | Original HTML design demo |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Shell + feature modules + Railway |
 | [docs/plans/P0_SHELL_APP.md](./docs/plans/P0_SHELL_APP.md) | P0 execution plan |
+| [docs/DEPLOY_RAILWAY.md](./docs/DEPLOY_RAILWAY.md) | **Railway connect checklist** |
 | [research/INDEX.md](./research/INDEX.md) | Research pack navigation |
 
 ---
@@ -74,8 +77,9 @@ rectangle/
 | Design direction | **Approved** |
 | Product name | **Rectangle** |
 | **P0 shell app** | **Done** — registry + empty routes, tests green |
+| Railway config | **Ready** — [docs/DEPLOY_RAILWAY.md](./docs/DEPLOY_RAILWAY.md) |
 | Feature pages | Not started (P1+) |
-| Railway connect | Owner: connect GitHub (config ready) |
+| Railway connect | Your step: connect GitHub (see deploy guide) |
 
 ---
 

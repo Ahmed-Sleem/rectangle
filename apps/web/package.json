@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "oxlint src",
-    "typecheck": "tsc -b --pretty false"
+    "typecheck": "tsc -b --pretty false",
+    "verify:deploy": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

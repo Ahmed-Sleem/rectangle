@@ -1,0 +1,14 @@
+# Use when Railway "Root Directory" = apps/web  (RECOMMENDED)
+# Docs: docs/DEPLOY_RAILWAY.md
+
+[build]
+# Let Railway default builder (Railpack/Nixpacks) detect Node.
+# Force full install so TypeScript + Vite (devDependencies) exist during build.
+buildCommand = "npm ci --include=dev && npm run build"
+
+[deploy]
+# serve is a production dependency. -s = SPA fallback for React Router.
+startCommand = "npm run start"
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
