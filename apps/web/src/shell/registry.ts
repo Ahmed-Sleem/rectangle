@@ -1,3 +1,4 @@
+import { applyFeatureConfig, rectangleFeatureConfig } from "@/app/feature-config";
 import type { FeatureModule, NavGroup } from "./feature-types";
 
 /**
@@ -38,7 +39,7 @@ function collectFeatures(): FeatureModule[] {
   return list.sort((a, b) => a.order - b.order);
 }
 
-const ALL_FEATURES = collectFeatures();
+const ALL_FEATURES = applyFeatureConfig(collectFeatures(), rectangleFeatureConfig);
 
 export function getAllFeatures(): FeatureModule[] {
   return ALL_FEATURES.slice();

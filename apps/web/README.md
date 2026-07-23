@@ -38,6 +38,8 @@ Reusable production UI primitives live in `src/shared/ui/`. Feature pages should
 Each feature lives under `src/features/<id>/` and exports a `FeatureModule` from `index.ts`.  
 The shell discovers modules via `import.meta.glob` (see `src/shell/registry.ts`).
 
+Instance-level feature availability, labels, order, and nav grouping are controlled by `src/app/feature-config.ts`. This keeps the shell customizable per company without editing shell components.
+
 Copy `src/features/_template` to add a module. Do not import other features.
 
 The right AI panel is shell-owned (`src/shell/ai/`) so feature pages remain standalone and instances can customize feature availability without coupling pages to the assistant UI. Send controls stay disabled until a real model adapter is wired — no fake AI responses in production paths.

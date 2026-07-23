@@ -9,5 +9,5 @@ export const settingsFeature: FeatureModule = {
   navGroup: "primary",
   routePath: "/settings",
   enabled: true,
-  load: () => import("./SettingsEmpty"),
+  load: () => import("./SettingsPage"),
 };

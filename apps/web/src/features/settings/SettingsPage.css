@@ -1,0 +1,65 @@
+/* Settings feature styles use shared UI primitives and centralized theme tokens. */
+
+.rect-settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rect-settings-page__card-head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.rect-settings-page__icon {
+  align-items: center;
+  background: var(--rect-surface-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: 12px;
+  color: var(--rect-text-primary);
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.rect-settings-page h3 {
+  color: var(--rect-text-primary);
+  font-size: 0.95rem;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+
+.rect-settings-page p {
+  color: var(--rect-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.rect-settings-page__actions {
+  margin-top: 10px;
+}
+
+.rect-settings-page__direction {
+  margin-top: 8px;
+}
+
+.rect-settings-page__sample {
+  background: var(--rect-surface-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: 14px;
+  color: var(--rect-text-primary);
+  display: grid;
+  gap: 6px;
+  line-height: 1.55;
+  margin-top: 14px;
+  padding: 14px;
+}
+
+.rect-settings-page__sample span {
+  color: var(--rect-text-secondary);
+  font-size: 0.84rem;
+}
