@@ -25,6 +25,7 @@ ENV NODE_ENV=production
 ENV RECTANGLE_WEB_DIST=/app/apps/web/dist
 WORKDIR /app
 RUN addgroup -S rectangle -g 1001 && adduser -S rectangle -u 1001 -G rectangle
+COPY package.json ./package.json
 COPY apps/api/package.json apps/api/package-lock.json ./apps/api/
 RUN cd apps/api && npm ci --omit=dev && npm cache clean --force
 COPY --from=api-build --chown=rectangle:rectangle /app/apps/api/dist ./apps/api/dist
@@ -34,4 +35,4 @@ USER rectangle
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
   CMD node -e "const port=process.env.PORT||8080; require('http').get('http://127.0.0.1:'+port+'/health/live', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
-CMD ["sh", "-c", "npm --prefix apps/api run migrate && npm --prefix apps/api run start"]
+CMD ["npm", "run", "start"]

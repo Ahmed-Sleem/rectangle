@@ -7,7 +7,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "npm --prefix apps/api run migrate && npm --prefix apps/api run start"
+startCommand = "npm run start"
 healthcheckPath = "/health/live"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

@@ -39,7 +39,7 @@ Settings:
 Root Directory: empty / repo root
 Builder: Dockerfile
 Dockerfile Path: Dockerfile
-Start Command: npm --prefix apps/api run migrate && npm --prefix apps/api run start
+Start Command: npm run start
 Healthcheck Path: /health/live
 Healthcheck Timeout: 300
 ```
