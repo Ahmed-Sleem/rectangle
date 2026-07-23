@@ -1,7 +1,9 @@
 /** Static checks catch migration patterns that would fail during Railway startup. */
-import { readFileSync, readdirSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { resolveMigrationsDir } from "../src/infrastructure/postgres/migrate.js";
 
 const migrationsDir = new URL("../migrations", import.meta.url);
 
@@ -14,6 +16,16 @@ describe("PostgreSQL migrations", () => {
     for (const file of files) {
       const sql = readFileSync(join(migrationsDir.pathname, file), "utf8");
       expect(sql).not.toMatch(/unique\s*\([^)]*lower\s*\(/iu);
+    }
+  });
+
+  it("resolves migrations from the service working directory used by Docker", async () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "rectangle-migrations-"));
+    try {
+      mkdirSync(join(tempRoot, "migrations"));
+      await expect(resolveMigrationsDir(tempRoot)).resolves.toBe(join(tempRoot, "migrations"));
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
     }
   });
 });

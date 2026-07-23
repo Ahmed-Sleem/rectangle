@@ -2,17 +2,39 @@
  * Minimal migration runner applies checked-in SQL migrations to PostgreSQL for
  * Rectangle API deployments. It records every applied migration once.
  */
-import { readdir, readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { access, readdir, readFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { join } from "node:path";
 import { loadConfig } from "../../config.js";
 import { createPostgresPool } from "./pool.js";
 
-const currentDir = dirname(fileURLToPath(import.meta.url));
-const migrationsDir = join(currentDir, "../../../migrations");
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path, constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function resolveMigrationsDir(cwd = process.cwd()): Promise<string> {
+  const candidates = [
+    join(cwd, "migrations"),
+    join(cwd, "apps/api/migrations"),
+  ];
+
+  for (const candidate of candidates) {
+    if (await pathExists(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`Migrations directory not found. Checked: ${candidates.join(", ")}`);
+}
 
 export async function runMigrations(): Promise<void> {
   const config = loadConfig();
+  const migrationsDir = await resolveMigrationsDir();
   const pool = createPostgresPool(config.DATABASE_URL);
   const client = await pool.connect();
   try {
