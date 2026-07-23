@@ -5,7 +5,7 @@ Approved **visual direction** for Rectangle.
 | Path | Purpose |
 |------|---------|
 | [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) | Tokens, layout, components, do/don’t |
-| [tokens/shell.tokens.json](./tokens/shell.tokens.json) | Machine-readable tokens |
+| [tokens/shell.tokens.json](./tokens/shell.tokens.json) | Machine-readable theme/token snapshot; source of truth in `apps/web/src/shared/styles/tokens.css` |
 | [GUI_SIZING_RULES.md](./GUI_SIZING_RULES.md) | Mandatory dense desktop sizing, spacing, margin, padding, table, and shell layout rules |
 | [MOTION_GUIDELINES.md](./MOTION_GUIDELINES.md) | Mandatory motion rules for shell, menu, AI panel, and feature transitions |
 | [demo/shell.html](./demo/shell.html) | Interactive HTML demo (open in a browser) |

@@ -14,7 +14,7 @@ body,
 
 body {
   background: var(--rect-chrome-bg);
-  color: #ffffff;
+  color: var(--rect-nav-text-emphasis);
   font-family: var(--rect-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

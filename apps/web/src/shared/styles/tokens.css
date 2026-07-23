@@ -1,36 +1,101 @@
 /**
- * Rectangle design tokens — soft modern zinc palette
- * Inspired by flat 2025–26 dashboard neutrals (near-black / off-white, not pure B/W)
+ * Rectangle centralized theme tokens.
+ * Change theme colors here first. Component CSS should consume `--rect-*`
+ * semantic tokens instead of hardcoded hex/rgb values.
  */
 :root {
-  /* Chrome (outside the rectangle) — soft zinc black */
-  --rect-chrome-bg: #141416;
-  --rect-nav-text: rgba(250, 250, 250, 0.48);
-  --rect-nav-text-emphasis: #f4f4f5;
-  --rect-nav-hover-bg: rgba(255, 255, 255, 0.07);
-  --rect-nav-active-bg: rgba(255, 255, 255, 0.1);
-  --rect-logo: #fafafa;
+  /* ── Primitive palette: soft monochrome, not true black/white ── */
+  --rect-color-void: #18181b;
+  --rect-color-void-strong: #111113;
+  --rect-color-ink: #202124;
+  --rect-color-ink-strong: #17181a;
+  --rect-color-ink-soft: #3f3f46;
+  --rect-color-muted: #73737c;
+  --rect-color-faint: #a1a1aa;
+  --rect-color-paper: #f3f3f1;
+  --rect-color-paper-elevated: #f7f7f5;
+  --rect-color-paper-soft: #ececea;
+  --rect-color-line: #dededb;
+  --rect-color-line-strong: #c8c8c2;
 
-  /* Surface (inside the rectangle) — soft off-white */
-  --rect-surface-bg: #fafafa;
-  --rect-surface-border: #27272a;
-  --rect-surface-divider: #ececee;
-  --rect-text-primary: #18181b;
-  --rect-text-secondary: #71717a;
-  --rect-text-muted: #a1a1aa;
-  --rect-card-bg: #f4f4f5;
-  --rect-card-border: #e4e4e7;
-  --rect-badge-bg: #f4f4f5;
-  --rect-badge-border: #e4e4e7;
-  --rect-badge-text: #3f3f46;
+  /* Accent + semantic palette for future feature pages */
+  --rect-color-accent: #4f46e5;
+  --rect-color-accent-soft: #eef0ff;
+  --rect-color-success: #168a4a;
+  --rect-color-warning: #b7791f;
+  --rect-color-danger: #c2413a;
+  --rect-color-info: #2563a9;
 
-  /* Toggle — sits on panel edge, soft surface chrome */
-  --rect-toggle-bg: #fafafa;
-  --rect-toggle-bg-hover: #f4f4f5;
-  --rect-toggle-border: #d4d4d8;
-  --rect-toggle-border-hover: #a1a1aa;
-  --rect-toggle-icon: #3f3f46;
-  --rect-toggle-ring: rgba(24, 24, 27, 0.12);
+  /* Alpha overlays centralized as tokens */
+  --rect-overlay-on-dark-subtle: rgba(247, 247, 245, 0.045);
+  --rect-overlay-on-dark-soft: rgba(247, 247, 245, 0.075);
+  --rect-overlay-on-dark-hover: rgba(247, 247, 245, 0.095);
+  --rect-overlay-on-dark-line: rgba(247, 247, 245, 0.06);
+  --rect-overlay-on-dark-ring: rgba(247, 247, 245, 0.14);
+  --rect-overlay-on-dark-hairline: rgba(247, 247, 245, 0.025);
+  --rect-overlay-on-dark-focus: rgba(247, 247, 245, 0.86);
+  --rect-overlay-on-light-border: rgba(32, 33, 36, 0.22);
+  --rect-overlay-on-light-border-strong: rgba(32, 33, 36, 0.32);
+  --rect-overlay-on-light-inner: rgba(32, 33, 36, 0.18);
+  --rect-overlay-on-light-inner-strong: rgba(32, 33, 36, 0.28);
+  --rect-overlay-hatch: rgba(32, 33, 36, 0.035);
+  --rect-orb-inner-ring: rgba(247, 247, 245, 0.14);
+  --rect-orb-inner-ring-hover: rgba(247, 247, 245, 0.2);
+
+  /* Semantic shell colors */
+  --rect-chrome-bg: var(--rect-color-void);
+  --rect-nav-text: rgba(247, 247, 245, 0.52);
+  --rect-nav-text-emphasis: var(--rect-color-paper-elevated);
+  --rect-nav-hover-bg: var(--rect-overlay-on-dark-hover);
+  --rect-nav-active-bg: rgba(247, 247, 245, 0.12);
+  --rect-logo: var(--rect-color-paper-elevated);
+
+  --rect-surface-bg: var(--rect-color-paper);
+  --rect-surface-bg-hover: var(--rect-color-paper-elevated);
+  --rect-surface-border: var(--rect-color-ink);
+  --rect-surface-divider: var(--rect-color-line);
+  --rect-text-primary: var(--rect-color-ink-strong);
+  --rect-text-secondary: var(--rect-color-muted);
+  --rect-text-muted: var(--rect-color-faint);
+  --rect-card-bg: var(--rect-color-paper-soft);
+  --rect-card-border: var(--rect-color-line);
+  --rect-badge-bg: var(--rect-color-paper-soft);
+  --rect-badge-border: var(--rect-color-line);
+  --rect-badge-text: var(--rect-color-ink-soft);
+
+  /* Focus + action/floating controls */
+  --rect-focus-on-light: var(--rect-color-ink-strong);
+  --rect-focus-on-dark: var(--rect-overlay-on-dark-focus);
+  --rect-orb-bg: var(--rect-color-ink-strong);
+  --rect-orb-bg-hover: var(--rect-color-void-strong);
+  --rect-orb-text: var(--rect-color-paper-elevated);
+  --rect-orb-border: var(--rect-color-void-strong);
+  --rect-orb-on-light-border: var(--rect-color-ink-strong);
+  --rect-orb-on-light-inner: var(--rect-overlay-on-light-inner);
+  --rect-toggle-bg: var(--rect-color-paper);
+  --rect-toggle-bg-hover: var(--rect-color-paper-elevated);
+  --rect-toggle-border: var(--rect-color-line-strong);
+  --rect-toggle-border-hover: var(--rect-color-faint);
+  --rect-toggle-icon: var(--rect-color-ink-soft);
+  --rect-toggle-ring: rgba(32, 33, 36, 0.12);
+
+  /* Shadows/elevation */
+  --rect-shadow-panel: 0 18px 40px -12px rgba(17, 18, 20, 0.42);
+  --rect-shadow-panel-hover: 0 22px 48px -12px rgba(17, 18, 20, 0.5);
+  --rect-shadow-toggle: 0 2px 8px rgba(17, 18, 20, 0.1), 0 0 0 1px var(--rect-toggle-ring);
+  --rect-shadow-toggle-hover: 0 4px 14px rgba(17, 18, 20, 0.14), 0 0 0 1px var(--rect-toggle-ring);
+  --rect-shadow-fab: 0 12px 28px rgba(17, 18, 20, 0.22), 0 2px 6px rgba(17, 18, 20, 0.16);
+  --rect-shadow-fab-hover: 0 16px 34px rgba(17, 18, 20, 0.28), 0 3px 8px rgba(17, 18, 20, 0.2);
+  --rect-shadow-canvas-orb: inset 0 0 0 1px var(--rect-orb-on-light-inner), 0 12px 28px rgba(17, 18, 20, 0.18), 0 2px 6px rgba(17, 18, 20, 0.14);
+  --rect-shadow-canvas-orb-hover: inset 0 0 0 1px var(--rect-overlay-on-light-inner-strong), 0 16px 34px rgba(17, 18, 20, 0.22), 0 3px 8px rgba(17, 18, 20, 0.18);
+  --rect-shadow-orb-dark-inner: inset 0 0 0 1px var(--rect-orb-inner-ring);
+  --rect-shadow-orb-dark-inner-hover: inset 0 0 0 1px var(--rect-orb-inner-ring-hover);
+
+  /* Decorative backgrounds */
+  --rect-hatch-bg:
+    linear-gradient(135deg, var(--rect-overlay-hatch) 25%, transparent 25%) -8px 0 / 16px 16px,
+    linear-gradient(225deg, var(--rect-overlay-hatch) 25%, transparent 25%) -8px 0 / 16px 16px,
+    var(--rect-card-bg);
 
   /* Layout */
   --rect-body-padding: 12px;
@@ -55,20 +120,17 @@
   --rect-panel-stack-gap: 20px;
   --rect-ai-panel-width: 360px;
   --rect-ai-panel-width-tablet: 320px;
-  --rect-ai-panel-width-collapsed: 48px;
+  --rect-ai-panel-width-collapsed: 0px;
 
-  --rect-shadow-panel: 0 18px 40px -12px rgba(0, 0, 0, 0.45);
-  --rect-shadow-panel-hover: 0 22px 48px -12px rgba(0, 0, 0, 0.55);
-  --rect-shadow-toggle: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 0 1px var(--rect-toggle-ring);
-  --rect-shadow-toggle-hover: 0 4px 14px rgba(0, 0, 0, 0.14), 0 0 0 1px var(--rect-toggle-ring);
-
+  /* Motion */
   --rect-motion-menu: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  --rect-motion-layout: 390ms cubic-bezier(0.18, 0.95, 0.22, 1.02);
   --rect-motion-nav: 0.18s ease;
   --rect-motion-toggle: 0.2s ease;
   --rect-motion-spring: 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
   --rect-motion-label: 0.25s ease;
 
-  /* Panel + toggle above menu so control is never buried */
+  /* Z-index */
   --rect-z-menu: 1;
   --rect-z-panel: 10;
   --rect-z-edge: 20;

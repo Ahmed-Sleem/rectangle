@@ -1,62 +1,59 @@
 {
-  "$description": "Rectangle shell design tokens — dense desktop soft monochrome shell with universal AI FAB",
+  "$description": "Rectangle centralized shell theme tokens — soft monochrome palette with semantic accent/status slots",
   "meta": {
     "source": "apps/web/src/shared/styles/tokens.css",
     "brand": "Rectangle",
-    "version": "0.4.0"
+    "version": "0.5.0"
+  },
+  "palette": {
+    "void": "#18181b",
+    "voidStrong": "#111113",
+    "ink": "#202124",
+    "inkStrong": "#17181a",
+    "inkSoft": "#3f3f46",
+    "muted": "#73737c",
+    "faint": "#a1a1aa",
+    "paper": "#f3f3f1",
+    "paperElevated": "#f7f7f5",
+    "paperSoft": "#ececea",
+    "line": "#dededb",
+    "lineStrong": "#c8c8c2",
+    "accent": "#4f46e5",
+    "accentSoft": "#eef0ff",
+    "success": "#168a4a",
+    "warning": "#b7791f",
+    "danger": "#c2413a",
+    "info": "#2563a9"
+  },
+  "semantic": {
+    "chromeBg": "palette.void",
+    "surfaceBg": "palette.paper",
+    "surfaceBgHover": "palette.paperElevated",
+    "surfaceBorder": "palette.ink",
+    "textPrimary": "palette.inkStrong",
+    "textSecondary": "palette.muted",
+    "textMuted": "palette.faint",
+    "cardBg": "palette.paperSoft",
+    "cardBorder": "palette.line",
+    "orbBg": "palette.inkStrong",
+    "orbBgHover": "palette.voidStrong",
+    "orbText": "palette.paperElevated",
+    "accent": "palette.accent"
   },
   "font": {
     "family": "Inter, system-ui, sans-serif",
-    "weights": [
-      400,
-      500,
-      600,
-      700,
-      800,
-      900
-    ]
-  },
-  "color": {
-    "chrome": {
-      "bg": "#141416",
-      "navText": "rgba(250, 250, 250, 0.48)",
-      "navTextEmphasis": "#f4f4f5",
-      "navHoverBg": "rgba(255, 255, 255, 0.07)",
-      "navActiveBg": "rgba(255, 255, 255, 0.1)",
-      "logo": "#fafafa"
-    },
-    "surface": {
-      "bg": "#fafafa",
-      "border": "#27272a",
-      "divider": "#ececee",
-      "textPrimary": "#18181b",
-      "textSecondary": "#71717a",
-      "textMuted": "#a1a1aa",
-      "cardBg": "#f4f4f5",
-      "cardBorder": "#e4e4e7",
-      "badgeBg": "#f4f4f5",
-      "badgeBorder": "#e4e4e7",
-      "badgeText": "#3f3f46"
-    },
-    "toggle": {
-      "bg": "#fafafa",
-      "bgHover": "#f4f4f5",
-      "border": "#d4d4d8",
-      "borderHover": "#a1a1aa",
-      "icon": "#3f3f46"
-    }
+    "weights": [400, 500, 600, 700, 800, 900]
   },
   "size": {
     "menuWidthExpanded": 152,
     "menuWidthCollapsed": 40,
+    "navItemHeight": 32,
     "navIcon": 18,
     "toggle": 28,
-    "minNavItemHeight": 36,
+    "aiFab": 36,
     "aiPanelWidth": 360,
     "aiPanelWidthTablet": 320,
     "aiPanelWidthCollapsed": 0,
-    "navItemHeight": 32,
-    "aiFab": 36,
     "appGap": 8,
     "bodyPadding": 12
   },
@@ -65,7 +62,7 @@
     "navItem": 8,
     "card": 14,
     "pill": 999,
-    "toggle": 0
+    "toggle": 999
   },
   "zIndex": {
     "menu": 1,

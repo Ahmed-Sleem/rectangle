@@ -48,42 +48,38 @@ Navigation is secondary and quiet. The white panel is primary and solid.
 
 ## 3. Color
 
-### Chrome (outside the rectangle)
+### Theme source of truth
+
+Runtime theme colors live in one file: `apps/web/src/shared/styles/tokens.css`.
+Design JSON snapshot: `design/tokens/shell.tokens.json`.
+
+**Rule:** component CSS must consume semantic `--rect-*` tokens. Hardcoded color values belong only in the theme token file.
+
+### Primitive palette
 
 | Token | Value | Use |
 |-------|--------|-----|
-| `--chrome-bg` | `#0b0b0b` | Page / app background |
-| `--nav-text` | `rgba(255,255,255,0.5)` | Idle nav |
-| `--nav-text-hover` | `#ffffff` | Hover / active label |
-| `--nav-bg-hover` | `rgba(255,255,255,0.06)` | Hover pill |
-| `--nav-bg-active` | `rgba(255,255,255,0.08)` | Active item |
-| `--logo` | `#ffffff` | Wordmark |
+| `--rect-color-void` | soft near-black zinc | App chrome background |
+| `--rect-color-ink` / `--rect-color-ink-strong` | soft black-gray | Text, borders, floating controls |
+| `--rect-color-paper` | soft off-white gray | Main canvas / AI surface |
+| `--rect-color-paper-soft` | light gray | Cards, wells, composer |
+| `--rect-color-line` | soft gray line | Dividers, borders |
+| `--rect-color-accent` | restrained indigo | Future primary/accent action |
+| `--rect-color-success/warning/danger/info` | semantic colors | Feature status only |
 
-### Surface (inside the rectangle)
+### Semantic shell tokens
 
-| Token | Value | Use |
-|-------|--------|-----|
-| `--surface` | `#ffffff` | Main panel |
-| `--surface-border` | `#000000` | 4px outer border |
-| `--surface-divider` | `#f0f0f0` | Header rule |
-| `--text-primary` | `#111111` | Titles, values |
-| `--text-secondary` | `#888888` | Stat labels |
-| `--text-muted` | `#aaaaaa` | Placeholders |
-| `--card-bg` | `#f8f9fa` | Stat cards / chart wells |
-| `--card-border` | `#eaeaea` | Card stroke |
-| `--badge-bg` | `#f5f5f5` | Pill badge |
-| `--badge-border` | `#e0e0e0` | Badge stroke |
-| `--badge-text` | `#333333` | Badge label |
+| Token | Use |
+|-------|-----|
+| `--rect-chrome-bg` | Page / app background |
+| `--rect-surface-bg` | Main panel and AI panel |
+| `--rect-surface-border` | Heavy Rectangle border |
+| `--rect-text-primary/secondary/muted` | Text hierarchy |
+| `--rect-card-bg/card-border` | Cards, empty states, composer |
+| `--rect-orb-bg/orb-text/orb-border` | Menu and AI circular controls |
+| `--rect-focus-on-light/focus-on-dark` | Accessible focus rings |
 
-### Toggle control
-
-| Token | Value |
-|-------|--------|
-| Background | `#ffffff` → hover `#f5f5f5` |
-| Border | `#e8e8e8` → hover `#cccccc` |
-| Icon | `#333333` |
-
-**No brand accent color in the demo.** Add one later for CTAs / severity (risk critical, etc.) without breaking the mono shell — candidate: a single saturated accent used sparingly inside the white panel only.
+**Accent rule:** the shell stays soft monochrome. Accent and semantic colors are reserved for feature content, statuses, and primary actions.
 
 ---
 

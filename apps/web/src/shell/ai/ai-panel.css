@@ -173,8 +173,8 @@
   border: 1px dashed var(--rect-card-border);
   border-radius: 18px;
   background:
-    linear-gradient(135deg, rgba(24, 24, 27, 0.035) 25%, transparent 25%) -8px 0 / 16px 16px,
-    linear-gradient(225deg, rgba(24, 24, 27, 0.035) 25%, transparent 25%) -8px 0 / 16px 16px,
+    linear-gradient(135deg, var(--rect-overlay-hatch) 25%, transparent 25%) -8px 0 / 16px 16px,
+    linear-gradient(225deg, var(--rect-overlay-hatch) 25%, transparent 25%) -8px 0 / 16px 16px,
     var(--rect-card-bg);
   color: var(--rect-text-secondary);
   display: flex;
@@ -402,7 +402,7 @@
 
 .rect-ai-composer__tool--context:hover,
 .rect-ai-composer__tool--context:focus-visible {
-  background: #ffffff;
+  background: var(--rect-surface-bg-hover);
   border-color: var(--rect-toggle-border-hover);
   color: var(--rect-text-primary);
   transform: translateY(-1px) scale(1.03);
@@ -413,15 +413,15 @@
 }
 
 .rect-ai-composer__tool--active {
-  background: #18181b;
-  border-color: #18181b;
-  color: #fafafa;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  background: var(--rect-orb-bg);
+  border-color: var(--rect-orb-bg);
+  color: var(--rect-orb-text);
+  box-shadow: inset 0 0 0 1px var(--rect-orb-inner-ring);
 }
 
 .rect-ai-composer__tool--active:hover,
 .rect-ai-composer__tool--active:focus-visible {
-  background: #000000;
-  border-color: #000000;
-  color: #ffffff;
+  background: var(--rect-orb-bg-hover);
+  border-color: var(--rect-orb-bg-hover);
+  color: var(--rect-surface-bg-hover);
 }

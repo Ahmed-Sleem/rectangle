@@ -544,16 +544,16 @@
 .rect-nav__controls {
   margin: 8px 0 6px;
   padding: 6px 0 7px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--rect-overlay-on-dark-line);
+  border-bottom: 1px solid var(--rect-overlay-on-dark-line);
 }
 
 .rect-nav-toggle {
   width: 100%;
   min-height: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.075);
+  border: 1px solid var(--rect-overlay-on-dark-soft);
   border-radius: var(--rect-nav-item-radius);
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--rect-overlay-on-dark-subtle);
   color: var(--rect-nav-text);
   display: flex;
   align-items: center;
@@ -575,10 +575,10 @@
 
 .rect-nav-toggle:hover,
 .rect-nav-toggle:focus-visible {
-  background: rgba(255, 255, 255, 0.095);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: var(--rect-overlay-on-dark-hover);
+  border-color: var(--rect-overlay-on-dark-ring);
   color: var(--rect-nav-text-emphasis);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  box-shadow: inset 0 0 0 1px var(--rect-overlay-on-dark-hairline);
 }
 
 .rect-nav-toggle:active {
@@ -674,17 +674,17 @@
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.22);
-  background: #18181b;
-  color: #fafafa;
+  border: 1px solid var(--rect-overlay-on-light-border);
+  background: var(--rect-orb-bg);
+  color: var(--rect-orb-text);
   display: grid;
   place-items: center;
   padding: 0;
   cursor: pointer;
   z-index: var(--rect-z-toggle);
   box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.22),
-    0 2px 6px rgba(0, 0, 0, 0.18);
+    0 12px 28px var(--rect-overlay-on-light-border),
+    0 2px 6px var(--rect-overlay-on-light-inner);
   animation: rect-fab-in 240ms var(--rect-motion-spring) both;
   transition:
     background var(--rect-motion-nav),
@@ -700,12 +700,12 @@
 
 .rect-ai-fab:hover,
 .rect-ai-fab:focus-visible {
-  background: #000000;
-  border-color: rgba(0, 0, 0, 0.32);
+  background: var(--rect-orb-bg-hover);
+  border-color: var(--rect-overlay-on-light-border-strong);
   transform: translateY(-1px) scale(1.04);
   box-shadow:
-    0 16px 34px rgba(0, 0, 0, 0.26),
-    0 3px 8px rgba(0, 0, 0, 0.2);
+    0 16px 34px var(--rect-overlay-on-light-border-strong),
+    0 3px 8px var(--rect-overlay-on-light-border);
 }
 
 .rect-ai-fab:hover svg,
@@ -816,28 +816,28 @@
   height: 36px;
   min-height: 36px;
   border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.16);
-  background: #fafafa;
-  color: #18181b;
+  border: 1px solid var(--rect-overlay-on-light-inner);
+  background: var(--rect-toggle-bg);
+  color: var(--rect-text-primary);
   display: grid;
   place-items: center;
   justify-content: center;
   padding: 0;
   box-shadow:
-    0 10px 22px rgba(0, 0, 0, 0.24),
-    0 2px 6px rgba(0, 0, 0, 0.18);
+    0 10px 22px var(--rect-overlay-on-light-border),
+    0 2px 6px var(--rect-overlay-on-light-inner);
   animation: rect-nav-orb-in 260ms var(--rect-motion-spring) both;
 }
 
 .rect-nav-toggle:hover,
 .rect-nav-toggle:focus-visible {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.24);
-  color: #000000;
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-overlay-on-light-border);
+  color: var(--rect-orb-bg-hover);
   transform: translateY(-1px) scale(1.04);
   box-shadow:
-    0 14px 28px rgba(0, 0, 0, 0.28),
-    0 3px 8px rgba(0, 0, 0, 0.2);
+    0 14px 28px var(--rect-overlay-on-light-inner-strong),
+    0 3px 8px var(--rect-overlay-on-light-border);
 }
 
 .rect-nav-toggle:active,
@@ -907,18 +907,18 @@
   height: 36px;
   min-height: 36px;
   border-radius: 999px;
-  border: 2px solid #18181b;
-  background: #fafafa;
-  color: #18181b;
+  border: 2px solid var(--rect-orb-bg);
+  background: var(--rect-toggle-bg);
+  color: var(--rect-text-primary);
   display: grid;
   place-items: center;
   justify-content: center;
   padding: 0;
   z-index: var(--rect-z-toggle);
   box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.18),
-    0 12px 28px rgba(0, 0, 0, 0.18),
-    0 2px 6px rgba(0, 0, 0, 0.14);
+    inset 0 0 0 1px var(--rect-overlay-on-light-inner),
+    0 12px 28px var(--rect-overlay-on-light-inner),
+    0 2px 6px var(--rect-toggle-ring);
   animation: rect-nav-orb-in 260ms var(--rect-motion-spring) both;
   transition:
     background var(--rect-motion-nav),
@@ -930,14 +930,14 @@
 
 .rect-nav-toggle:hover,
 .rect-nav-toggle:focus-visible {
-  background: #ffffff;
-  border-color: #000000;
-  color: #000000;
+  background: var(--rect-toggle-bg-hover);
+  border-color: var(--rect-orb-on-light-border);
+  color: var(--rect-text-primary);
   transform: translateY(-1px) scale(1.04);
   box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.28),
-    0 16px 34px rgba(0, 0, 0, 0.22),
-    0 3px 8px rgba(0, 0, 0, 0.18);
+    inset 0 0 0 1px var(--rect-overlay-on-light-inner-strong),
+    0 16px 34px var(--rect-overlay-on-light-border),
+    0 3px 8px var(--rect-overlay-on-light-inner);
 }
 
 .rect-nav-toggle:active,
@@ -1015,13 +1015,13 @@
 
 .rect-nav-toggle,
 .rect-app--collapsed .rect-nav-toggle {
-  background: #18181b;
-  color: #fafafa;
-  border: 2px solid #000000;
+  background: var(--rect-orb-bg);
+  color: var(--rect-orb-text);
+  border: 2px solid var(--rect-orb-bg-hover);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.13),
-    0 12px 28px rgba(0, 0, 0, 0.22),
-    0 2px 6px rgba(0, 0, 0, 0.16);
+    inset 0 0 0 1px var(--rect-orb-inner-ring),
+    0 12px 28px var(--rect-overlay-on-light-border),
+    0 2px 6px var(--rect-overlay-on-light-inner);
   transition:
     background var(--rect-motion-nav),
     border-color var(--rect-motion-nav),
@@ -1032,14 +1032,14 @@
 
 .rect-nav-toggle:hover,
 .rect-nav-toggle:focus-visible {
-  background: #000000;
-  color: #ffffff;
-  border-color: #000000;
+  background: var(--rect-orb-bg-hover);
+  color: var(--rect-surface-bg-hover);
+  border-color: var(--rect-orb-bg-hover);
   transform: translateY(-1px) rotate(-4deg) scale(1.04);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
-    0 16px 34px rgba(0, 0, 0, 0.28),
-    0 3px 8px rgba(0, 0, 0, 0.2);
+    inset 0 0 0 1px var(--rect-orb-inner-ring-hover),
+    0 16px 34px var(--rect-overlay-on-light-inner-strong),
+    0 3px 8px var(--rect-overlay-on-light-border);
 }
 
 .rect-nav-toggle:hover svg,
