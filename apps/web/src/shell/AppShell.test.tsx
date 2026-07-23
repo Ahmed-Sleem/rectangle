@@ -116,10 +116,11 @@ describe("AppShell", () => {
     });
 
     expect(
-      screen.getByRole("heading", { name: "Project registry foundation" }),
+      screen.getByRole("heading", { name: "Organize your projects" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("No fake data")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create project" })).toBeDisabled();
+    expect(screen.getByText("No projects yet")).toBeInTheDocument();
+    expect(screen.queryByText(/fake data/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /create project/i })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Projects" })).toHaveAttribute(
       "aria-current",
       "page",

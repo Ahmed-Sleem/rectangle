@@ -12,6 +12,20 @@ body,
   height: 100%;
 }
 
+html,
+body,
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  height: 0;
+  width: 0;
+}
+
 body {
   background: var(--rect-chrome-bg);
   color: var(--rect-nav-text-emphasis);

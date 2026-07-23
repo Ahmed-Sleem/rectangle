@@ -10,7 +10,9 @@ This repository is the **single home** for Rectangle: research, design system, a
 
 ---
 
-## Quick start (web shell)
+## Quick start
+
+### Web app
 
 ```bash
 cd apps/web
@@ -18,15 +20,30 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:5173 — dark chrome + white rectangle shell, collapsible nav, empty feature routes.
+Open http://localhost:5173 — dark chrome + white rectangle shell, collapsible nav, localized feature routes.
 
 ```bash
 npm test && npm run lint && npm run typecheck && npm run build
 npm run start   # production static serve on PORT (default 3000)
-npm run verify  # centralized local verification
 ```
 
 More detail: [apps/web/README.md](./apps/web/README.md).
+
+### API service
+
+```bash
+cd apps/api
+npm ci
+npm run verify
+```
+
+The API requires real environment configuration before serving production traffic: `DATABASE_URL`, `SESSION_JWT_SECRET`, and `CORS_ORIGIN`. More detail: [apps/api/README.md](./apps/api/README.md).
+
+### Full local verification
+
+```bash
+./scripts/verify.sh
+```
 
 ### Railway
 
@@ -45,7 +62,8 @@ Local parity check: `cd apps/web && npm run verify:deploy`
 
 ```text
 rectangle/
-├── apps/web/                # Vite + React shell (P0)
+├── apps/web/                # Vite + React app shell and feature pages
+├── apps/api/                # Fastify + PostgreSQL backend API
 ├── design/                  # Approved GUI + tokens
 ├── docs/                    # Architecture, naming, plans
 ├── research/                # Product intelligence
@@ -60,7 +78,8 @@ rectangle/
 
 | Doc | Why |
 |-----|-----|
-| [apps/web/README.md](./apps/web/README.md) | Run / build / Railway for the app |
+| [apps/web/README.md](./apps/web/README.md) | Run / build / Railway for the web app |
+| [apps/api/README.md](./apps/api/README.md) | Run / verify / configure the production API service |
 | [design/DESIGN_SYSTEM.md](./design/DESIGN_SYSTEM.md) | GUI tokens & shell spec |
 | [design/demo/shell.html](./design/demo/shell.html) | Original HTML design demo |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Shell + feature modules + Railway |
@@ -81,9 +100,11 @@ rectangle/
 | Competitive & OSS research | Complete (snapshot 2026-07-22) |
 | Design direction | **Approved** |
 | Product name | **Rectangle** |
-| **P0 shell app** | **Done** — registry + empty routes, tests green |
-| Railway config | **Ready** — [docs/DEPLOY_RAILWAY.md](./docs/DEPLOY_RAILWAY.md) |
-| Feature pages | Not started (P1+) |
+| **P0 shell app** | **Done** — registry + localized routes, tests green |
+| Projects page | **Started** — user-facing workspace page, backend API slice in progress |
+| Backend API | **Started** — production Projects API, PostgreSQL schema, auth boundary, audit events |
+| Railway config | **Ready for web** — [docs/DEPLOY_RAILWAY.md](./docs/DEPLOY_RAILWAY.md) |
+| Feature pages | In progress |
 | Railway connect | Your step: connect GitHub (see deploy guide) |
 
 ---

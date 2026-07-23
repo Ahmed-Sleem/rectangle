@@ -1,4 +1,4 @@
-/** Tests the production-safe Projects UI shell without fake project CRUD. */
+/** Tests the user-facing Projects page copy and empty workspace behavior. */
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
@@ -18,40 +18,41 @@ describe("ProjectsPage", () => {
     await setRectangleLanguage("en");
   });
 
-  it("renders a production-safe shell and keeps create disabled until a real backend exists", () => {
+  it("renders clean end-user Projects copy without internal implementation wording", () => {
     renderProjectsPage();
 
-    expect(screen.getByRole("heading", { name: "Project registry foundation" })).toBeInTheDocument();
-    expect(screen.getByText("No fake data")).toBeInTheDocument();
-    expect(screen.getByText("No production project data is connected yet")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Organize your projects" })).toBeInTheDocument();
+    expect(screen.getByText("No projects yet")).toBeInTheDocument();
+    expect(screen.getByText(/team, scope, location, schedule, budget, risks, and progress/i)).toBeInTheDocument();
 
-    const createButton = screen.getByRole("button", { name: "Create project" });
-    expect(createButton).toBeDisabled();
-    expect(createButton).toHaveAttribute(
-      "title",
-      "Create is disabled until Rectangle has a real project API, database persistence, object-level permissions, and audit logging.",
-    );
+    expect(screen.queryByText(/UI shell/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/fake data/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/backend/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/audit/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /create project/i })).not.toBeInTheDocument();
   });
 
-  it("shows planned backend validation contract instead of sample project records", () => {
+  it("shows useful project workspace areas instead of developer contracts", () => {
     renderProjectsPage();
 
-    expect(screen.getByRole("table", { name: "First project data contract" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Field" })).toBeInTheDocument();
-    expect(screen.getByText("Required, 2–120 characters")).toBeInTheDocument();
-    expect(screen.getByText("Required, unique per tenant, safe characters only")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Portfolio clarity" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Teams and stakeholders" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Scope and locations" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Controls overview" })).toBeInTheDocument();
 
-    expect(screen.queryByText(/sample project/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/demo project/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: /data contract/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/validation rule/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/required, 2/i)).not.toBeInTheDocument();
   });
 
-  it("renders Arabic copy for the Projects shell", async () => {
+  it("renders Arabic copy for the Projects workspace", async () => {
     await setRectangleLanguage("ar");
     renderProjectsPage();
 
-    expect(screen.getByRole("heading", { name: "أساس سجل المشاريع" })).toBeInTheDocument();
-    expect(screen.getByText("بدون بيانات وهمية")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "إنشاء مشروع" })).toBeDisabled();
-    expect(screen.getByRole("columnheader", { name: "الحقل" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "تنظيم المشاريع" })).toBeInTheDocument();
+    expect(screen.getByText("لا توجد مشاريع بعد")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "وضوح المحفظة" })).toBeInTheDocument();
+    expect(screen.queryByText(/واجهة أولية/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/بدون بيانات وهمية/i)).not.toBeInTheDocument();
   });
 });
