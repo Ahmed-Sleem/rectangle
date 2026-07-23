@@ -98,7 +98,9 @@ describe("AppShell", () => {
       "aria-current",
       "page",
     );
-    expect(document.title).toBe("Projects · Rectangle");
+    await waitFor(() => {
+      expect(document.title).toBe("Projects · Rectangle");
+    });
   });
 
   it("renders a retractable AI assistant panel without fake model output", async () => {

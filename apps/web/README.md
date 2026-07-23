@@ -12,6 +12,7 @@ Rectangle application shell (P0+ base GUI): dark chrome + white work surface, fe
 npm ci
 npm run dev            # http://localhost:5173
 npm run verify:deploy  # typecheck + lint + test + build
+npm run verify         # alias for verify:deploy
 npm run start          # serve dist on PORT (default 3000), SPA fallback
 ```
 
@@ -22,6 +23,10 @@ npm run start          # serve dist on PORT (default 3000), SPA fallback
 - Lucide icons, Inter via `@fontsource/inter`
 - Vitest + Testing Library
 - `serve` (**production dependency**) for Railway / static SPA
+
+## Shared UI primitives
+
+Reusable production UI primitives live in `src/shared/ui/`. Feature pages should import from `@/shared/ui` and avoid local one-off styles for buttons, cards, form controls, tables, empty/loading/error states, modals, drawers, and toasts.
 
 ## Feature modules
 

@@ -5,6 +5,7 @@
 @import "@fontsource/inter/900.css";
 @import "./tokens.css";
 @import "./reset.css";
+@import "../ui/ui.css";
 
 :focus-visible {
   outline: 2px solid var(--rect-focus-on-light);
