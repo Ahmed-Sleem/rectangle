@@ -1,0 +1,12 @@
+# Rectangle API service on Railway
+# Recommended Railway service root directory: apps/api
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "npm run migrate && npm run start"
+healthcheckPath = "/health/ready"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"

@@ -1,0 +1,37 @@
+# Git / local
+.git
+.gitignore
+_working_docs
+uploads
+thinking
+*.local.md
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*
+.gh-token
+
+# Dependencies and generated output
+node_modules
+apps/*/node_modules
+dist
+apps/*/dist
+coverage
+apps/*/coverage
+build
+.next
+.turbo
+.vite
+*.tsbuildinfo
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+*.swp
+*.log

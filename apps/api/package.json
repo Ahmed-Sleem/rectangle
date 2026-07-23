@@ -11,7 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "verify": "npm run typecheck && npm test && npm run build",
-    "migrate": "tsx src/infrastructure/postgres/migrate.ts"
+    "migrate": "node dist/infrastructure/postgres/migrate.js",
+    "migrate:dev": "tsx src/infrastructure/postgres/migrate.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.1.0",

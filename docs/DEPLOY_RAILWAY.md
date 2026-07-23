@@ -1,157 +1,104 @@
-# Deploy Rectangle web shell on Railway
+# Deploy Rectangle on Railway
 
-**Status:** Ready to connect (validated locally with production-like install/prune/serve).  
-**App path:** `apps/web`  
-**Repo:** https://github.com/Ahmed-Sleem/rectangle
-
----
-
-## Why this setup
-
-| Requirement | Our solution |
-|-------------|--------------|
-| Serve Vite static `dist/` | `serve` package (production **dependency**) |
-| React Router deep links (`/projects`) | `serve -s` (SPA rewrite to `index.html`) |
-| Railway `PORT` | `serve -s dist -l tcp://0.0.0.0:$PORT` via `npm start` |
-| Build needs Vite + `tsc` | `npm ci --include=dev` in build (devDeps present for build only) |
-| Runtime without Vite | After build, only `serve` + `dist` needed |
-
-**Do not** use `vite preview` or `vite` as the production start command on Railway (dev server, port mismatches, higher cost).
-
----
-
-## Branch and deploy strategy
-
-Railway is connected to `main`, so **any push to `main` triggers redeploy**.
-
-Required workflow:
-
-1. Create a feature branch for work, e.g. `feat/base-gui-ai-panel-sizing`.
-2. Build feature over feature on that branch.
-3. Run full verification before every push/PR-ready handoff:
-   - `cd apps/web && npm ci`
-   - `npm run verify:deploy`
-   - production `serve -s` smoke for changed routes
-4. Do not push WIP directly to `main`.
-5. When the branch is production-ready, merge to `main` and push `main` once to trigger Railway redeploy for online testing.
-6. Every push/merge description must include files changed, tests run, observed output, and manual smoke path.
-
----
-
-## Recommended path (Root Directory = `apps/web`)
-
-### Click path
-
-1. Open [https://railway.app](https://railway.app) → login with GitHub.  
-2. **New Project** → **Deploy from GitHub repo**.  
-3. Select **`Ahmed-Sleem/rectangle`** (grant access if needed).  
-4. After the service appears, open **Settings**:  
-   - **Root Directory:** `apps/web`  
-   - **Watch Paths (optional):** `apps/web/**`  
-5. Open **Settings → Build**:  
-   - Build Command: `npm ci --include=dev && npm run build`  
-     *(or leave empty if `apps/web/railway.toml` is picked up)*  
-6. Open **Settings → Deploy**:  
-   - Start Command: `npm run start`  
-7. **Networking → Generate Domain** (public HTTPS URL).  
-8. Confirm **Wait for CI** is off unless you add GitHub Actions later.  
-9. Enable automatic deploys from branch **`main`**.  
-10. Open **Deployments** → wait for success → open the public URL.
-
-### Config file used
-
-[`apps/web/railway.toml`](../apps/web/railway.toml)
-
-### Env vars
-
-| Name | Required | Notes |
-|------|----------|--------|
-| `PORT` | Auto | Railway injects; do not hardcode |
-| *(none else)* | — | P0 shell needs no secrets |
-
-Add nothing unless you introduce `VITE_*` build-time vars later (those must exist **at build time** and force rebuild when changed).
-
----
-
-## Alternate path (monorepo root)
-
-If Root Directory is left empty / `.`:
-
-- Uses root [`railway.toml`](../railway.toml)  
-- Build: `npm ci --prefix apps/web --include=dev && npm run build --prefix apps/web`  
-- Start: `npm run start --prefix apps/web`  
-
-Still prefer **Root Directory = `apps/web`** for simpler logs and caching.
-
----
-
-## Local production parity (what we already validated)
-
-```bash
-cd apps/web
-npm ci --include=dev
-npm run build
-npm prune --omit=dev          # optional: simulate slim runtime
-PORT=3456 npm run start
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3456/
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3456/projects
-# both must be 200
-```
-
----
-
-## Expected first-deploy log signals
-
-**Good**
+Rectangle is deployed as multiple services from one GitHub repo. This is the preferred production shape.
 
 ```text
-npm ci ...
-vite build ...
-✓ built in ...
-Accepting connections at http://0.0.0.0:XXXX
+Railway Project
+├── Rectangle Web service  -> apps/web Dockerfile
+├── Rectangle API service  -> apps/api Dockerfile
+└── PostgreSQL             -> Railway managed database
 ```
 
-**Bad → fix**
+Do not combine web, API, and database into one container.
 
-| Symptom | Cause | Fix |
-|---------|--------|-----|
-| `No start command could be found` | Root Directory wrong or no `start` script | Root = `apps/web`, start = `npm run start` |
-| `502 Bad Gateway` | App not listening on `$PORT` / not `0.0.0.0` | Keep our `start` script; don’t use bare `vite preview` |
-| `tsc: not found` / `vite: not found` during build | devDeps omitted before build | Build must use `npm ci --include=dev` |
-| `Cannot find module 'serve'` at runtime | `serve` only in devDependencies | Keep `serve` under **dependencies** (already) |
-| `/projects` → 404 on refresh | Missing SPA fallback | Must use `serve -s` (already in `start`) |
-| Blank page | Wrong base path or failed JS load | `base: '/'` in vite; check browser network tab |
+## 1. Web service
 
----
+Create a Railway service from GitHub repo `Ahmed-Sleem/rectangle`.
 
-## Post-deploy smoke checklist (you)
+Settings:
 
-Open the Railway URL and verify:
+```text
+Root Directory: apps/web
+Builder: Dockerfile
+Dockerfile: Dockerfile
+Healthcheck Path: /
+Start Command: npm run start
+```
 
-- [ ] Page loads (black chrome + white panel)  
-- [ ] Logo shows `rectangle`  
-- [ ] Collapse control works (edge circle)  
-- [ ] Click **Projects** → URL `/projects`, empty state text  
-- [ ] Hard refresh on `/projects` still 200 (not Railway 404)  
-- [ ] **Settings** / **Team** routes work  
-- [ ] New push to `main` triggers a new deployment  
+Environment:
 
----
+```text
+PORT = Railway auto-provided
+```
 
-## Rollback
+No secret is required for the current web app.
 
-Railway UI → Deployments → previous successful deploy → **Redeploy**.  
-Or `git revert` the bad commit on `main`.
+## 2. PostgreSQL
 
----
+In the same Railway project:
 
-## Out of scope for first deploy
+```text
+New -> Database -> PostgreSQL
+```
 
-- Custom domain (optional later: Settings → Domains)  
-- Postgres / Redis  
-- Auth secrets  
-- Multiple services  
+Railway will provide `DATABASE_URL`.
 
----
+## 3. API service
 
-*Validated in workspace: full `npm ci`, build, prune production deps, `PORT=` start, `/` + `/projects` + `/settings` → HTTP 200.*
+Create another Railway service from the same GitHub repo.
+
+Settings:
+
+```text
+Root Directory: apps/api
+Builder: Dockerfile
+Dockerfile: Dockerfile
+Healthcheck Path: /health/ready
+Start Command: npm run migrate && npm run start
+```
+
+Environment:
+
+```text
+DATABASE_URL=<Railway Postgres DATABASE_URL>
+SESSION_JWT_SECRET=<strong random secret, at least 32 chars>
+CORS_ORIGIN=<your web service public URL>
+NODE_ENV=production
+PORT=Railway auto-provided
+```
+
+Generate `SESSION_JWT_SECRET` locally, for example:
+
+```bash
+openssl rand -base64 48
+```
+
+Never commit real secrets.
+
+## 4. Smoke checks
+
+After deploy:
+
+```text
+Web: https://<web-url>/
+Web route: https://<web-url>/projects
+API live: https://<api-url>/health/live
+API ready: https://<api-url>/health/ready
+```
+
+Expected API responses:
+
+```json
+{"status":"ok"}
+{"status":"ready"}
+```
+
+## 5. Current limitation
+
+The API is real, but the web app is not wired to authenticated API workflows yet. Do not add demo data or fake frontend login. The next production slice is tenant/user bootstrap and then authenticated frontend integration.
+
+## 6. Rollback
+
+Railway UI -> Deployments -> select previous successful deployment -> Redeploy.
+
+Or revert the Git commit on `main` and push.

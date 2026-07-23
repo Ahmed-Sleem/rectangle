@@ -1,13 +1,11 @@
-# Use when Railway "Root Directory" = apps/web  (RECOMMENDED)
-# Docs: docs/DEPLOY_RAILWAY.md
+# Rectangle web service on Railway
+# Recommended Railway service root directory: apps/web
 
 [build]
-# Let Railway default builder (Railpack/Nixpacks) detect Node.
-# Force full install so TypeScript + Vite (devDependencies) exist during build.
-buildCommand = "npm ci --include=dev && npm run build"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-# serve is a production dependency. -s = SPA fallback for React Router.
 startCommand = "npm run start"
 healthcheckPath = "/"
 healthcheckTimeout = 100

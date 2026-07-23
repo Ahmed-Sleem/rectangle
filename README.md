@@ -67,6 +67,7 @@ rectangle/
 ├── design/                  # Approved GUI + tokens
 ├── docs/                    # Architecture, naming, plans
 ├── research/                # Product intelligence
+├── compose.yaml              # Local/company-style multi-container deployment
 ├── railway.toml
 ├── README.md
 └── LICENSE
@@ -88,7 +89,8 @@ rectangle/
 | [docs/MASTER_IMPLEMENTATION_PLAN.md](./docs/MASTER_IMPLEMENTATION_PLAN.md) | Step-by-step full-app implementation plan with tests/security/gates |
 | [docs/MASTER_PLAN_AUDIT.md](./docs/MASTER_PLAN_AUDIT.md) | Audit of the master implementation plan and remaining proof spikes |
 | [docs/plans/P0_SHELL_APP.md](./docs/plans/P0_SHELL_APP.md) | P0 execution plan |
-| [docs/DEPLOY_RAILWAY.md](./docs/DEPLOY_RAILWAY.md) | **Railway connect checklist** |
+| [docs/DEPLOY_RAILWAY.md](./docs/DEPLOY_RAILWAY.md) | **Railway multi-service Docker deploy checklist** |
+| [docs/DEPLOY_DOCKER.md](./docs/DEPLOY_DOCKER.md) | Docker/Compose deployment model for hosted and company installs |
 | [research/INDEX.md](./research/INDEX.md) | Research pack navigation |
 
 ---

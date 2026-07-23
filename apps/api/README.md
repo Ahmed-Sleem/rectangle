@@ -13,8 +13,8 @@ Production API service for Rectangle. The first implemented domain slice is tena
 ## Required environment
 
 ```bash
-DATABASE_URL=postgres://user:password@host:5432/rectangle
-SESSION_JWT_SECRET=<at least 32 characters>
+DATABASE_URL=<postgres connection string from your deployment platform>
+SESSION_JWT_SECRET=<strong random secret, at least 32 characters>
 CORS_ORIGIN=http://localhost:5173
 PORT=8080
 ```
