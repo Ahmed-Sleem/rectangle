@@ -63,6 +63,7 @@ rectangle/
 | [design/DESIGN_SYSTEM.md](./design/DESIGN_SYSTEM.md) | GUI tokens & shell spec |
 | [design/demo/shell.html](./design/demo/shell.html) | Original HTML design demo |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Shell + feature modules + Railway |
+| [docs/PRODUCT_FEATURE_BLUEPRINT.md](./docs/PRODUCT_FEATURE_BLUEPRINT.md) | Complete feature/page blueprint for the ultimate Arabic-first construction PMO app |
 | [docs/plans/P0_SHELL_APP.md](./docs/plans/P0_SHELL_APP.md) | P0 execution plan |
 | [docs/DEPLOY_RAILWAY.md](./docs/DEPLOY_RAILWAY.md) | **Railway connect checklist** |
 | [research/INDEX.md](./research/INDEX.md) | Research pack navigation |
