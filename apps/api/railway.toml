@@ -6,10 +6,10 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Run migrations inside the long-running container startup. This avoids Railway
-# predeploy environment differences for Docker services while keeping migrations
-# idempotent through schema_migrations.
+# Migrations are idempotent through schema_migrations and run before server start.
 startCommand = "npm run migrate && npm run start"
-healthcheckPath = "/health/ready"
+# Railway deployment health checks should prove the process is alive. The stricter
+# DB readiness endpoint remains available at /health/ready for manual/monitoring checks.
+healthcheckPath = "/health/live"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
