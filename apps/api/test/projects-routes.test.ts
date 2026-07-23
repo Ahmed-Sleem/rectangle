@@ -88,6 +88,10 @@ class MemoryAuthRepository implements AuthRepository {
   async createSession() {
     return { id: "33333333-3333-4333-8333-333333333333", tenantId, userId, expiresAt: new Date(Date.now() + 3600000).toISOString() };
   }
+  async findActiveSession(sessionId: string, sessionTenantId: string, sessionUserId: string) {
+    return { id: sessionId, tenantId: sessionTenantId, userId: sessionUserId, expiresAt: new Date(Date.now() + 3600000).toISOString() };
+  }
+  async revokeSession(): Promise<void> {}
 }
 
 class TestPasswordHasher implements PasswordHasher {
@@ -95,11 +99,17 @@ class TestPasswordHasher implements PasswordHasher {
   async verify(password: string, encodedHash: string): Promise<boolean> { return password === encodedHash; }
 }
 
+const inactiveSetupService = {
+  async getStatus() { return { setupRequired: false }; },
+  async createFirstAdmin(): Promise<never> { throw new Error("not used"); },
+};
+
 async function createTestServer() {
   const projects = new MemoryProjectsRepository();
   const audit = new MemoryAuditRepository();
   const app = await createServer({
     projectService: new ProjectService(projects, audit),
+    setupService: inactiveSetupService,
     authService: new AuthService(new MemoryAuthRepository(), new TestPasswordHasher(), audit, jwtSecret),
     jwtSecret,
     corsOrigin: "http://localhost:5173",

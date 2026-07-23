@@ -1,58 +1,78 @@
-/** Tests the user-facing Projects page copy and empty workspace behavior. */
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
-import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
+/** Tests the real Projects register and create action UI. */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import ProjectsPage from "./ProjectsPage";
 
 function renderProjectsPage() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
-    <RectangleI18nProvider>
-      <ProjectsPage />
-    </RectangleI18nProvider>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <ProjectsPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
+function jsonResponse(body: unknown, status = 200) {
+  return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
+}
+
 describe("ProjectsPage", () => {
-  beforeEach(async () => {
-    window.localStorage.clear();
-    await setRectangleLanguage("en");
+  beforeEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it("renders clean end-user Projects copy without internal implementation wording", () => {
+  it("shows an end-user empty state and real create action", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse({ projects: [] }));
     renderProjectsPage();
 
-    expect(screen.getByRole("heading", { name: "Organize your projects" })).toBeInTheDocument();
-    expect(screen.getByText("No projects yet")).toBeInTheDocument();
-    expect(screen.getByText(/team, scope, location, schedule, budget, risks, and progress/i)).toBeInTheDocument();
-
-    expect(screen.queryByText(/UI shell/i)).not.toBeInTheDocument();
+    expect(await screen.findByText("No projects yet")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Create project" }).length).toBeGreaterThan(0);
     expect(screen.queryByText(/fake data/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/backend/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/audit/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /create project/i })).not.toBeInTheDocument();
   });
 
-  it("shows useful project workspace areas instead of developer contracts", () => {
+  it("renders real project rows from the API", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse({ projects: [{
+      id: "11111111-1111-4111-8111-111111111111",
+      tenantId: "22222222-2222-4222-8222-222222222222",
+      name: "Cairo Metro Extension",
+      code: "CME-01",
+      status: "active",
+      locationName: "Cairo",
+      createdAt: "2026-07-23T20:00:00.000Z",
+      updatedAt: "2026-07-23T20:00:00.000Z",
+    }] }));
+
     renderProjectsPage();
 
-    expect(screen.getByRole("heading", { name: "Portfolio clarity" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Teams and stakeholders" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Scope and locations" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Controls overview" })).toBeInTheDocument();
-
-    expect(screen.queryByRole("table", { name: /data contract/i })).not.toBeInTheDocument();
-    expect(screen.queryByText(/validation rule/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/required, 2/i)).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Cairo Metro Extension" })).toBeInTheDocument();
+    expect(screen.getByText("CME-01")).toBeInTheDocument();
+    expect(screen.getByText("active")).toBeInTheDocument();
   });
 
-  it("renders Arabic copy for the Projects workspace", async () => {
-    await setRectangleLanguage("ar");
-    renderProjectsPage();
+  it("submits a validated project create request", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    fetchMock
+      .mockImplementationOnce(() => jsonResponse({ projects: [] }))
+      .mockImplementationOnce((_input, init) => {
+        expect(init?.method).toBe("POST");
+        expect(JSON.parse(String(init?.body))).toMatchObject({ name: "New Hospital", code: "HOSP-01", status: "planned" });
+        return jsonResponse({ project: { id: "11111111-1111-4111-8111-111111111111", name: "New Hospital", code: "HOSP-01", status: "planned" } }, 201);
+      })
+      .mockImplementationOnce(() => jsonResponse({ projects: [] }));
 
-    expect(screen.getByRole("heading", { name: "تنظيم المشاريع" })).toBeInTheDocument();
-    expect(screen.getByText("لا توجد مشاريع بعد")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "وضوح المحفظة" })).toBeInTheDocument();
-    expect(screen.queryByText(/واجهة أولية/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/بدون بيانات وهمية/i)).not.toBeInTheDocument();
+    renderProjectsPage();
+    await user.click(await screen.findByRole("button", { name: "Create project" }));
+    await user.type(screen.getByLabelText(/Project name/i), "New Hospital");
+    await user.type(screen.getByLabelText(/Project code/i), "HOSP-01");
+    await user.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   });
 });

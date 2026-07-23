@@ -23,6 +23,10 @@ class MemoryAuthRepository implements AuthRepository {
   async createSession(input: { tenantId: string; userId: string; expiresAt: string }) {
     return { id: "33333333-3333-4333-8333-333333333333", tenantId: input.tenantId, userId: input.userId, expiresAt: input.expiresAt };
   }
+  async findActiveSession(sessionId: string, sessionTenantId: string, sessionUserId: string) {
+    return { id: sessionId, tenantId: sessionTenantId, userId: sessionUserId, expiresAt: new Date(Date.now() + 3600000).toISOString() };
+  }
+  async revokeSession(): Promise<void> {}
 }
 
 class EmptyProjectsRepository implements ProjectsRepository {
@@ -32,6 +36,11 @@ class EmptyProjectsRepository implements ProjectsRepository {
   async listForTenant(_tenantId: string, _query: ProjectListQuery): Promise<ProjectRecord[]> { return []; }
   async updateForTenant(_tenantId: string, _id: string, _input: UpdateProjectInput): Promise<ProjectRecord | null> { return null; }
 }
+
+const inactiveSetupService = {
+  async getStatus() { return { setupRequired: false }; },
+  async createFirstAdmin(): Promise<never> { throw new Error("not used"); },
+};
 
 async function createTestServer() {
   const hasher = new ScryptPasswordHasher();
@@ -49,6 +58,7 @@ async function createTestServer() {
   };
   const app = await createServer({
     projectService: new ProjectService(new EmptyProjectsRepository(), audit),
+    setupService: inactiveSetupService,
     authService: new AuthService(new MemoryAuthRepository(user), hasher, audit, jwtSecret),
     jwtSecret,
     corsOrigin: "http://localhost:5173",

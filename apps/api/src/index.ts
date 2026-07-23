@@ -4,6 +4,7 @@
  */
 import { AuthService } from "./application/auth-service.js";
 import { ProjectService } from "./application/project-service.js";
+import { SetupService } from "./application/setup-service.js";
 import { loadConfig } from "./config.js";
 import { createServer } from "./http/server.js";
 import { ScryptPasswordHasher } from "./infrastructure/password.js";
@@ -11,6 +12,7 @@ import { PostgresAuditRepository } from "./infrastructure/postgres/audit-reposit
 import { PostgresAuthRepository } from "./infrastructure/postgres/auth-repository.js";
 import { assertDatabaseReady, createPostgresPool } from "./infrastructure/postgres/pool.js";
 import { PostgresProjectsRepository } from "./infrastructure/postgres/projects-repository.js";
+import { PostgresSetupRepository } from "./infrastructure/postgres/setup-repository.js";
 
 const config = loadConfig();
 const pool = createPostgresPool(config.DATABASE_URL);
@@ -19,9 +21,16 @@ const projectService = new ProjectService(
   new PostgresProjectsRepository(pool),
   auditRepository,
 );
+const passwordHasher = new ScryptPasswordHasher();
 const authService = new AuthService(
   new PostgresAuthRepository(pool),
-  new ScryptPasswordHasher(),
+  passwordHasher,
+  auditRepository,
+  config.SESSION_JWT_SECRET,
+);
+const setupService = new SetupService(
+  new PostgresSetupRepository(pool),
+  passwordHasher,
   auditRepository,
   config.SESSION_JWT_SECRET,
 );
@@ -29,6 +38,7 @@ const authService = new AuthService(
 const server = await createServer({
   projectService,
   authService,
+  setupService,
   jwtSecret: config.SESSION_JWT_SECRET,
   ...(config.CORS_ORIGIN ? { corsOrigin: config.CORS_ORIGIN } : {}),
   ...(process.env.RECTANGLE_WEB_DIST ? { webDistPath: process.env.RECTANGLE_WEB_DIST } : {}),

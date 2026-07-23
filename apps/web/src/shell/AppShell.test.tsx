@@ -1,7 +1,8 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { AppShellLayout } from "@/app/AppShellLayout";
 import { LANGUAGE_STORAGE_KEY, RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import { getEnabledFeatures } from "./registry";
@@ -43,12 +44,15 @@ function renderApp(initialPath = "/") {
     { initialEntries: [initialPath] },
   );
 
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return {
     router,
     ...render(
-      <RectangleI18nProvider>
-        <RouterProvider router={router} />
-      </RectangleI18nProvider>,
+      <QueryClientProvider client={queryClient}>
+        <RectangleI18nProvider>
+          <RouterProvider router={router} />
+        </RectangleI18nProvider>
+      </QueryClientProvider>,
     ),
   };
 }
@@ -56,6 +60,8 @@ function renderApp(initialPath = "/") {
 describe("AppShell", () => {
   beforeEach(async () => {
     window.localStorage.clear();
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ projects: [] }), { status: 200, headers: { "Content-Type": "application/json" } })));
     await setRectangleLanguage("en");
   });
 
@@ -115,12 +121,9 @@ describe("AppShell", () => {
       ).toBeInTheDocument();
     });
 
-    expect(
-      screen.getByRole("heading", { name: "Organize your projects" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("No projects yet")).toBeInTheDocument();
+    expect(await screen.findByText("No projects yet")).toBeInTheDocument();
     expect(screen.queryByText(/fake data/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /create project/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /create project/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "Projects" })).toHaveAttribute(
       "aria-current",
       "page",

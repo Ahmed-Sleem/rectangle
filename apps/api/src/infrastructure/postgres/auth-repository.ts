@@ -6,6 +6,15 @@ import type pg from "pg";
 import type { AuthRepository, AuthSessionRecord, CredentialUserRecord } from "../../application/auth-service.js";
 import type { TenantRole } from "../../domain/auth.js";
 
+function mapSession(row: Record<string, unknown>): AuthSessionRecord {
+  return {
+    id: String(row.id),
+    tenantId: String(row.tenant_id),
+    userId: String(row.user_id),
+    expiresAt: new Date(String(row.expires_at)).toISOString(),
+  };
+}
+
 export class PostgresAuthRepository implements AuthRepository {
   constructor(private readonly pool: pg.Pool) {}
 
@@ -56,12 +65,24 @@ export class PostgresAuthRepository implements AuthRepository {
        returning id, tenant_id, user_id, expires_at`,
       [input.tenantId, input.userId, input.userAgent ?? null, input.ipAddress ?? null, input.expiresAt],
     );
-    const row = result.rows[0] as Record<string, unknown>;
-    return {
-      id: String(row.id),
-      tenantId: String(row.tenant_id),
-      userId: String(row.user_id),
-      expiresAt: new Date(String(row.expires_at)).toISOString(),
-    };
+    return mapSession(result.rows[0] as Record<string, unknown>);
+  }
+
+  async findActiveSession(sessionId: string, tenantId: string, userId: string): Promise<AuthSessionRecord | null> {
+    const result = await this.pool.query(
+      `select id, tenant_id, user_id, expires_at from auth_sessions
+       where id = $1 and tenant_id = $2 and user_id = $3 and revoked_at is null and expires_at > now()
+       limit 1`,
+      [sessionId, tenantId, userId],
+    );
+    return result.rows[0] ? mapSession(result.rows[0] as Record<string, unknown>) : null;
+  }
+
+  async revokeSession(sessionId: string, tenantId: string, userId: string): Promise<void> {
+    await this.pool.query(
+      `update auth_sessions set revoked_at = now()
+       where id = $1 and tenant_id = $2 and user_id = $3 and revoked_at is null`,
+      [sessionId, tenantId, userId],
+    );
   }
 }

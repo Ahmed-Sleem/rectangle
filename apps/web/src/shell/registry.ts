@@ -71,5 +71,7 @@ export function getFeatureByPath(pathname: string): FeatureModule | undefined {
   const exact = enabled.find((f) => f.routePath === normalized);
   if (exact) return exact;
 
-  return undefined;
+  return enabled
+    .filter((f) => f.routePath !== "/")
+    .find((f) => normalized.startsWith(`${f.routePath}/`));
 }

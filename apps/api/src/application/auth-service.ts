@@ -37,6 +37,8 @@ export interface AuthRepository {
     ipAddress?: string;
     expiresAt: string;
   }): Promise<AuthSessionRecord>;
+  findActiveSession(sessionId: string, tenantId: string, userId: string): Promise<AuthSessionRecord | null>;
+  revokeSession(sessionId: string, tenantId: string, userId: string): Promise<void>;
 }
 
 export interface LoginContext {
@@ -65,6 +67,25 @@ export class AuthService {
     private readonly audit: AuditRepository,
     private readonly jwtSecret: string,
   ) {}
+
+  async verifySession(sessionId: string, tenantId: string, userId: string): Promise<boolean> {
+    const session = await this.authRepository.findActiveSession(sessionId, tenantId, userId);
+    return Boolean(session);
+  }
+
+  async logout(input: { tenantId: string; userId: string; sessionId?: string }): Promise<void> {
+    if (!input.sessionId) return;
+    await this.authRepository.revokeSession(input.sessionId, input.tenantId, input.userId);
+    await this.audit.append({
+      tenantId: input.tenantId,
+      actorUserId: input.userId,
+      action: "auth.logout",
+      entityType: "user",
+      entityId: input.userId,
+      result: "success",
+      metadata: { sessionId: input.sessionId },
+    });
+  }
 
   async login(rawInput: unknown, context: LoginContext = {}): Promise<LoginResult> {
     const input = parseLoginInput(rawInput);

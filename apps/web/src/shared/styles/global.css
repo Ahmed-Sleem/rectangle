@@ -42,3 +42,13 @@ html[dir="rtl"] .rect-app--collapsed .rect-nav-toggle {
   left: auto;
   right: 14px;
 }
+
+.rect-auth-screen {
+  align-items: center;
+  background: var(--rect-chrome-bg);
+  color: var(--rect-text-primary);
+  display: flex;
+  min-height: 100dvh;
+  padding: 24px;
+  justify-content: center;
+}

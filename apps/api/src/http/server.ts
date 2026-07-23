@@ -9,14 +9,17 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { AuthService } from "../application/auth-service.js";
 import type { ProjectService } from "../application/project-service.js";
+import type { SetupService } from "../application/setup-service.js";
 import { createAuthenticationHook } from "./auth.js";
 import { registerAuthRoutes } from "./auth-routes.js";
 import { errorHandler } from "./errors.js";
 import { registerProjectRoutes } from "./projects-routes.js";
+import { registerSetupRoutes } from "./setup-routes.js";
 
 export interface ServerDependencies {
   projectService: ProjectService;
   authService: AuthService;
+  setupService: Pick<SetupService, "getStatus" | "createFirstAdmin">;
   jwtSecret: string;
   corsOrigin?: string;
   webDistPath?: string;
@@ -25,7 +28,7 @@ export interface ServerDependencies {
 }
 
 function isPublicRoute(url: string): boolean {
-  return url.startsWith("/health/") || url === "/v1/auth/login" || !url.startsWith("/v1/");
+  return url.startsWith("/health/") || url === "/v1/auth/login" || url.startsWith("/v1/setup/") || !url.startsWith("/v1/");
 }
 
 export async function createServer(dependencies: ServerDependencies) {
@@ -53,13 +56,17 @@ export async function createServer(dependencies: ServerDependencies) {
     return reply.send({ status: "ready" });
   });
 
+  await registerSetupRoutes(app, dependencies.setupService);
   await registerAuthRoutes(app, dependencies.authService);
 
   app.addHook("preHandler", async (request, reply) => {
     if (isPublicRoute(request.url)) {
       return;
     }
-    await createAuthenticationHook(dependencies.jwtSecret)(request, reply);
+    await createAuthenticationHook(
+      dependencies.jwtSecret,
+      (sessionId, tenantId, userId) => dependencies.authService.verifySession(sessionId, tenantId, userId),
+    )(request, reply);
   });
 
   await registerProjectRoutes(app, dependencies.projectService);

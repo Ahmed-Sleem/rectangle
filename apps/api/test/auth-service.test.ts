@@ -32,6 +32,12 @@ class MemoryAuthRepository implements AuthRepository {
       expiresAt: input.expiresAt,
     };
   }
+
+  async findActiveSession(sessionId: string, sessionTenantId: string, sessionUserId: string) {
+    return { id: sessionId, tenantId: sessionTenantId, userId: sessionUserId, expiresAt: new Date(Date.now() + 3600000).toISOString() };
+  }
+
+  async revokeSession(): Promise<void> {}
 }
 
 async function createService() {

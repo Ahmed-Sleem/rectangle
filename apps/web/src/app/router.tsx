@@ -1,8 +1,11 @@
 import { createBrowserRouter } from "react-router-dom";
-import { AppShellLayout } from "./AppShellLayout";
+import { ProtectedShellRoute, LoginRoute, SetupRoute } from "./AuthRoutes";
 import { RouteError } from "./RouteError";
 import { getEnabledFeatures } from "@/shell/registry";
 import NotFound from "./NotFound";
+import SetupPage from "@/features/setup/SetupPage";
+import LoginPage from "@/features/login/LoginPage";
+import ProjectDetailPage from "@/features/projects/ProjectDetailPage";
 
 function buildChildren() {
   const features = getEnabledFeatures();
@@ -35,11 +38,26 @@ function buildChildren() {
 export function createAppRouter() {
   return createBrowserRouter([
     {
+      path: "/setup",
+      element: <SetupRoute><SetupPage /></SetupRoute>,
+      errorElement: <RouteError />,
+    },
+    {
+      path: "/login",
+      element: <LoginRoute><LoginPage /></LoginRoute>,
+      errorElement: <RouteError />,
+    },
+    {
       path: "/",
-      element: <AppShellLayout />,
+      element: <ProtectedShellRoute />,
       errorElement: <RouteError />,
       children: [
         ...buildChildren(),
+        {
+          path: "projects/:projectId",
+          element: <ProjectDetailPage />,
+          errorElement: <RouteError />,
+        },
         {
           path: "*",
           element: <NotFound />,

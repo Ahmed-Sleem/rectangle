@@ -26,6 +26,8 @@ class EmptyProjectsRepository implements ProjectsRepository {
 class EmptyAuthRepository implements AuthRepository {
   async findCredentialUser(): Promise<null> { return null; }
   async createSession(): Promise<{ id: string; tenantId: string; userId: string; expiresAt: string }> { throw new Error("not used"); }
+  async findActiveSession(): Promise<null> { return null; }
+  async revokeSession(): Promise<void> {}
 }
 
 class TestPasswordHasher implements PasswordHasher {
@@ -33,10 +35,16 @@ class TestPasswordHasher implements PasswordHasher {
   async verify(password: string, encodedHash: string): Promise<boolean> { return password === encodedHash; }
 }
 
+const inactiveSetupService = {
+  async getStatus() { return { setupRequired: false }; },
+  async createFirstAdmin(): Promise<never> { throw new Error("not used"); },
+};
+
 async function createTestServer(webDistPath: string) {
   const audit = new MemoryAuditRepository();
   return createServer({
     projectService: new ProjectService(new EmptyProjectsRepository(), audit),
+    setupService: inactiveSetupService,
     authService: new AuthService(new EmptyAuthRepository(), new TestPasswordHasher(), audit, jwtSecret),
     jwtSecret,
     webDistPath,
