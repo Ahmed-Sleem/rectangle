@@ -45,6 +45,7 @@ npm run dev
 
 - `GET /health/live`
 - `GET /health/ready`
+- `POST /v1/auth/login`
 - `GET /v1/projects`
 - `POST /v1/projects`
 - `GET /v1/projects/:projectId`

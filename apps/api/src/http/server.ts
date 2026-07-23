@@ -4,13 +4,16 @@
  */
 import cors from "@fastify/cors";
 import fastify from "fastify";
+import type { AuthService } from "../application/auth-service.js";
 import type { ProjectService } from "../application/project-service.js";
 import { createAuthenticationHook } from "./auth.js";
+import { registerAuthRoutes } from "./auth-routes.js";
 import { errorHandler } from "./errors.js";
 import { registerProjectRoutes } from "./projects-routes.js";
 
 export interface ServerDependencies {
   projectService: ProjectService;
+  authService: AuthService;
   jwtSecret: string;
   corsOrigin: string;
   readinessCheck?: () => Promise<void>;
@@ -40,8 +43,10 @@ export async function createServer(dependencies: ServerDependencies) {
     return reply.send({ status: "ready" });
   });
 
+  await registerAuthRoutes(app, dependencies.authService);
+
   app.addHook("preHandler", async (request, reply) => {
-    if (request.url.startsWith("/health/")) {
+    if (request.url.startsWith("/health/") || request.url === "/v1/auth/login") {
       return;
     }
     await createAuthenticationHook(dependencies.jwtSecret)(request, reply);

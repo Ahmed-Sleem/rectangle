@@ -1,9 +1,11 @@
 /** Tests Projects API contracts for auth, validation, and route behavior. */
 import { SignJWT } from "jose";
 import { describe, expect, it } from "vitest";
+import { AuthService, type AuthRepository, type CredentialUserRecord } from "../src/application/auth-service.js";
 import { ProjectService, type AuditEventInput, type AuditRepository, type ProjectsRepository } from "../src/application/project-service.js";
 import { createServer } from "../src/http/server.js";
 import type { CreateProjectInput, ProjectListQuery, ProjectRecord, UpdateProjectInput } from "../src/domain/project.js";
+import type { PasswordHasher } from "../src/infrastructure/password.js";
 
 const jwtSecret = "rectangle-test-secret-must-be-at-least-32-chars";
 const tenantId = "11111111-1111-4111-8111-111111111111";
@@ -79,11 +81,26 @@ class MemoryAuditRepository implements AuditRepository {
   }
 }
 
+class MemoryAuthRepository implements AuthRepository {
+  async findCredentialUser(): Promise<CredentialUserRecord | null> {
+    return null;
+  }
+  async createSession() {
+    return { id: "33333333-3333-4333-8333-333333333333", tenantId, userId, expiresAt: new Date(Date.now() + 3600000).toISOString() };
+  }
+}
+
+class TestPasswordHasher implements PasswordHasher {
+  async hash(password: string): Promise<string> { return password; }
+  async verify(password: string, encodedHash: string): Promise<boolean> { return password === encodedHash; }
+}
+
 async function createTestServer() {
   const projects = new MemoryProjectsRepository();
   const audit = new MemoryAuditRepository();
   const app = await createServer({
     projectService: new ProjectService(projects, audit),
+    authService: new AuthService(new MemoryAuthRepository(), new TestPasswordHasher(), audit, jwtSecret),
     jwtSecret,
     corsOrigin: "http://localhost:5173",
     logger: false,
