@@ -376,7 +376,7 @@ Current base GUI intentionally follows this standard:
 - Left menu: compact rail, 152px expanded / 40px collapsed, 32px nav rows.
 - Main canvas: 28px radius, 3px soft black border, 24px/28px padding.
 - AI panel: universal shell sidecar, 360px expanded; when collapsed it becomes a 36px circular floating icon in the top-right of the main canvas and no longer reserves side-panel width.
-- Toggle controls: compact desktop targets placed in the main canvas corners: menu toggle is a 36px circular bottom-left canvas control with black/inner border; AI launcher is a black 36px circular top-right canvas control.
+- Toggle controls: compact desktop targets placed in the main canvas corners: menu toggle is a black 36px circular bottom-left canvas control with visible border/inner ring; AI launcher is a black 36px circular top-right canvas control.
 - Browser title: active page title + Rectangle.
 - Feature pages: loaded by registry into main canvas only.
 

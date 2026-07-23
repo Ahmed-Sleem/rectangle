@@ -112,7 +112,7 @@ Navigation is secondary and quiet. The white panel is primary and solid.
 | Stat card | `16px` | `1px #eaeaea` |
 | Chart well | `16px` | `1px #eaeaea` + subtle hatch |
 | Badge / chart chip | `40px` (pill) | light border |
-| Menu toggle | `36×36` circle | bottom-left of main canvas; off-white circle + black icon + black/inner border |
+| Menu toggle | `36×36` circle | bottom-left of main canvas; black circle + white icon + visible border/inner ring |
 | Collapsed AI launcher | `36×36` circle | top-right of main canvas, opens universal assistant |
 
 ---
@@ -137,7 +137,7 @@ Navigation is secondary and quiet. The white panel is primary and solid.
 - `AppShell` — flex row, optional `.collapsed`
 - `SideNav` — logo, primary items, spacer, footer items (Profile / Logout)
 - `MainPanel` — white rectangle, hosts all routes
-- `NavToggle` — circular bottom-left control inside the main canvas; icon-only, black border/inner border on white surface
+- `NavToggle` — black circular bottom-left control inside the main canvas; icon-only, matching AI FAB style with visible border/inner ring on white surface
 - `AiAssistantPanel` — right-side retractable mini-rectangle for system AI chat; shell-owned, not feature-owned
 - `AiFloatingButton` — collapsed AI state as a circular icon in the top-right corner of the main canvas
 

@@ -35,7 +35,7 @@ That is **connected** (shared design system, auth, router, data contracts) and *
 
 Hard shell split:
 
-- **Left menu:** shell-owned; generated from enabled `FeatureModule` entries so each instance can expose a different set/order of pages. The menu collapse control is a circular bottom-left control inside the main canvas, opposite the AI launcher, with black/inner border so it remains visible on the white surface.
+- **Left menu:** shell-owned; generated from enabled `FeatureModule` entries so each instance can expose a different set/order of pages. The menu collapse control is a black circular bottom-left control inside the main canvas, opposite the AI launcher, with visible border/inner ring so it remains clear on the white surface.
 - **Main canvas:** shell-owned white Rectangle surface; only this area changes when routes/features open.
 - **Right AI panel:** shell-owned universal assistant; always part of the app chrome, never implemented as a feature route/page. Expanded = right mini-rectangle; collapsed = circular assistant icon in the top-right of the main canvas, with no reserved side-panel width.
 

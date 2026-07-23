@@ -986,3 +986,87 @@
     transition: none !important;
   }
 }
+
+/* ── Final motion polish: black canvas menu FAB + smoother rail contraction ── */
+
+.rect-app {
+  transition: gap 380ms cubic-bezier(0.18, 0.95, 0.22, 1.02);
+}
+
+.rect-nav {
+  transition:
+    width 390ms cubic-bezier(0.18, 0.95, 0.22, 1.02),
+    padding 390ms cubic-bezier(0.18, 0.95, 0.22, 1.02),
+    opacity 220ms ease;
+}
+
+.rect-logo,
+.rect-nav-item,
+.rect-nav-item__label,
+.rect-nav-item__icon {
+  transition:
+    opacity 240ms ease,
+    transform 320ms cubic-bezier(0.18, 0.95, 0.22, 1.02),
+    width 390ms cubic-bezier(0.18, 0.95, 0.22, 1.02),
+    font-size 320ms cubic-bezier(0.18, 0.95, 0.22, 1.02),
+    background var(--rect-motion-nav),
+    color var(--rect-motion-nav);
+}
+
+.rect-nav-toggle,
+.rect-app--collapsed .rect-nav-toggle {
+  background: #18181b;
+  color: #fafafa;
+  border: 2px solid #000000;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.13),
+    0 12px 28px rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.16);
+  transition:
+    background var(--rect-motion-nav),
+    border-color var(--rect-motion-nav),
+    color var(--rect-motion-nav),
+    transform 320ms cubic-bezier(0.18, 0.95, 0.22, 1.08),
+    box-shadow var(--rect-motion-nav);
+}
+
+.rect-nav-toggle:hover,
+.rect-nav-toggle:focus-visible {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+  transform: translateY(-1px) rotate(-4deg) scale(1.04);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 16px 34px rgba(0, 0, 0, 0.28),
+    0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.rect-nav-toggle:hover svg,
+.rect-nav-toggle:focus-visible svg {
+  transform: translateX(-1px) rotate(-5deg) scale(1.06);
+}
+
+.rect-app--collapsed .rect-nav-toggle:hover svg,
+.rect-app--collapsed .rect-nav-toggle:focus-visible svg {
+  transform: translateX(1px) rotate(5deg) scale(1.06);
+}
+
+.rect-nav-toggle:active,
+.rect-app--collapsed .rect-nav-toggle:active {
+  transform: rotate(0deg) scale(0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-app,
+  .rect-nav,
+  .rect-logo,
+  .rect-nav-item,
+  .rect-nav-item__label,
+  .rect-nav-item__icon,
+  .rect-nav-toggle,
+  .rect-nav-toggle svg {
+    animation: none !important;
+    transition: none !important;
+  }
+}

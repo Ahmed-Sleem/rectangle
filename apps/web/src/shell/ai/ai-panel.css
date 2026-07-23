@@ -2,16 +2,22 @@
 
 @keyframes rect-ai-panel-in {
   0% {
+    width: 0;
+    min-width: 0;
     opacity: 0;
-    transform: translateX(18px) scale(0.965);
+    transform: translateX(24px) scale(0.955);
   }
 
-  64% {
+  62% {
+    width: calc(var(--rect-ai-panel-target-width) + 12px);
+    min-width: calc(var(--rect-ai-panel-target-width) + 12px);
     opacity: 1;
-    transform: translateX(-2px) scale(1.012);
+    transform: translateX(-3px) scale(1.012);
   }
 
   100% {
+    width: var(--rect-ai-panel-target-width);
+    min-width: var(--rect-ai-panel-target-width);
     opacity: 1;
     transform: translateX(0) scale(1);
   }
@@ -19,20 +25,25 @@
 
 @keyframes rect-ai-panel-out {
   0% {
+    width: var(--rect-ai-panel-target-width);
+    min-width: var(--rect-ai-panel-target-width);
     opacity: 1;
     transform: translateX(0) scale(1);
   }
 
   100% {
+    width: 0;
+    min-width: 0;
     opacity: 0;
-    transform: translateX(18px) scale(0.965);
+    transform: translateX(24px) scale(0.955);
   }
 }
 
 
 .rect-ai-panel {
-  width: var(--rect-ai-panel-width);
-  min-width: var(--rect-ai-panel-width);
+  --rect-ai-panel-target-width: var(--rect-ai-panel-width);
+  width: var(--rect-ai-panel-target-width);
+  min-width: var(--rect-ai-panel-target-width);
   min-height: 0;
   background: var(--rect-surface-bg);
   border: var(--rect-panel-border-width) solid var(--rect-surface-border);
@@ -44,7 +55,7 @@
   overflow: hidden;
   position: relative;
   z-index: var(--rect-z-panel);
-  animation: rect-ai-panel-in 320ms cubic-bezier(0.2, 0.9, 0.2, 1.08) both;
+  animation: rect-ai-panel-in 420ms cubic-bezier(0.18, 0.95, 0.22, 1.08) both;
   transition:
     width var(--rect-motion-menu),
     min-width var(--rect-motion-menu),
@@ -56,7 +67,7 @@
 
 .rect-ai-panel--closing {
   pointer-events: none;
-  animation: rect-ai-panel-out 230ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: rect-ai-panel-out 340ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .rect-ai-panel:hover {
@@ -292,15 +303,17 @@
 
 @media (max-width: 1100px) {
   .rect-ai-panel {
-    width: var(--rect-ai-panel-width-tablet);
-    min-width: var(--rect-ai-panel-width-tablet);
+    --rect-ai-panel-target-width: var(--rect-ai-panel-width-tablet);
+    width: var(--rect-ai-panel-target-width);
+    min-width: var(--rect-ai-panel-target-width);
   }
 
 }
 
 @media (max-width: 768px) {
   .rect-ai-panel {
-    width: 100%;
+    --rect-ai-panel-target-width: 100%;
+    width: var(--rect-ai-panel-target-width);
     min-width: 0;
     min-height: 320px;
     border-radius: var(--rect-panel-radius-mobile);
