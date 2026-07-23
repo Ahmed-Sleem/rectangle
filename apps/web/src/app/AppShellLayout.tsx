@@ -1,15 +1,16 @@
 /**
  * Owns shell-level state that must survive feature swaps: navigation collapse,
- * AI panel visibility, and the browser tab title for the active route.
+ * AI panel visibility, localized page titles, and the browser tab title.
  */
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Outlet, useLocation } from "react-router-dom";
 import { AppShell } from "@/shell/AppShell";
 import { getFeatureByPath } from "@/shell/registry";
+import { getLocalizedFeatureTitle, useRectangleI18n } from "@/shared/i18n";
 
 const NAV_STORAGE_KEY = "rectangle.shell.navCollapsed";
 const AI_STORAGE_KEY = "rectangle.shell.aiCollapsed";
-const APP_NAME = "Rectangle";
 
 function readStoredBoolean(key: string, fallback: boolean): boolean {
   if (typeof window === "undefined") return fallback;
@@ -31,10 +32,6 @@ function writeStoredBoolean(key: string, value: boolean): void {
   }
 }
 
-function getPageTitle(pathname: string): string {
-  return getFeatureByPath(pathname)?.title ?? "Not found";
-}
-
 export function AppShellLayout() {
   const [navCollapsed, setNavCollapsed] = useState(() =>
     readStoredBoolean(NAV_STORAGE_KEY, false),
@@ -43,7 +40,11 @@ export function AppShellLayout() {
     readStoredBoolean(AI_STORAGE_KEY, false),
   );
   const location = useLocation();
-  const title = getPageTitle(location.pathname);
+  const { language } = useRectangleI18n();
+  const { t } = useTranslation();
+  const feature = getFeatureByPath(location.pathname);
+  const title = getLocalizedFeatureTitle(feature, language, t("feature.unknown"));
+  const appName = t("app.name");
 
   const onToggleNav = useCallback(() => {
     setNavCollapsed((prev) => {
@@ -62,8 +63,8 @@ export function AppShellLayout() {
   }, []);
 
   useEffect(() => {
-    document.title = `${title} · ${APP_NAME}`;
-  }, [title]);
+    document.title = `${title} · ${appName}`;
+  }, [appName, title]);
 
   return (
     <AppShell
@@ -76,7 +77,7 @@ export function AppShellLayout() {
       <Suspense
         fallback={
           <div className="rect-panel__fallback" role="status">
-            Loading…
+            {t("common.loading")}
           </div>
         }
       >

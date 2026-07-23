@@ -4,6 +4,7 @@
  * global navigation, not a page-level action.
  */
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function NavToggle({
   collapsed,
@@ -14,7 +15,9 @@ export function NavToggle({
   onToggle: () => void;
   navId: string;
 }) {
+  const { t } = useTranslation();
   const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
+  const label = collapsed ? t("shell.nav.expand") : t("shell.nav.collapse");
 
   return (
     <button
@@ -23,8 +26,8 @@ export function NavToggle({
       onClick={onToggle}
       aria-expanded={!collapsed}
       aria-controls={navId}
-      aria-label={collapsed ? "Expand menu" : "Collapse menu"}
-      title={collapsed ? "Expand menu" : "Collapse menu"}
+      aria-label={label}
+      title={label}
     >
       <Icon strokeWidth={2} absoluteStrokeWidth aria-hidden />
     </button>

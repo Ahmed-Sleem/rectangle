@@ -2,6 +2,7 @@
  * Reusable icon-only control for expanding/collapsing the AI side panel.
  */
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function AiPanelToggle({
   collapsed,
@@ -10,7 +11,9 @@ export function AiPanelToggle({
   collapsed: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useTranslation();
   const Icon = collapsed ? PanelRightOpen : PanelRightClose;
+  const label = collapsed ? t("shell.ai.open") : t("shell.ai.close");
 
   return (
     <button
@@ -19,8 +22,8 @@ export function AiPanelToggle({
       onClick={onToggle}
       aria-expanded={!collapsed}
       aria-controls="rectangle-ai-panel-body"
-      aria-label={collapsed ? "Open AI panel" : "Close AI panel"}
-      title={collapsed ? "Open AI panel" : "Close AI panel"}
+      aria-label={label}
+      title={label}
     >
       <Icon strokeWidth={2.1} absoluteStrokeWidth aria-hidden />
     </button>

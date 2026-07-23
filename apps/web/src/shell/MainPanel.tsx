@@ -4,6 +4,7 @@
  */
 import { Sparkles } from "lucide-react";
 import type { ReactNode, MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { NavToggle } from "./NavToggle";
 
 export function MainPanel({
@@ -23,6 +24,8 @@ export function MainPanel({
   onToggleAi: () => void;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
+
   function handleDoubleClick(e: MouseEvent<HTMLElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -42,8 +45,8 @@ export function MainPanel({
           onClick={onToggleAi}
           aria-expanded="false"
           aria-controls="rectangle-ai-panel-body"
-          aria-label="Open AI panel"
-          title="Open AI panel"
+          aria-label={t("shell.ai.open")}
+          title={t("shell.ai.open")}
         >
           <Sparkles size={18} strokeWidth={2.05} aria-hidden />
         </button>

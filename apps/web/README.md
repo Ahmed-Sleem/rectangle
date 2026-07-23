@@ -20,9 +20,14 @@ npm run start          # serve dist on PORT (default 3000), SPA fallback
 
 - Vite 8 + React 19 + TypeScript (strict)
 - React Router 7 (data router + lazy feature routes)
+- i18next + react-i18next for Arabic/English shell localization
 - Lucide icons, Inter via `@fontsource/inter`
 - Vitest + Testing Library
 - `serve` (**production dependency**) for Railway / static SPA
+
+## Arabic / RTL foundation
+
+The shell has an active i18n provider in `src/shared/i18n/`. It supports English and Arabic resources, persists the selected language in localStorage, and synchronizes `<html lang>` plus `<html dir>` for RTL/LTR behavior. Feature modules must provide both `title` and `titleAr` before production enablement.
 
 ## Shared UI primitives
 

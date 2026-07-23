@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import type { FeatureModule } from "./feature-types";
 import { FeatureIcon } from "./icons";
 import { cn } from "@/shared/lib/cn";
+import { getLocalizedFeatureTitle, useRectangleI18n } from "@/shared/i18n";
 
 export function SideNavItem({
   feature,
@@ -10,6 +11,9 @@ export function SideNavItem({
   feature: FeatureModule;
   collapsed: boolean;
 }) {
+  const { language } = useRectangleI18n();
+  const title = getLocalizedFeatureTitle(feature, language, feature.title);
+
   return (
     <li>
       <NavLink
@@ -18,13 +22,13 @@ export function SideNavItem({
         className={({ isActive }) =>
           cn("rect-nav-item", isActive && "rect-nav-item--active")
         }
-        aria-label={feature.title}
-        title={collapsed ? feature.title : undefined}
+        aria-label={title}
+        title={collapsed ? title : undefined}
       >
         <span className="rect-nav-item__icon">
           <FeatureIcon name={feature.icon} />
         </span>
-        <span className="rect-nav-item__label">{feature.title}</span>
+        <span className="rect-nav-item__label">{title}</span>
       </NavLink>
     </li>
   );

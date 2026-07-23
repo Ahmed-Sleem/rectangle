@@ -5,6 +5,7 @@
  */
 import { FileText, SendHorizontal, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AiPanelToggle } from "./AiPanelToggle";
 import type { AiAssistantPanelProps } from "./ai-types";
 import { cn } from "@/shared/lib/cn";
@@ -16,6 +17,7 @@ export function AiAssistantPanel({
   collapsed,
   onToggle,
 }: AiAssistantPanelProps) {
+  const { t } = useTranslation();
   const [shouldRender, setShouldRender] = useState(!collapsed);
   const [isClosing, setIsClosing] = useState(false);
   const [useCurrentPageContext, setUseCurrentPageContext] = useState(true);
@@ -51,12 +53,16 @@ export function AiAssistantPanel({
     };
   }, [collapsed, shouldRender]);
 
+  const currentPageLabel = useCurrentPageContext
+    ? t("shell.ai.currentPageOn")
+    : t("shell.ai.currentPageOff");
+
   if (!shouldRender) return null;
 
   return (
     <aside
       className={cn("rect-ai-panel", isClosing && "rect-ai-panel--closing")}
-      aria-label="AI assistant"
+      aria-label={t("shell.ai.assistant")}
       aria-hidden={isClosing}
     >
       <header className="rect-ai-panel__header">
@@ -65,8 +71,8 @@ export function AiAssistantPanel({
             <Sparkles size={16} strokeWidth={2.1} />
           </span>
           <div>
-            <h2 className="rect-ai-panel__title">AI Assistant</h2>
-            <p className="rect-ai-panel__status">Model connection pending</p>
+            <h2 className="rect-ai-panel__title">{t("shell.ai.assistant")}</h2>
+            <p className="rect-ai-panel__status">{t("shell.ai.statusPending")}</p>
           </div>
         </div>
         <AiPanelToggle collapsed={false} onToggle={onToggle} />
@@ -75,22 +81,19 @@ export function AiAssistantPanel({
       <div className="rect-ai-panel__body" id="rectangle-ai-panel-body">
         <div className="rect-ai-panel__empty" role="status">
           <Sparkles size={28} strokeWidth={1.8} aria-hidden />
-          <p className="rect-ai-panel__empty-title">Ready for system AI</p>
-          <p className="rect-ai-panel__empty-text">
-            The chat surface is prepared. Connect a real model adapter before
-            enabling send, so Rectangle never shows fake AI answers.
-          </p>
+          <p className="rect-ai-panel__empty-title">{t("shell.ai.readyTitle")}</p>
+          <p className="rect-ai-panel__empty-text">{t("shell.ai.readyText")}</p>
         </div>
       </div>
 
-      <form className="rect-ai-composer" aria-label="AI message composer">
+      <form className="rect-ai-composer" aria-label={t("shell.ai.composerLabel")}>
         <label className="rect-ai-composer__label" htmlFor="rect-ai-message">
-          Ask Rectangle AI
+          {t("shell.ai.composerLabel")}
         </label>
         <textarea
           id="rect-ai-message"
           className="rect-ai-composer__input"
-          placeholder="Connect the model to ask about schedules, risks, documents…"
+          placeholder={t("shell.ai.placeholder")}
           rows={3}
           disabled
         />
@@ -104,25 +107,17 @@ export function AiAssistantPanel({
                 useCurrentPageContext && "rect-ai-composer__tool--active",
               )}
               aria-pressed={useCurrentPageContext}
-              aria-label={
-                useCurrentPageContext
-                  ? "Current page context on"
-                  : "Current page context off"
-              }
-              title={
-                useCurrentPageContext
-                  ? "Current page context on"
-                  : "Current page context off"
-              }
+              aria-label={currentPageLabel}
+              title={currentPageLabel}
               onClick={() => setUseCurrentPageContext((value) => !value)}
             >
               <FileText size={15} strokeWidth={2} aria-hidden />
-              <span className="sr-only">Current page context</span>
+              <span className="sr-only">{t("shell.ai.currentPage")}</span>
             </button>
           </div>
           <button type="submit" className="rect-ai-composer__send" disabled>
             <SendHorizontal size={15} strokeWidth={2.1} aria-hidden />
-            Send
+            {t("shell.ai.send")}
           </button>
         </div>
       </form>

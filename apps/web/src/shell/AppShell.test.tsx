@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { describe, expect, it, beforeEach } from "vitest";
 import { AppShellLayout } from "@/app/AppShellLayout";
+import { LANGUAGE_STORAGE_KEY, RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import { getEnabledFeatures } from "./registry";
 import NotFound from "@/app/NotFound";
 
@@ -44,13 +45,18 @@ function renderApp(initialPath = "/") {
 
   return {
     router,
-    ...render(<RouterProvider router={router} />),
+    ...render(
+      <RectangleI18nProvider>
+        <RouterProvider router={router} />
+      </RectangleI18nProvider>,
+    ),
   };
 }
 
 describe("AppShell", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
+    await setRectangleLanguage("en");
   });
 
   it("renders the wordmark, page title, and page-specific browser title", async () => {
@@ -63,6 +69,24 @@ describe("AppShell", () => {
       screen.queryByRole("heading", { level: 1, name: "RECTANGLE" }),
     ).not.toBeInTheDocument();
     expect(document.title).toBe("Overview · Rectangle");
+  });
+
+  it("renders Arabic shell labels and RTL document direction", async () => {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, "ar");
+    await setRectangleLanguage("ar");
+
+    renderApp("/projects");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "المشاريع" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "المشاريع" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "الإعدادات" })).toBeInTheDocument();
+    expect(document.documentElement).toHaveAttribute("lang", "ar");
+    expect(document.documentElement).toHaveAttribute("dir", "rtl");
+    await waitFor(() => {
+      expect(document.title).toBe("المشاريع · Rectangle");
+    });
   });
 
   it("toggles the icon-only navigation control", async () => {
@@ -105,7 +129,7 @@ describe("AppShell", () => {
 
   it("renders a retractable AI assistant panel without fake model output", async () => {
     renderApp("/");
-    expect(await screen.findByLabelText("AI assistant")).toBeInTheDocument();
+    expect(await screen.findByLabelText("AI Assistant")).toBeInTheDocument();
     expect(screen.getByText("AI Assistant")).toBeInTheDocument();
     expect(screen.getByText("Model connection pending")).toBeInTheDocument();
     expect(
@@ -137,7 +161,7 @@ describe("AppShell", () => {
       "rect-app--ai-collapsed",
     );
     await waitFor(() => {
-      expect(screen.queryByLabelText("AI assistant")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("AI Assistant")).not.toBeInTheDocument();
     });
     expect(
       screen.getByRole("button", { name: /open ai panel/i }),
