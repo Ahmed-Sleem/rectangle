@@ -16,7 +16,7 @@ const CONTEXT_CHIPS: AiContextChip[] = [
   { id: "docs", label: "Documents" },
 ];
 
-const EXIT_ANIMATION_MS = 360;
+const EXIT_ANIMATION_MS = 260;
 
 export function AiAssistantPanel({
   collapsed,

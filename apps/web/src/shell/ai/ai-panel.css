@@ -5,14 +5,7 @@
     width: 0;
     min-width: 0;
     opacity: 0;
-    transform: translateX(24px) scale(0.955);
-  }
-
-  62% {
-    width: calc(var(--rect-ai-panel-target-width) + 12px);
-    min-width: calc(var(--rect-ai-panel-target-width) + 12px);
-    opacity: 1;
-    transform: translateX(-3px) scale(1.012);
+    transform: translateX(10px) scale(0.992);
   }
 
   100% {
@@ -35,7 +28,7 @@
     width: 0;
     min-width: 0;
     opacity: 0;
-    transform: translateX(24px) scale(0.955);
+    transform: translateX(10px) scale(0.992);
   }
 }
 
@@ -55,7 +48,7 @@
   overflow: hidden;
   position: relative;
   z-index: var(--rect-z-panel);
-  animation: rect-ai-panel-in 420ms cubic-bezier(0.18, 0.95, 0.22, 1.08) both;
+  animation: rect-ai-panel-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
   transition:
     width var(--rect-motion-menu),
     min-width var(--rect-motion-menu),
@@ -67,7 +60,7 @@
 
 .rect-ai-panel--closing {
   pointer-events: none;
-  animation: rect-ai-panel-out 340ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: rect-ai-panel-out 240ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .rect-ai-panel:hover {
@@ -334,7 +327,7 @@
 @keyframes rect-ai-content-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(3px);
   }
 
   to {
@@ -353,23 +346,23 @@
 .rect-ai-panel__context,
 .rect-ai-panel__body,
 .rect-ai-composer {
-  animation: rect-ai-content-in 260ms ease-out both;
+  animation: rect-ai-content-in 180ms ease-out both;
 }
 
 .rect-ai-panel__header {
-  animation-delay: 80ms;
+  animation-delay: 45ms;
 }
 
 .rect-ai-panel__context {
-  animation-delay: 120ms;
+  animation-delay: 65ms;
 }
 
 .rect-ai-panel__body {
-  animation-delay: 150ms;
+  animation-delay: 85ms;
 }
 
 .rect-ai-composer {
-  animation-delay: 180ms;
+  animation-delay: 105ms;
 }
 
 .rect-ai-panel--closing .rect-ai-panel__header,
@@ -378,10 +371,10 @@
 .rect-ai-panel--closing .rect-ai-composer {
   animation: none;
   opacity: 0;
-  transform: translateY(3px);
+  transform: translateY(2px);
   transition:
-    opacity 140ms ease,
-    transform 140ms ease;
+    opacity 100ms ease,
+    transform 100ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {

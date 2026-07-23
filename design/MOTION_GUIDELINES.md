@@ -57,8 +57,8 @@ Use these named concepts when adding CSS variables or component animation option
 
 ### Universal AI panel
 
-- Opening: width/min-width + opacity + translate/scale, `~420ms`, subtle bouncy overshoot.
-- Closing: width/min-width + opacity + translate/scale, `~340ms`, smooth exit before React unmount.
+- Opening: width/min-width + opacity + very small translate/scale, `~340ms`, calm ease-out with no overshoot.
+- Closing: width/min-width + opacity + very small translate/scale, `~240ms`, smooth exit before React unmount.
 - Collapsed launcher: black circular top-right canvas FAB.
 
 ### Main canvas
