@@ -669,3 +669,12 @@ Do not forget these requirements when implementing the AI and backend foundation
   - OpenFGA/Casbin require a backend authZ spike.
 - AGPL/GPL projects (Plane, OpenProject, ERPNext, xeokit) are reference-only unless legal/architecture review approves direct reuse or isolation.
 - Every feature must begin with a focused reuse/license/compatibility review from `FEATURE_REUSE_RESEARCH.md` before implementation.
+
+### 2026-07-23 — Deep gap research pass
+
+The reuse research was expanded with deeper search/thinking loops for licenses, Gantt/P6, Arabic search, PDF/BIM, AI governance, audit logs, and per-company deployment. Current decision:
+
+- Continue using `docs/FEATURE_REUSE_RESEARCH.md` as the working source before building each feature.
+- Treat remaining gaps as **hands-on spikes**, not just reading gaps.
+- The next implementation should still be foundation-first, but before coding it should answer the “no gaps before feature” checklist now added to the reuse research file.
+- It is acceptable to use lesser-known individual projects if their license, code quality, security, tests, and compatibility are validated.

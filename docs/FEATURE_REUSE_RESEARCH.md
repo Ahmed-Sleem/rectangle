@@ -878,3 +878,242 @@ Decision:
 8. **Per-company deployment blueprint:** database isolation, secrets, backups, SSO, AI provider settings.
 
 ---
+
+---
+
+## 17. Deep gap research loop — license, scheduling, search, docs, security
+
+**Date:** 2026-07-23
+**Branch:** `dev` only
+**Method:** search → think → search again. This section deepens the open spikes from §16.
+
+### 17.1 Loop A — license/legal suitability
+
+Search findings:
+
+- Permissive licenses (MIT/BSD/Apache) remain safest for direct code reuse; keep copyright notices and respect Apache patent/notice terms.
+- GPL generally triggers source obligations on distribution, while pure SaaS/internal network use can differ by interpretation and jurisdiction.
+- AGPL adds a network-use clause: if users interact with modified AGPL software over a network, source availability obligations can be triggered for those users.
+- Internal-only company installs still require careful review: users may be internal employees, but AGPL/GPL obligations and future external exposure risks remain non-trivial.
+
+Thinking / decision:
+
+- Rectangle should not embed AGPL/GPL code into app production paths unless Ahmed explicitly accepts open-source obligations or legal counsel approves.
+- AGPL/GPL projects can still be valuable as **reference-only** or **separate sidecar** if architecture/legal review accepts the boundary.
+- For direct frontend/backend dependencies, prefer MIT/Apache/BSD/MPL after compatibility check.
+- Every feature plan must include a license line item before implementation.
+
+Practical rule:
+
+```text
+MIT/BSD/Apache => candidate for direct reuse
+MPL/LGPL => possible with boundary review
+GPL/AGPL => reference-only by default
+NOASSERTION/custom/open-core => inspect LICENSE and commercial terms manually
+```
+
+### 17.2 Loop B — Gantt / P6 / CPM proof
+
+Search findings:
+
+- `PyP6Xer` provides P6 XER parsing, schedule analysis, critical path examples, resources, calendars, WBS, relationships, and EVM-style examples.
+- `p6xer-mcp-server` wraps PyP6Xer with MCP tools like parse file, get project activities, get critical path, schedule quality checks, resources, relationships, calendars, and earned value. It is small but useful as an AI-tool architecture reference.
+- `pyCritical` provides CPM/PERT methods, lags, dependency types, Gantt plots, and a PyPI package.
+- Lightweight CPM repositories exist but are mostly teaching examples; they are useful for tests but not production construction scheduling.
+
+GitHub metadata snapshot:
+
+| Repo | Stars | License | Language | Updated | Decision |
+|---|---:|---|---|---|---|
+| `HassanEmam/PyP6Xer` | 66 | LGPL-2.1 | Python | 2026-06-24 | Evaluate as parser worker; LGPL boundary review needed |
+| `osama-ata/p6xer-mcp-server` | 10 | MIT | Python | 2026-07-20 | Reference for AI schedule tools; too small to trust uninspected |
+| `Valdecy/pyCritical` | 22 | NOASSERTION | JS/Python package context | 2026-07-22 | Evaluate algorithms only; license unclear |
+| `DHTMLX/gantt` | 1,822 | MIT | JavaScript | 2026-07-23 | Evaluate for UI only |
+| `frappe/gantt` | 6,054 | MIT | JavaScript | 2026-07-23 | Simple timeline only |
+| `joniles/mpxj` | 336 | LGPL-2.1 | Java | 2026-07-22 | Strong import/export worker candidate |
+
+Thinking / decision:
+
+- Schedule must be built as **four layers**:
+  1. UI Gantt/activity table.
+  2. Server-side CPM engine.
+  3. P6/MSP import/export worker.
+  4. Schedule quality/validation report.
+- Do not use imported P6 float as truth forever; after import, Rectangle needs its own CPM calculation for edits/scenarios.
+- For AI schedule tools, start with read-only tools: project summary, critical path, missing logic, high float, relationship graph.
+
+Spike plan:
+
+1. Collect 3 sample XER files: small, medium, Arabic/mixed names if possible.
+2. Parse with PyP6Xer and MPXJ.
+3. Compare activities/WBS/calendars/relationships counts.
+4. Run pyCritical or custom CPM on normalized graph.
+5. Produce validation report JSON schema.
+6. Only then choose UI Gantt.
+
+### 17.3 Loop C — Arabic search proof
+
+Search findings:
+
+- PostgreSQL Arabic FTS can be poor out of the box; examples show incorrect stemming/normalization for some Arabic words.
+- OpenSearch/Elasticsearch support custom Arabic analyzers with Arabic stop words, Arabic normalization, decimal digit normalization, and Arabic stemmer filters.
+- Meilisearch is fast and pleasant but Arabic stemming/normalization requires proof; community discussions mention need for Arabic normalization and stemming similar to Solr/Lucene filters.
+- Lucene Arabic analyzer/root stemmer plugins exist and may be useful if choosing OpenSearch/Elasticsearch.
+
+Candidate metadata:
+
+| Repo | Stars | License | Language | Updated | Decision |
+|---|---:|---|---|---|---|
+| `meilisearch/meilisearch` | 58,705 | NOASSERTION | Rust | 2026-07-23 | Candidate for simple search; Arabic proof required |
+| `opensearch-project/OpenSearch` | 13,367 | Apache-2.0 | Java | 2026-07-23 | Strong Arabic analyzer candidate; heavier ops |
+| `msarhan/elasticsearch-analysis-arabic-plugin` | 10 | Apache-2.0 | Java | 2026-06-29 | Reference/plugin candidate for Arabic root stemming |
+| `msarhan/lucene-arabic-analyzer` | 40 | MIT | Java | 2026-05-02 | Reference for Arabic normalization/stemming |
+
+Thinking / decision:
+
+- Rectangle cannot claim Arabic-first unless search works on Arabic project names, RFIs, specs, and mixed Arabic/English codes.
+- MVP can start with Postgres ILIKE/trigram + normalized search fields for simple app search, but document/spec search likely needs OpenSearch or a proven search engine.
+- For Arabic, normalize before indexing:
+  - strip diacritics
+  - normalize Alef variants
+  - normalize Yeh/Alef Maqsura
+  - normalize Teh Marbuta strategy
+  - normalize Arabic-Indic digits
+  - remove tatweel/kashida
+  - preserve exact-code search for RFI/BOQ/WBS IDs
+
+Arabic search spike plan:
+
+1. Build a corpus of 100 Arabic/mixed construction terms.
+2. Compare Postgres FTS, trigram, Meilisearch, and OpenSearch Arabic analyzer.
+3. Test exact phrase vs normalized vs fuzzy search.
+4. Test construction codes: `RFI-001`, `BOQ`, `A-101`, Arabic descriptions.
+5. Pick engine per use case:
+   - app navigation: lightweight local/API search
+   - docs/specs: OpenSearch/RAG hybrid if needed
+   - AI citations: vector + lexical hybrid
+
+### 17.4 Loop D — PDF annotation / drawings / BIM
+
+Search findings:
+
+- `react-pdf-highlighter-plus` has modern layers for highlights, notes, config/tools, text highlights, area highlights, freetext notes, images/signatures, freehand drawing, shapes, search, export, deep linking, and quote-to-position features.
+- `agentcooper/react-pdf-highlighter` is older/more established, MIT, and viewport-independent highlight data is suitable for server storage.
+- `pdf-annotator-react` exposes props for annotations, modes, create/update/delete callbacks, categories/colors, PDF worker source, view-only mode; small repo, needs quality inspection.
+- `pdf.js` remains the safest rendering base.
+
+Additional metadata:
+
+| Repo | Stars | License | Language | Updated | Decision |
+|---|---:|---|---|---|---|
+| `mozilla/pdf.js` | 53,624 | Apache-2.0 | JavaScript | 2026-07-23 | Rendering foundation |
+| `agentcooper/react-pdf-highlighter` | 1,400 | MIT | TypeScript | 2026-07-23 | Stable highlight reference/evaluate |
+| `QuocVietHa08/react-pdf-highlighter-plus` | 58 | MIT | TypeScript | 2026-07-22 | Modern annotation feature spike |
+| `arturgomes/pdf-annotator-react` | 5 | NOASSERTION | TypeScript | 2026-04-06 | Reference only until license quality verified |
+
+Thinking / decision:
+
+- Drawings should not start with full BIM. Start with PDFs/sheets + server-stored annotations.
+- Store annotation geometry independent of viewport/zoom.
+- Every markup must link to optional entity: RFI, issue, observation, punch item, photo, document revision.
+- Never burn annotations directly into PDF as source of truth; export annotated PDF as derived artifact only.
+
+PDF/drawing spike plan:
+
+1. Render sample drawing PDF with pdf.js.
+2. Add text highlight + area pin + freehand/shape if library supports it.
+3. Save annotation JSON to mock local store with page, rects, scale-independent coordinates.
+4. Reload and verify accurate placement after zoom.
+5. Test Arabic text PDF search/highlight if text layer supports extraction.
+6. Decide highlighter library vs custom layer.
+
+### 17.5 Loop E — AI agent governance, audit, per-company deployment
+
+Search findings:
+
+- Production AI agents need governance controls: tool allowlists, RBAC, human-in-the-loop approvals, immutable audit logs, token/cost budgets, policy gates, prompt-injection defenses, and observability.
+- AI audit trails should log model/version, prompts, outputs, tool calls, retrieved context references, user identity/session, approvals/rejections, data lineage, permission denials, errors, and overrides.
+- Multi-tenant architecture options include shared database with tenant_id, schema-per-tenant, database-per-tenant, and full single-tenant deployments. Single-tenant has highest isolation but highest operational overhead; database-per-tenant provides strong isolation with less full-stack duplication.
+- For Rectangle’s target (“one system per company internal thing”), single-company deployment is a first-class architecture, not an afterthought.
+- Feature flag/self-host systems like Flagsmith can provide module/feature management; OpenFeature-compatible approach reduces lock-in.
+- Secrets for per-company installs need self-hostable options: Vault/OpenBao, Infisical, Phase, or cloud KMS depending deployment.
+
+Additional metadata:
+
+| Repo | Stars | License | Language | Updated | Decision |
+|---|---:|---|---|---|---|
+| `flagsmith/flagsmith` | 6,459 | BSD-3-Clause | Python | 2026-07-23 | Strong feature flag/config candidate |
+| `Unleash/unleash` | 13,685 | AGPL-3.0 | TypeScript | 2026-07-23 | Reference/sidecar only by default due AGPL |
+| `openbao/openbao` | 6,774 | MPL-2.0 | Go | 2026-07-23 | Secrets candidate for self-host enterprise |
+| `Infisical/infisical` | 28,331 | NOASSERTION | TypeScript | 2026-07-23 | Secrets candidate; license review required |
+| `HumanLayer/humanlayer` | 11,142 | NOASSERTION | TypeScript | 2026-07-23 | Human-in-loop agent approval reference |
+| `open-policy-agent/opa` | 12,011 | Apache-2.0 | Go | 2026-07-23 | Policy engine candidate/reference |
+
+Thinking / decision:
+
+- Rectangle should define a **control plane** concept early:
+  - modules/features enabled
+  - tenant/company settings
+  - auth providers
+  - AI provider settings
+  - secrets references
+  - audit retention
+  - integration config
+- For one-company installs, default should be isolated deployment with company-owned data and secrets.
+- For future SaaS, code must still support tenant_id and object-level authorization; do not hardcode single-company assumptions everywhere.
+- AI tools must be governed like production APIs:
+  - allowlist tools
+  - validate schemas
+  - check permissions
+  - require approval for write/danger actions
+  - log everything
+  - enforce loop/token budgets
+
+Per-company deployment blueprint spike:
+
+1. Define deployment profiles:
+   - local demo
+   - single-company Docker Compose
+   - single-company Kubernetes
+   - future multi-tenant SaaS
+2. Define DB isolation options and chosen default.
+3. Define secret storage adapter.
+4. Define backup/restore and update process.
+5. Define SSO/OIDC/SAML path.
+6. Define observability/audit export path.
+7. Define AI provider/model config per company.
+
+---
+
+## 18. Updated “no gaps before feature” checklist
+
+Before implementing any real feature, answer:
+
+- [ ] What existing code/repo candidates were reviewed?
+- [ ] What is each candidate’s license and reuse mode?
+- [ ] Are we copying code, adapting patterns, integrating a sidecar, or rejecting?
+- [ ] What tests prove the feature works?
+- [ ] What input validation is needed frontend/backend?
+- [ ] What audit events are emitted?
+- [ ] What AI context/tools does this feature expose?
+- [ ] What permissions are checked?
+- [ ] What Arabic/RTL behavior is required?
+- [ ] What security risks exist?
+- [ ] What deployment/per-company configuration is needed?
+
+---
+
+## 19. Current remaining research gaps after this pass
+
+The research is much deeper, but not “done forever.” These are the remaining focused gaps that require hands-on code spikes or real sample files:
+
+1. **Real schedule files:** Need sample P6 XER/XML and MS Project files to prove parser behavior.
+2. **Gantt UI bake-off:** Need a sandbox comparison of DHTMLX/SVAR/Frappe with Rectangle styling and 1k+ activities.
+3. **Arabic search benchmark:** Need corpus and measured search quality, not just docs.
+4. **PDF annotation spike:** Need real construction drawings and zoom/reload annotation test.
+5. **AI agent prototype:** Need minimal LangGraph-like proof with action log, loop budget, and human approval.
+6. **Audit log DB performance:** Need schema/index test for last-100 and last-10,000 queries.
+7. **License legal review:** Need final decision from owner/legal on GPL/AGPL/LGPL/NOASSERTION projects.
+8. **Per-company deployment design:** Need target infrastructure choice: Docker Compose first vs Kubernetes first.
+
+---
