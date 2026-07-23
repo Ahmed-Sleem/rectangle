@@ -116,8 +116,10 @@ describe("AppShell", () => {
     });
 
     expect(
-      screen.getByText("This module is not implemented yet."),
+      screen.getByRole("heading", { name: "Project registry foundation" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("No fake data")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create project" })).toBeDisabled();
     expect(screen.getByRole("link", { name: "Projects" })).toHaveAttribute(
       "aria-current",
       "page",
