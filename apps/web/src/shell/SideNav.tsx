@@ -25,7 +25,6 @@ export function SideNav({
           <span className="rect-logo__full">rectangle</span>
           <span className="rect-logo__short">R</span>
         </div>
-        <NavToggle collapsed={collapsed} onToggle={onToggle} navId={navId} />
       </div>
 
       <nav aria-label="Primary">
@@ -41,6 +40,10 @@ export function SideNav({
       </nav>
 
       <div className="rect-nav__spacer" aria-hidden />
+
+      <div className="rect-nav__controls" aria-label="Menu display controls">
+        <NavToggle collapsed={collapsed} onToggle={onToggle} navId={navId} />
+      </div>
 
       <nav className="rect-nav__footer" aria-label="Account">
         <ul className="rect-nav__list">

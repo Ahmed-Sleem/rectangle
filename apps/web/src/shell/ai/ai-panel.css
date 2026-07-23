@@ -1,5 +1,18 @@
 /* Right-side AI panel: shell-owned assistant surface, not feature business logic. */
 
+@keyframes rect-ai-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(10px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+
 .rect-ai-panel {
   width: var(--rect-ai-panel-width);
   min-width: var(--rect-ai-panel-width);
@@ -14,41 +27,18 @@
   overflow: hidden;
   position: relative;
   z-index: var(--rect-z-panel);
+  animation: rect-ai-panel-in 260ms var(--rect-motion-spring) both;
   transition:
     width var(--rect-motion-menu),
     min-width var(--rect-motion-menu),
     border-radius var(--rect-motion-menu),
-    box-shadow 0.3s ease;
+    box-shadow 0.3s ease,
+    transform var(--rect-motion-spring),
+    opacity var(--rect-motion-nav);
 }
 
 .rect-ai-panel:hover {
   box-shadow: var(--rect-shadow-panel-hover);
-}
-
-.rect-ai-panel--collapsed {
-  width: var(--rect-ai-panel-width-collapsed);
-  min-width: var(--rect-ai-panel-width-collapsed);
-  align-items: center;
-}
-
-.rect-ai-panel__rail {
-  width: 100%;
-  min-height: 100%;
-  padding: 14px 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.rect-ai-panel__rail-label {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  color: var(--rect-text-secondary);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
 }
 
 .rect-ai-panel__header {
@@ -284,10 +274,6 @@
     min-width: var(--rect-ai-panel-width-tablet);
   }
 
-  .rect-ai-panel--collapsed {
-    width: var(--rect-ai-panel-width-collapsed);
-    min-width: var(--rect-ai-panel-width-collapsed);
-  }
 }
 
 @media (max-width: 768px) {
@@ -298,27 +284,12 @@
     border-radius: var(--rect-panel-radius-mobile);
   }
 
-  .rect-ai-panel--collapsed {
-    width: 100%;
-    min-height: 48px;
-  }
-
-  .rect-ai-panel__rail {
-    min-height: 44px;
-    padding: 8px 12px;
-    flex-direction: row;
-    justify-content: space-between;
-  }
-
-  .rect-ai-panel__rail-label {
-    writing-mode: initial;
-    text-orientation: initial;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .rect-ai-panel,
   .rect-ai-toggle {
+    animation: none !important;
     transition: none !important;
   }
 }

@@ -376,7 +376,7 @@ Current base GUI intentionally follows this standard:
 - Left menu: compact rail, 152px expanded / 40px collapsed, 32px nav rows.
 - Main canvas: 28px radius, 3px soft black border, 24px/28px padding.
 - AI panel: universal shell sidecar, 360px expanded; when collapsed it becomes a 36px circular floating icon in the top-right of the main canvas and no longer reserves side-panel width.
-- Toggle controls: icon-only compact desktop targets, placed with their owning chrome (nav toggle in menu header, AI launcher in canvas corner).
+- Toggle controls: compact desktop targets placed with their owning chrome: menu toggle sits above the profile/account section; AI launcher sits in the canvas corner.
 - Browser title: active page title + Rectangle.
 - Feature pages: loaded by registry into main canvas only.
 

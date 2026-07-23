@@ -490,14 +490,36 @@
 
 /* ── Density pass: apply GUI_SIZING_RULES.md to shell chrome ── */
 
+@keyframes rect-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rect-fab-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.82);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .rect-nav__topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
   min-height: 32px;
   margin-bottom: 10px;
-  padding: 0 2px 0 6px;
+  padding: 0 6px;
 }
 
 .rect-logo {
@@ -509,11 +531,9 @@
 }
 
 .rect-app--collapsed .rect-nav__topbar {
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 8px;
+  justify-content: center;
   padding: 0;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .rect-app--collapsed .rect-logo {
@@ -521,37 +541,98 @@
   margin-bottom: 0;
 }
 
+.rect-nav__controls {
+  margin: 8px 0 6px;
+  padding: 6px 0 7px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .rect-nav-toggle {
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.055);
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: var(--rect-nav-item-radius);
+  background: rgba(255, 255, 255, 0.045);
   color: var(--rect-nav-text);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 8px;
   cursor: pointer;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   transition:
     background var(--rect-motion-nav),
+    border-color var(--rect-motion-nav),
     color var(--rect-motion-nav),
-    transform var(--rect-motion-spring);
+    transform var(--rect-motion-spring),
+    box-shadow var(--rect-motion-nav);
 }
 
 .rect-nav-toggle:hover,
 .rect-nav-toggle:focus-visible {
-  background: rgba(255, 255, 255, 0.105);
+  background: rgba(255, 255, 255, 0.095);
+  border-color: rgba(255, 255, 255, 0.14);
   color: var(--rect-nav-text-emphasis);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
 }
 
 .rect-nav-toggle:active {
-  transform: scale(0.94);
+  transform: scale(0.97);
 }
 
 .rect-nav-toggle svg {
   width: 16px;
   height: 16px;
+  flex-shrink: 0;
+  transition: transform var(--rect-motion-spring);
+}
+
+.rect-nav-toggle:hover svg,
+.rect-nav-toggle:focus-visible svg {
+  transform: translateX(-1px);
+}
+
+.rect-nav-toggle__label {
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    opacity var(--rect-motion-label),
+    transform var(--rect-motion-label);
+}
+
+.rect-app--collapsed .rect-nav__controls {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0;
+}
+
+.rect-app--collapsed .rect-nav-toggle {
+  width: 32px;
+  min-height: 32px;
+  justify-content: center;
+  padding: 0;
+}
+
+.rect-app--collapsed .rect-nav-toggle:hover svg,
+.rect-app--collapsed .rect-nav-toggle:focus-visible svg {
+  transform: translateX(1px);
+}
+
+.rect-app--collapsed .rect-nav-toggle__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .rect-nav-item {
@@ -559,6 +640,11 @@
   padding: 6px 8px;
   gap: 8px;
   font-size: 0.78rem;
+  transform: translateZ(0);
+}
+
+.rect-nav-item:hover {
+  transform: translateX(1px);
 }
 
 .rect-app--collapsed .rect-nav-item {
@@ -566,8 +652,19 @@
   padding: 6px 0;
 }
 
+.rect-app--collapsed .rect-nav-item:hover {
+  transform: none;
+}
+
 .rect-panel {
   overflow: visible;
+  animation: rect-fade-up 260ms ease-out both;
+}
+
+.rect-panel__title {
+  transition:
+    opacity var(--rect-motion-nav),
+    transform var(--rect-motion-nav);
 }
 
 .rect-ai-fab {
@@ -577,27 +674,43 @@
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  border: 1px solid var(--rect-card-border);
-  background: var(--rect-surface-bg);
-  color: var(--rect-text-primary);
+  border: 1px solid rgba(0, 0, 0, 0.22);
+  background: #18181b;
+  color: #fafafa;
   display: grid;
   place-items: center;
   padding: 0;
   cursor: pointer;
   z-index: var(--rect-z-toggle);
-  box-shadow: var(--rect-shadow-toggle-hover);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.18);
+  animation: rect-fab-in 240ms var(--rect-motion-spring) both;
   transition:
     background var(--rect-motion-nav),
     border-color var(--rect-motion-nav),
+    color var(--rect-motion-nav),
     transform var(--rect-motion-spring),
     box-shadow var(--rect-motion-nav);
 }
 
+.rect-ai-fab svg {
+  transition: transform var(--rect-motion-spring);
+}
+
 .rect-ai-fab:hover,
 .rect-ai-fab:focus-visible {
-  background: var(--rect-card-bg);
-  border-color: var(--rect-toggle-border-hover);
-  transform: translateY(-1px) scale(1.03);
+  background: #000000;
+  border-color: rgba(0, 0, 0, 0.32);
+  transform: translateY(-1px) scale(1.04);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.26),
+    0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.rect-ai-fab:hover svg,
+.rect-ai-fab:focus-visible svg {
+  transform: rotate(-8deg) scale(1.06);
 }
 
 .rect-ai-fab:active {
@@ -617,9 +730,34 @@
     margin-bottom: 4px;
   }
 
-  .rect-nav-toggle {
+  .rect-nav__controls,
+  .rect-app--collapsed .rect-nav__controls {
+    width: auto;
+    min-width: 32px;
+    margin: 0 4px 0 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .rect-nav-toggle,
+  .rect-app--collapsed .rect-nav-toggle {
     width: 32px;
     height: 32px;
+    min-height: 32px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .rect-nav-toggle__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .rect-ai-fab {
@@ -627,5 +765,19 @@
     right: 10px;
     width: 34px;
     height: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-panel,
+  .rect-ai-fab,
+  .rect-ai-fab svg,
+  .rect-nav-toggle,
+  .rect-nav-toggle svg,
+  .rect-nav-toggle__label,
+  .rect-nav-item,
+  .rect-panel__title {
+    animation: none !important;
+    transition: none !important;
   }
 }
