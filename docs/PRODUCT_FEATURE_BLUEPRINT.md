@@ -621,3 +621,38 @@ Recommended next page order:
 - Confirmed shell split: feature menu + main canvas + universal AI assistant.
 - Defined complete feature universe, phases, nav proposal, data backbone, and Arabic/RTL requirements.
 - Immediate next recommendation: shared UI/i18n/feature config, then Projects as first real feature.
+
+### 2026-07-23 — AI agent + system action log requirements added
+
+Do not forget these requirements when implementing the AI and backend foundation:
+
+1. **Universal chatbot = full system agent, not chat UI only.**
+   - Must read current page/project/system context through explicit tools.
+   - Must read the current user's recent action log.
+   - Must have tools like `view_more_context`, `view_more_user_actions`, `view_more_system_actions`, `summarize_recent_activity`.
+   - Must run loop-aware agentic workflows: observe → reason → tool call → inspect → continue/stop.
+   - Must know its loop/tool budget and ask the user to continue in the next message/session when more loops are needed.
+   - Must have detailed system prompts explaining Rectangle entities, permissions, workflows, and safe actions.
+   - Must support Arabic/English reasoning and output.
+
+2. **System action log is foundational.**
+   - Keep fast access to last 100 actions for each user.
+   - Keep fast access to last 10,000 actions for tenant/system-level AI/admin context.
+   - Longer audit retention remains policy-controlled and append-only.
+   - Log all user actions, system actions, AI tool calls, AI drafts, confirmations, workflow changes, auth/security events, and integration events.
+
+3. **AI-oriented clean architecture.**
+   - All mutations go through validated service/use-case functions.
+   - AI tools wrap those same use cases; they never bypass permissions or validation.
+   - Dangerous actions require human confirmation.
+   - Every tool call is audited.
+   - Object-level authorization is mandatory.
+
+4. **Deployment orientation.**
+   - Primary target: one Rectangle system per company/internal environment.
+   - Company admins control modules, users, roles, retention, integrations, and AI provider/model settings.
+   - Architecture must support private/company-owned deployment and avoid cross-company data leakage.
+
+5. **Feature build process.**
+   - Build features one by one.
+   - Before each feature, open `docs/FEATURE_REUSE_RESEARCH.md`, choose reuse/reference candidates, inspect licenses, then write that feature's implementation plan.

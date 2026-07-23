@@ -64,6 +64,7 @@ rectangle/
 | [design/demo/shell.html](./design/demo/shell.html) | Original HTML design demo |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Shell + feature modules + Railway |
 | [docs/PRODUCT_FEATURE_BLUEPRINT.md](./docs/PRODUCT_FEATURE_BLUEPRINT.md) | Complete feature/page blueprint for the ultimate Arabic-first construction PMO app |
+| [docs/FEATURE_REUSE_RESEARCH.md](./docs/FEATURE_REUSE_RESEARCH.md) | GitHub/open-source reuse candidates and per-feature research register |
 | [docs/plans/P0_SHELL_APP.md](./docs/plans/P0_SHELL_APP.md) | P0 execution plan |
 | [docs/DEPLOY_RAILWAY.md](./docs/DEPLOY_RAILWAY.md) | **Railway connect checklist** |
 | [research/INDEX.md](./research/INDEX.md) | Research pack navigation |
