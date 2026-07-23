@@ -115,6 +115,7 @@ describe("AppShell", () => {
     expect(screen.getByTestId("app-shell")).toHaveClass(
       "rect-app--ai-collapsed",
     );
+    expect(screen.queryByLabelText("AI assistant")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /open ai panel/i }),
     ).toHaveAttribute("aria-expanded", "false");

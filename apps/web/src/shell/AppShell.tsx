@@ -1,7 +1,7 @@
 /**
  * Composes the permanent Rectangle chrome around registry-loaded feature pages.
  * Feature modules stay standalone; this shell only supplies navigation, work
- * surface, and the reusable AI side panel.
+ * surface, and the universal AI side panel / floating assistant launcher.
  */
 import type { ReactNode } from "react";
 import { AiAssistantPanel } from "./ai";
@@ -36,12 +36,12 @@ export function AppShell({
       )}
       data-testid="app-shell"
     >
-      <SideNav collapsed={navCollapsed} navId={NAV_ID} />
+      <SideNav collapsed={navCollapsed} navId={NAV_ID} onToggle={onToggleNav} />
       <MainPanel
-        collapsed={navCollapsed}
         onToggle={onToggleNav}
-        navId={NAV_ID}
         title={title}
+        aiCollapsed={aiCollapsed}
+        onToggleAi={onToggleAi}
       >
         {children}
       </MainPanel>

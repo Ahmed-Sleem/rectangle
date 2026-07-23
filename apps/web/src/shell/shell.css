@@ -179,7 +179,7 @@
   transition:
     box-shadow 0.3s ease,
     border-radius var(--rect-motion-menu);
-  overflow: visible; /* allow toggle to sit on the seam outside the clip */
+  overflow: visible; /* allow shell-owned floating AI launcher to sit above canvas */
 }
 
 .rect-panel:hover {
@@ -193,79 +193,6 @@
   z-index: 1;
 }
 
-.rect-panel__edge {
-  position: absolute;
-  left: -14px;
-  top: 0;
-  width: 28px;
-  height: 100%;
-  z-index: var(--rect-z-edge);
-  cursor: pointer;
-  border-top-left-radius: var(--rect-panel-radius);
-  border-bottom-left-radius: var(--rect-panel-radius);
-}
-
-/* Toggle: always on the panel seam, above menu */
-.rect-toggle {
-  position: absolute;
-  left: -14px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: var(--rect-toggle-size);
-  height: var(--rect-toggle-size);
-  border-radius: 999px;
-  background: var(--rect-toggle-bg);
-  border: 1.5px solid var(--rect-toggle-border);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--rect-z-toggle);
-  opacity: 0.92;
-  pointer-events: auto;
-  color: var(--rect-toggle-icon);
-  box-shadow: var(--rect-shadow-toggle);
-  transition:
-    opacity var(--rect-motion-toggle),
-    transform var(--rect-motion-spring),
-    box-shadow 0.2s ease,
-    background 0.2s ease,
-    border-color 0.2s ease;
-  padding: 0;
-}
-
-.rect-toggle svg {
-  width: 14px;
-  height: 14px;
-  transition: transform var(--rect-motion-spring);
-  flex-shrink: 0;
-}
-
-.rect-panel__edge:hover + .rect-toggle,
-.rect-toggle:hover,
-.rect-toggle:focus-visible {
-  opacity: 1;
-  transform: translateY(-50%) scale(1.06);
-}
-
-.rect-toggle:hover {
-  background: var(--rect-toggle-bg-hover);
-  border-color: var(--rect-toggle-border-hover);
-  box-shadow: var(--rect-shadow-toggle-hover);
-}
-
-.rect-toggle:active {
-  transform: translateY(-50%) scale(0.94) !important;
-}
-
-.rect-app--collapsed .rect-toggle {
-  opacity: 1;
-  left: -14px;
-}
-
-.rect-app--collapsed .rect-toggle svg {
-  transform: rotate(180deg);
-}
 
 .rect-panel__header {
   display: flex;
@@ -516,44 +443,6 @@
     padding: 4px 10px;
   }
 
-  /* On mobile, pin toggle top-left of panel so it is never under a side menu */
-  .rect-toggle {
-    left: 10px;
-    top: 10px;
-    transform: none;
-    width: var(--rect-toggle-size-mobile);
-    height: var(--rect-toggle-size-mobile);
-    opacity: 1;
-  }
-
-  .rect-panel__edge:hover + .rect-toggle,
-  .rect-toggle:hover,
-  .rect-toggle:focus-visible,
-  .rect-app--collapsed .rect-toggle {
-    transform: none;
-    opacity: 1;
-  }
-
-  .rect-toggle:active {
-    transform: scale(0.94) !important;
-  }
-
-  .rect-app--collapsed .rect-toggle {
-    left: 10px;
-  }
-
-  .rect-toggle svg {
-    width: 13px;
-    height: 13px;
-  }
-
-  .rect-panel__edge {
-    display: none;
-  }
-
-  .rect-panel__header {
-    padding-left: 36px; /* room for floating toggle */
-  }
 }
 
 @media (max-width: 480px) {
@@ -580,15 +469,13 @@
   .rect-app,
   .rect-nav,
   .rect-nav-item,
-  .rect-toggle,
-  .rect-toggle svg,
   .rect-panel,
   .rect-logo {
     transition: none !important;
   }
 }
 
-/* ── Base GUI refinement: page title, icon-only nav control, AI sidecar ── */
+/* ── Base GUI refinement: page title, AI floating launcher, dense chrome ── */
 
 .rect-panel__header {
   min-height: 42px;
@@ -601,62 +488,144 @@
   text-transform: none;
 }
 
-.rect-toggle,
-.rect-app--collapsed .rect-toggle {
-  left: -13px;
-  width: 30px;
-  height: 30px;
+/* ── Density pass: apply GUI_SIZING_RULES.md to shell chrome ── */
+
+.rect-nav__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 32px;
+  margin-bottom: 10px;
+  padding: 0 2px 0 6px;
+}
+
+.rect-logo {
+  margin-bottom: 0;
+  padding: 0;
+  font-size: 1.55rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.rect-app--collapsed .rect-nav__topbar {
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0;
+  margin-bottom: 10px;
+}
+
+.rect-app--collapsed .rect-logo {
+  font-size: 1.24rem;
+  margin-bottom: 0;
+}
+
+.rect-nav-toggle {
+  width: 28px;
+  height: 28px;
   border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: var(--rect-toggle-icon);
-  opacity: 0.78;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--rect-nav-text);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  cursor: pointer;
+  transition:
+    background var(--rect-motion-nav),
+    color var(--rect-motion-nav),
+    transform var(--rect-motion-spring);
 }
 
-.rect-toggle svg {
-  width: 19px;
-  height: 19px;
-  filter: drop-shadow(0 1px 1px rgba(250, 250, 250, 0.7));
+.rect-nav-toggle:hover,
+.rect-nav-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.105);
+  color: var(--rect-nav-text-emphasis);
 }
 
-.rect-panel__edge:hover + .rect-toggle,
-.rect-toggle:hover,
-.rect-toggle:focus-visible {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
+.rect-nav-toggle:active {
+  transform: scale(0.94);
+}
+
+.rect-nav-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rect-nav-item {
+  min-height: 32px;
+  padding: 6px 8px;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+
+.rect-app--collapsed .rect-nav-item {
+  min-height: 32px;
+  padding: 6px 0;
+}
+
+.rect-panel {
+  overflow: visible;
+}
+
+.rect-ai-fab {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--rect-card-border);
+  background: var(--rect-surface-bg);
   color: var(--rect-text-primary);
-  opacity: 1;
-  transform: translateY(-50%) scale(1.12);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  z-index: var(--rect-z-toggle);
+  box-shadow: var(--rect-shadow-toggle-hover);
+  transition:
+    background var(--rect-motion-nav),
+    border-color var(--rect-motion-nav),
+    transform var(--rect-motion-spring),
+    box-shadow var(--rect-motion-nav);
 }
 
-.rect-toggle:active {
-  transform: translateY(-50%) scale(0.9) !important;
+.rect-ai-fab:hover,
+.rect-ai-fab:focus-visible {
+  background: var(--rect-card-bg);
+  border-color: var(--rect-toggle-border-hover);
+  transform: translateY(-1px) scale(1.03);
 }
 
-.rect-app--collapsed .rect-toggle svg {
-  transform: none;
+.rect-ai-fab:active {
+  transform: scale(0.94);
+}
+
+.rect-app--ai-collapsed .rect-panel__header {
+  padding-right: 46px;
 }
 
 @media (max-width: 768px) {
-  .rect-toggle,
-  .rect-app--collapsed .rect-toggle {
-    left: 10px;
+  .rect-nav__topbar,
+  .rect-app--collapsed .rect-nav__topbar {
+    flex-direction: row;
+    width: 100%;
+    padding: 0 6px;
+    margin-bottom: 4px;
+  }
+
+  .rect-nav-toggle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .rect-ai-fab {
     top: 10px;
-    width: 28px;
-    height: 28px;
-    transform: none;
-  }
-
-  .rect-panel__edge:hover + .rect-toggle,
-  .rect-toggle:hover,
-  .rect-toggle:focus-visible,
-  .rect-app--collapsed .rect-toggle {
-    transform: none;
-  }
-
-  .rect-toggle:active {
-    transform: scale(0.9) !important;
+    right: 10px;
+    width: 34px;
+    height: 34px;
   }
 }

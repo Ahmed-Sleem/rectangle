@@ -1,9 +1,9 @@
 {
-  "$description": "Rectangle shell design tokens — soft monochrome palette with right AI side panel",
+  "$description": "Rectangle shell design tokens — dense desktop soft monochrome shell with universal AI FAB",
   "meta": {
     "source": "apps/web/src/shared/styles/tokens.css",
     "brand": "Rectangle",
-    "version": "0.3.0"
+    "version": "0.4.0"
   },
   "font": {
     "family": "Inter, system-ui, sans-serif",
@@ -47,14 +47,18 @@
     }
   },
   "size": {
-    "menuWidthExpanded": 160,
-    "menuWidthCollapsed": 44,
+    "menuWidthExpanded": 152,
+    "menuWidthCollapsed": 40,
     "navIcon": 18,
     "toggle": 28,
     "minNavItemHeight": 36,
     "aiPanelWidth": 360,
     "aiPanelWidthTablet": 320,
-    "aiPanelWidthCollapsed": 48
+    "aiPanelWidthCollapsed": 0,
+    "navItemHeight": 32,
+    "aiFab": 36,
+    "appGap": 8,
+    "bodyPadding": 12
   },
   "radius": {
     "panel": 28,

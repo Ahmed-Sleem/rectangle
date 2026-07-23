@@ -1,6 +1,7 @@
 /**
- * Provides the minimalist icon-only control for the left navigation rail so the
- * base GUI keeps a clean monochrome seam between chrome and work surface.
+ * Provides a compact in-menu control for opening and closing the feature rail.
+ * Keeping it inside the nav header is clearer than a floating seam icon and
+ * matches dense desktop app patterns where chrome controls live with chrome.
  */
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
@@ -18,14 +19,14 @@ export function NavToggle({
   return (
     <button
       type="button"
-      className="rect-toggle"
+      className="rect-nav-toggle"
       onClick={onToggle}
       aria-expanded={!collapsed}
       aria-controls={navId}
       aria-label={collapsed ? "Expand menu" : "Collapse menu"}
       title={collapsed ? "Expand menu" : "Collapse menu"}
     >
-      <Icon strokeWidth={2.1} absoluteStrokeWidth aria-hidden />
+      <Icon strokeWidth={2} absoluteStrokeWidth aria-hidden />
     </button>
   );
 }

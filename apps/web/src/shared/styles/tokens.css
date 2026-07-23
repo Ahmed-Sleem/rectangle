@@ -33,13 +33,13 @@
   --rect-toggle-ring: rgba(24, 24, 27, 0.12);
 
   /* Layout */
-  --rect-body-padding: 14px;
+  --rect-body-padding: 12px;
   --rect-body-padding-mobile: 8px;
-  --rect-app-gap: 10px;
-  --rect-menu-width: 160px;
-  --rect-menu-width-collapsed: 44px;
-  --rect-menu-padding-x: 6px;
-  --rect-menu-padding-y: 10px;
+  --rect-app-gap: 8px;
+  --rect-menu-width: 152px;
+  --rect-menu-width-collapsed: 40px;
+  --rect-menu-padding-x: 4px;
+  --rect-menu-padding-y: 8px;
   --rect-panel-radius: 28px;
   --rect-panel-radius-mobile: 20px;
   --rect-panel-border-width: 3px;

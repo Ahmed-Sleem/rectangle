@@ -100,9 +100,9 @@ The shell has three permanent zones:
 
 | Item | Desktop value | Collapsed | Notes |
 |---|---:|---:|---|
-| Width | 160px | 44px | Must stay quiet; not compete with canvas |
-| Horizontal padding | 6px | 2px | Compact by design |
-| Nav item height | 36px | 36px | Dense but clickable with mouse |
+| Width | 152px | 40px | Smaller dense rail; must stay quiet and not compete with canvas |
+| Horizontal padding | 4px | 2px | Compact by design |
+| Nav item height | 32px | 32px | Dense but clickable with mouse |
 | Nav icon | 18px | 18px | Stroke-only |
 | Nav item radius | 8px | 8px | Soft but not pill-heavy |
 | Logo height footprint | ~32px | ~28px | Do not animate word itself |
@@ -124,8 +124,8 @@ The AI panel is **not a route, not a feature, and not page content**. It is a sh
 
 | Item | Desktop value | Collapsed | Notes |
 |---|---:|---:|---|
-| Width | 360px | 48px | Enough for chat; not wider unless model workflows demand it |
-| Tablet width | 320px | 48px | At narrower desktop/tablet |
+| Width | 360px | 36px floating FAB | Enough for chat; collapsed state returns width to canvas |
+| Tablet width | 320px | 36px floating FAB | At narrower desktop/tablet |
 | Mobile behavior | full-width stacked | 48px rail | Below shell breakpoint |
 | Radius | same as main panel | same | Mini-rectangle, same visual language |
 | Border | same as main panel | same | Must feel part of Rectangle shell |
@@ -373,10 +373,10 @@ Do not add one-off component CSS values if a token exists.
 
 Current base GUI intentionally follows this standard:
 
-- Left menu: compact rail, 160px expanded / 44px collapsed.
+- Left menu: compact rail, 152px expanded / 40px collapsed, 32px nav rows.
 - Main canvas: 28px radius, 3px soft black border, 24px/28px padding.
-- AI panel: universal shell sidecar, 360px expanded / 48px collapsed.
-- Toggle controls: icon-only, compact desktop target.
+- AI panel: universal shell sidecar, 360px expanded; when collapsed it becomes a 36px circular floating icon in the top-right of the main canvas and no longer reserves side-panel width.
+- Toggle controls: icon-only compact desktop targets, placed with their owning chrome (nav toggle in menu header, AI launcher in canvas corner).
 - Browser title: active page title + Rectangle.
 - Feature pages: loaded by registry into main canvas only.
 

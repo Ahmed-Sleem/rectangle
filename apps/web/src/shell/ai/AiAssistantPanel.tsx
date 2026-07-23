@@ -5,7 +5,6 @@
 import { Mic, Paperclip, SendHorizontal, Sparkles } from "lucide-react";
 import { AiPanelToggle } from "./AiPanelToggle";
 import type { AiAssistantPanelProps, AiContextChip } from "./ai-types";
-import { cn } from "@/shared/lib/cn";
 import "./ai-panel.css";
 
 const CONTEXT_CHIPS: AiContextChip[] = [
@@ -18,18 +17,11 @@ export function AiAssistantPanel({
   collapsed,
   onToggle,
 }: AiAssistantPanelProps) {
+  if (collapsed) return null;
+
   return (
-    <aside
-      className={cn("rect-ai-panel", collapsed && "rect-ai-panel--collapsed")}
-      aria-label="AI assistant"
-    >
-      {collapsed ? (
-        <div className="rect-ai-panel__rail">
-          <AiPanelToggle collapsed={collapsed} onToggle={onToggle} />
-          <span className="rect-ai-panel__rail-label">AI</span>
-        </div>
-      ) : (
-        <>
+    <aside className="rect-ai-panel" aria-label="AI assistant">
+      <>
           <header className="rect-ai-panel__header">
             <div className="rect-ai-panel__identity">
               <span className="rect-ai-panel__mark" aria-hidden>
@@ -91,7 +83,6 @@ export function AiAssistantPanel({
             </div>
           </form>
         </>
-      )}
     </aside>
   );
 }
