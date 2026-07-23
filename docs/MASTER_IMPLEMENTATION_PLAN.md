@@ -895,6 +895,9 @@ Permissions:
 Audit events:
 AI context/tools:
 Arabic/RTL requirements:
+User-facing UX notes:
+No duplicate shell/page title inside content:
+No developer/test/debug copy in production UI:
 Tests:
 Security risks:
 Done criteria:

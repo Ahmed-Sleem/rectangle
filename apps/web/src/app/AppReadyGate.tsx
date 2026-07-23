@@ -7,8 +7,9 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import "./app-ready-gate.css";
 
-const DEFAULT_MIN_MS = 420;
+const DEFAULT_MIN_MS = 840;
 const DEFAULT_MAX_MS = 2200;
+const WORDMARK = "RECTANGLE";
 
 function waitForDocumentReady(): Promise<void> {
   if (typeof document === "undefined" || document.readyState !== "loading") {
@@ -82,8 +83,12 @@ export function AppReadyGate({
       {children}
       {visible ? (
         <div className="rect-boot" role="status" aria-label="Loading Rectangle">
-          <div className="rect-boot__mark" aria-hidden>
-            R
+          <div className="rect-boot__wordmark" aria-hidden="true">
+            {WORDMARK.split("").map((letter, index) => (
+              <span className="rect-boot__letter" key={`${letter}-${index}`}>
+                {letter}
+              </span>
+            ))}
           </div>
           <p className="rect-boot__text">Loading Rectangle</p>
         </div>

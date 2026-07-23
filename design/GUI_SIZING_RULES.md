@@ -381,3 +381,16 @@ Current base GUI intentionally follows this standard:
 - Feature pages: loaded by registry into main canvas only.
 
 Future work should keep the shell stable and add product capability inside feature modules.
+
+---
+
+## 15. User-facing page content rules
+
+These rules come from live Settings UX review and apply to every future page:
+
+- Do not repeat the shell/page title as a second title inside the content area.
+- Do not put simple settings inside unnecessary nested rounded containers.
+- Keep simple controls compact and direct; language switching is a small control, not a dashboard.
+- Developer QA/readiness checks belong in automated tests and docs, not production UI.
+- Every visible sentence must help the user complete the task.
+- If unsure, review comparable production apps before adding UI weight.

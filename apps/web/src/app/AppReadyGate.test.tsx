@@ -14,7 +14,7 @@ describe("AppReadyGate", () => {
 
   it("keeps the loading screen for the minimum duration", async () => {
     render(
-      <AppReadyGate minMs={300} maxMs={1000} readyCheck={() => Promise.resolve()}>
+      <AppReadyGate readyCheck={() => Promise.resolve()}>
         <div>Application content</div>
       </AppReadyGate>,
     );
@@ -23,7 +23,7 @@ describe("AppReadyGate", () => {
     expect(screen.getByText("Application content")).toBeInTheDocument();
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(299);
+      await vi.advanceTimersByTimeAsync(839);
     });
     expect(screen.getByRole("status", { name: "Loading Rectangle" })).toBeInTheDocument();
 
