@@ -661,3 +661,220 @@ Before building each module, do a focused spike:
 - Build each Rectangle feature natively and one-by-one.
 - Prioritize AI/tool/audit-safe architecture before allowing the chatbot to perform actions.
 - The action log and tool registry are foundational, not optional AI extras.
+
+---
+
+## 14. Deep validation pass — GitHub metadata snapshot
+
+**Date:** 2026-07-23  
+**Method:** GitHub repository API metadata snapshot + web search. Values can change; re-check before implementation.
+
+| Repo | Stars | License | Main language | Updated | Archived | Initial compatibility decision |
+|---|---:|---|---|---|---|---|
+| `makeplane/plane` | 54,908 | AGPL-3.0 | TypeScript | 2026-07-23 | No | **Reference only** for UX/data model. AGPL means no direct code reuse in proprietary/internal product without legal approval. |
+| `opf/openproject` | 15,636 | GPL-3.0 | Ruby | 2026-07-23 | No | **Reference only** for work packages, Gantt, permissions, BIM concepts. Stack/license mismatch. |
+| `mattermost-community/focalboard` | 26,311 | NOASSERTION | TypeScript | 2026-07-23 | No | **Reference/adapt patterns** for board/table UX; license/maintenance must be checked before reuse. |
+| `frappe/erpnext` | 37,182 | GPL-3.0 | Python | 2026-07-23 | No | **Integration/reference** for ERP/cost/procurement; avoid direct code copy. |
+| `datadrivenconstruction/OpenConstructionERP` | 544 | NOASSERTION | HTML | 2026-07-23 | No | **Deep reference only until inspected.** Claims match domain but license/code quality require careful review. |
+| `DHTMLX/gantt` | 1,822 | MIT | JavaScript | 2026-07-23 | No | **Evaluate for Schedule UI.** MIT core; advanced features likely commercial. |
+| `frappe/gantt` | 6,054 | MIT | JavaScript | 2026-07-23 | No | **Use only for simple timeline/MVP previews.** Not construction-grade CPM. |
+| `joniles/mpxj` | 336 | LGPL-2.1 | Java | 2026-07-22 | No | **Integrate as isolated parser/worker** for MSP/P6 formats; LGPL and JVM boundary need review. |
+| `mozilla/pdf.js` | 53,624 | Apache-2.0 | JavaScript | 2026-07-23 | No | **Strong reuse candidate** for PDF/drawing rendering foundation. |
+| `QuocVietHa08/react-pdf-highlighter-plus` | 58 | MIT | TypeScript | 2026-07-22 | No | **Evaluate** for PDF annotations/quotes/export; young project, inspect quality before dependency. |
+| `xeokit/xeokit-sdk` | 918 | AGPL-3.0 | HTML | 2026-07-23 | No | **Integration/reference only unless AGPL acceptable.** Strong BIM viewer tech, license caution. |
+| `xeokit/xeokit-bim-viewer` | 551 | AGPL-3.0 | JavaScript | 2026-07-11 | No | **Reference/integration later** for BIM V2; conversion pipeline required. |
+| `paed01/bpmn-engine` | 961 | MIT | JavaScript | 2026-07-07 | No | **Evaluate** if native approval engine becomes too complex; MIT and focused. |
+| `windmill-labs/windmill` | 17,225 | NOASSERTION | Rust | 2026-07-23 | No | **Reference/integrate later** for automation; too broad for core approvals. |
+| `langchain-ai/langgraph` | 37,923 | MIT | Python | 2026-07-23 | No | **Primary AI orchestration candidate** for stateful loop-aware agents. |
+| `microsoft/autogen` | 59,918 | CC-BY-4.0 | Python | 2026-07-23 | No | **Reference/evaluate.** License not ideal for direct embedding; strong multi-agent ideas. |
+| `crewAIInc/crewAI` | 56,006 | MIT | Python | 2026-07-23 | No | **Evaluate for role-agent patterns**, but Rectangle likely needs stricter graph/tool control. |
+| `run-llama/llama_index` | 51,032 | MIT | Python | 2026-07-23 | No | **Strong RAG candidate** for document-heavy Q&A/citations. |
+| `deepset-ai/haystack` | 25,988 | Apache-2.0 | Python | 2026-07-23 | No | **RAG pipeline candidate**; compare with LlamaIndex for doc ingestion/search. |
+| `infiniflow/ragflow` | 85,766 | Apache-2.0 | Go | 2026-07-23 | No | **Evaluate as RAG service/reference**; strong doc-RAG product but may be heavy. |
+| `langgenius/dify` | 149,925 | NOASSERTION | TypeScript | 2026-07-23 | No | **Reference/possible sidecar only**; visual RAG/agent UX ideas, license review required. |
+| `nestarc/nestjs-audit-log` | 2 | MIT | TypeScript | 2026-06-12 | No | **Reference code/pattern** for audit log API; small repo, inspect before reuse. |
+| `mattermost/mattermost` | 38,534 | NOASSERTION | TypeScript | 2026-07-23 | No | **Integration/reference** for on-prem chat/notifications; too large to embed. |
+| `keycloak/keycloak` | 35,804 | Apache-2.0 | Java | 2026-07-23 | No | **Enterprise SSO integration candidate**. Heavy but proven. |
+| `openfga/openfga` | 5,485 | Apache-2.0 | Go | 2026-07-23 | No | **Strong fine-grained auth candidate** for project/entity/ReBAC permissions. |
+| `casbin/casbin` | 20,281 | Apache-2.0 | Go | 2026-07-23 | No | **Embeddable authZ candidate** for RBAC/ABAC/ReBAC if simpler than OpenFGA. |
+| `i18next/i18next` | 8,609 | MIT | JavaScript | 2026-07-20 | No | **Strong i18n candidate** for Arabic/English app labels. |
+| `meilisearch/meilisearch` | 58,704 | NOASSERTION | Rust | 2026-07-23 | No | **Search candidate**, but Arabic analyzer/tokenization must be tested. |
+| `TanStack/table` | 28,221 | MIT | TypeScript | 2026-07-23 | No | **Strong table foundation** for dense custom UI; headless fits Rectangle design system. |
+| `TanStack/virtual` | 7,015 | MIT | TypeScript | 2026-07-23 | No | **Strong virtualization utility** for dense tables/lists. |
+| `adazzle/react-data-grid` | 7,656 | NOASSERTION | TypeScript | 2026-07-22 | No | **Evaluate** if we need batteries-included editable grids; license metadata must be checked. |
+
+### Deep validation summary
+
+- **Best immediate reuse candidates:** `TanStack/table`, `TanStack/virtual`, `i18next`, `pdf.js`, possibly `DHTMLX/gantt` community for early Gantt UI.
+- **Best backend/AI candidates to prototype:** `LangGraph`, `LlamaIndex` or `Haystack`, `OpenFGA` or `Casbin`, audit-log patterns from `nestjs-audit-log`.
+- **Reference-only due to license/stack:** Plane, OpenProject, ERPNext, xeokit (unless AGPL compatible or isolated), Dify/Mattermost depending license model.
+- **Needs hands-on spike:** OpenConstructionERP, DHTMLX/SVAR/Frappe Gantt comparison, MPXJ parser service, Arabic search with Meilisearch vs Postgres vs Elasticsearch.
+
+---
+
+## 15. Feature-by-feature reuse decisions for first build sequence
+
+### 15.1 Shared UI primitives + dense tables
+
+Candidates:
+
+- `TanStack/table` + `TanStack/virtual`: **recommended first choice**.
+- `react-data-grid`: evaluate only if inline editing/grid behavior becomes complex.
+- AG Grid Community: powerful but heavier; avoid unless TanStack becomes too costly to assemble.
+
+Required modifications:
+
+- Build Rectangle table wrapper with design tokens, Arabic/RTL support, sticky headers, row height tokens, right-aligned numeric columns.
+- Add server-side pagination/sorting/filtering contract early.
+- Add accessibility and keyboard navigation rules.
+
+Decision:
+
+- Use TanStack Table for first real tables unless spike exposes a blocker.
+
+### 15.2 i18n / RTL
+
+Candidates:
+
+- `i18next`: **recommended**.
+- FormatJS/Lingui: evaluate only if ICU/plural needs become complex.
+
+Required modifications:
+
+- Translation namespace per feature.
+- `title` / `titleAr` in every `FeatureModule`.
+- App-level direction state and logical CSS.
+- Arabic font decision before public Arabic UI.
+
+Decision:
+
+- Start with i18next-style architecture and logical CSS audit.
+
+### 15.3 Projects / tasks / work packages
+
+Candidates:
+
+- Plane: reference for modern issue UX.
+- OpenProject: reference for enterprise work package/project model.
+- Focalboard: reference for board/table views.
+
+Required modifications:
+
+- Convert software issue concepts into construction work packages/tasks.
+- Add project hierarchy, stakeholders, WBS links, and permissions.
+- Add AI context adapter for current project/page.
+
+Decision:
+
+- Native Rectangle implementation; no direct code reuse from full PM apps.
+
+### 15.4 Documents / drawings
+
+Candidates:
+
+- `mozilla/pdf.js`: **recommended rendering base**.
+- `react-pdf-highlighter-plus`: evaluate for annotation UX and quote-to-highlight feature.
+- `pdf-annotator-react`: evaluate for drawing/freehand tools.
+
+Required modifications:
+
+- Store annotations independently in Rectangle DB.
+- Link markups to RFIs/issues/tasks/photos.
+- Version-aware drawing/document model.
+- Permission and audit wrapper for every annotation.
+
+Decision:
+
+- Start with pdf.js or a React wrapper; evaluate annotation library in a spike.
+
+### 15.5 Schedule / Gantt / P6
+
+Candidates:
+
+- DHTMLX Gantt Community: evaluate for production Gantt UI.
+- SVAR React Gantt: evaluate for React-native fit.
+- Frappe Gantt: use only for simple timeline previews.
+- MPXJ: evaluate as import/export worker.
+
+Required modifications:
+
+- Server-side CPM engine as source of truth.
+- Activity table + Gantt share same data store.
+- P6 import validation report.
+- Baselines and calendars.
+
+Decision:
+
+- Run Gantt spike before committing. Do not build CPM inside UI component.
+
+### 15.6 AI agent foundation
+
+Candidates:
+
+- LangGraph: primary orchestration candidate.
+- LlamaIndex/Haystack/RAGFlow: RAG candidates.
+- PydanticAI/Semantic Kernel/CrewAI: evaluate for typed tools / plugin patterns.
+- OpenTelemetry/traceAI-style tracing: observability reference.
+
+Required modifications:
+
+- Tool registry wraps Rectangle use-cases only.
+- Every tool has schema validation, permission check, audit log, and structured return.
+- Agent loop state includes loop count, budget, current page/project, user action log, system action log.
+- Human confirmation for writes.
+- Arabic-ready prompts and outputs.
+
+Decision:
+
+- Build Rectangle agent architecture explicitly. LangGraph-like state machine is the best current pattern.
+
+### 15.7 Audit/action log foundation
+
+Candidates:
+
+- `nestjs-audit-log`: reference for append-only, tenant-aware audit API.
+- Audit log topic examples: reference only.
+
+Required modifications:
+
+- Backend-stack-specific implementation.
+- Last-100 user actions and last-10,000 tenant actions optimized queries.
+- Sensitive field redaction.
+- AI-readable but permission-filtered log access.
+
+Decision:
+
+- Treat audit/action log as core platform feature before AI write-actions.
+
+### 15.8 Auth / permissions
+
+Candidates:
+
+- Keycloak for enterprise SSO integration.
+- OpenFGA for ReBAC/Zanzibar-style permission graph.
+- Casbin for embeddable RBAC/ABAC/ReBAC policies.
+
+Required modifications:
+
+- Tenant/company isolation.
+- Project/entity-level access control.
+- AI tool authorization check before every tool call.
+
+Decision:
+
+- Start with simple RBAC model shaped to migrate to OpenFGA/Casbin. Choose final authZ after backend stack decision.
+
+---
+
+## 16. Open gaps requiring focused spikes
+
+1. **License review:** Plane AGPL, OpenProject GPL, ERPNext GPL, xeokit AGPL, Dify/Mattermost license metadata.
+2. **Gantt bake-off:** DHTMLX Community vs SVAR vs Frappe for Schedule UI.
+3. **P6 import proof:** MPXJ or Python parser with real sample XER/XML files.
+4. **Arabic search proof:** Meilisearch vs Postgres full-text vs Elasticsearch/OpenSearch Arabic analyzer.
+5. **PDF annotation proof:** pdf.js + react-pdf-highlighter-plus vs custom annotation layer.
+6. **AI orchestration proof:** LangGraph state machine with tool budget, log reads, citations, and human approval.
+7. **Audit log proof:** append-only event table and last-100/last-10000 query performance.
+8. **Per-company deployment blueprint:** database isolation, secrets, backups, SSO, AI provider settings.
+
+---

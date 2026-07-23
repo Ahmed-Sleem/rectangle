@@ -656,3 +656,16 @@ Do not forget these requirements when implementing the AI and backend foundation
 5. **Feature build process.**
    - Build features one by one.
    - Before each feature, open `docs/FEATURE_REUSE_RESEARCH.md`, choose reuse/reference candidates, inspect licenses, then write that feature's implementation plan.
+
+### 2026-07-23 — Reuse research deep validation pass
+
+- Added `docs/FEATURE_REUSE_RESEARCH.md` as the append-only source for GitHub/open-source reuse candidates.
+- Initial metadata validation found best immediate candidates for early build:
+  - `TanStack/table` + `TanStack/virtual` for dense tables.
+  - `i18next` for Arabic/English app labels and future RTL foundation.
+  - `mozilla/pdf.js` for documents/drawings rendering.
+  - DHTMLX/SVAR/Frappe Gantt require a focused Schedule spike before selection.
+  - LangGraph-like state machine is the preferred pattern for the full agent chatbot.
+  - OpenFGA/Casbin require a backend authZ spike.
+- AGPL/GPL projects (Plane, OpenProject, ERPNext, xeokit) are reference-only unless legal/architecture review approves direct reuse or isolation.
+- Every feature must begin with a focused reuse/license/compatibility review from `FEATURE_REUSE_RESEARCH.md` before implementation.
