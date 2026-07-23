@@ -1,4 +1,10 @@
+/**
+ * Composes the permanent Rectangle chrome around registry-loaded feature pages.
+ * Feature modules stay standalone; this shell only supplies navigation, work
+ * surface, and the reusable AI side panel.
+ */
 import type { ReactNode } from "react";
+import { AiAssistantPanel } from "./ai";
 import { MainPanel } from "./MainPanel";
 import { SideNav } from "./SideNav";
 import { cn } from "@/shared/lib/cn";
@@ -7,33 +13,39 @@ import "./shell.css";
 const NAV_ID = "rectangle-main-nav";
 
 export function AppShell({
-  collapsed,
-  onToggle,
+  navCollapsed,
+  onToggleNav,
+  aiCollapsed,
+  onToggleAi,
   title,
-  badge,
   children,
 }: {
-  collapsed: boolean;
-  onToggle: () => void;
+  navCollapsed: boolean;
+  onToggleNav: () => void;
+  aiCollapsed: boolean;
+  onToggleAi: () => void;
   title: string;
-  badge: string;
   children: ReactNode;
 }) {
   return (
     <div
-      className={cn("rect-app", collapsed && "rect-app--collapsed")}
+      className={cn(
+        "rect-app",
+        navCollapsed && "rect-app--collapsed",
+        aiCollapsed && "rect-app--ai-collapsed",
+      )}
       data-testid="app-shell"
     >
-      <SideNav collapsed={collapsed} navId={NAV_ID} />
+      <SideNav collapsed={navCollapsed} navId={NAV_ID} />
       <MainPanel
-        collapsed={collapsed}
-        onToggle={onToggle}
+        collapsed={navCollapsed}
+        onToggle={onToggleNav}
         navId={NAV_ID}
         title={title}
-        badge={badge}
       >
         {children}
       </MainPanel>
+      <AiAssistantPanel collapsed={aiCollapsed} onToggle={onToggleAi} />
     </div>
   );
 }

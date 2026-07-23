@@ -1,9 +1,9 @@
-import { ChevronsLeft } from "lucide-react";
-
 /**
- * Seam control between chrome nav and the white rectangle.
- * Always painted above the side menu (panel z-index > nav).
+ * Provides the minimalist icon-only control for the left navigation rail so the
+ * base GUI keeps a clean monochrome seam between chrome and work surface.
  */
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+
 export function NavToggle({
   collapsed,
   onToggle,
@@ -13,6 +13,8 @@ export function NavToggle({
   onToggle: () => void;
   navId: string;
 }) {
+  const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
+
   return (
     <button
       type="button"
@@ -23,7 +25,7 @@ export function NavToggle({
       aria-label={collapsed ? "Expand menu" : "Collapse menu"}
       title={collapsed ? "Expand menu" : "Collapse menu"}
     >
-      <ChevronsLeft strokeWidth={2.25} absoluteStrokeWidth aria-hidden />
+      <Icon strokeWidth={2.1} absoluteStrokeWidth aria-hidden />
     </button>
   );
 }

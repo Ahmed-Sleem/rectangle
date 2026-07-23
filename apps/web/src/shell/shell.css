@@ -587,3 +587,76 @@
     transition: none !important;
   }
 }
+
+/* ── Base GUI refinement: page title, icon-only nav control, AI sidecar ── */
+
+.rect-panel__header {
+  min-height: 42px;
+}
+
+.rect-panel__title {
+  font-size: 1.28rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  text-transform: none;
+}
+
+.rect-toggle,
+.rect-app--collapsed .rect-toggle {
+  left: -13px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--rect-toggle-icon);
+  opacity: 0.78;
+}
+
+.rect-toggle svg {
+  width: 19px;
+  height: 19px;
+  filter: drop-shadow(0 1px 1px rgba(250, 250, 250, 0.7));
+}
+
+.rect-panel__edge:hover + .rect-toggle,
+.rect-toggle:hover,
+.rect-toggle:focus-visible {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--rect-text-primary);
+  opacity: 1;
+  transform: translateY(-50%) scale(1.12);
+}
+
+.rect-toggle:active {
+  transform: translateY(-50%) scale(0.9) !important;
+}
+
+.rect-app--collapsed .rect-toggle svg {
+  transform: none;
+}
+
+@media (max-width: 768px) {
+  .rect-toggle,
+  .rect-app--collapsed .rect-toggle {
+    left: 10px;
+    top: 10px;
+    width: 28px;
+    height: 28px;
+    transform: none;
+  }
+
+  .rect-panel__edge:hover + .rect-toggle,
+  .rect-toggle:hover,
+  .rect-toggle:focus-visible,
+  .rect-app--collapsed .rect-toggle {
+    transform: none;
+  }
+
+  .rect-toggle:active {
+    transform: scale(0.9) !important;
+  }
+}

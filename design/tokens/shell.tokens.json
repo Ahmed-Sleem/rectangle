@@ -1,13 +1,20 @@
 {
-  "$description": "Rectangle shell design tokens — soft zinc palette (post-deploy GUI polish)",
+  "$description": "Rectangle shell design tokens — soft monochrome palette with right AI side panel",
   "meta": {
     "source": "apps/web/src/shared/styles/tokens.css",
     "brand": "Rectangle",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "font": {
     "family": "Inter, system-ui, sans-serif",
-    "weights": [400, 500, 600, 700, 800, 900]
+    "weights": [
+      400,
+      500,
+      600,
+      700,
+      800,
+      900
+    ]
   },
   "color": {
     "chrome": {
@@ -44,14 +51,17 @@
     "menuWidthCollapsed": 44,
     "navIcon": 18,
     "toggle": 28,
-    "minNavItemHeight": 36
+    "minNavItemHeight": 36,
+    "aiPanelWidth": 360,
+    "aiPanelWidthTablet": 320,
+    "aiPanelWidthCollapsed": 48
   },
   "radius": {
     "panel": 28,
     "navItem": 8,
     "card": 14,
     "pill": 999,
-    "toggle": 999
+    "toggle": 0
   },
   "zIndex": {
     "menu": 1,

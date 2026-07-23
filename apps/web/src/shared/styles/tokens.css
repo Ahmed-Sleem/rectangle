@@ -53,6 +53,9 @@
   --rect-nav-icon: 18px;
   --rect-min-nav-item-height: 36px;
   --rect-panel-stack-gap: 20px;
+  --rect-ai-panel-width: 360px;
+  --rect-ai-panel-width-tablet: 320px;
+  --rect-ai-panel-width-collapsed: 48px;
 
   --rect-shadow-panel: 0 18px 40px -12px rgba(0, 0, 0, 0.45);
   --rect-shadow-panel-hover: 0 22px 48px -12px rgba(0, 0, 0, 0.55);

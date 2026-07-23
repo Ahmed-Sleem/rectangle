@@ -1,56 +1,77 @@
+/**
+ * Owns shell-level state that must survive feature swaps: navigation collapse,
+ * AI panel visibility, and the browser tab title for the active route.
+ */
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { AppShell } from "@/shell/AppShell";
 import { getFeatureByPath } from "@/shell/registry";
 
-const STORAGE_KEY = "rectangle.shell.collapsed";
-const PAGE_TITLE = "RECTANGLE";
+const NAV_STORAGE_KEY = "rectangle.shell.navCollapsed";
+const AI_STORAGE_KEY = "rectangle.shell.aiCollapsed";
+const APP_NAME = "Rectangle";
 
-function readCollapsed(): boolean {
-  if (typeof window === "undefined") return false;
+function readStoredBoolean(key: string, fallback: boolean): boolean {
+  if (typeof window === "undefined") return fallback;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "1";
+    const value = window.localStorage.getItem(key);
+    if (value === null) return fallback;
+    return value === "1";
   } catch {
-    return false;
+    return fallback;
   }
 }
 
-function writeCollapsed(value: boolean): void {
+function writeStoredBoolean(key: string, value: boolean): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, value ? "1" : "0");
+    window.localStorage.setItem(key, value ? "1" : "0");
   } catch {
-    /* ignore quota / private mode */
+    /* Private browsing/quota failures should not break the shell controls. */
   }
+}
+
+function getPageTitle(pathname: string): string {
+  return getFeatureByPath(pathname)?.title ?? "Not found";
 }
 
 export function AppShellLayout() {
-  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [navCollapsed, setNavCollapsed] = useState(() =>
+    readStoredBoolean(NAV_STORAGE_KEY, false),
+  );
+  const [aiCollapsed, setAiCollapsed] = useState(() =>
+    readStoredBoolean(AI_STORAGE_KEY, false),
+  );
   const location = useLocation();
-  const feature = getFeatureByPath(location.pathname);
+  const title = getPageTitle(location.pathname);
 
-  /** Panel brand title is always RECTANGLE; badge shows active module. */
-  const title = PAGE_TITLE;
-  const badge = feature?.title ?? "Home";
-
-  const onToggle = useCallback(() => {
-    setCollapsed((prev) => {
+  const onToggleNav = useCallback(() => {
+    setNavCollapsed((prev) => {
       const next = !prev;
-      writeCollapsed(next);
+      writeStoredBoolean(NAV_STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const onToggleAi = useCallback(() => {
+    setAiCollapsed((prev) => {
+      const next = !prev;
+      writeStoredBoolean(AI_STORAGE_KEY, next);
       return next;
     });
   }, []);
 
   useEffect(() => {
-    document.title = PAGE_TITLE;
-  }, [location.pathname]);
+    document.title = `${title} · ${APP_NAME}`;
+  }, [title]);
 
   return (
     <AppShell
-      collapsed={collapsed}
-      onToggle={onToggle}
+      navCollapsed={navCollapsed}
+      onToggleNav={onToggleNav}
+      aiCollapsed={aiCollapsed}
+      onToggleAi={onToggleAi}
       title={title}
-      badge={badge}
     >
       <Suspense
         fallback={

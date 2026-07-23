@@ -3,7 +3,7 @@
 Two goals:
 
 1. **Always-on preview** — GitHub → Railway auto-deploy so every push is testable online.  
-2. **Modular product** — one main **shell** (your dark chrome + white rectangle) that **discovers and loads features** so we can add pages without cluttering the core.
+2. **Modular product** — one main **shell** (your dark chrome + white rectangle + right AI side panel) that **discovers and loads features** so we can add pages without cluttering the core.
 
 ---
 
@@ -20,9 +20,11 @@ Your mental model maps cleanly to industry practice:
 
 ```text
 Shell (always on)
+  ├── owns left navigation chrome
+  ├── owns right universal AI assistant panel (not a feature/page)
   ├── reads feature registry / manifest
-  ├── builds nav
-  └── loads feature UI on demand
+  ├── builds nav from enabled features
+  └── loads active feature UI into the main canvas
 
 Feature: projects   ──┐
 Feature: risks      ──┼── developed separately, same rules
@@ -30,6 +32,12 @@ Feature: schedule   ──┘
 ```
 
 That is **connected** (shared design system, auth, router, data contracts) and **disconnected** (feature folders don’t import each other’s guts; shell doesn’t hardcode feature internals).
+
+Hard shell split:
+
+- **Left menu:** shell-owned; generated from enabled `FeatureModule` entries so each instance can expose a different set/order of pages.
+- **Main canvas:** shell-owned white Rectangle surface; only this area changes when routes/features open.
+- **Right AI panel:** shell-owned universal assistant; always part of the app chrome, never implemented as a feature route/page.
 
 ---
 
@@ -268,10 +276,11 @@ rectangle/                          # monorepo root (already exists)
 
 ```text
 Browser
-  └── Shell (layout + nav + providers)
+  └── Shell (layout + nav + providers + AI assistant panel)
         ├── AuthProvider (later)
         ├── I18nProvider (en/ar + RTL later)
         ├── QueryClient (data)
+        ├── AiAssistantPanel (shell-owned; real model adapter later)
         └── <Outlet />  → lazy Feature page inside MainPanel
               ├── /           → overview
               ├── /projects   → projects
@@ -331,7 +340,7 @@ Target: **&lt; 15 minutes** from idea to URL on Railway for a stub page.
 |-------|--------|-----|
 | App | **Vite + React + TypeScript** | Fast HMR, simple Railway static/Node deploy |
 | Router | **React Router 7** | Nested layout = shell + feature outlets |
-| Style | **CSS variables from tokens** (+ Tailwind optional) | Match demo exactly |
+| Style | **CSS variables from tokens** + `design/GUI_SIZING_RULES.md` | Match shell and keep dense desktop GUI consistent |
 | Icons | lucide-react outline | Match stroke demo |
 | Data | TanStack Query when API exists | |
 | i18n | i18next when AR lands | RTL flips shell |

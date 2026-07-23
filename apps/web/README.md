@@ -1,6 +1,6 @@
 # @rectangle/web
 
-Rectangle application shell (P0): dark chrome + white work surface, feature registry, empty module routes.
+Rectangle application shell (P0+ base GUI): dark chrome + white work surface, feature registry, page-specific browser titles, icon-only nav control, and a retractable AI assistant panel ready for a real model adapter.
 
 ## Requirements
 
@@ -29,6 +29,8 @@ Each feature lives under `src/features/<id>/` and exports a `FeatureModule` from
 The shell discovers modules via `import.meta.glob` (see `src/shell/registry.ts`).
 
 Copy `src/features/_template` to add a module. Do not import other features.
+
+The right AI panel is shell-owned (`src/shell/ai/`) so feature pages remain standalone and instances can customize feature availability without coupling pages to the assistant UI. Send controls stay disabled until a real model adapter is wired — no fake AI responses in production paths.
 
 ## Railway (ready)
 

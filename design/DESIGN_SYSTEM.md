@@ -112,7 +112,7 @@ Navigation is secondary and quiet. The white panel is primary and solid.
 | Stat card | `16px` | `1px #eaeaea` |
 | Chart well | `16px` | `1px #eaeaea` + subtle hatch |
 | Badge / chart chip | `40px` (pill) | light border |
-| Toggle | `50%` circle `34×34` | soft gray shadow |
+| Toggle | Icon-only `30×30` hit target | transparent seam control, no circle |
 
 ---
 
@@ -136,8 +136,9 @@ Navigation is secondary and quiet. The white panel is primary and solid.
 - `AppShell` — flex row, optional `.collapsed`
 - `SideNav` — logo, primary items, spacer, footer items (Profile / Logout)
 - `MainPanel` — white rectangle, hosts all routes
-- `NavToggle` — circle on panel’s left edge; visible on edge-hover or when collapsed
+- `NavToggle` — icon-only seam control on panel’s left edge; visible on edge-hover or when collapsed
 - `EdgeHoverZone` — invisible hit target on panel left
+- `AiAssistantPanel` — right-side retractable mini-rectangle for system AI chat; shell-owned, not feature-owned
 
 ### 7.2 Navigation item
 - Icon (22×22 stroke SVG, 2px, round caps) + label
@@ -145,7 +146,8 @@ Navigation is secondary and quiet. The white panel is primary and solid.
 - Collapsed: icon only, centered, slightly larger icon
 
 ### 7.3 Panel header
-- Title (left) + pill badge (right)
+- Page title only (left) — never repeat the `rectangle` brand word inside the work surface
+- Browser tab title follows the opened page: `<Page> · Rectangle`
 - Bottom divider `2px #f0f0f0`
 
 ### 7.4 Stat card
@@ -166,6 +168,7 @@ Navigation is secondary and quiet. The white panel is primary and solid.
 | Double-click main panel within ~40px of left edge | Toggle |
 | Keyboard on toggle | Enter / Space toggles |
 | Collapsed | Logo → `R`; labels hidden; toggle stays more visible |
+| Right AI toggle | Retract / expand the AI assistant mini-rectangle; no fake AI response before model connection |
 
 ---
 

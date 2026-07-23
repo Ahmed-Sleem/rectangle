@@ -20,6 +20,24 @@
 
 ---
 
+## Branch and deploy strategy
+
+Railway is connected to `main`, so **any push to `main` triggers redeploy**.
+
+Required workflow:
+
+1. Create a feature branch for work, e.g. `feat/base-gui-ai-panel-sizing`.
+2. Build feature over feature on that branch.
+3. Run full verification before every push/PR-ready handoff:
+   - `cd apps/web && npm ci`
+   - `npm run verify:deploy`
+   - production `serve -s` smoke for changed routes
+4. Do not push WIP directly to `main`.
+5. When the branch is production-ready, merge to `main` and push `main` once to trigger Railway redeploy for online testing.
+6. Every push/merge description must include files changed, tests run, observed output, and manual smoke path.
+
+---
+
 ## Recommended path (Root Directory = `apps/web`)
 
 ### Click path
