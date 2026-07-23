@@ -23,17 +23,16 @@ describe("SettingsPage", () => {
     const user = userEvent.setup();
     renderSettingsPage();
 
-    expect(screen.getByRole("heading", { name: "Language and direction" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument();
+    expect(screen.getByText(/Current language: English/i)).toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute("dir", "ltr");
 
     await user.click(screen.getByRole("button", { name: "Arabic" }));
 
-    expect(
-      await screen.findByRole("heading", { name: "اللغة واتجاه الواجهة" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "اللغة" })).toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute("lang", "ar");
     expect(document.documentElement).toHaveAttribute("dir", "rtl");
-    expect(screen.getByText(/مشروع تجريبي/)).toBeInTheDocument();
+    expect(screen.getByText(/اللغة الحالية/)).toBeInTheDocument();
   });
 
   it("can switch back to English", async () => {
@@ -44,7 +43,7 @@ describe("SettingsPage", () => {
     await user.click(screen.getByRole("button", { name: "الإنجليزية" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Language and direction" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument();
     });
     expect(document.documentElement).toHaveAttribute("lang", "en");
     expect(document.documentElement).toHaveAttribute("dir", "ltr");

@@ -1,21 +1,20 @@
-/* Settings feature styles use shared UI primitives and centralized theme tokens. */
+/* Minimal Settings page: user-facing controls only, no developer test panels. */
 
 .rect-settings-page {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  max-width: 620px;
 }
 
-.rect-settings-page__card-head {
+.rect-settings-language {
   align-items: center;
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  padding-block: 2px;
 }
 
-.rect-settings-page__icon {
+.rect-settings-language__icon {
   align-items: center;
-  background: var(--rect-surface-bg);
+  background: var(--rect-card-bg);
   border: 1px solid var(--rect-card-border);
   border-radius: 12px;
   color: var(--rect-text-primary);
@@ -25,41 +24,48 @@
   width: 34px;
 }
 
-.rect-settings-page h3 {
-  color: var(--rect-text-primary);
-  font-size: 0.95rem;
-  font-weight: 850;
-  letter-spacing: -0.02em;
+.rect-settings-language__content {
+  min-width: 0;
 }
 
-.rect-settings-page p {
+.rect-settings-language__heading-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.rect-settings-language h2 {
+  color: var(--rect-text-primary);
+  font-size: 0.98rem;
+  font-weight: 850;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.rect-settings-language p {
   color: var(--rect-text-secondary);
   font-size: 0.82rem;
   font-weight: 600;
   line-height: 1.45;
+  margin-top: 4px;
 }
 
-.rect-settings-page__actions {
-  margin-top: 10px;
+.rect-settings-language__actions {
+  justify-content: flex-end;
 }
 
-.rect-settings-page__direction {
-  margin-top: 8px;
+html[dir="rtl"] .rect-settings-language {
+  grid-template-columns: 34px minmax(0, 1fr) auto;
 }
 
-.rect-settings-page__sample {
-  background: var(--rect-surface-bg);
-  border: 1px solid var(--rect-card-border);
-  border-radius: 14px;
-  color: var(--rect-text-primary);
-  display: grid;
-  gap: 6px;
-  line-height: 1.55;
-  margin-top: 14px;
-  padding: 14px;
-}
+@media (max-width: 720px) {
+  .rect-settings-language {
+    align-items: flex-start;
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
 
-.rect-settings-page__sample span {
-  color: var(--rect-text-secondary);
-  font-size: 0.84rem;
+  .rect-settings-language__actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
 }

@@ -24,16 +24,10 @@ export const resources = {
         unknown: "Not found",
       },
       settings: {
-        languageTitle: "Language and direction",
-        languageDescription: "Switch the shell language live. Arabic mode also flips the app direction to RTL so every future page can be tested correctly.",
+        languageTitle: "Language",
         english: "English",
         arabic: "Arabic",
-        activeLanguage: "Active language",
-        currentDirection: "Current direction",
-        directionLtr: "Left to right",
-        directionRtl: "Right to left",
-        testArabicTitle: "Arabic readiness check",
-        testArabicText: "Arabic project text renders correctly: مشروع تجريبي - طلب معلومات RFI-001",
+        activeLanguage: "Current language",
       },
       shell: {
         nav: {
@@ -81,16 +75,10 @@ export const resources = {
         unknown: "غير موجود",
       },
       settings: {
-        languageTitle: "اللغة واتجاه الواجهة",
-        languageDescription: "غيّر لغة الواجهة مباشرة. وضع العربية يغيّر اتجاه التطبيق إلى اليمين حتى يمكن اختبار كل صفحة مستقبلية بشكل صحيح.",
+        languageTitle: "اللغة",
         english: "الإنجليزية",
         arabic: "العربية",
         activeLanguage: "اللغة الحالية",
-        currentDirection: "اتجاه الواجهة الحالي",
-        directionLtr: "من اليسار إلى اليمين",
-        directionRtl: "من اليمين إلى اليسار",
-        testArabicTitle: "اختبار جاهزية العربية",
-        testArabicText: "يظهر نص المشروع العربي بشكل صحيح: مشروع تجريبي - طلب معلومات RFI-001",
       },
       shell: {
         nav: {
