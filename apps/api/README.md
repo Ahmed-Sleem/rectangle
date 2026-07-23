@@ -15,8 +15,9 @@ Production API service for Rectangle. The first implemented domain slice is tena
 ```bash
 DATABASE_URL=<postgres connection string from your deployment platform>
 SESSION_JWT_SECRET=<strong random secret, at least 32 characters>
-CORS_ORIGIN=http://localhost:5173
 PORT=8080
+RECTANGLE_WEB_DIST=/path/to/built/web/dist
+# CORS_ORIGIN is optional and only needed when web and API are on different domains.
 ```
 
 No default users, demo tenants, or fake login are provided. Tokens must be issued by the configured auth layer and include these claims:

@@ -1,12 +1,13 @@
-# Use ONLY if Railway Root Directory is the monorepo root (not apps/web).
-# Preferred setup: Root Directory = apps/web and apps/web/railway.toml
-# Docs: docs/DEPLOY_RAILWAY.md
+# Rectangle single-service Railway deployment
+# Root Directory: repository root
+# This container builds the web app and API separately, then the API serves the built web app.
 
 [build]
-buildCommand = "npm ci --prefix apps/web --include=dev && npm run build --prefix apps/web"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "npm run start --prefix apps/web"
-healthcheckPath = "/"
-healthcheckTimeout = 100
+startCommand = "npm --prefix apps/api run migrate && npm --prefix apps/api run start"
+healthcheckPath = "/health/live"
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

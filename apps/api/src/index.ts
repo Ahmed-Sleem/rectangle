@@ -30,7 +30,8 @@ const server = await createServer({
   projectService,
   authService,
   jwtSecret: config.SESSION_JWT_SECRET,
-  corsOrigin: config.CORS_ORIGIN,
+  ...(config.CORS_ORIGIN ? { corsOrigin: config.CORS_ORIGIN } : {}),
+  ...(process.env.RECTANGLE_WEB_DIST ? { webDistPath: process.env.RECTANGLE_WEB_DIST } : {}),
   readinessCheck: () => assertDatabaseReady(pool),
 });
 

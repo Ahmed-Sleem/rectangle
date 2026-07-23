@@ -37,7 +37,7 @@ npm ci
 npm run verify
 ```
 
-The API requires real environment configuration before serving production traffic: `DATABASE_URL`, `SESSION_JWT_SECRET`, and `CORS_ORIGIN`. More detail: [apps/api/README.md](./apps/api/README.md).
+The API requires real environment configuration before serving production traffic: `DATABASE_URL` and `SESSION_JWT_SECRET`. It can also serve the built web app in the single-service deployment. More detail: [apps/api/README.md](./apps/api/README.md).
 
 ### Full local verification
 
@@ -104,7 +104,7 @@ rectangle/
 | Product name | **Rectangle** |
 | **P0 shell app** | **Done** — registry + localized routes, tests green |
 | Projects page | **Started** — user-facing workspace page, backend API slice in progress |
-| Backend API | **Started** — production Projects API, PostgreSQL schema, auth boundary, audit events |
+| Backend API | **Started** — production Projects API, PostgreSQL schema, auth boundary, audit events, single-service web serving |
 | Railway config | **Ready for web** — [docs/DEPLOY_RAILWAY.md](./docs/DEPLOY_RAILWAY.md) |
 | Feature pages | In progress |
 | Railway connect | Your step: connect GitHub (see deploy guide) |

@@ -1,104 +1,100 @@
 # Deploy Rectangle on Railway
 
-Rectangle is deployed as multiple services from one GitHub repo. This is the preferred production shape.
+Recommended Railway setup now: **one app service + one PostgreSQL database**.
 
 ```text
 Railway Project
-├── Rectangle Web service  -> apps/web Dockerfile
-├── Rectangle API service  -> apps/api Dockerfile
-└── PostgreSQL             -> Railway managed database
+├── Rectangle App   -> root Dockerfile; API serves web + /v1 API
+└── PostgreSQL      -> Railway managed database
 ```
 
-Do not combine web, API, and database into one container.
-
-## 1. Web service
-
-Create a Railway service from GitHub repo `Ahmed-Sleem/rectangle`.
-
-Settings:
+The source remains organized separately:
 
 ```text
-Root Directory: apps/web
-Builder: Dockerfile
-Dockerfile: Dockerfile
-Healthcheck Path: /
-Start Command: npm run start
+apps/web  -> React/Vite frontend
+apps/api  -> Fastify API/backend
 ```
 
-Environment:
+The root Dockerfile builds both and runs the API. The API serves the built web app from the same domain.
 
-```text
-PORT = Railway auto-provided
-```
+## 1. PostgreSQL
 
-No secret is required for the current web app.
-
-## 2. PostgreSQL
-
-In the same Railway project:
+In Railway:
 
 ```text
 New -> Database -> PostgreSQL
 ```
 
-Railway will provide `DATABASE_URL`.
+## 2. Rectangle App service
 
-## 3. API service
+Use the existing GitHub repo service or create one from:
 
-Create another Railway service from the same GitHub repo.
+```text
+Ahmed-Sleem/rectangle
+```
 
 Settings:
 
 ```text
-Root Directory: apps/api
+Root Directory: empty / repo root
 Builder: Dockerfile
-Dockerfile: Dockerfile
-Healthcheck Path: /health/ready
-Start Command: npm run migrate && npm run start
+Dockerfile Path: Dockerfile
+Start Command: npm --prefix apps/api run migrate && npm --prefix apps/api run start
+Healthcheck Path: /health/live
+Healthcheck Timeout: 300
 ```
 
-Environment:
+## 3. Variables on the Rectangle App service
+
+Required:
 
 ```text
-DATABASE_URL=<Railway Postgres DATABASE_URL>
+DATABASE_URL=${{Postgres.DATABASE_URL}}
 SESSION_JWT_SECRET=<strong random secret, at least 32 chars>
-CORS_ORIGIN=<your web service public URL>
 NODE_ENV=production
-PORT=Railway auto-provided
 ```
 
-Generate `SESSION_JWT_SECRET` locally, for example:
+Optional for same-service deployment:
+
+```text
+CORS_ORIGIN=<leave empty unless web and API are split again>
+```
+
+Generate a secret locally:
 
 ```bash
 openssl rand -base64 48
 ```
 
-Never commit real secrets.
+Never commit or share real secrets.
 
 ## 4. Smoke checks
 
-After deploy:
+After deploy, open:
 
 ```text
-Web: https://<web-url>/
-Web route: https://<web-url>/projects
-API live: https://<api-url>/health/live
-API ready: https://<api-url>/health/ready
+https://<app-url>/
+https://<app-url>/projects
+https://<app-url>/health/live
+https://<app-url>/health/ready
 ```
 
-Expected API responses:
+Expected API health:
 
 ```json
 {"status":"ok"}
 {"status":"ready"}
 ```
 
-## 5. Current limitation
+## 5. If deployment fails
 
-The API is real, but the web app is not wired to authenticated API workflows yet. Do not add demo data or fake frontend login. The next production slice is tenant/user bootstrap and then authenticated frontend integration.
+Check the app deployment logs for the first real error above the healthcheck failure. Common causes:
 
-## 6. Rollback
+- `DATABASE_URL` not attached to the app service.
+- `SESSION_JWT_SECRET` shorter than 32 characters.
+- App service still has old root directory `apps/api` instead of repo root.
+- App service still uses the old API-only Dockerfile instead of root Dockerfile.
 
-Railway UI -> Deployments -> select previous successful deployment -> Redeploy.
+## 6. Future split
 
-Or revert the Git commit on `main` and push.
+Because code remains separated in `apps/web` and `apps/api`, we can split back into separate Railway services later without rewriting the app.
