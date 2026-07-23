@@ -15,9 +15,10 @@ create table if not exists users (
   email text not null check (char_length(email) <= 254),
   display_name text not null check (char_length(trim(display_name)) between 2 and 160),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (tenant_id, lower(email))
+  updated_at timestamptz not null default now()
 );
+
+create unique index if not exists users_tenant_email_lower_idx on users (tenant_id, lower(email));
 
 create table if not exists projects (
   id uuid primary key default gen_random_uuid(),
