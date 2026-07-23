@@ -1070,3 +1070,32 @@
     transition: none !important;
   }
 }
+
+/* ── Research-backed polish: compositor hints for shell contraction ── */
+
+.rect-nav,
+.rect-panel,
+.rect-ai-fab,
+.rect-nav-toggle {
+  will-change: width, transform, opacity;
+}
+
+.rect-nav {
+  contain: layout paint;
+}
+
+.rect-app--collapsed .rect-logo__short {
+  animation: rect-fab-in 220ms var(--rect-motion-spring) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-nav,
+  .rect-panel,
+  .rect-ai-fab,
+  .rect-nav-toggle,
+  .rect-app--collapsed .rect-logo__short {
+    will-change: auto;
+    animation: none !important;
+    transition: none !important;
+  }
+}

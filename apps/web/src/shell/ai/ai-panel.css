@@ -328,3 +328,70 @@
     transition: none !important;
   }
 }
+
+/* ── Research-backed polish: compositor hints + staged AI content reveal ── */
+
+@keyframes rect-ai-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rect-ai-panel {
+  transform-origin: right center;
+  will-change: width, min-width, transform, opacity;
+  contain: layout paint;
+}
+
+.rect-ai-panel__header,
+.rect-ai-panel__context,
+.rect-ai-panel__body,
+.rect-ai-composer {
+  animation: rect-ai-content-in 260ms ease-out both;
+}
+
+.rect-ai-panel__header {
+  animation-delay: 80ms;
+}
+
+.rect-ai-panel__context {
+  animation-delay: 120ms;
+}
+
+.rect-ai-panel__body {
+  animation-delay: 150ms;
+}
+
+.rect-ai-composer {
+  animation-delay: 180ms;
+}
+
+.rect-ai-panel--closing .rect-ai-panel__header,
+.rect-ai-panel--closing .rect-ai-panel__context,
+.rect-ai-panel--closing .rect-ai-panel__body,
+.rect-ai-panel--closing .rect-ai-composer {
+  animation: none;
+  opacity: 0;
+  transform: translateY(3px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-ai-panel,
+  .rect-ai-panel__header,
+  .rect-ai-panel__context,
+  .rect-ai-panel__body,
+  .rect-ai-composer {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
