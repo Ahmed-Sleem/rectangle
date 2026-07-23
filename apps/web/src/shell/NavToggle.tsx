@@ -1,7 +1,7 @@
 /**
- * Provides a compact in-menu control for opening and closing the feature rail.
- * It sits above the account/profile section where users expect chrome controls
- * that affect the whole menu, not the active page canvas.
+ * Provides a circular chrome control for opening and closing the feature rail.
+ * It sits at the lower-left of the menu area so the control feels like part of
+ * global navigation, not a page-level action.
  */
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
@@ -15,7 +15,6 @@ export function NavToggle({
   navId: string;
 }) {
   const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
-  const label = collapsed ? "Expand" : "Collapse";
 
   return (
     <button
@@ -28,7 +27,6 @@ export function NavToggle({
       title={collapsed ? "Expand menu" : "Collapse menu"}
     >
       <Icon strokeWidth={2} absoluteStrokeWidth aria-hidden />
-      <span className="rect-nav-toggle__label">{label}</span>
     </button>
   );
 }

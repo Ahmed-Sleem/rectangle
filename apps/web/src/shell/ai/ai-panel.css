@@ -1,14 +1,31 @@
 /* Right-side AI panel: shell-owned assistant surface, not feature business logic. */
 
 @keyframes rect-ai-panel-in {
-  from {
+  0% {
     opacity: 0;
-    transform: translateX(10px) scale(0.985);
+    transform: translateX(18px) scale(0.965);
   }
 
-  to {
+  64% {
+    opacity: 1;
+    transform: translateX(-2px) scale(1.012);
+  }
+
+  100% {
     opacity: 1;
     transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes rect-ai-panel-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(18px) scale(0.965);
   }
 }
 
@@ -27,7 +44,7 @@
   overflow: hidden;
   position: relative;
   z-index: var(--rect-z-panel);
-  animation: rect-ai-panel-in 260ms var(--rect-motion-spring) both;
+  animation: rect-ai-panel-in 320ms cubic-bezier(0.2, 0.9, 0.2, 1.08) both;
   transition:
     width var(--rect-motion-menu),
     min-width var(--rect-motion-menu),
@@ -35,6 +52,11 @@
     box-shadow 0.3s ease,
     transform var(--rect-motion-spring),
     opacity var(--rect-motion-nav);
+}
+
+.rect-ai-panel--closing {
+  pointer-events: none;
+  animation: rect-ai-panel-out 230ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .rect-ai-panel:hover {

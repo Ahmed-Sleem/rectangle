@@ -781,3 +781,116 @@
     transition: none !important;
   }
 }
+
+/* ── Premium motion polish: lower-left circular nav control ── */
+
+@keyframes rect-nav-orb-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.78);
+  }
+
+  68% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.05);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.rect-nav__controls {
+  display: flex;
+  justify-content: flex-start;
+  margin: 10px 0 8px;
+  padding: 0 0 0 6px;
+  border: 0;
+}
+
+.rect-nav-toggle,
+.rect-app--collapsed .rect-nav-toggle {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  background: #fafafa;
+  color: #18181b;
+  display: grid;
+  place-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.24),
+    0 2px 6px rgba(0, 0, 0, 0.18);
+  animation: rect-nav-orb-in 260ms var(--rect-motion-spring) both;
+}
+
+.rect-nav-toggle:hover,
+.rect-nav-toggle:focus-visible {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.24);
+  color: #000000;
+  transform: translateY(-1px) scale(1.04);
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.28),
+    0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.rect-nav-toggle:active,
+.rect-app--collapsed .rect-nav-toggle:active {
+  transform: scale(0.92);
+}
+
+.rect-nav-toggle svg,
+.rect-app--collapsed .rect-nav-toggle svg {
+  width: 17px;
+  height: 17px;
+  transition: transform var(--rect-motion-spring);
+}
+
+.rect-nav-toggle:hover svg,
+.rect-nav-toggle:focus-visible svg {
+  transform: translateX(-1px) scale(1.05);
+}
+
+.rect-app--collapsed .rect-nav__controls {
+  justify-content: center;
+  padding: 0;
+}
+
+.rect-app--collapsed .rect-nav-toggle:hover svg,
+.rect-app--collapsed .rect-nav-toggle:focus-visible svg {
+  transform: translateX(1px) scale(1.05);
+}
+
+.rect-nav-toggle__label {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .rect-nav__controls,
+  .rect-app--collapsed .rect-nav__controls {
+    margin: 0 4px 0 0;
+    padding: 0;
+  }
+
+  .rect-nav-toggle,
+  .rect-app--collapsed .rect-nav-toggle {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-nav-toggle,
+  .rect-nav-toggle svg {
+    animation: none !important;
+    transition: none !important;
+  }
+}
