@@ -36,9 +36,11 @@ export function AppShell({
       )}
       data-testid="app-shell"
     >
-      <SideNav collapsed={navCollapsed} navId={NAV_ID} onToggle={onToggleNav} />
+      <SideNav collapsed={navCollapsed} navId={NAV_ID} />
       <MainPanel
+        navCollapsed={navCollapsed}
         onToggle={onToggleNav}
+        navId={NAV_ID}
         title={title}
         aiCollapsed={aiCollapsed}
         onToggleAi={onToggleAi}

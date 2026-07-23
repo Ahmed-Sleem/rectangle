@@ -4,15 +4,20 @@
  */
 import { Sparkles } from "lucide-react";
 import type { ReactNode, MouseEvent } from "react";
+import { NavToggle } from "./NavToggle";
 
 export function MainPanel({
+  navCollapsed,
   onToggle,
+  navId,
   title,
   aiCollapsed,
   onToggleAi,
   children,
 }: {
+  navCollapsed: boolean;
   onToggle: () => void;
+  navId: string;
   title: string;
   aiCollapsed: boolean;
   onToggleAi: () => void;
@@ -28,6 +33,8 @@ export function MainPanel({
 
   return (
     <div className="rect-panel" onDoubleClick={handleDoubleClick}>
+      <NavToggle collapsed={navCollapsed} onToggle={onToggle} navId={navId} />
+
       {aiCollapsed ? (
         <button
           type="button"
