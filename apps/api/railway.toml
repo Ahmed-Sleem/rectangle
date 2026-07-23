@@ -6,7 +6,10 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "npm run migrate && npm run start"
+# Railway runs this before the app starts. It is better than chaining migrations
+# into the long-running start command because migration failures are clearer.
+preDeployCommand = "npm run migrate"
+startCommand = "npm run start"
 healthcheckPath = "/health/ready"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
