@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import "./app-ready-gate.css";
 
-const DEFAULT_MIN_MS = 840;
+const DEFAULT_MIN_MS = 1100;
 const DEFAULT_MAX_MS = 2200;
 const WORDMARK = "RECTANGLE";
 

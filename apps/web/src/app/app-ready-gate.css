@@ -2,8 +2,8 @@
 
 .rect-boot {
   align-items: center;
-  background: var(--rect-surface-bg);
-  color: var(--rect-text-primary);
+  background: var(--rect-chrome-bg);
+  color: var(--rect-nav-text-emphasis);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -27,10 +27,10 @@
     rect-boot-letter 3.2s cubic-bezier(0.22, 0.61, 0.36, 1) infinite,
     rect-boot-glow 3.2s ease-in-out infinite;
   backface-visibility: hidden;
-  color: var(--rect-text-primary);
+  color: var(--rect-nav-text-emphasis);
   display: inline-block;
   font-family: var(--rect-font);
-  font-size: clamp(2.1rem, 6vw, 4rem);
+  font-size: clamp(1.85rem, 5.2vw, 3.45rem);
   font-weight: 950;
   letter-spacing: -0.08em;
   line-height: 1;
@@ -52,7 +52,7 @@
 .rect-boot__letter:nth-child(9) { animation-delay: 640ms; }
 
 .rect-boot__text {
-  color: var(--rect-text-secondary);
+  color: var(--rect-nav-text);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -94,7 +94,7 @@
   }
 
   20% {
-    text-shadow: 0 0 8px var(--rect-overlay-hatch);
+    text-shadow: 0 0 10px var(--rect-overlay-on-dark-focus);
   }
 
   40% {
@@ -104,7 +104,7 @@
 
 @media (max-width: 768px) {
   .rect-boot__letter {
-    font-size: clamp(1.7rem, 5.4vw, 3rem);
+    font-size: clamp(1.55rem, 4.9vw, 2.55rem);
   }
 
   .rect-boot__wordmark {
@@ -114,7 +114,7 @@
 
 @media (max-width: 480px) {
   .rect-boot__letter {
-    font-size: clamp(1.3rem, 5vw, 2.2rem);
+    font-size: clamp(1.18rem, 4.6vw, 1.95rem);
   }
 
   .rect-boot__wordmark {

@@ -23,7 +23,7 @@ describe("AppReadyGate", () => {
     expect(screen.getByText("Application content")).toBeInTheDocument();
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(839);
+      await vi.advanceTimersByTimeAsync(1099);
     });
     expect(screen.getByRole("status", { name: "Loading Rectangle" })).toBeInTheDocument();
 
