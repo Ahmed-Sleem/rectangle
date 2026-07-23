@@ -5,8 +5,16 @@
 import { access, readdir, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { join } from "node:path";
-import { loadConfig } from "../../config.js";
+import { z } from "zod";
 import { createPostgresPool } from "./pool.js";
+
+const migrationEnvSchema = z.object({
+  DATABASE_URL: z.string().url(),
+});
+
+export function loadMigrationDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  return migrationEnvSchema.parse(env).DATABASE_URL;
+}
 
 async function pathExists(path: string): Promise<boolean> {
   try {
@@ -33,9 +41,9 @@ export async function resolveMigrationsDir(cwd = process.cwd()): Promise<string>
 }
 
 export async function runMigrations(): Promise<void> {
-  const config = loadConfig();
+  const databaseUrl = loadMigrationDatabaseUrl();
   const migrationsDir = await resolveMigrationsDir();
-  const pool = createPostgresPool(config.DATABASE_URL);
+  const pool = createPostgresPool(databaseUrl);
   const client = await pool.connect();
   try {
     await client.query("begin");

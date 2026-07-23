@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveMigrationsDir } from "../src/infrastructure/postgres/migrate.js";
+import { loadMigrationDatabaseUrl, resolveMigrationsDir } from "../src/infrastructure/postgres/migrate.js";
 
 const migrationsDir = new URL("../migrations", import.meta.url);
 
@@ -27,5 +27,11 @@ describe("PostgreSQL migrations", () => {
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
+  });
+
+  it("requires only DATABASE_URL for the migration process", () => {
+    expect(loadMigrationDatabaseUrl({ DATABASE_URL: "postgres://user:pass@localhost:5432/rectangle" })).toBe(
+      "postgres://user:pass@localhost:5432/rectangle",
+    );
   });
 });
