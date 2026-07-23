@@ -109,6 +109,25 @@ describe("AppShell", () => {
     expect(
       screen.getByText(/Connect a real model adapter before enabling send/i),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Project context")).not.toBeInTheDocument();
+    expect(screen.queryByText("Documents")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /attach file/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /voice input/i }),
+    ).not.toBeInTheDocument();
+
+    const currentPageToggle = screen.getByRole("button", {
+      name: /current page context on/i,
+    });
+    expect(currentPageToggle).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(currentPageToggle);
+
+    expect(
+      screen.getByRole("button", { name: /current page context off/i }),
+    ).toHaveAttribute("aria-pressed", "false");
 
     fireEvent.click(screen.getByRole("button", { name: /close ai panel/i }));
 

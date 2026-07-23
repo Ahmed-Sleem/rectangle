@@ -3,18 +3,12 @@
  * Presence state keeps the panel mounted briefly while closing so the motion can
  * feel smooth instead of disappearing instantly.
  */
-import { Mic, Paperclip, SendHorizontal, Sparkles } from "lucide-react";
+import { FileText, SendHorizontal, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AiPanelToggle } from "./AiPanelToggle";
-import type { AiAssistantPanelProps, AiContextChip } from "./ai-types";
+import type { AiAssistantPanelProps } from "./ai-types";
 import { cn } from "@/shared/lib/cn";
 import "./ai-panel.css";
-
-const CONTEXT_CHIPS: AiContextChip[] = [
-  { id: "page", label: "Current page" },
-  { id: "project", label: "Project context" },
-  { id: "docs", label: "Documents" },
-];
 
 const EXIT_ANIMATION_MS = 260;
 
@@ -24,6 +18,7 @@ export function AiAssistantPanel({
 }: AiAssistantPanelProps) {
   const [shouldRender, setShouldRender] = useState(!collapsed);
   const [isClosing, setIsClosing] = useState(false);
+  const [useCurrentPageContext, setUseCurrentPageContext] = useState(true);
   const exitTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
@@ -77,14 +72,6 @@ export function AiAssistantPanel({
         <AiPanelToggle collapsed={false} onToggle={onToggle} />
       </header>
 
-      <div className="rect-ai-panel__context" aria-label="AI context sources">
-        {CONTEXT_CHIPS.map((chip) => (
-          <span className="rect-ai-panel__chip" key={chip.id}>
-            {chip.label}
-          </span>
-        ))}
-      </div>
-
       <div className="rect-ai-panel__body" id="rectangle-ai-panel-body">
         <div className="rect-ai-panel__empty" role="status">
           <Sparkles size={28} strokeWidth={1.8} aria-hidden />
@@ -109,13 +96,28 @@ export function AiAssistantPanel({
         />
         <div className="rect-ai-composer__footer">
           <div className="rect-ai-composer__tools" aria-label="Composer tools">
-            <button type="button" className="rect-ai-composer__tool" disabled>
-              <Paperclip size={15} strokeWidth={2} aria-hidden />
-              <span className="sr-only">Attach file</span>
-            </button>
-            <button type="button" className="rect-ai-composer__tool" disabled>
-              <Mic size={15} strokeWidth={2} aria-hidden />
-              <span className="sr-only">Voice input</span>
+            <button
+              type="button"
+              className={cn(
+                "rect-ai-composer__tool",
+                "rect-ai-composer__tool--context",
+                useCurrentPageContext && "rect-ai-composer__tool--active",
+              )}
+              aria-pressed={useCurrentPageContext}
+              aria-label={
+                useCurrentPageContext
+                  ? "Current page context on"
+                  : "Current page context off"
+              }
+              title={
+                useCurrentPageContext
+                  ? "Current page context on"
+                  : "Current page context off"
+              }
+              onClick={() => setUseCurrentPageContext((value) => !value)}
+            >
+              <FileText size={15} strokeWidth={2} aria-hidden />
+              <span className="sr-only">Current page context</span>
             </button>
           </div>
           <button type="submit" className="rect-ai-composer__send" disabled>
