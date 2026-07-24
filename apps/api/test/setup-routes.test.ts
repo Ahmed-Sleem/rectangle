@@ -44,6 +44,12 @@ function createSetupService(status: SetupStatus, result?: SetupResult) {
   };
 }
 
+const inactiveEmailSettingsService = {
+  getSettings(): never { throw new Error("not used"); },
+  saveSettings(): never { throw new Error("not used"); },
+  sendTestEmail(): never { throw new Error("not used"); },
+};
+
 const inactiveAdminService = {
   listPermissions(): never { throw new Error("not used"); },
   listUserTypes(): never { throw new Error("not used"); },
@@ -58,6 +64,7 @@ async function createTestServer(status: SetupStatus, result?: SetupResult) {
   const audit = new MemoryAuditRepository();
   const app = await createServer({
     adminService: inactiveAdminService,
+    emailSettingsService: inactiveEmailSettingsService,
     projectService: new ProjectService(new EmptyProjectsRepository(), audit),
     authService: new AuthService(new EmptyAuthRepository(), new TestPasswordHasher(), audit, jwtSecret),
     setupService: createSetupService(status, result),

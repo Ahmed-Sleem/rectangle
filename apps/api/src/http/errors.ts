@@ -11,6 +11,7 @@ const statusByCode = {
   FORBIDDEN: 403,
   CONFLICT: 409,
   NOT_FOUND: 404,
+  CONFIGURATION_REQUIRED: 503,
 } as const;
 
 export async function errorHandler(error: FastifyError | Error, _request: FastifyRequest, reply: FastifyReply) {

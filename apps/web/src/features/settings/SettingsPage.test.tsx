@@ -1,21 +1,27 @@
-/** Tests the real Settings page language switch used for live Arabic/RTL QA. */
+/** Tests Settings language and SMTP configuration UI. */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import SettingsPage from "./SettingsPage";
 
 function renderSettingsPage() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
-    <RectangleI18nProvider>
-      <SettingsPage />
-    </RectangleI18nProvider>,
+    <QueryClientProvider client={queryClient}>
+      <RectangleI18nProvider>
+        <SettingsPage />
+      </RectangleI18nProvider>
+    </QueryClientProvider>,
   );
 }
 
 describe("SettingsPage", () => {
   beforeEach(async () => {
     window.localStorage.clear();
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: false, enabled: false, hasPassword: false } }), { status: 200, headers: { "Content-Type": "application/json" } })));
     await setRectangleLanguage("en");
   });
 
@@ -47,5 +53,31 @@ describe("SettingsPage", () => {
     });
     expect(document.documentElement).toHaveAttribute("lang", "en");
     expect(document.documentElement).toHaveAttribute("dir", "ltr");
+  });
+
+  it("saves SMTP settings", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    fetchMock
+      .mockImplementationOnce(() => Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: false, enabled: false, hasPassword: false } }), { status: 200, headers: { "Content-Type": "application/json" } })))
+      .mockImplementationOnce((_input, init) => {
+        expect(init?.method).toBe("PUT");
+        expect(JSON.parse(String(init?.body))).toMatchObject({ host: "smtp.office365.com", port: 587, username: "mailer@example.com" });
+        return Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: true, enabled: true, hasPassword: true } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+      })
+      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: true, enabled: true, hasPassword: true } }), { status: 200, headers: { "Content-Type": "application/json" } })));
+
+    renderSettingsPage();
+    await user.type(screen.getByLabelText("SMTP host"), "smtp.office365.com");
+    await user.clear(screen.getByLabelText("Port"));
+    await user.type(screen.getByLabelText("Port"), "587");
+    await user.type(screen.getByLabelText("Username"), "mailer@example.com");
+    await user.type(screen.getByLabelText("Password"), "smtp-password");
+    await user.type(screen.getByLabelText("From email"), "mailer@example.com");
+    await user.clear(screen.getByLabelText("From name"));
+    await user.type(screen.getByLabelText("From name"), "Rectangle");
+    await user.click(screen.getByRole("button", { name: "Save email settings" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/v1/settings/email", expect.objectContaining({ method: "PUT" })));
   });
 });

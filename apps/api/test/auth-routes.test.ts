@@ -37,6 +37,12 @@ class EmptyProjectsRepository implements ProjectsRepository {
   async updateForTenant(_tenantId: string, _id: string, _input: UpdateProjectInput): Promise<ProjectRecord | null> { return null; }
 }
 
+const inactiveEmailSettingsService = {
+  getSettings(): never { throw new Error("not used"); },
+  saveSettings(): never { throw new Error("not used"); },
+  sendTestEmail(): never { throw new Error("not used"); },
+};
+
 const inactiveAdminService = {
   listPermissions(): never { throw new Error("not used"); },
   listUserTypes(): never { throw new Error("not used"); },
@@ -69,6 +75,7 @@ async function createTestServer() {
   };
   const app = await createServer({
     adminService: inactiveAdminService,
+    emailSettingsService: inactiveEmailSettingsService,
     projectService: new ProjectService(new EmptyProjectsRepository(), audit),
     setupService: inactiveSetupService,
     authService: new AuthService(new MemoryAuthRepository(user), hasher, audit, jwtSecret),

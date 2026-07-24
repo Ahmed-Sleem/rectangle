@@ -1,17 +1,21 @@
-/* Minimal Settings page: user-facing controls only, no developer test panels. */
+/* Settings page: user-facing tenant/app configuration. */
 
 .rect-settings-page {
-  max-width: 620px;
+  display: grid;
+  gap: 14px;
+  max-width: 920px;
 }
 
+.rect-settings-section,
 .rect-settings-language {
   align-items: center;
   display: grid;
   gap: 14px;
   grid-template-columns: 34px minmax(0, 1fr) auto;
-  padding-block: 2px;
+  padding: 14px;
 }
 
+.rect-settings-section__icon,
 .rect-settings-language__icon {
   align-items: center;
   background: var(--rect-card-bg);
@@ -24,17 +28,21 @@
   width: 34px;
 }
 
+.rect-settings-section__content,
 .rect-settings-language__content {
   min-width: 0;
 }
 
+.rect-settings-section__heading-row,
 .rect-settings-language__heading-row {
   align-items: center;
   display: flex;
   gap: 8px;
 }
 
-.rect-settings-language h2 {
+.rect-settings-section h2,
+.rect-settings-language h2,
+.rect-settings-email h2 {
   color: var(--rect-text-primary);
   font-size: 0.98rem;
   font-weight: 850;
@@ -42,7 +50,9 @@
   line-height: 1.2;
 }
 
-.rect-settings-language p {
+.rect-settings-section p,
+.rect-settings-language p,
+.rect-settings-email p {
   color: var(--rect-text-secondary);
   font-size: 0.82rem;
   font-weight: 600;
@@ -50,22 +60,73 @@
   margin-top: 4px;
 }
 
-.rect-settings-language__actions {
+.rect-settings-section__actions,
+.rect-settings-language__actions,
+.rect-settings-email__actions {
   justify-content: flex-end;
 }
 
+.rect-settings-email {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.rect-settings-email__header {
+  align-items: flex-start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 34px minmax(0, 1fr);
+}
+
+.rect-settings-email__form {
+  display: grid;
+  gap: 12px;
+}
+
+.rect-settings-email__grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rect-settings-email__test {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.rect-settings-error {
+  color: var(--rect-color-danger) !important;
+  font-weight: 750 !important;
+}
+
+.rect-settings-success {
+  color: var(--rect-color-success) !important;
+  font-weight: 750 !important;
+}
+
+html[dir="rtl"] .rect-settings-section,
 html[dir="rtl"] .rect-settings-language {
   grid-template-columns: 34px minmax(0, 1fr) auto;
 }
 
 @media (max-width: 720px) {
+  .rect-settings-section,
   .rect-settings-language {
     align-items: flex-start;
     grid-template-columns: 34px minmax(0, 1fr);
   }
 
+  .rect-settings-section__actions,
   .rect-settings-language__actions {
     grid-column: 2;
     justify-content: flex-start;
+  }
+
+  .rect-settings-email__grid,
+  .rect-settings-email__test {
+    grid-template-columns: 1fr;
   }
 }
