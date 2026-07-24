@@ -11,7 +11,8 @@ export const loginInputSchema = z.object({
     .trim()
     .min(3)
     .max(64)
-    .regex(/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/u),
+    .regex(/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/u)
+    .optional(),
   email: z.email().trim().toLowerCase().max(254),
   password: z.string().min(12).max(256),
 });

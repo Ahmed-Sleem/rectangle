@@ -35,6 +35,14 @@ class TestPasswordHasher implements PasswordHasher {
   async verify(password: string, encodedHash: string): Promise<boolean> { return password === encodedHash; }
 }
 
+const inactivePasskeyService = {
+  list(): never { throw new Error("not used"); },
+  beginRegistration(): never { throw new Error("not used"); },
+  verifyRegistration(): never { throw new Error("not used"); },
+  beginLogin(): never { throw new Error("not used"); },
+  verifyLogin(): never { throw new Error("not used"); },
+};
+
 const inactiveEmailSettingsService = {
   getSettings(): never { throw new Error("not used"); },
   saveSettings(): never { throw new Error("not used"); },
@@ -61,6 +69,7 @@ async function createTestServer(webDistPath: string) {
   return createServer({
     adminService: inactiveAdminService,
     emailSettingsService: inactiveEmailSettingsService,
+    passkeyService: inactivePasskeyService,
     projectService: new ProjectService(new EmptyProjectsRepository(), audit),
     setupService: inactiveSetupService,
     authService: new AuthService(new EmptyAuthRepository(), new TestPasswordHasher(), audit, jwtSecret),

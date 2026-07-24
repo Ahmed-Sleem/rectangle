@@ -36,7 +36,7 @@ export class PostgresAuthRepository implements AuthRepository {
       left join user_type_assignments on user_type_assignments.tenant_id = tenants.id and user_type_assignments.user_id = users.id
       left join user_types on user_types.id = user_type_assignments.user_type_id
       left join lateral unnest(user_types.permissions) as permission_value on true
-      where tenants.slug = $1 and lower(users.email) = lower($2)
+      where ($1 = '' or tenants.slug = $1) and lower(users.email) = lower($2) and users.status = 'active'
       group by tenants.id, tenants.slug, users.id, users.email, users.display_name, users.password_hash, users.status
       limit 1`,
       [tenantSlug, email],

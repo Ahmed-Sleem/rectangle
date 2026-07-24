@@ -91,22 +91,22 @@ export class AuthService {
 
   async login(rawInput: unknown, context: LoginContext = {}): Promise<LoginResult> {
     const input = parseLoginInput(rawInput);
-    const user = await this.authRepository.findCredentialUser(input.tenantSlug, input.email);
+    const user = await this.authRepository.findCredentialUser(input.tenantSlug ?? "", input.email);
     if (!user || user.status !== "active" || !user.passwordHash) {
-      await this.auditFailure(user?.tenantId, user?.userId, input.tenantSlug, "invalid_credentials");
-      throw new DomainError("UNAUTHENTICATED", "Email, password, or company is incorrect.");
+      await this.auditFailure(user?.tenantId, user?.userId, input.tenantSlug ?? "", "invalid_credentials");
+      throw new DomainError("UNAUTHENTICATED", "Email or password is incorrect.");
     }
 
     const roles = user.roles.filter((role) => tenantRoleSchema.safeParse(role).success);
     if (roles.length === 0) {
-      await this.auditFailure(user.tenantId, user.userId, input.tenantSlug, "missing_roles");
+      await this.auditFailure(user.tenantId, user.userId, input.tenantSlug ?? "", "missing_roles");
       throw new DomainError("FORBIDDEN", "No active role is assigned to this user.");
     }
 
     const passwordOk = await this.passwordHasher.verify(input.password, user.passwordHash);
     if (!passwordOk) {
-      await this.auditFailure(user.tenantId, user.userId, input.tenantSlug, "invalid_credentials");
-      throw new DomainError("UNAUTHENTICATED", "Email, password, or company is incorrect.");
+      await this.auditFailure(user.tenantId, user.userId, input.tenantSlug ?? "", "invalid_credentials");
+      throw new DomainError("UNAUTHENTICATED", "Email or password is incorrect.");
     }
 
     const expiresAt = new Date(Date.now() + accessTokenLifetimeSeconds * 1000).toISOString();

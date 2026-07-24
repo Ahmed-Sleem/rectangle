@@ -12,7 +12,7 @@ function renderLogin() {
 }
 
 describe("LoginPage", () => {
-  it("submits login credentials", async () => {
+  it("submits email and password credentials", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.spyOn(globalThis, "fetch");
     fetchMock
@@ -20,13 +20,13 @@ describe("LoginPage", () => {
       .mockImplementationOnce(() => Promise.resolve(new Response(JSON.stringify({ error: { code: "UNAUTHENTICATED" } }), { status: 401, headers: { "Content-Type": "application/json" } })))
       .mockImplementationOnce((_input, init) => {
         expect(init?.method).toBe("POST");
-        expect(JSON.parse(String(init?.body))).toMatchObject({ tenantSlug: "rectangle-eg", email: "owner@rectangle.test" });
+        expect(JSON.parse(String(init?.body))).toMatchObject({ email: "owner@rectangle.test" });
+        expect(JSON.parse(String(init?.body))).not.toHaveProperty("tenantSlug");
         return Promise.resolve(new Response(JSON.stringify({ user: { tenantId: "1", userId: "2", roles: ["tenant_admin"] } }), { status: 200, headers: { "Content-Type": "application/json" } }));
       })
       .mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ user: { tenantId: "1", userId: "2", roles: ["tenant_admin"] } }), { status: 200, headers: { "Content-Type": "application/json" } })));
 
     renderLogin();
-    await user.type(screen.getByLabelText(/Company slug/i), "rectangle-eg");
     await user.type(screen.getByLabelText(/Email/i), "owner@rectangle.test");
     await user.type(screen.getByLabelText(/Password/i), "VeryStrongPassword123");
     await user.click(screen.getByRole("button", { name: "Sign in" }));

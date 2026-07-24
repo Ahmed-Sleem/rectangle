@@ -44,6 +44,14 @@ function createSetupService(status: SetupStatus, result?: SetupResult) {
   };
 }
 
+const inactivePasskeyService = {
+  list(): never { throw new Error("not used"); },
+  beginRegistration(): never { throw new Error("not used"); },
+  verifyRegistration(): never { throw new Error("not used"); },
+  beginLogin(): never { throw new Error("not used"); },
+  verifyLogin(): never { throw new Error("not used"); },
+};
+
 const inactiveEmailSettingsService = {
   getSettings(): never { throw new Error("not used"); },
   saveSettings(): never { throw new Error("not used"); },
@@ -65,6 +73,7 @@ async function createTestServer(status: SetupStatus, result?: SetupResult) {
   const app = await createServer({
     adminService: inactiveAdminService,
     emailSettingsService: inactiveEmailSettingsService,
+    passkeyService: inactivePasskeyService,
     projectService: new ProjectService(new EmptyProjectsRepository(), audit),
     authService: new AuthService(new EmptyAuthRepository(), new TestPasswordHasher(), audit, jwtSecret),
     setupService: createSetupService(status, result),

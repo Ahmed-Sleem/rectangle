@@ -51,6 +51,7 @@ Required:
 ```text
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 SESSION_JWT_SECRET=<strong random secret, at least 32 chars>
+APP_SECRET_KEY=<strong random secret, at least 32 chars, for encrypted SMTP/settings>
 NODE_ENV=production
 ```
 

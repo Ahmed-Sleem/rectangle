@@ -5,11 +5,11 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/shared/auth";
 import { apiRequest, ApiClientError } from "@/shared/api/client";
-import { Button, Card, Field, Input } from "@/shared/ui";
+import { Button, Card, Field, Input, Toolbar } from "@/shared/ui";
+import { loginWithPasskey } from "./passkey-api";
 import "../setup/setup-page.css";
 
 const loginSchema = z.object({
-  tenantSlug: z.string().trim().toLowerCase().min(3).max(64),
   email: z.email().max(254),
   password: z.string().min(12).max(256),
 });
@@ -18,40 +18,32 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const auth = useAuth();
-  const form = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { tenantSlug: "", email: "", password: "" },
-  });
+  const form = useForm<LoginForm>({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "" } });
 
   const login = useMutation({
-    mutationFn: (values: LoginForm) => apiRequest("/v1/auth/login", {
-      method: "POST",
-      body: JSON.stringify(values),
-    }),
+    mutationFn: (values: LoginForm) => apiRequest("/v1/auth/login", { method: "POST", body: JSON.stringify(values) }),
     onSuccess: () => auth.refresh(),
   });
 
-  const errorMessage = login.error instanceof ApiClientError ? login.error.message : login.error ? "Login failed." : null;
+  const passkeyLogin = useMutation({
+    mutationFn: () => loginWithPasskey(form.getValues("email")),
+    onSuccess: () => auth.refresh(),
+  });
+
+  const error = login.error ?? passkeyLogin.error;
+  const errorMessage = error instanceof ApiClientError ? error.message : error ? "Sign in failed." : null;
 
   return (
     <Card className="rect-setup-card">
-      <div className="rect-setup-card__header">
-        <p>Rectangle</p>
-        <h1>Sign in</h1>
-        <span>Use your company workspace and account credentials.</span>
-      </div>
+      <div className="rect-setup-card__header"><p>Rectangle</p><h1>Sign in</h1><span>Use your email and password. If you added a passkey, you can use it after entering your email.</span></div>
       <form className="rect-setup-form" onSubmit={form.handleSubmit((values) => login.mutate(values))}>
-        <Field label="Company slug" error={form.formState.errors.tenantSlug?.message} required>
-          <Input aria-label="Company slug" autoComplete="organization" {...form.register("tenantSlug")} />
-        </Field>
-        <Field label="Email" error={form.formState.errors.email?.message} required>
-          <Input aria-label="Email" autoComplete="email" type="email" {...form.register("email")} />
-        </Field>
-        <Field label="Password" error={form.formState.errors.password?.message} required>
-          <Input aria-label="Password" autoComplete="current-password" type="password" {...form.register("password")} />
-        </Field>
+        <Field label="Email" error={form.formState.errors.email?.message} required><Input aria-label="Email" autoComplete="username webauthn" type="email" {...form.register("email")} /></Field>
+        <Field label="Password" error={form.formState.errors.password?.message} required><Input aria-label="Password" autoComplete="current-password" type="password" {...form.register("password")} /></Field>
         {errorMessage ? <p className="rect-setup-form__error" role="alert">{errorMessage}</p> : null}
-        <Button variant="primary" type="submit" disabled={login.isPending}>{login.isPending ? "Signing in…" : "Sign in"}</Button>
+        <Toolbar>
+          <Button variant="primary" type="submit" disabled={login.isPending}>{login.isPending ? "Signing in…" : "Sign in"}</Button>
+          <Button variant="secondary" type="button" disabled={passkeyLogin.isPending || !form.watch("email")} onClick={() => passkeyLogin.mutate()}>{passkeyLogin.isPending ? "Checking…" : "Use passkey"}</Button>
+        </Toolbar>
       </form>
     </Card>
   );

@@ -11,6 +11,7 @@ import type { AdminService } from "../application/admin-service.js";
 import type { AuthService } from "../application/auth-service.js";
 import type { ProjectService } from "../application/project-service.js";
 import type { SetupService } from "../application/setup-service.js";
+import type { PasskeyService } from "../application/passkey-service.js";
 import type { EmailSettingsService } from "../application/email-settings-service.js";
 import { createAuthenticationHook } from "./auth.js";
 import { registerAdminRoutes } from "./admin-routes.js";
@@ -19,6 +20,7 @@ import { errorHandler } from "./errors.js";
 import { registerProjectRoutes } from "./projects-routes.js";
 import { registerSetupRoutes } from "./setup-routes.js";
 import { registerSettingsRoutes } from "./settings-routes.js";
+import { registerPasskeyRoutes } from "./passkey-routes.js";
 
 export interface ServerDependencies {
   projectService: ProjectService;
@@ -26,6 +28,7 @@ export interface ServerDependencies {
   adminService: Pick<AdminService, "listPermissions" | "listUserTypes" | "createUserType" | "updateUserType" | "listUsers" | "createUser" | "updateUser">;
   setupService: Pick<SetupService, "getStatus" | "createFirstAdmin">;
   emailSettingsService: Pick<EmailSettingsService, "getSettings" | "saveSettings" | "sendTestEmail">;
+  passkeyService: Pick<PasskeyService, "list" | "beginRegistration" | "verifyRegistration" | "beginLogin" | "verifyLogin">;
   jwtSecret: string;
   corsOrigin?: string;
   webDistPath?: string;
@@ -34,7 +37,7 @@ export interface ServerDependencies {
 }
 
 function isPublicRoute(url: string): boolean {
-  return url.startsWith("/health/") || url === "/v1/auth/login" || url.startsWith("/v1/setup/") || !url.startsWith("/v1/");
+  return url.startsWith("/health/") || url === "/v1/auth/login" || url.startsWith("/v1/auth/passkeys/login/") || url.startsWith("/v1/setup/") || !url.startsWith("/v1/");
 }
 
 export async function createServer(dependencies: ServerDependencies) {
@@ -64,6 +67,7 @@ export async function createServer(dependencies: ServerDependencies) {
 
   await registerSetupRoutes(app, dependencies.setupService);
   await registerAuthRoutes(app, dependencies.authService);
+  await registerPasskeyRoutes(app, dependencies.passkeyService);
 
   app.addHook("preHandler", async (request, reply) => {
     if (isPublicRoute(request.url)) {

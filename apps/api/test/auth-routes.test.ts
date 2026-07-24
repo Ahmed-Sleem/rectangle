@@ -37,6 +37,14 @@ class EmptyProjectsRepository implements ProjectsRepository {
   async updateForTenant(_tenantId: string, _id: string, _input: UpdateProjectInput): Promise<ProjectRecord | null> { return null; }
 }
 
+const inactivePasskeyService = {
+  list(): never { throw new Error("not used"); },
+  beginRegistration(): never { throw new Error("not used"); },
+  verifyRegistration(): never { throw new Error("not used"); },
+  beginLogin(): never { throw new Error("not used"); },
+  verifyLogin(): never { throw new Error("not used"); },
+};
+
 const inactiveEmailSettingsService = {
   getSettings(): never { throw new Error("not used"); },
   saveSettings(): never { throw new Error("not used"); },
@@ -76,6 +84,7 @@ async function createTestServer() {
   const app = await createServer({
     adminService: inactiveAdminService,
     emailSettingsService: inactiveEmailSettingsService,
+    passkeyService: inactivePasskeyService,
     projectService: new ProjectService(new EmptyProjectsRepository(), audit),
     setupService: inactiveSetupService,
     authService: new AuthService(new MemoryAuthRepository(user), hasher, audit, jwtSecret),

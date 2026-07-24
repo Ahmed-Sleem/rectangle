@@ -10,6 +10,7 @@ import { ApiClientError } from "@/shared/api/client";
 import { Badge, Button, Card, Checkbox, Field, Input, Toolbar } from "@/shared/ui";
 import { useRectangleI18n, type RectangleLanguage } from "@/shared/i18n";
 import { settingsApi } from "./settings-api";
+import { listPasskeys, registerPasskey } from "./passkey-api";
 import "./SettingsPage.css";
 
 const emailSchema = z.object({
@@ -31,6 +32,7 @@ export default function SettingsPage() {
   const { language, direction, setLanguage } = useRectangleI18n();
   const queryClient = useQueryClient();
   const emailSettings = useQuery({ queryKey: ["settings", "email"], queryFn: settingsApi.getEmail, retry: false });
+  const passkeys = useQuery({ queryKey: ["auth", "passkeys"], queryFn: listPasskeys, retry: false });
   const emailForm = useForm<EmailForm>({ resolver: zodResolver(emailSchema), defaultValues: { enabled: true, host: "", port: 587, secure: false, username: "", password: "", fromEmail: "", fromName: "Rectangle", testRecipient: "" } });
 
   useEffect(() => {
@@ -69,6 +71,10 @@ export default function SettingsPage() {
 
   const testEmail = useMutation({
     mutationFn: (recipientEmail: string) => settingsApi.testEmail(recipientEmail),
+  });
+  const addPasskey = useMutation({
+    mutationFn: registerPasskey,
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["auth", "passkeys"] }); },
   });
 
   const saveError = saveEmail.error instanceof ApiClientError ? saveEmail.error.message : saveEmail.error ? "Email settings could not be saved." : null;
@@ -111,6 +117,15 @@ export default function SettingsPage() {
         </form>
         {testError ? <p className="rect-settings-error" role="alert">{testError}</p> : null}
         {testEmail.isSuccess ? <p className="rect-settings-success" role="status">Test email sent.</p> : null}
+      </Card>
+
+      <Card className="rect-settings-email">
+        <div className="rect-settings-email__header"><div><h2>Passkeys</h2><p>Add a passkey to sign in with your device unlock, such as fingerprint, face, PIN, or a security key.</p></div></div>
+        <Toolbar><Button variant="secondary" onClick={() => addPasskey.mutate()} disabled={addPasskey.isPending}>{addPasskey.isPending ? "Adding…" : "Add passkey"}</Button></Toolbar>
+        {addPasskey.error ? <p className="rect-settings-error" role="alert">Passkey could not be added.</p> : null}
+        <div className="rect-settings-passkeys">
+          {(passkeys.data?.passkeys ?? []).length === 0 ? <p>No passkeys added yet.</p> : (passkeys.data?.passkeys ?? []).map((passkey) => <p key={passkey.id}>{passkey.name} · {new Date(passkey.createdAt).toLocaleDateString()}</p>)}
+        </div>
       </Card>
     </section>
   );
