@@ -51,6 +51,7 @@ const inactiveAdminService = {
   updateUserType(): never { throw new Error("not used"); },
   listUsers(): never { throw new Error("not used"); },
   createUser(): never { throw new Error("not used"); },
+  updateUser(): never { throw new Error("not used"); },
 };
 
 async function createTestServer(status: SetupStatus, result?: SetupResult) {

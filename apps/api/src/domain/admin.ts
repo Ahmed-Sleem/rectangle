@@ -25,9 +25,17 @@ export const createUserSchema = z.object({
   userTypeIds: z.array(z.uuid()).min(1).max(10),
 });
 
+export const updateUserSchema = z.object({
+  displayName: z.string().trim().min(2).max(160).optional(),
+  status: z.enum(["active", "disabled"]).optional(),
+  password: z.string().min(12).max(256).regex(/[a-z]/u).regex(/[A-Z]/u).regex(/[0-9]/u).optional(),
+  userTypeIds: z.array(z.uuid()).min(1).max(10).optional(),
+}).refine((value) => Object.keys(value).length > 0, "At least one field is required.");
+
 export type CreateUserTypeInput = z.infer<typeof createUserTypeSchema>;
 export type UpdateUserTypeInput = z.infer<typeof updateUserTypeSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 
 function parseWithDomainError<T>(schema: z.ZodType<T>, input: unknown, message: string): T {
   const parsed = schema.safeParse(input);
@@ -45,4 +53,8 @@ export function parseUpdateUserType(input: unknown): UpdateUserTypeInput {
 
 export function parseCreateUser(input: unknown): CreateUserInput {
   return parseWithDomainError(createUserSchema, input, "User input is invalid.");
+}
+
+export function parseUpdateUser(input: unknown): UpdateUserInput {
+  return parseWithDomainError(updateUserSchema, input, "User update is invalid.");
 }

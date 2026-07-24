@@ -4,7 +4,7 @@ import type { AdminService } from "../application/admin-service.js";
 
 export async function registerAdminRoutes(
   app: FastifyInstance,
-  adminService: Pick<AdminService, "listPermissions" | "listUserTypes" | "createUserType" | "updateUserType" | "listUsers" | "createUser">,
+  adminService: Pick<AdminService, "listPermissions" | "listUserTypes" | "createUserType" | "updateUserType" | "listUsers" | "createUser" | "updateUser">,
 ): Promise<void> {
   app.get("/v1/admin/permissions", async (request) => adminService.listPermissions(request.principal));
 
@@ -25,4 +25,8 @@ export async function registerAdminRoutes(
     const result = await adminService.createUser(request.principal, request.body);
     return reply.status(201).send(result);
   });
+
+  app.patch<{ Params: { userId: string } }>("/v1/admin/users/:userId", async (request) =>
+    adminService.updateUser(request.principal, request.params.userId, request.body),
+  );
 }

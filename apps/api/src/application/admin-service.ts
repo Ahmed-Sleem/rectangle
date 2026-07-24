@@ -1,5 +1,5 @@
 /** Tenant admin service manages user types and users through real permissions. */
-import { parseCreateUser, parseCreateUserType, parseUpdateUserType, type CreateUserInput, type CreateUserTypeInput, type UpdateUserTypeInput } from "../domain/admin.js";
+import { parseCreateUser, parseCreateUserType, parseUpdateUser, parseUpdateUserType, type CreateUserInput, type CreateUserTypeInput, type UpdateUserInput, type UpdateUserTypeInput } from "../domain/admin.js";
 import { requirePermission, type UserPrincipal } from "../domain/auth.js";
 import { allPermissions, permissionDescriptions, type Permission } from "../domain/permissions.js";
 import { DomainError } from "../domain/errors.js";
@@ -39,6 +39,7 @@ export interface AdminRepository {
   listUsers(tenantId: string): Promise<AdminUserRecord[]>;
   findUserByEmail(tenantId: string, email: string): Promise<AdminUserRecord | null>;
   createUser(tenantId: string, input: Omit<CreateUserInput, "password"> & { passwordHash: string }): Promise<AdminUserRecord>;
+  updateUser(tenantId: string, userId: string, input: Omit<UpdateUserInput, "password"> & { passwordHash?: string }): Promise<AdminUserRecord | null>;
 }
 
 export class AdminService {
@@ -96,6 +97,25 @@ export class AdminService {
     const passwordHash = await this.passwordHasher.hash(input.password);
     const user = await this.repository.createUser(actor.tenantId, { ...input, passwordHash });
     await this.audit.append({ tenantId: actor.tenantId, actorUserId: actor.userId, action: "user.create", entityType: "user", entityId: user.id, result: "success", metadata: { email: user.email, userTypeIds: input.userTypeIds } });
+    return { user };
+  }
+
+  async updateUser(actor: UserPrincipal, userId: string, rawInput: unknown): Promise<{ user: AdminUserRecord }> {
+    requirePermission(actor, "users.manage");
+    const input = parseUpdateUser(rawInput);
+    if (input.userTypeIds) {
+      const userTypes = await this.repository.findUserTypesByIds(actor.tenantId, input.userTypeIds);
+      if (userTypes.length !== input.userTypeIds.length) throw new DomainError("VALIDATION_FAILED", "One or more user types are invalid.");
+    }
+    const passwordHash = input.password ? await this.passwordHasher.hash(input.password) : undefined;
+    const user = await this.repository.updateUser(actor.tenantId, userId, {
+      ...(input.displayName ? { displayName: input.displayName } : {}),
+      ...(input.status ? { status: input.status } : {}),
+      ...(input.userTypeIds ? { userTypeIds: input.userTypeIds } : {}),
+      ...(passwordHash ? { passwordHash } : {}),
+    });
+    if (!user) throw new DomainError("NOT_FOUND", "User was not found.");
+    await this.audit.append({ tenantId: actor.tenantId, actorUserId: actor.userId, action: "user.update", entityType: "user", entityId: user.id, result: "success", metadata: { changedFields: Object.keys(input) } });
     return { user };
   }
 }

@@ -21,7 +21,7 @@ import { registerSetupRoutes } from "./setup-routes.js";
 export interface ServerDependencies {
   projectService: ProjectService;
   authService: AuthService;
-  adminService: Pick<AdminService, "listPermissions" | "listUserTypes" | "createUserType" | "updateUserType" | "listUsers" | "createUser">;
+  adminService: Pick<AdminService, "listPermissions" | "listUserTypes" | "createUserType" | "updateUserType" | "listUsers" | "createUser" | "updateUser">;
   setupService: Pick<SetupService, "getStatus" | "createFirstAdmin">;
   jwtSecret: string;
   corsOrigin?: string;

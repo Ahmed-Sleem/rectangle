@@ -1,7 +1,7 @@
 /** PostgreSQL implementation for tenant user type and user administration. */
 import type pg from "pg";
 import type { AdminRepository, AdminUserRecord, UserTypeRecord } from "../../application/admin-service.js";
-import type { CreateUserInput, CreateUserTypeInput, UpdateUserTypeInput } from "../../domain/admin.js";
+import type { CreateUserInput, CreateUserTypeInput, UpdateUserInput, UpdateUserTypeInput } from "../../domain/admin.js";
 import { allPermissions, type Permission } from "../../domain/permissions.js";
 
 function mapUserType(row: Record<string, unknown>): UserTypeRecord {
@@ -122,6 +122,38 @@ export class PostgresAdminRepository implements AdminRepository {
       await client.query("commit");
       const created = await this.listUsers(tenantId);
       return created.find((user) => user.id === userId)!;
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async updateUser(tenantId: string, userId: string, input: Omit<UpdateUserInput, "password"> & { passwordHash?: string }): Promise<AdminUserRecord | null> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const fields: string[] = [];
+      const values: unknown[] = [];
+      const add = (column: string, value: unknown) => { values.push(value); fields.push(`${column} = $${values.length}`); };
+      if (input.displayName !== undefined) add("display_name", input.displayName);
+      if (input.status !== undefined) add("status", input.status);
+      if (input.passwordHash !== undefined) add("password_hash", input.passwordHash);
+      if (fields.length > 0) {
+        values.push(tenantId, userId);
+        const updated = await client.query(`update users set ${fields.join(", ")}, updated_at = now() where tenant_id = $${values.length - 1} and id = $${values.length}`, values);
+        if (updated.rowCount === 0) { await client.query("rollback"); return null; }
+      }
+      if (input.userTypeIds !== undefined) {
+        await client.query("delete from user_type_assignments where tenant_id = $1 and user_id = $2", [tenantId, userId]);
+        for (const typeId of input.userTypeIds) {
+          await client.query("insert into user_type_assignments (tenant_id, user_id, user_type_id) values ($1,$2,$3)", [tenantId, userId, typeId]);
+        }
+      }
+      await client.query("commit");
+      const users = await this.listUsers(tenantId);
+      return users.find((user) => user.id === userId) ?? null;
     } catch (error) {
       await client.query("rollback");
       throw error;

@@ -50,6 +50,15 @@ class MemoryAdminRepository implements AdminRepository {
     this.users.push(user);
     return user;
   }
+  async updateUser(inputTenantId: string, userId: string, input: { displayName?: string; status?: "active" | "disabled"; passwordHash?: string; userTypeIds?: string[] }): Promise<AdminUserRecord | null> {
+    const user = this.users.find((item) => item.tenantId === inputTenantId && item.id === userId);
+    if (!user) return null;
+    if (input.displayName) user.displayName = input.displayName;
+    if (input.status) user.status = input.status;
+    if (input.userTypeIds) user.userTypes = this.userTypes.filter((type) => input.userTypeIds?.includes(type.id)).map((type) => ({ id: type.id, name: type.name, key: type.key }));
+    user.updatedAt = new Date().toISOString();
+    return user;
+  }
 }
 
 function createService() {

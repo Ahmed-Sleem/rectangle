@@ -45,6 +45,10 @@ export default function TeamPage() {
     mutationFn: adminApi.createUser,
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["admin", "users"] }); userForm.reset(); setUserOpen(false); },
   });
+  const updateUser = useMutation({
+    mutationFn: ({ userId, status }: { userId: string; status: "active" | "disabled" }) => adminApi.updateUser(userId, { status }),
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["admin", "users"] }); },
+  });
 
   const typeError = createType.error instanceof ApiClientError ? createType.error.message : createType.error ? "User type could not be created." : null;
   const userError = createUser.error instanceof ApiClientError ? createUser.error.message : createUser.error ? "User could not be created." : null;
@@ -81,6 +85,8 @@ export default function TeamPage() {
               { id: "name", header: "Name", accessor: (row) => row.displayName },
               { id: "email", header: "Email", accessor: (row) => row.email },
               { id: "types", header: "User types", accessor: (row) => row.userTypes.map((type) => type.name).join(", ") || "—" },
+              { id: "status", header: "Status", accessor: (row) => row.status },
+              { id: "action", header: "Action", accessor: (row) => <Button size="sm" variant="secondary" onClick={() => updateUser.mutate({ userId: row.id, status: row.status === "active" ? "disabled" : "active" })}>{row.status === "active" ? "Disable" : "Activate"}</Button> },
             ]}
             emptyMessage="No users yet."
           />

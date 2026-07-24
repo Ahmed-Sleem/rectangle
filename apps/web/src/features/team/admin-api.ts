@@ -13,4 +13,8 @@ export const adminApi = {
     apiRequest<{ userType: UserTypeRecord }>("/v1/admin/user-types", { method: "POST", body: JSON.stringify(payload) }),
   createUser: (payload: { displayName: string; email: string; password: string; userTypeIds: string[] }) =>
     apiRequest<{ user: AdminUserRecord }>("/v1/admin/users", { method: "POST", body: JSON.stringify(payload) }),
+  updateUser: (userId: string, payload: { displayName?: string; status?: "active" | "disabled"; password?: string; userTypeIds?: string[] }) =>
+    apiRequest<{ user: AdminUserRecord }>(`/v1/admin/users/${userId}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  updateUserType: (userTypeId: string, payload: { name?: string; description?: string; permissions?: string[] }) =>
+    apiRequest<{ userType: UserTypeRecord }>(`/v1/admin/user-types/${userTypeId}`, { method: "PATCH", body: JSON.stringify(payload) }),
 };
