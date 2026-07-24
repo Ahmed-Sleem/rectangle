@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import { DomainError } from "./errors.js";
+import { allPermissions, permissionSchema, type Permission } from "./permissions.js";
 
 export const tenantRoleSchema = z.enum([
   "tenant_owner",
@@ -21,6 +22,7 @@ export const userPrincipalSchema = z.object({
   tenantId: z.uuid(),
   userId: z.uuid(),
   roles: z.array(tenantRoleSchema).min(1).max(20),
+  permissions: z.array(permissionSchema).default([]),
   sessionId: z.uuid().optional(),
 });
 
@@ -42,12 +44,34 @@ const projectReadRoles = new Set<TenantRole>([
   "viewer",
 ]);
 
+export function rolePermissions(roles: TenantRole[]): Permission[] {
+  if (roles.includes("tenant_owner") || roles.includes("tenant_admin")) return allPermissions;
+  const permissions = new Set<Permission>();
+  for (const role of roles) {
+    if (role === "project_admin" || role === "project_manager") {
+      permissions.add("projects.read"); permissions.add("projects.manage");
+    }
+    if (role === "controls_manager" || role === "viewer") permissions.add("projects.read");
+  }
+  return [...permissions];
+}
+
+function hasPermission(principal: UserPrincipal, permission: Permission): boolean {
+  return principal.permissions.includes(permission) || rolePermissions(principal.roles).includes(permission);
+}
+
+export function requirePermission(principal: UserPrincipal, permission: Permission): void {
+  if (!hasPermission(principal, permission)) {
+    throw new DomainError("FORBIDDEN", "You do not have permission to perform this action.");
+  }
+}
+
 export function canManageProjects(principal: UserPrincipal): boolean {
-  return principal.roles.some((role) => projectWriteRoles.has(role));
+  return principal.roles.some((role) => projectWriteRoles.has(role)) || hasPermission(principal, "projects.manage");
 }
 
 export function canReadProjectRegistry(principal: UserPrincipal): boolean {
-  return principal.roles.some((role) => projectReadRoles.has(role));
+  return principal.roles.some((role) => projectReadRoles.has(role)) || hasPermission(principal, "projects.read");
 }
 
 export function requireProjectManagement(principal: UserPrincipal): void {

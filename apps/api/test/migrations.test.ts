@@ -11,7 +11,7 @@ describe("PostgreSQL migrations", () => {
   it("keeps migration files ordered and free of unsupported expression constraints", () => {
     const files = readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();
 
-    expect(files).toEqual(["001_core_projects.sql", "002_auth_sessions.sql"]);
+    expect(files).toEqual(["001_core_projects.sql", "002_auth_sessions.sql", "003_user_types.sql"]);
 
     for (const file of files) {
       const sql = readFileSync(join(migrationsDir.pathname, file), "utf8");

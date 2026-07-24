@@ -37,6 +37,15 @@ class EmptyProjectsRepository implements ProjectsRepository {
   async updateForTenant(_tenantId: string, _id: string, _input: UpdateProjectInput): Promise<ProjectRecord | null> { return null; }
 }
 
+const inactiveAdminService = {
+  listPermissions(): never { throw new Error("not used"); },
+  listUserTypes(): never { throw new Error("not used"); },
+  createUserType(): never { throw new Error("not used"); },
+  updateUserType(): never { throw new Error("not used"); },
+  listUsers(): never { throw new Error("not used"); },
+  createUser(): never { throw new Error("not used"); },
+};
+
 const inactiveSetupService = {
   async getStatus() { return { setupRequired: false }; },
   async createFirstAdmin(): Promise<never> { throw new Error("not used"); },
@@ -55,8 +64,10 @@ async function createTestServer() {
     passwordHash,
     status: "active",
     roles: ["tenant_admin"],
+    permissions: [],
   };
   const app = await createServer({
+    adminService: inactiveAdminService,
     projectService: new ProjectService(new EmptyProjectsRepository(), audit),
     setupService: inactiveSetupService,
     authService: new AuthService(new MemoryAuthRepository(user), hasher, audit, jwtSecret),

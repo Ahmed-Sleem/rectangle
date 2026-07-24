@@ -44,9 +44,19 @@ function createSetupService(status: SetupStatus, result?: SetupResult) {
   };
 }
 
+const inactiveAdminService = {
+  listPermissions(): never { throw new Error("not used"); },
+  listUserTypes(): never { throw new Error("not used"); },
+  createUserType(): never { throw new Error("not used"); },
+  updateUserType(): never { throw new Error("not used"); },
+  listUsers(): never { throw new Error("not used"); },
+  createUser(): never { throw new Error("not used"); },
+};
+
 async function createTestServer(status: SetupStatus, result?: SetupResult) {
   const audit = new MemoryAuditRepository();
   const app = await createServer({
+    adminService: inactiveAdminService,
     projectService: new ProjectService(new EmptyProjectsRepository(), audit),
     authService: new AuthService(new EmptyAuthRepository(), new TestPasswordHasher(), audit, jwtSecret),
     setupService: createSetupService(status, result),
@@ -75,6 +85,7 @@ describe("Setup routes", () => {
         email: "owner@rectangle.test",
         displayName: "Owner",
         roles: ["tenant_owner", "tenant_admin"],
+        permissions: [],
       },
     });
 

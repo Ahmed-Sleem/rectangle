@@ -53,6 +53,7 @@ async function createService() {
     passwordHash,
     status: "active",
     roles: ["tenant_admin", "project_manager"],
+    permissions: [],
   });
   return { service: new AuthService(authRepository, hasher, audit, jwtSecret), audit };
 }
@@ -102,6 +103,7 @@ describe("AuthService", () => {
       passwordHash: await hasher.hash("VeryStrongPassword123!"),
       status: "active",
       roles: [],
+      permissions: [],
     }), hasher, audit, jwtSecret);
 
     await expect(service.login({

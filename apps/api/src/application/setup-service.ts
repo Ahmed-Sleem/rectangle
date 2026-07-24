@@ -31,6 +31,7 @@ export interface SetupRepository {
     email: string;
     displayName: string;
     roles: Array<"tenant_owner" | "tenant_admin">;
+    permissions: string[];
   }>;
 }
 
@@ -43,6 +44,7 @@ export interface SetupResult {
     email: string;
     displayName: string;
     roles: Array<"tenant_owner" | "tenant_admin">;
+    permissions: string[];
   };
 }
 
@@ -80,7 +82,7 @@ export class SetupService {
       ...(context.ipAddress ? { ipAddress: context.ipAddress } : {}),
     });
 
-    const accessToken = await new SignJWT({ tenant_id: created.tenantId, roles: created.roles, sid: created.sessionId })
+    const accessToken = await new SignJWT({ tenant_id: created.tenantId, roles: created.roles, permissions: created.permissions, sid: created.sessionId })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(created.userId)
       .setJti(randomUUID())
@@ -107,6 +109,7 @@ export class SetupService {
         email: created.email,
         displayName: created.displayName,
         roles: created.roles,
+        permissions: created.permissions,
       },
     };
   }

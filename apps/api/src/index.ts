@@ -2,12 +2,14 @@
  * Rectangle API entrypoint composes production infrastructure adapters and
  * starts the HTTP server only after required configuration is validated.
  */
+import { AdminService } from "./application/admin-service.js";
 import { AuthService } from "./application/auth-service.js";
 import { ProjectService } from "./application/project-service.js";
 import { SetupService } from "./application/setup-service.js";
 import { loadConfig } from "./config.js";
 import { createServer } from "./http/server.js";
 import { ScryptPasswordHasher } from "./infrastructure/password.js";
+import { PostgresAdminRepository } from "./infrastructure/postgres/admin-repository.js";
 import { PostgresAuditRepository } from "./infrastructure/postgres/audit-repository.js";
 import { PostgresAuthRepository } from "./infrastructure/postgres/auth-repository.js";
 import { assertDatabaseReady, createPostgresPool } from "./infrastructure/postgres/pool.js";
@@ -28,6 +30,11 @@ const authService = new AuthService(
   auditRepository,
   config.SESSION_JWT_SECRET,
 );
+const adminService = new AdminService(
+  new PostgresAdminRepository(pool),
+  passwordHasher,
+  auditRepository,
+);
 const setupService = new SetupService(
   new PostgresSetupRepository(pool),
   passwordHasher,
@@ -38,6 +45,7 @@ const setupService = new SetupService(
 const server = await createServer({
   projectService,
   authService,
+  adminService,
   setupService,
   jwtSecret: config.SESSION_JWT_SECRET,
   ...(config.CORS_ORIGIN ? { corsOrigin: config.CORS_ORIGIN } : {}),

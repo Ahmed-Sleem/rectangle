@@ -9,5 +9,5 @@ export const logoutFeature: FeatureModule = {
   navGroup: "footer",
   routePath: "/logout",
   enabled: true,
-  load: () => import("./LogoutEmpty"),
+  load: () => import("./LogoutPage"),
 };

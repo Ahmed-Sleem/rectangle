@@ -1,0 +1,55 @@
+.rect-team-page {
+  display: grid;
+  gap: 14px;
+  max-width: 1180px;
+}
+
+.rect-team-toolbar {
+  justify-content: flex-end;
+}
+
+.rect-team-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.rect-team-card--wide {
+  grid-column: span 6;
+}
+
+.rect-team-card h2 {
+  color: var(--rect-text-primary);
+  font-size: 0.98rem;
+  font-weight: 850;
+  letter-spacing: -0.025em;
+}
+
+.rect-team-form {
+  display: grid;
+  gap: 12px;
+}
+
+.rect-team-permissions {
+  display: grid;
+  gap: 8px;
+  max-height: min(42dvh, 360px);
+  overflow: auto;
+  padding-block: 2px;
+}
+
+.rect-team-form__actions {
+  justify-content: flex-end;
+}
+
+.rect-team-form__error {
+  color: var(--rect-color-danger);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .rect-team-card--wide {
+    grid-column: span 12;
+  }
+}

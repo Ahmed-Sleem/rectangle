@@ -28,10 +28,14 @@ export class PostgresAuthRepository implements AuthRepository {
         users.display_name,
         users.password_hash,
         users.status,
-        coalesce(array_agg(tenant_user_roles.role) filter (where tenant_user_roles.role is not null), '{}') as roles
+        coalesce(array_agg(distinct tenant_user_roles.role) filter (where tenant_user_roles.role is not null), '{}') as roles,
+        coalesce(array_agg(distinct permission_value) filter (where permission_value is not null), '{}') as permissions
       from tenants
       join users on users.tenant_id = tenants.id
       left join tenant_user_roles on tenant_user_roles.tenant_id = tenants.id and tenant_user_roles.user_id = users.id
+      left join user_type_assignments on user_type_assignments.tenant_id = tenants.id and user_type_assignments.user_id = users.id
+      left join user_types on user_types.id = user_type_assignments.user_type_id
+      left join lateral unnest(user_types.permissions) as permission_value on true
       where tenants.slug = $1 and lower(users.email) = lower($2)
       group by tenants.id, tenants.slug, users.id, users.email, users.display_name, users.password_hash, users.status
       limit 1`,
@@ -49,6 +53,7 @@ export class PostgresAuthRepository implements AuthRepository {
       passwordHash: row.password_hash == null ? null : String(row.password_hash),
       status: row.status as CredentialUserRecord["status"],
       roles: Array.isArray(row.roles) ? row.roles.map(String) as TenantRole[] : [],
+      permissions: Array.isArray(row.permissions) ? row.permissions.map(String) : [],
     };
   }
 

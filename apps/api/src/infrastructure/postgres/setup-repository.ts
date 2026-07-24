@@ -66,6 +66,7 @@ export class PostgresSetupRepository implements SetupRepository {
         email: String(user.rows[0].email),
         displayName: String(user.rows[0].display_name),
         roles: ["tenant_owner", "tenant_admin"] as Array<"tenant_owner" | "tenant_admin">,
+        permissions: [],
       };
     } catch (error) {
       await client.query("rollback");

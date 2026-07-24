@@ -19,6 +19,7 @@ export interface CredentialUserRecord {
   passwordHash: string | null;
   status: "active" | "invited" | "disabled";
   roles: TenantRole[];
+  permissions: string[];
 }
 
 export interface AuthSessionRecord {
@@ -55,6 +56,7 @@ export interface LoginResult {
     email: string;
     displayName: string;
     roles: TenantRole[];
+    permissions: string[];
   };
 }
 
@@ -116,7 +118,8 @@ export class AuthService {
       ...(context.ipAddress ? { ipAddress: context.ipAddress } : {}),
     });
 
-    const accessToken = await new SignJWT({ tenant_id: user.tenantId, roles, sid: session.id })
+    const permissions = [...new Set(user.permissions)];
+    const accessToken = await new SignJWT({ tenant_id: user.tenantId, roles, permissions, sid: session.id })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(user.userId)
       .setJti(randomUUID())
@@ -143,6 +146,7 @@ export class AuthService {
         email: user.email,
         displayName: user.displayName,
         roles,
+        permissions,
       },
     };
   }

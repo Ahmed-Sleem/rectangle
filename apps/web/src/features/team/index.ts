@@ -9,5 +9,5 @@ export const teamFeature: FeatureModule = {
   navGroup: "primary",
   routePath: "/team",
   enabled: true,
-  load: () => import("./TeamEmpty"),
+  load: () => import("./TeamPage"),
 };

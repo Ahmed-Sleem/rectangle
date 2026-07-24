@@ -23,9 +23,7 @@
 }
 
 .rect-boot__letter {
-  animation:
-    rect-boot-letter 3.2s cubic-bezier(0.22, 0.61, 0.36, 1) infinite,
-    rect-boot-glow 3.2s ease-in-out infinite;
+  animation: rect-boot-letter 3.2s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
   backface-visibility: hidden;
   color: var(--rect-nav-text-emphasis);
   display: inline-block;
@@ -84,21 +82,6 @@
   100% {
     opacity: 0.08;
     transform: scale(0.94) translateY(0.08em);
-  }
-}
-
-@keyframes rect-boot-glow {
-  0%,
-  100% {
-    text-shadow: none;
-  }
-
-  20% {
-    text-shadow: 0 0 10px var(--rect-overlay-on-dark-focus);
-  }
-
-  40% {
-    text-shadow: none;
   }
 }
 

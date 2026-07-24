@@ -13,6 +13,7 @@ const jwtClaimsSchema = z.object({
   sub: z.uuid(),
   tenant_id: z.uuid(),
   roles: z.array(z.string()).min(1).max(20),
+  permissions: z.array(z.string()).optional().default([]),
   sid: z.uuid().optional(),
 });
 
@@ -51,6 +52,7 @@ export function createAuthenticationHook(
       userId: claims.data.sub,
       tenantId: claims.data.tenant_id,
       roles: claims.data.roles,
+      permissions: claims.data.permissions,
       sessionId: claims.data.sid,
     });
     if (!principal.success) {
