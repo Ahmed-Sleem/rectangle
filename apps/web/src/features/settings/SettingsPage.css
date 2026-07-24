@@ -1,9 +1,49 @@
-/* Settings page: user-facing tenant/app configuration. */
+/* Settings page: user-facing personal and company configuration. */
 
 .rect-settings-page {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   max-width: 920px;
+}
+
+.rect-settings-disclosure {
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: 14px;
+  overflow: clip;
+}
+
+.rect-settings-disclosure summary {
+  align-items: center;
+  cursor: pointer;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  list-style: none;
+  padding: 12px 14px;
+}
+
+.rect-settings-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.rect-settings-disclosure summary h2 {
+  color: var(--rect-text-primary);
+  display: block;
+  font-size: 0.96rem;
+  margin: 0;
+  font-weight: 850;
+  letter-spacing: -0.025em;
+}
+
+.rect-settings-disclosure summary small {
+  color: var(--rect-text-secondary);
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 620;
+  line-height: 1.45;
+  margin-top: 3px;
+  white-space: normal;
 }
 
 .rect-settings-section,
@@ -13,6 +53,11 @@
   gap: 14px;
   grid-template-columns: 34px minmax(0, 1fr) auto;
   padding: 14px;
+}
+
+.rect-settings-section--inside {
+  border: 0;
+  border-radius: 0;
 }
 
 .rect-settings-section__icon,
@@ -28,38 +73,6 @@
   width: 34px;
 }
 
-.rect-settings-section__content,
-.rect-settings-language__content {
-  min-width: 0;
-}
-
-.rect-settings-section__heading-row,
-.rect-settings-language__heading-row {
-  align-items: center;
-  display: flex;
-  gap: 8px;
-}
-
-.rect-settings-section h2,
-.rect-settings-language h2,
-.rect-settings-email h2 {
-  color: var(--rect-text-primary);
-  font-size: 0.98rem;
-  font-weight: 850;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
-}
-
-.rect-settings-section p,
-.rect-settings-language p,
-.rect-settings-email p {
-  color: var(--rect-text-secondary);
-  font-size: 0.82rem;
-  font-weight: 600;
-  line-height: 1.45;
-  margin-top: 4px;
-}
-
 .rect-settings-section__actions,
 .rect-settings-language__actions,
 .rect-settings-email__actions {
@@ -72,11 +85,13 @@
   padding: 14px;
 }
 
-.rect-settings-email__header {
-  align-items: flex-start;
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 34px minmax(0, 1fr);
+.rect-settings-email p {
+  color: var(--rect-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.45;
+  margin-top: 4px;
+  white-space: normal;
 }
 
 .rect-settings-email__form {
@@ -97,6 +112,12 @@
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.rect-settings-passkeys {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
 .rect-settings-error {
   color: var(--rect-color-danger) !important;
   font-weight: 750 !important;
@@ -108,21 +129,24 @@
 }
 
 html[dir="rtl"] .rect-settings-section,
-html[dir="rtl"] .rect-settings-language {
+html[dir="rtl"] .rect-settings-language,
+html[dir="rtl"] .rect-settings-disclosure summary {
   grid-template-columns: 34px minmax(0, 1fr) auto;
 }
 
 @media (max-width: 720px) {
   .rect-settings-section,
-  .rect-settings-language {
+  .rect-settings-language,
+  .rect-settings-disclosure summary {
     align-items: flex-start;
     grid-template-columns: 34px minmax(0, 1fr);
   }
 
+  .rect-settings-disclosure summary .rect-ui-badge,
   .rect-settings-section__actions,
   .rect-settings-language__actions {
     grid-column: 2;
-    justify-content: flex-start;
+    justify-self: start;
   }
 
   .rect-settings-email__grid,

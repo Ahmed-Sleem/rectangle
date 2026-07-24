@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, beforeEach, vi } from "vitest";
+import { AuthContext } from "@/shared/auth";
 import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import SettingsPage from "./SettingsPage";
 
@@ -11,7 +12,9 @@ function renderSettingsPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <RectangleI18nProvider>
-        <SettingsPage />
+        <AuthContext.Provider value={{ setupRequired: false, user: { tenantId: "1", userId: "2", roles: ["tenant_admin"], permissions: ["settings.manage"] }, loading: false, refresh: async () => undefined }}>
+          <SettingsPage />
+        </AuthContext.Provider>
       </RectangleI18nProvider>
     </QueryClientProvider>,
   );
@@ -21,7 +24,10 @@ describe("SettingsPage", () => {
   beforeEach(async () => {
     window.localStorage.clear();
     vi.restoreAllMocks();
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: false, enabled: false, hasPassword: false } }), { status: 200, headers: { "Content-Type": "application/json" } })));
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      if (String(input).includes("passkeys")) return Promise.resolve(new Response(JSON.stringify({ passkeys: [] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+      return Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: false, enabled: false, hasPassword: false } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    });
     await setRectangleLanguage("en");
   });
 
@@ -48,9 +54,7 @@ describe("SettingsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "الإنجليزية" }));
 
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument());
     expect(document.documentElement).toHaveAttribute("lang", "en");
     expect(document.documentElement).toHaveAttribute("dir", "ltr");
   });
@@ -58,16 +62,18 @@ describe("SettingsPage", () => {
   it("saves SMTP settings", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.spyOn(globalThis, "fetch");
-    fetchMock
-      .mockImplementationOnce(() => Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: false, enabled: false, hasPassword: false } }), { status: 200, headers: { "Content-Type": "application/json" } })))
-      .mockImplementationOnce((_input, init) => {
-        expect(init?.method).toBe("PUT");
-        expect(JSON.parse(String(init?.body))).toMatchObject({ host: "smtp.office365.com", port: 587, username: "mailer@example.com" });
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.includes("passkeys")) return Promise.resolve(new Response(JSON.stringify({ passkeys: [] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+      if (init?.method === "PUT") {
+        expect(JSON.parse(String(init.body))).toMatchObject({ host: "smtp.office365.com", port: 587, username: "mailer@example.com" });
         return Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: true, enabled: true, hasPassword: true } }), { status: 200, headers: { "Content-Type": "application/json" } }));
-      })
-      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: true, enabled: true, hasPassword: true } }), { status: 200, headers: { "Content-Type": "application/json" } })));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: false, enabled: false, hasPassword: false } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    });
 
     renderSettingsPage();
+    await user.click(screen.getByRole("heading", { name: "Email delivery" }));
     await user.type(screen.getByLabelText("SMTP host"), "smtp.office365.com");
     await user.clear(screen.getByLabelText("Port"));
     await user.type(screen.getByLabelText("Port"), "587");

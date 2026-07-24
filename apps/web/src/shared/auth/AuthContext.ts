@@ -5,6 +5,7 @@ export interface RectangleUser {
   tenantId: string;
   userId: string;
   roles: string[];
+  permissions: string[];
   sessionId?: string;
 }
 
