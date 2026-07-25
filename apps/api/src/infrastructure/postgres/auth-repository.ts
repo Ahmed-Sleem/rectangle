@@ -75,12 +75,28 @@ export class PostgresAuthRepository implements AuthRepository {
 
   async findActiveSession(sessionId: string, tenantId: string, userId: string): Promise<AuthSessionRecord | null> {
     const result = await this.pool.query(
-      `select id, tenant_id, user_id, expires_at from auth_sessions
-       where id = $1 and tenant_id = $2 and user_id = $3 and revoked_at is null and expires_at > now()
-       limit 1`,
+      // The user's status is rechecked on every request, not just at login.
+      // Without this join a disabled account keeps working until its token
+      // expires, which makes "disable" a promise the product cannot keep.
+      `select s.id, s.tenant_id, s.user_id, s.expires_at
+         from auth_sessions s
+         join users u on u.id = s.user_id and u.tenant_id = s.tenant_id
+        where s.id = $1 and s.tenant_id = $2 and s.user_id = $3
+          and s.revoked_at is null and s.expires_at > now()
+          and u.status = 'active'
+        limit 1`,
       [sessionId, tenantId, userId],
     );
     return result.rows[0] ? mapSession(result.rows[0] as Record<string, unknown>) : null;
+  }
+
+  /** Ends every live session for one person, used when access is withdrawn. */
+  async revokeAllSessionsForUser(tenantId: string, userId: string): Promise<void> {
+    await this.pool.query(
+      `update auth_sessions set revoked_at = now()
+       where tenant_id = $1 and user_id = $2 and revoked_at is null`,
+      [tenantId, userId],
+    );
   }
 
   async revokeSession(sessionId: string, tenantId: string, userId: string): Promise<void> {

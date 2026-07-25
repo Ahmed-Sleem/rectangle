@@ -23,6 +23,9 @@ class TestPasswordHasher implements PasswordHasher {
 class MemoryAdminRepository implements AdminRepository {
   userTypes: UserTypeRecord[] = [];
   users: AdminUserRecord[] = [];
+  /** Overridden per test to describe how much administrative cover remains. */
+  otherAdmins = 1;
+  async countOtherActiveAdmins(): Promise<number> { return this.otherAdmins; }
   async ensureSystemUserTypes(): Promise<void> {
     if (!this.userTypes.find((type) => type.key === "owner")) {
       this.userTypes.push({ id: "44444444-4444-4444-8444-444444444444", tenantId, name: "Owner", key: "owner", permissions: ["projects.read", "projects.manage", "users.read", "users.manage", "user_types.read", "user_types.manage", "settings.manage"], systemType: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
@@ -61,10 +64,18 @@ class MemoryAdminRepository implements AdminRepository {
   }
 }
 
+class MemorySessionRevoker {
+  readonly revoked: Array<{ tenantId: string; userId: string }> = [];
+  async revokeAllSessionsForUser(revokeTenantId: string, userId: string): Promise<void> {
+    this.revoked.push({ tenantId: revokeTenantId, userId });
+  }
+}
+
 function createService() {
   const repo = new MemoryAdminRepository();
   const audit = new MemoryAuditRepository();
-  return { service: new AdminService(repo, new TestPasswordHasher(), audit), repo, audit };
+  const sessions = new MemorySessionRevoker();
+  return { service: new AdminService(repo, new TestPasswordHasher(), audit, sessions), repo, audit, sessions };
 }
 
 describe("AdminService", () => {
@@ -80,5 +91,59 @@ describe("AdminService", () => {
   it("blocks users without admin permissions", async () => {
     const { service } = createService();
     await expect(service.createUserType(viewer, { name: "Blocked", key: "blocked", permissions: ["projects.read"] })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("ends live sessions the moment someone is disabled", async () => {
+    const { service, repo, sessions } = createService();
+    await repo.ensureSystemUserTypes();
+    const { user } = await service.createUser(admin, { displayName: "Site Lead", email: "site@example.com", password: "VeryStrongPassword123", userTypeIds: [repo.userTypes[0]!.id] });
+
+    await service.updateUser(admin, user.id, { status: "disabled" });
+
+    expect(sessions.revoked).toEqual([{ tenantId, userId: user.id }]);
+  });
+
+  it("leaves sessions alone for changes that are not a withdrawal of access", async () => {
+    const { service, repo, sessions } = createService();
+    await repo.ensureSystemUserTypes();
+    const { user } = await service.createUser(admin, { displayName: "Site Lead", email: "site2@example.com", password: "VeryStrongPassword123", userTypeIds: [repo.userTypes[0]!.id] });
+
+    await service.updateUser(admin, user.id, { displayName: "Site Leader" });
+
+    expect(sessions.revoked).toEqual([]);
+  });
+
+  it("refuses to disable the last remaining administrator", async () => {
+    const { service, repo } = createService();
+    await repo.ensureSystemUserTypes();
+    const { user } = await service.createUser(admin, { displayName: "Only Admin", email: "only@example.com", password: "VeryStrongPassword123", userTypeIds: [repo.userTypes[0]!.id] });
+    // Nobody else could administer the company once this account is disabled.
+    repo.otherAdmins = 0;
+
+    await expect(service.updateUser(admin, user.id, { status: "disabled" })).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+    });
+    expect(repo.users.find((item) => item.id === user.id)?.status).toBe("active");
+  });
+
+  it("allows disabling an administrator while others remain", async () => {
+    const { service, repo } = createService();
+    await repo.ensureSystemUserTypes();
+    const { user } = await service.createUser(admin, { displayName: "Second Admin", email: "second@example.com", password: "VeryStrongPassword123", userTypeIds: [repo.userTypes[0]!.id] });
+    repo.otherAdmins = 2;
+
+    const result = await service.updateUser(admin, user.id, { status: "disabled" });
+
+    expect(result.user.status).toBe("disabled");
+  });
+
+  it("refuses to let an administrator disable their own account", async () => {
+    const { service, repo } = createService();
+    await repo.ensureSystemUserTypes();
+    repo.otherAdmins = 5;
+
+    await expect(service.updateUser(admin, admin.userId, { status: "disabled" })).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+    });
   });
 });

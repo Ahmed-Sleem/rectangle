@@ -46,6 +46,32 @@ export class PostgresAdminRepository implements AdminRepository {
     );
   }
 
+  /**
+   * Counts people other than `excludingUserId` who can still administer the
+   * company: either a tenant-level admin role, or a user type carrying
+   * `users.manage`. Only active accounts count, since a disabled one cannot act.
+   */
+  async countOtherActiveAdmins(tenantId: string, excludingUserId: string): Promise<number> {
+    const result = await this.pool.query<{ count: string }>(
+      `select count(distinct users.id)::text as count
+         from users
+         left join tenant_user_roles r
+           on r.tenant_id = users.tenant_id and r.user_id = users.id
+         left join user_type_assignments a
+           on a.tenant_id = users.tenant_id and a.user_id = users.id
+         left join user_types t on t.id = a.user_type_id
+        where users.tenant_id = $1
+          and users.id <> $2
+          and users.status = 'active'
+          and (
+            r.role in ('tenant_owner', 'tenant_admin')
+            or 'users.manage' = any(t.permissions)
+          )`,
+      [tenantId, excludingUserId],
+    );
+    return Number(result.rows[0]?.count ?? 0);
+  }
+
   async listUserTypes(tenantId: string): Promise<UserTypeRecord[]> {
     const result = await this.pool.query("select * from user_types where tenant_id = $1 order by system_type desc, name asc", [tenantId]);
     return result.rows.map((row) => mapUserType(row));

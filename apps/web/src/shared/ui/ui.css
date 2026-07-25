@@ -1270,6 +1270,22 @@
   color: var(--rect-orb-text);
 }
 
+/*
+ * Labelled segments size to their text. The icon-only default is a fixed
+ * square, which crops any word placed inside it.
+ */
+.rect-view-toggle--labelled .rect-view-toggle__option {
+  gap: var(--rect-space-2);
+  inline-size: auto;
+  padding-inline: var(--rect-space-3);
+}
+
+.rect-view-toggle__text {
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-medium);
+  white-space: nowrap;
+}
+
 /* Card grid */
 .rect-card-grid {
   display: grid;

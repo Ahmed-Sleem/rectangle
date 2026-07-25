@@ -239,4 +239,35 @@ describe("TeamPage", () => {
     expect(screen.getByRole("radio", { name: "الأشخاص" })).toBeInTheDocument();
     expect(screen.getAllByText("معطّل").length).toBeGreaterThan(0);
   });
+
+  it("labels the people and roles segments with visible text and icons", async () => {
+    mockReads();
+    renderTeam();
+
+    await screen.findByText("Mona Adel");
+    const segments = screen.getByRole("radiogroup", { name: "Team register" });
+    // The words must be rendered, not only announced, or the control is a
+    // pair of unlabelled squares.
+    expect(within(segments).getByText("People")).toBeInTheDocument();
+    expect(within(segments).getByText("Roles")).toBeInTheDocument();
+    expect(segments.querySelectorAll("svg").length).toBe(2);
+  });
+
+  it("hides role actions from someone who may manage people but not roles", async () => {
+    const user = userEvent.setup();
+    mockReads();
+    renderTeam({
+      ...adminAuth,
+      user: { tenantId: "1", userId: "4", roles: ["viewer"], permissions: ["users.manage"] },
+    });
+
+    await screen.findByText("Mona Adel");
+    // People actions are allowed for this principal.
+    expect(screen.getByRole("button", { name: "Create user" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: /Roles/u }));
+    // Roles need user_types.manage, which this principal does not hold.
+    expect(screen.queryByRole("button", { name: "Create user type" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+  });
 });

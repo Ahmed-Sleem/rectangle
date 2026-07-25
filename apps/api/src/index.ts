@@ -40,8 +40,9 @@ const projectTeamService = new ProjectTeamService(
   auditRepository,
 );
 const passwordHasher = new ScryptPasswordHasher();
+const authRepository = new PostgresAuthRepository(pool);
 const authService = new AuthService(
-  new PostgresAuthRepository(pool),
+  authRepository,
   passwordHasher,
   auditRepository,
   config.SESSION_JWT_SECRET,
@@ -50,6 +51,7 @@ const adminService = new AdminService(
   new PostgresAdminRepository(pool),
   passwordHasher,
   auditRepository,
+  authRepository,
 );
 const setupService = new SetupService(
   new PostgresSetupRepository(pool),

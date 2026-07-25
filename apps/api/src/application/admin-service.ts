@@ -31,8 +31,21 @@ export interface AdminUserRecord {
   updatedAt: string;
 }
 
+/**
+ * Withdrawing access has to reach live sessions, not just future logins.
+ * Kept as a narrow port so the admin service does not depend on all of auth.
+ */
+export interface SessionRevoker {
+  revokeAllSessionsForUser(tenantId: string, userId: string): Promise<void>;
+}
+
 export interface AdminRepository {
   ensureSystemUserTypes(tenantId: string): Promise<void>;
+  /**
+   * How many people can still administer this company, excluding one user.
+   * Used to refuse the change that would leave nobody able to administer it.
+   */
+  countOtherActiveAdmins(tenantId: string, excludingUserId: string): Promise<number>;
   listUserTypes(tenantId: string): Promise<UserTypeRecord[]>;
   findUserTypeByKey(tenantId: string, key: string): Promise<UserTypeRecord | null>;
   findUserTypesByIds(tenantId: string, ids: string[]): Promise<UserTypeRecord[]>;
@@ -49,6 +62,7 @@ export class AdminService {
     private readonly repository: AdminRepository,
     private readonly passwordHasher: PasswordHasher,
     private readonly audit: AuditRepository,
+    private readonly sessions?: SessionRevoker,
   ) {}
 
   listPermissions(actor: UserPrincipal) {
@@ -105,6 +119,24 @@ export class AdminService {
   async updateUser(actor: UserPrincipal, userId: string, rawInput: unknown): Promise<{ user: AdminUserRecord }> {
     requirePermission(actor, "users.manage");
     const input = parseUpdateUser(rawInput);
+
+    if (input.status === "disabled") {
+      // Disabling yourself ends the session performing the action, which is
+      // never what the administrator meant to do.
+      if (userId === actor.userId) {
+        throw new DomainError("VALIDATION_FAILED", "You cannot disable your own account.");
+      }
+
+      // Without this a company can be left with nobody able to administer it,
+      // which cannot be undone from inside the product.
+      const remaining = await this.repository.countOtherActiveAdmins(actor.tenantId, userId);
+      if (remaining === 0) {
+        throw new DomainError(
+          "VALIDATION_FAILED",
+          "This is the last active administrator. Give someone else administrator access first.",
+        );
+      }
+    }
     if (input.userTypeIds) {
       const userTypes = await this.repository.findUserTypesByIds(actor.tenantId, input.userTypeIds);
       if (userTypes.length !== input.userTypeIds.length) throw new DomainError("VALIDATION_FAILED", "One or more user types are invalid.");
@@ -117,6 +149,12 @@ export class AdminService {
       ...(passwordHash ? { passwordHash } : {}),
     });
     if (!user) throw new DomainError("NOT_FOUND", "User was not found.");
+
+    // Access is withdrawn immediately rather than whenever the token expires.
+    if (input.status === "disabled") {
+      await this.sessions?.revokeAllSessionsForUser(actor.tenantId, user.id);
+    }
+
     await this.audit.append({ tenantId: actor.tenantId, actorUserId: actor.userId, action: "user.update", entityType: "user", entityId: user.id, result: "success", metadata: { changedFields: Object.keys(input) } });
     return { user };
   }

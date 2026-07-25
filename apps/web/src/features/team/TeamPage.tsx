@@ -9,7 +9,7 @@
  */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LayoutGrid, Rows3 } from "lucide-react";
+import { LayoutGrid, Rows3, ShieldCheck, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -89,10 +89,14 @@ function roleName(type: { name: string; key: string; systemType?: boolean }, t: 
 export default function TeamPage() {
   const { t } = useTranslation();
   const auth = useOptionalAuth();
-  const canManage =
-    auth?.user?.roles.some((role) => ["tenant_owner", "tenant_admin"].includes(role)) ||
-    auth?.user?.permissions.includes("users.manage") ||
-    false;
+  // The API gates people and roles on different permissions, so the interface
+  // must too. Offering a role button to someone holding only `users.manage`
+  // would show an action that fails.
+  const isTenantAdmin =
+    auth?.user?.roles.some((role) => ["tenant_owner", "tenant_admin"].includes(role)) ?? false;
+  const canManage = isTenantAdmin || (auth?.user?.permissions.includes("users.manage") ?? false);
+  const canManageRoles =
+    isTenantAdmin || (auth?.user?.permissions.includes("user_types.manage") ?? false);
 
   const [segment, setSegment] = useState<Segment>("users");
   const [view, setView] = useState<ViewMode>(() => readStoredView());
@@ -206,16 +210,6 @@ export default function TeamPage() {
   return (
     <section className="rect-team-page" aria-label={t("team.pageLabel")}>
       <FilterBar>
-        <ViewToggle<Segment>
-          label={t("team.segmentLabel")}
-          value={segment}
-          onChange={setSegment}
-          options={[
-            { value: "users", label: t("team.segmentUsers") },
-            { value: "types", label: t("team.segmentTypes") },
-          ]}
-        />
-
         {showingUsers ? (
           <>
             <SearchField
@@ -251,6 +245,17 @@ export default function TeamPage() {
 
         <FilterBarSpacer />
 
+        <ViewToggle<Segment>
+          label={t("team.segmentLabel")}
+          value={segment}
+          onChange={setSegment}
+          showLabels
+          options={[
+            { value: "users", label: t("team.segmentUsers"), icon: <Users size={16} strokeWidth={2} aria-hidden /> },
+            { value: "types", label: t("team.segmentTypes"), icon: <ShieldCheck size={16} strokeWidth={2} aria-hidden /> },
+          ]}
+        />
+
         {showingUsers ? (
           <ViewToggle<ViewMode>
             label={t("team.cardView")}
@@ -263,7 +268,7 @@ export default function TeamPage() {
           />
         ) : null}
 
-        {canManage ? (
+        {(showingUsers ? canManage : canManageRoles) ? (
           showingUsers ? (
             <Button
               variant="primary"
@@ -416,8 +421,8 @@ export default function TeamPage() {
       ) : typeRows.length === 0 ? (
         <EmptyState
           title={t("team.noUserTypesTitle")}
-          message={canManage ? t("team.noUserTypesMessage") : t("team.readOnlyMessage")}
-          {...(canManage
+          message={canManageRoles ? t("team.noUserTypesMessage") : t("team.readOnlyMessage")}
+          {...(canManageRoles
             ? { action: <Button variant="primary" onClick={() => setTypeOpen(true)}>{t("team.createUserType")}</Button> }
             : {})}
         />
@@ -440,7 +445,7 @@ export default function TeamPage() {
               </div>
               <footer className="rect-role__foot">
                 <span className="rect-role__meta">{t("team.permissionCount", { count: type.permissions.length })}</span>
-                {canManage ? (
+                {canManageRoles ? (
                   <Button size="sm" variant="secondary" onClick={() => setEditingType(type)}>{t("team.edit")}</Button>
                 ) : null}
               </footer>

@@ -67,6 +67,15 @@ export interface ViewToggleProps<T extends string> {
   options: ReadonlyArray<ViewToggleOption<T>>;
   onChange: (value: T) => void;
   className?: string;
+  /**
+   * Show each option's text beside its icon.
+   *
+   * The default is a square icon-only control, which is right for switching how
+   * the same records are drawn (cards or rows) because the icon is the whole
+   * message. It is wrong for switching *which* records are shown, where the
+   * words carry the meaning and a fixed square would crop them.
+   */
+  showLabels?: boolean;
 }
 
 /**
@@ -79,9 +88,14 @@ export function ViewToggle<T extends string>({
   options,
   onChange,
   className,
+  showLabels = false,
 }: ViewToggleProps<T>) {
   return (
-    <div className={cn("rect-view-toggle", className)} role="radiogroup" aria-label={label}>
+    <div
+      className={cn("rect-view-toggle", showLabels && "rect-view-toggle--labelled", className)}
+      role="radiogroup"
+      aria-label={label}
+    >
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -90,12 +104,12 @@ export function ViewToggle<T extends string>({
             type="button"
             role="radio"
             aria-checked={selected}
-            aria-label={option.label}
-            title={option.label}
+            {...(showLabels ? {} : { "aria-label": option.label, title: option.label })}
             className={cn("rect-view-toggle__option", selected && "rect-view-toggle__option--selected")}
             onClick={() => onChange(option.value)}
           >
             {option.icon}
+            {showLabels ? <span className="rect-view-toggle__text">{option.label}</span> : null}
           </button>
         );
       })}
