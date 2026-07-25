@@ -68,9 +68,10 @@ describe("SearchField", () => {
   });
 
   it("keeps the search field from stretching across the page", () => {
+    // The width lives on the form, which is the toolbar's flex item.
     const block = uiCss.slice(
-      uiCss.indexOf(".rect-search__field {"),
-      uiCss.indexOf(".rect-search__icon {"),
+      uiCss.indexOf("\n.rect-search {"),
+      uiCss.indexOf("\n.rect-search:focus-within"),
     );
     // Amazon-style: a search box that spans the full width loses its shape and
     // stops reading as a discrete control. `max-width: 100%` is the opposite —
@@ -113,19 +114,34 @@ describe("FilterSelect", () => {
 });
 
 describe("search focus behaviour", () => {
-  it("expands a little on focus without breaking the row", () => {
-    const block = uiCss.slice(
-      uiCss.indexOf(".rect-search__field {"),
-      uiCss.indexOf(".rect-search__icon {"),
-    );
+  it("expands on focus from the element the toolbar actually sizes", () => {
+    const form = uiCss.slice(uiCss.indexOf("\n.rect-search {"), uiCss.indexOf("\n.rect-search:focus-within"));
 
-    // flex-basis keeps the growth inside the row's own sizing, so expanding can
-    // never push a sibling control out of the toolbar.
-    expect(block).toContain("transition: flex-basis");
-    expect(uiCss).toContain(".rect-search__field:focus-within");
-    expect(
-      uiCss.slice(uiCss.indexOf(".rect-search__field:focus-within")),
-    ).toContain("var(--rect-field-width-search-focus)");
+    // The <form> is the toolbar's flex item. Animating a nested child instead
+    // leaves the form fixed at its old content width, so nothing moves — which
+    // is exactly why the first attempt at this had no visible effect.
+    expect(form).toContain("flex-basis: var(--rect-search-width");
+    expect(form).toContain("transition: flex-basis");
+
+    const focused = uiCss.slice(
+      uiCss.indexOf("\n.rect-search:focus-within {"),
+      uiCss.indexOf("\n.rect-search__field {"),
+    );
+    expect(focused).toContain("--rect-search-width: var(--rect-field-width-search-focus)");
+
+    // The inner field simply fills whatever width the form was given, so there
+    // is only ever one animation running.
+    const field = uiCss.slice(uiCss.indexOf("\n.rect-search__field {"), uiCss.indexOf("\n.rect-search__icon {"));
+    expect(field).toContain("flex: 1 1 auto");
+    expect(field).not.toContain("transition");
+  });
+
+  it("animates back at the same speed it opened", () => {
+    // One transition on one property covers both directions, so returning to
+    // rest is as smooth as expanding.
+    const form = uiCss.slice(uiCss.indexOf("\n.rect-search {"), uiCss.indexOf("\n.rect-search:focus-within"));
+    expect(form).toContain("var(--rect-duration-search)");
+    expect(tokensCss).toMatch(/--rect-duration-search:\s*\d+ms/);
   });
 
   it("draws focus indicators inside the control so containers cannot clip them", () => {
@@ -133,5 +149,24 @@ describe("search focus behaviour", () => {
     // An outward ring is sliced by any ancestor with overflow hidden or clip.
     expect(tokens).toContain("--rect-shadow-focus: inset 0 0 0");
     expect(tokens).not.toMatch(/--rect-shadow-toggle:[^;]*[^t]\s0 0 0 1px/);
+  });
+});
+
+describe("engaged controls", () => {
+  it("darkens the border of an engaged control instead of adding one", () => {
+    // A light grey boundary fails WCAG 1.4.11 against the card surface, and it
+    // also reads as "nothing happened". The chrome's own near-black does not.
+    expect(tokensCss).toContain("--rect-border-active: var(--rect-color-ink-strong)");
+    expect(tokensCss).toContain("--rect-toggle-border-hover: var(--rect-border-active)");
+    expect(tokensCss).not.toContain("--rect-toggle-border-hover: var(--rect-color-faint)");
+  });
+
+  it("uses one token for every engaged surface", () => {
+    // Section open, emphasised stat, focused input all share the same border so
+    // a theme change moves them together.
+    for (const selector of [".rect-section--open", ".rect-stat--emphasis"]) {
+      const block = uiCss.slice(uiCss.indexOf(`${selector} {`), uiCss.indexOf(`${selector} {`) + 120);
+      expect(block, `${selector} must use the shared active border`).toContain("var(--rect-border-active)");
+    }
   });
 });

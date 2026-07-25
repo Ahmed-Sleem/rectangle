@@ -156,9 +156,10 @@
     transform var(--rect-motion-nav);
 }
 
-.rect-project-card:hover {
+.rect-project-card:hover,
+.rect-project-card:focus-visible {
   background: var(--rect-surface-bg-hover);
-  border-color: var(--rect-color-line-strong);
+  border-color: var(--rect-border-active);
   transform: translateY(-1px);
 }
 

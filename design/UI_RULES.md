@@ -98,7 +98,8 @@ two-word status look like a long answer.
 | `--rect-field-width-sm` | 140 | Short pickers, e.g. a status filter |
 | `--rect-field-width-md` | 176 | **Default filter width.** Fits ~18 characters |
 | `--rect-field-width-lg` | 240 | Longer pickers and compact text inputs |
-| `--rect-field-width-search` | 320 | Search fields |
+| `--rect-field-width-search` | 320 | Search fields at rest |
+| `--rect-field-width-search-focus` | 400 | Search field while in use |
 
 Rules:
 
@@ -111,7 +112,26 @@ Rules:
 4. Below 640px controls may fill, because a stacked layout no longer carries a
    width cue to lose.
 
-### 2.4 Table rows
+### 2.4 Engaged state
+
+A control that is focused, open, or selected takes the chrome's own near-black
+border rather than a lighter grey.
+
+| Token | Value | Use |
+|---|---|---|
+| `--rect-border-active` | `--rect-color-ink-strong` | Every focused, open, or selected boundary |
+
+Rules:
+
+1. **Darken the existing border; never add a second one.** An extra ring changes
+   the element's size and gets clipped by its container.
+2. **One token for every engaged surface** — focused inputs, open sections,
+   emphasised cards, hovered rows — so a theme change moves them together.
+3. This is an accessibility requirement, not a preference. WCAG 1.4.11 asks for
+   3:1 on a UI boundary; the light grey previously used measured **2.17:1** against
+   the card surface and failed. The near-black measures **15:1**.
+
+### 2.5 Table rows
 
 | Token | px | Use |
 |---|---:|---|
@@ -120,7 +140,7 @@ Rules:
 | `--rect-table-row-standard` | 40 | rows containing inputs or controls |
 | `--rect-table-row-two-line` | 52 | primary + subtext rows |
 
-### 2.5 Grid gaps
+### 2.6 Grid gaps
 
 | Token | px | Use |
 |---|---:|---|
@@ -128,7 +148,7 @@ Rules:
 | `--rect-grid-gap` | 12 | **default** feature page grid |
 | `--rect-grid-gap-standard` | 16 | roomy detail layouts |
 
-### 2.6 Typography
+### 2.7 Typography
 
 | Token | px | Weight | Line-height | Use |
 |---|---:|---|---|---|
@@ -155,7 +175,7 @@ Line-height tokens: `--rect-leading-tight` 1.15, `--rect-leading-snug` 1.3, `--r
 
 **Never render body text below 12px.**
 
-### 2.7 Font weights
+### 2.8 Font weights
 
 Inter is loaded at **400 / 500 / 600 / 700 / 900 only**.
 
@@ -169,7 +189,7 @@ Inter is loaded at **400 / 500 / 600 / 700 / 900 only**.
 
 Using 550/620/650/750/850 makes the browser synthesize a weight, which renders differently across platforms and looks subtly broken. **This is enforced by a failing test.**
 
-### 2.8 Radius
+### 2.9 Radius
 
 | Token | px | Use |
 |---|---:|---|
@@ -182,7 +202,7 @@ Using 550/620/650/750/850 makes the browser synthesize a weight, which renders d
 | `--rect-pill-radius` | 999 | badges, switches, circular controls |
 | `--rect-panel-radius` | 28 | the main canvas rectangle (brand shape) |
 
-### 2.9 Overlay / window tokens
+### 2.10 Overlay / window tokens
 
 | Token | Value | Use |
 |---|---|---|
@@ -196,7 +216,7 @@ Using 550/620/650/750/850 makes the browser synthesize a weight, which renders d
 | `--rect-z-overlay` | 1000 | Windows |
 | `--rect-z-toast` | 1100 | Transient messages above windows |
 
-### 2.10 Canvas
+### 2.11 Canvas
 
 | Token | Value | Meaning |
 |---|---|---|
@@ -292,6 +312,13 @@ Rules:
    accessible name.
 6. Wrap the row in `role="search"` so assistive technology can jump to it.
 7. Filters keep capped widths (§2.3) and **wrap, never overflow**.
+8. **Search widens while in use**, 320px → 400px, and returns at the same speed.
+   The animation belongs on the element the toolbar actually lays out — the form
+   — not on a nested child. A child can grow its own basis all it likes; if the
+   parent is still sized to its old content, nothing visibly moves. This is the
+   single most common reason an expand-on-focus appears to do nothing.
+   Use `:focus-within` so the field stays open while the clear control is reached,
+   and drop the growth entirely below 640px where the row already stacks.
 8. Use `FilterBarSpacer` to push the page's primary action to the far end.
 
 ### 4.5 The data page skeleton
@@ -847,6 +874,8 @@ Rules:
 - [ ] Nothing new was built that already exists in the block table (§11).
 - [ ] No import escapes the app directory into `design/`, `docs/`, or another app.
 - [ ] Focus indicators are drawn inside the element so containers cannot clip them.
+- [ ] Engaged controls darken their existing border via `--rect-border-active` (§2.4).
+- [ ] Any expand-on-focus animates the element its parent lays out, not a child.
 - [ ] Destructive actions follow the friction ladder in §15.
 - [ ] `node scripts/checks/feature-checklist.mjs` passes for this page.
 - [ ] `./scripts/verify.sh` passes in full, including the deployment checks (§18).

@@ -745,7 +745,7 @@
 }
 
 .rect-section--open {
-  border-color: var(--rect-color-line-strong);
+  border-color: var(--rect-border-active);
 }
 
 .rect-section__h {
@@ -1023,26 +1023,29 @@
   align-items: center;
   gap: var(--rect-space-2);
   min-width: 0;
+  /* The form is the toolbar's flex item, so its own basis is what the row
+     reserves. Animating a nested child instead leaves this fixed at its old
+     content width and nothing moves. */
+  flex: 0 1 auto;
+  flex-basis: var(--rect-search-width, var(--rect-field-width-search));
+  max-width: 100%;
+  transition: flex-basis var(--rect-duration-search) var(--rect-ease-out);
+}
+
+/* Focus-within so the field stays open while the clear control is reached. */
+.rect-search:focus-within {
+  --rect-search-width: var(--rect-field-width-search-focus);
 }
 
 /* The magnifier sits inside the field, which is where users look for it. */
+/* Fills whatever width the form has been given, so the animation lives in one
+   place rather than two competing ones. */
 .rect-search__field {
   position: relative;
   display: flex;
   align-items: center;
-  /* Animating flex-basis rather than width keeps the control inside the flex
-     row's own sizing, so growing it can never push a sibling out of the row. */
-  flex: 0 1 var(--rect-field-width-search);
-  min-width: var(--rect-field-width-sm);
-  /* Never wider than the row itself, whatever the tokens say. */
-  max-width: 100%;
-  transition: flex-basis var(--rect-motion-nav);
-}
-
-/* Focus-within, not :focus, so the field stays expanded while the clear control
-   is being reached. */
-.rect-search__field:focus-within {
-  flex-basis: var(--rect-field-width-search-focus);
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .rect-search__icon {
@@ -1131,10 +1134,10 @@
    no longer a width cue to lose. */
 @media (max-width: 640px) {
   .rect-search,
-  .rect-search__field,
-  .rect-search__field:focus-within {
+  .rect-search:focus-within {
     /* Already full width when stacked, so there is nothing to expand into. */
     flex: 1 1 100%;
+    flex-basis: 100%;
     width: 100%;
   }
 
@@ -1149,7 +1152,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rect-search__field,
+  .rect-search,
   .rect-search__input,
   .rect-filter-select {
     transition: none !important;
@@ -1189,7 +1192,7 @@
 }
 
 .rect-stat--emphasis {
-  border-color: var(--rect-color-line-strong);
+  border-color: var(--rect-border-active);
 }
 
 .rect-stat__icon {

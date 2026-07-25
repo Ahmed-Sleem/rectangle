@@ -81,7 +81,10 @@
   --rect-toggle-bg: var(--rect-color-paper);
   --rect-toggle-bg-hover: var(--rect-color-paper-elevated);
   --rect-toggle-border: var(--rect-color-line-strong);
-  --rect-toggle-border-hover: var(--rect-color-faint);
+  /* An engaged control borrows the chrome's own near-black rather than a light
+     grey, so selection reads instantly against the off-white surface. */
+  --rect-border-active: var(--rect-color-ink-strong);
+  --rect-toggle-border-hover: var(--rect-border-active);
   --rect-toggle-icon: var(--rect-color-ink-soft);
   --rect-toggle-ring: rgba(32, 33, 36, 0.12);
 
@@ -244,6 +247,9 @@
   --rect-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* Overlay motion. Fast enough to feel instant, slow enough to read as motion. */
+  /* Slightly longer than a hover so the width change reads as deliberate
+     rather than twitchy, in both directions. */
+  --rect-duration-search: 220ms;
   --rect-duration-overlay: 140ms;
   --rect-duration-overlay-scrim: 110ms;
   /* Exit is quicker than entry. An element that lingers on the way out reads as
