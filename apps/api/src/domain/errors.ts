@@ -8,7 +8,8 @@ export type DomainErrorCode =
   | "FORBIDDEN"
   | "CONFLICT"
   | "NOT_FOUND"
-  | "CONFIGURATION_REQUIRED";
+  | "CONFIGURATION_REQUIRED"
+  | "RATE_LIMITED";
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;

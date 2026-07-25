@@ -13,9 +13,22 @@ import { inactiveOverviewService } from "./support/inactive-services.js";
 const jwtSecret = "rectangle-test-secret-must-be-at-least-32-chars";
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
+const sessionId = "33333333-3333-4333-8333-333333333333";
+
+/**
+ * Authority is resolved from the session on every request, so the roles under
+ * test are held by the session rather than baked into the token. Each token
+ * gets its own session id, because a test that signs in as two different
+ * people needs both to stay valid at once.
+ */
+const sessionRolesById = new Map<string, string[]>();
+let nextSession = 0;
 
 async function token(roles: string[]) {
-  return new SignJWT({ tenant_id: tenantId, roles })
+  nextSession += 1;
+  const sid = `33333333-3333-4333-8333-${String(nextSession).padStart(12, "0")}`;
+  sessionRolesById.set(sid, roles);
+  return new SignJWT({ tenant_id: tenantId, roles, sid })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(userId)
     .setIssuedAt()
@@ -96,10 +109,17 @@ class MemoryAuthRepository implements AuthRepository {
     return null;
   }
   async createSession() {
-    return { id: "33333333-3333-4333-8333-333333333333", tenantId, userId, expiresAt: new Date(Date.now() + 3600000).toISOString() };
+    return { id: sessionId, tenantId, userId, expiresAt: new Date(Date.now() + 3600000).toISOString() };
   }
-  async findActiveSession(sessionId: string, sessionTenantId: string, sessionUserId: string) {
-    return { id: sessionId, tenantId: sessionTenantId, userId: sessionUserId, expiresAt: new Date(Date.now() + 3600000).toISOString() };
+  async findActiveSession(lookupSessionId: string, sessionTenantId: string, sessionUserId: string) {
+    return {
+      id: lookupSessionId,
+      tenantId: sessionTenantId,
+      userId: sessionUserId,
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+      roles: (sessionRolesById.get(lookupSessionId) ?? []) as never,
+      permissions: [],
+    };
   }
   async revokeSession(): Promise<void> {}
 }

@@ -14,6 +14,7 @@ import { loadConfig } from "./config.js";
 import { createServer } from "./http/server.js";
 import { NodemailerEmailSender } from "./infrastructure/email-sender.js";
 import { ScryptPasswordHasher } from "./infrastructure/password.js";
+import { InMemoryLoginThrottle } from "./domain/login-throttle.js";
 import { PostgresAdminRepository } from "./infrastructure/postgres/admin-repository.js";
 import { PostgresAuditRepository } from "./infrastructure/postgres/audit-repository.js";
 import { PostgresAuthRepository } from "./infrastructure/postgres/auth-repository.js";
@@ -46,6 +47,7 @@ const authService = new AuthService(
   passwordHasher,
   auditRepository,
   config.SESSION_JWT_SECRET,
+  new InMemoryLoginThrottle(),
 );
 const adminService = new AdminService(
   new PostgresAdminRepository(pool),

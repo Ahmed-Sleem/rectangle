@@ -3,6 +3,7 @@ import { jwtVerify } from "jose";
 import { describe, expect, it } from "vitest";
 import { AuthService, type AuthRepository, type CredentialUserRecord } from "../src/application/auth-service.js";
 import type { AuditEventInput, AuditRepository } from "../src/application/project-service.js";
+import { InMemoryLoginThrottle } from "../src/domain/login-throttle.js";
 import { ScryptPasswordHasher } from "../src/infrastructure/password.js";
 
 const jwtSecret = "rectangle-test-secret-must-be-at-least-32-chars";
@@ -55,7 +56,8 @@ async function createService() {
     roles: ["tenant_admin", "project_manager"],
     permissions: [],
   });
-  return { service: new AuthService(authRepository, hasher, audit, jwtSecret), audit };
+  const throttle = new InMemoryLoginThrottle({ maxAttempts: 3, windowSeconds: 60, lockoutSeconds: 120 });
+  return { service: new AuthService(authRepository, hasher, audit, jwtSecret, throttle), audit, throttle };
 }
 
 describe("AuthService", () => {
@@ -111,5 +113,43 @@ describe("AuthService", () => {
       email: "viewer@rectangle.test",
       password: "VeryStrongPassword123!",
     })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("stops guessing after repeated wrong passwords", async () => {
+    const { service } = await createService();
+    const attempt = () =>
+      service.login({ tenantSlug: "rectangle-eg", email: "owner@rectangle.test", password: "WrongPassword123!" });
+
+    for (let tries = 0; tries < 3; tries += 1) {
+      await expect(attempt()).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+    }
+
+    // The fourth attempt is refused before the password is even checked.
+    await expect(attempt()).rejects.toMatchObject({ code: "RATE_LIMITED" });
+  });
+
+  it("refuses the correct password too while the lockout stands", async () => {
+    const { service } = await createService();
+    for (let tries = 0; tries < 3; tries += 1) {
+      await expect(
+        service.login({ tenantSlug: "rectangle-eg", email: "owner@rectangle.test", password: "WrongPassword123!" }),
+      ).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+    }
+
+    // Otherwise an attacker who guesses correctly on attempt 50 still wins.
+    await expect(
+      service.login({ tenantSlug: "rectangle-eg", email: "owner@rectangle.test", password: "VeryStrongPassword123!" }),
+    ).rejects.toMatchObject({ code: "RATE_LIMITED" });
+  });
+
+  it("records the refusal so an attack is visible in the audit trail", async () => {
+    const { service, audit } = await createService();
+    for (let tries = 0; tries < 4; tries += 1) {
+      await service
+        .login({ tenantSlug: "rectangle-eg", email: "owner@rectangle.test", password: "WrongPassword123!" })
+        .catch(() => undefined);
+    }
+
+    expect(audit.events.some((event) => event.metadata?.reason === "rate_limited")).toBe(true);
   });
 });

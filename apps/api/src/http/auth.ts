@@ -34,9 +34,18 @@ function extractAuthToken(request: FastifyRequest): string {
   throw new DomainError("UNAUTHENTICATED", "Authentication is required.");
 }
 
+export interface ResolvedAuthority {
+  roles: string[];
+  permissions: string[];
+}
+
 export function createAuthenticationHook(
   jwtSecret: string,
-  verifySession?: (sessionId: string, tenantId: string, userId: string) => Promise<boolean>,
+  resolveSession?: (
+    sessionId: string,
+    tenantId: string,
+    userId: string,
+  ) => Promise<ResolvedAuthority | null>,
 ) {
   const secret = new TextEncoder().encode(jwtSecret);
 
@@ -48,22 +57,37 @@ export function createAuthenticationHook(
       throw new DomainError("UNAUTHENTICATED", "Token claims are invalid.");
     }
 
+    // Authority comes from the database, not the token. A token records what
+    // the user could do when they signed in; only the live row says what they
+    // may do now, which is what matters when access has just been revoked.
+    let roles: string[] = claims.data.roles;
+    let permissions: string[] = claims.data.permissions;
+
+    if (resolveSession) {
+      // Fail closed: a token with no session id cannot be validated, so it is
+      // not accepted rather than quietly skipping the check.
+      if (!claims.data.sid) {
+        throw new DomainError("UNAUTHENTICATED", "Session is no longer active.");
+      }
+
+      const authority = await resolveSession(claims.data.sid, claims.data.tenant_id, claims.data.sub);
+      if (!authority) {
+        throw new DomainError("UNAUTHENTICATED", "Session is no longer active.");
+      }
+
+      roles = authority.roles;
+      permissions = authority.permissions;
+    }
+
     const principal = userPrincipalSchema.safeParse({
       userId: claims.data.sub,
       tenantId: claims.data.tenant_id,
-      roles: claims.data.roles,
-      permissions: claims.data.permissions,
+      roles,
+      permissions,
       sessionId: claims.data.sid,
     });
     if (!principal.success) {
       throw new DomainError("UNAUTHENTICATED", "Token roles are invalid.");
-    }
-
-    if (verifySession && principal.data.sessionId) {
-      const active = await verifySession(principal.data.sessionId, principal.data.tenantId, principal.data.userId);
-      if (!active) {
-        throw new DomainError("UNAUTHENTICATED", "Session is no longer active.");
-      }
     }
 
     request.principal = principal.data;

@@ -9,6 +9,7 @@ import { parseLoginInput } from "../domain/auth-login.js";
 import { DomainError } from "../domain/errors.js";
 import type { AuditRepository } from "./project-service.js";
 import type { PasswordHasher } from "../infrastructure/password.js";
+import type { LoginThrottle } from "../domain/login-throttle.js";
 
 export interface CredentialUserRecord {
   tenantId: string;
@@ -23,6 +24,9 @@ export interface CredentialUserRecord {
 }
 
 export interface AuthSessionRecord {
+  /** Present only on the per-request lookup, which re-reads live authority. */
+  roles?: TenantRole[];
+  permissions?: string[];
   id: string;
   tenantId: string;
   userId: string;
@@ -68,11 +72,34 @@ export class AuthService {
     private readonly passwordHasher: PasswordHasher,
     private readonly audit: AuditRepository,
     private readonly jwtSecret: string,
+    private readonly throttle?: LoginThrottle,
   ) {}
 
-  async verifySession(sessionId: string, tenantId: string, userId: string): Promise<boolean> {
+  /**
+   * Confirms the session is still live and reports the authority the user holds
+   * *now*.
+   *
+   * Roles and permissions are also carried in the token, but a token is a
+   * snapshot taken at login. Trusting it means an administrator who revokes
+   * access has not actually revoked it until the token expires. The session
+   * lookup already reads the user row on every request, so resolving authority
+   * from the same query costs nothing extra and makes changes immediate.
+   */
+  async resolveSession(
+    sessionId: string,
+    tenantId: string,
+    userId: string,
+  ): Promise<{ roles: TenantRole[]; permissions: string[] } | null> {
     const session = await this.authRepository.findActiveSession(sessionId, tenantId, userId);
-    return Boolean(session);
+    if (!session) return null;
+    return {
+      roles: session.roles ?? [],
+      permissions: [...new Set(session.permissions ?? [])],
+    };
+  }
+
+  async verifySession(sessionId: string, tenantId: string, userId: string): Promise<boolean> {
+    return (await this.resolveSession(sessionId, tenantId, userId)) !== null;
   }
 
   async logout(input: { tenantId: string; userId: string; sessionId?: string }): Promise<void> {
@@ -91,8 +118,30 @@ export class AuthService {
 
   async login(rawInput: unknown, context: LoginContext = {}): Promise<LoginResult> {
     const input = parseLoginInput(rawInput);
+
+    // Keyed by identity and by source, so neither one account under sustained
+    // attack nor one machine spraying many accounts can keep guessing.
+    const throttleKeys = [
+      `identity:${(input.tenantSlug ?? "").toLowerCase()}:${input.email.toLowerCase()}`,
+      ...(context.ipAddress ? [`address:${context.ipAddress}`] : []),
+    ];
+
+    // Resolved before the throttle check purely so a refusal can be attributed
+    // to a real account in the audit trail. No credential is verified here.
     const user = await this.authRepository.findCredentialUser(input.tenantSlug ?? "", input.email);
+
+    const decision = this.throttle?.check(throttleKeys);
+    if (decision && !decision.allowed) {
+      await this.auditFailure(user?.tenantId, user?.userId, input.tenantSlug ?? "", "rate_limited");
+      throw new DomainError(
+        "RATE_LIMITED",
+        "Too many sign-in attempts. Please wait before trying again.",
+        { retryAfterSeconds: decision.retryAfterSeconds },
+      );
+    }
+
     if (!user || user.status !== "active" || !user.passwordHash) {
+      this.throttle?.recordFailure(throttleKeys);
       await this.auditFailure(user?.tenantId, user?.userId, input.tenantSlug ?? "", "invalid_credentials");
       throw new DomainError("UNAUTHENTICATED", "Email or password is incorrect.");
     }
@@ -105,9 +154,12 @@ export class AuthService {
 
     const passwordOk = await this.passwordHasher.verify(input.password, user.passwordHash);
     if (!passwordOk) {
+      this.throttle?.recordFailure(throttleKeys);
       await this.auditFailure(user.tenantId, user.userId, input.tenantSlug ?? "", "invalid_credentials");
       throw new DomainError("UNAUTHENTICATED", "Email or password is incorrect.");
     }
+
+    this.throttle?.recordSuccess(throttleKeys);
 
     const expiresAt = new Date(Date.now() + accessTokenLifetimeSeconds * 1000).toISOString();
     const session = await this.authRepository.createSession({

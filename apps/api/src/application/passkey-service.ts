@@ -3,6 +3,7 @@ import { SignJWT } from "jose";
 import { randomUUID } from "node:crypto";
 import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from "@simplewebauthn/server";
 import type { AuthenticationResponseJSON, RegistrationResponseJSON, WebAuthnCredential } from "@simplewebauthn/server";
+import { z } from "zod";
 import type { UserPrincipal } from "../domain/auth.js";
 import { DomainError } from "../domain/errors.js";
 import type { AuditRepository } from "./project-service.js";
@@ -50,6 +51,30 @@ export interface RelyingPartyInfo {
 }
 
 const accessTokenLifetimeSeconds = 60 * 60;
+
+/**
+ * Transport input is parsed rather than cast. WebAuthn verification does the
+ * cryptographic work, but every other service validates its boundary with a
+ * schema and this one should not be the exception that hides a shape error.
+ */
+const beginLoginSchema = z.object({
+  tenantSlug: z.string().trim().min(1).max(63),
+  email: z.string().trim().email().max(254),
+});
+
+const verifyLoginSchema = z.object({
+  tenantId: z.uuid(),
+  userId: z.uuid(),
+  response: z.object({ id: z.string().min(1) }).loose(),
+});
+
+function parseOrThrow<T>(schema: z.ZodType<T>, input: unknown, message: string): T {
+  const result = schema.safeParse(input);
+  if (!result.success) {
+    throw new DomainError("VALIDATION_FAILED", message, z.treeifyError(result.error));
+  }
+  return result.data;
+}
 
 function publicKeyToBase64(publicKey: Uint8Array): string {
   return Buffer.from(publicKey).toString("base64url");
@@ -113,8 +138,7 @@ export class PasskeyService {
   }
 
   async beginLogin(rawInput: unknown, rp: RelyingPartyInfo) {
-    const input = rawInput as { tenantSlug?: string; email?: string };
-    if (!input.tenantSlug || !input.email) throw new DomainError("VALIDATION_FAILED", "Company and email are required.");
+    const input = parseOrThrow(beginLoginSchema, rawInput, "Company and email are required.");
     const user = await this.repository.findUserByTenantAndEmail(input.tenantSlug, input.email.toLowerCase());
     if (!user) throw new DomainError("UNAUTHENTICATED", "Passkey sign in could not start.");
     const credentials = await this.repository.listCredentials(user.tenantId, user.userId);
@@ -129,13 +153,13 @@ export class PasskeyService {
   }
 
   async verifyLogin(rawInput: unknown, rp: RelyingPartyInfo, context: { userAgent?: string; ipAddress?: string } = {}) {
-    const input = rawInput as { tenantId?: string; userId?: string; response?: AuthenticationResponseJSON };
-    if (!input.tenantId || !input.userId || !input.response) throw new DomainError("VALIDATION_FAILED", "Passkey response is invalid.");
-    const credential = await this.repository.findCredentialByCredentialId(input.response.id);
+    const input = parseOrThrow(verifyLoginSchema, rawInput, "Passkey response is invalid.");
+    const response = input.response as unknown as AuthenticationResponseJSON;
+    const credential = await this.repository.findCredentialByCredentialId(response.id);
     if (!credential || credential.tenantId !== input.tenantId || credential.userId !== input.userId) throw new DomainError("UNAUTHENTICATED", "Passkey sign in failed.");
     const challenge = await this.repository.consumeChallenge({ tenantId: input.tenantId, userId: input.userId, ceremony: "authentication" });
     if (!challenge) throw new DomainError("VALIDATION_FAILED", "Passkey sign in challenge expired.");
-    const verification = await verifyAuthenticationResponse({ response: input.response, expectedChallenge: challenge, expectedOrigin: rp.origin, expectedRPID: rp.rpID, credential: credentialToWebAuthn(credential), requireUserVerification: true });
+    const verification = await verifyAuthenticationResponse({ response, expectedChallenge: challenge, expectedOrigin: rp.origin, expectedRPID: rp.rpID, credential: credentialToWebAuthn(credential), requireUserVerification: true });
     if (!verification.verified) throw new DomainError("UNAUTHENTICATED", "Passkey sign in failed.");
     await this.repository.updateCredentialCounter(credential.credentialId, verification.authenticationInfo.newCounter);
     const user = await this.repository.findUserById(credential.tenantId, credential.userId);

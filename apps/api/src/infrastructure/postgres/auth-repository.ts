@@ -7,12 +7,16 @@ import type { AuthRepository, AuthSessionRecord, CredentialUserRecord } from "..
 import type { TenantRole } from "../../domain/auth.js";
 
 function mapSession(row: Record<string, unknown>): AuthSessionRecord {
-  return {
+  const session: AuthSessionRecord = {
     id: String(row.id),
     tenantId: String(row.tenant_id),
     userId: String(row.user_id),
     expiresAt: new Date(String(row.expires_at)).toISOString(),
   };
+  // Only the per-request lookup selects authority; session creation does not.
+  if (Array.isArray(row.roles)) session.roles = row.roles.map(String) as TenantRole[];
+  if (Array.isArray(row.permissions)) session.permissions = row.permissions.map(String);
+  return session;
 }
 
 export class PostgresAuthRepository implements AuthRepository {
@@ -75,15 +79,23 @@ export class PostgresAuthRepository implements AuthRepository {
 
   async findActiveSession(sessionId: string, tenantId: string, userId: string): Promise<AuthSessionRecord | null> {
     const result = await this.pool.query(
-      // The user's status is rechecked on every request, not just at login.
-      // Without this join a disabled account keeps working until its token
-      // expires, which makes "disable" a promise the product cannot keep.
-      `select s.id, s.tenant_id, s.user_id, s.expires_at
+      // Status *and* authority are resolved on every request, not just at
+      // login. Without the status check a disabled account keeps working until
+      // its token expires; without re-reading roles and permissions, granting
+      // or revoking access does not take effect until then either.
+      `select s.id, s.tenant_id, s.user_id, s.expires_at,
+              coalesce(array_agg(distinct r.role) filter (where r.role is not null), '{}') as roles,
+              coalesce(array_agg(distinct permission_value) filter (where permission_value is not null), '{}') as permissions
          from auth_sessions s
          join users u on u.id = s.user_id and u.tenant_id = s.tenant_id
+         left join tenant_user_roles r on r.tenant_id = u.tenant_id and r.user_id = u.id
+         left join user_type_assignments a on a.tenant_id = u.tenant_id and a.user_id = u.id
+         left join user_types t on t.id = a.user_type_id
+         left join lateral unnest(t.permissions) as permission_value on true
         where s.id = $1 and s.tenant_id = $2 and s.user_id = $3
           and s.revoked_at is null and s.expires_at > now()
           and u.status = 'active'
+        group by s.id, s.tenant_id, s.user_id, s.expires_at
         limit 1`,
       [sessionId, tenantId, userId],
     );

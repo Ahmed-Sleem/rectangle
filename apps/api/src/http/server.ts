@@ -80,7 +80,7 @@ export async function createServer(dependencies: ServerDependencies) {
     }
     await createAuthenticationHook(
       dependencies.jwtSecret,
-      (sessionId, tenantId, userId) => dependencies.authService.verifySession(sessionId, tenantId, userId),
+      (sessionId, tenantId, userId) => dependencies.authService.resolveSession(sessionId, tenantId, userId),
     )(request, reply);
   });
 
