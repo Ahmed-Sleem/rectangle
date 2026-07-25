@@ -1,6 +1,6 @@
-/** Tests Settings language and SMTP configuration UI. */
+/** Tests Settings disclosure behaviour, language choice, and SMTP configuration. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { AuthContext } from "@/shared/auth";
@@ -31,20 +31,45 @@ describe("SettingsPage", () => {
     await setRectangleLanguage("en");
   });
 
+  it("exposes each section as a labelled disclosure with readable state", async () => {
+    const user = userEvent.setup();
+    renderSettingsPage();
+
+    const language = screen.getByRole("button", { name: /Language/i });
+    const email = screen.getByRole("button", { name: /Email delivery/i });
+
+    // Language opens by default; the others stay closed until asked for.
+    expect(language).toHaveAttribute("aria-expanded", "true");
+    expect(email).toHaveAttribute("aria-expanded", "false");
+
+    // Every trigger controls the panel it owns, so state is never ambiguous.
+    expect(language).toHaveAttribute("aria-controls");
+    expect(email).toHaveAttribute("aria-controls");
+
+    await user.click(email);
+    expect(email).toHaveAttribute("aria-expanded", "true");
+    // Opening one section collapses the previous one.
+    expect(language).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(email);
+    expect(email).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("switches the shell language to Arabic and updates direction", async () => {
     const user = userEvent.setup();
     renderSettingsPage();
 
-    expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument();
-    expect(screen.getByText(/Current language: English/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Language/i })).toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute("dir", "ltr");
 
-    await user.click(screen.getByRole("button", { name: "Arabic" }));
+    const group = screen.getByRole("radiogroup", { name: "Interface language" });
+    expect(within(group).getByRole("radio", { name: /English/ })).toHaveAttribute("aria-checked", "true");
 
-    expect(await screen.findByRole("heading", { name: "اللغة" })).toBeInTheDocument();
+    await user.click(within(group).getByRole("radio", { name: /Arabic/ }));
+
+    expect(await screen.findByRole("button", { name: /اللغة/ })).toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute("lang", "ar");
     expect(document.documentElement).toHaveAttribute("dir", "rtl");
-    expect(screen.getByText(/اللغة الحالية/)).toBeInTheDocument();
   });
 
   it("can switch back to English", async () => {
@@ -52,10 +77,10 @@ describe("SettingsPage", () => {
     await setRectangleLanguage("ar");
     renderSettingsPage();
 
-    await user.click(screen.getByRole("button", { name: "الإنجليزية" }));
+    const group = screen.getByRole("radiogroup", { name: "لغة الواجهة" });
+    await user.click(within(group).getByRole("radio", { name: /الإنجليزية/ }));
 
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Language" })).toBeInTheDocument());
-    expect(document.documentElement).toHaveAttribute("lang", "en");
+    await waitFor(() => expect(document.documentElement).toHaveAttribute("lang", "en"));
     expect(document.documentElement).toHaveAttribute("dir", "ltr");
   });
 
@@ -73,17 +98,29 @@ describe("SettingsPage", () => {
     });
 
     renderSettingsPage();
-    await user.click(screen.getByRole("heading", { name: "Email delivery" }));
-    await user.type(screen.getByLabelText("SMTP host"), "smtp.office365.com");
+    await user.click(screen.getByRole("button", { name: /Email delivery/i }));
+    await user.type(screen.getByLabelText("Server address"), "smtp.office365.com");
     await user.clear(screen.getByLabelText("Port"));
     await user.type(screen.getByLabelText("Port"), "587");
     await user.type(screen.getByLabelText("Username"), "mailer@example.com");
     await user.type(screen.getByLabelText("Password"), "smtp-password");
-    await user.type(screen.getByLabelText("From email"), "mailer@example.com");
+    await user.type(screen.getByLabelText("From address"), "mailer@example.com");
     await user.clear(screen.getByLabelText("From name"));
     await user.type(screen.getByLabelText("From name"), "Rectangle");
     await user.click(screen.getByRole("button", { name: "Save email settings" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/v1/settings/email", expect.objectContaining({ method: "PUT" })));
+  });
+
+  it("keeps the test-email action unavailable until the server is configured", async () => {
+    const user = userEvent.setup();
+    renderSettingsPage();
+
+    await user.click(screen.getByRole("button", { name: /Email delivery/i }));
+
+    // Sending a test before saving credentials would fail, so the action is disabled
+    // and the reason is stated in plain language instead of failing silently.
+    expect(screen.getByRole("button", { name: "Send test" })).toBeDisabled();
+    expect(screen.getByText("Save your mail server details before sending a test.")).toBeInTheDocument();
   });
 });

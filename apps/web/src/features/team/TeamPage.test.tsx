@@ -1,6 +1,6 @@
 /** Tests tenant team admin pages for real user types and users. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import TeamPage from "./TeamPage";
@@ -54,7 +54,8 @@ describe("TeamPage", () => {
     await user.type(screen.getByLabelText("Name"), "Cost Controller");
     await user.type(screen.getByLabelText("Key"), "cost_controller");
     await user.click(screen.getByRole("checkbox", { name: /View projects/i }));
-    await user.click(screen.getByRole("button", { name: "Create" }));
+    const dialog = screen.getByRole("dialog", { name: "Create user type" });
+    await user.click(within(dialog).getByRole("button", { name: "Create user type" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/v1/admin/user-types", expect.objectContaining({ method: "POST" })));
   });
 });

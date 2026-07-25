@@ -332,27 +332,6 @@ export function Drawer({ open, title, onClose, className, children, ...props }: 
   );
 }
 
-export interface ModalProps extends HTMLAttributes<HTMLDivElement> {
-  open: boolean;
-  title: string;
-  onClose: () => void;
-}
-
-export function Modal({ open, title, onClose, className, children, ...props }: ModalProps) {
-  if (!open) return null;
-  return (
-    <div className="rect-ui-modal-backdrop" role="presentation">
-      <section className={cn("rect-ui-modal", className)} role="dialog" aria-modal="true" aria-label={title} {...props}>
-        <header className="rect-ui-modal__header">
-          <h3>{title}</h3>
-          <IconButton label="Close dialog" size="sm" variant="plain" onClick={onClose}>×</IconButton>
-        </header>
-        <div className="rect-ui-modal__body">{children}</div>
-      </section>
-    </div>
-  );
-}
-
 export interface ToastProps extends HTMLAttributes<HTMLDivElement> {
   tone?: Tone;
   title: string;
@@ -365,23 +344,5 @@ export function Toast({ tone = "neutral", title, message, className, ...props }:
       <p className="rect-ui-toast__title">{title}</p>
       {message ? <p className="rect-ui-toast__message">{message}</p> : null}
     </div>
-  );
-}
-
-export interface ConfirmDialogProps extends ModalProps {
-  confirmLabel?: string;
-  cancelLabel?: string;
-  onConfirm: () => void;
-}
-
-export function ConfirmDialog({ confirmLabel = "Confirm", cancelLabel = "Cancel", onConfirm, onClose, children, ...props }: ConfirmDialogProps) {
-  return (
-    <Modal onClose={onClose} {...props}>
-      {children}
-      <Toolbar className="rect-ui-confirm__actions">
-        <Button variant="ghost" onClick={onClose}>{cancelLabel}</Button>
-        <Button variant="primary" onClick={onConfirm}>{confirmLabel}</Button>
-      </Toolbar>
-    </Modal>
   );
 }

@@ -10,7 +10,6 @@ import {
   Button,
   Card,
   Checkbox,
-  ConfirmDialog,
   DataTable,
   Drawer,
   EmptyState,
@@ -19,7 +18,6 @@ import {
   IconButton,
   Input,
   LoadingState,
-  Modal,
   PageGrid,
   PageHeader,
   Select,
@@ -132,40 +130,20 @@ describe("shared UI primitives", () => {
     expect(screen.getByText("No records found.")).toBeInTheDocument();
   });
 
-  it("renders modal, confirm dialog, and drawer with accessible names", async () => {
+  it("renders a drawer with an accessible name and close control", async () => {
     const user = userEvent.setup();
     let closed = 0;
-    let confirmed = 0;
 
     render(
-      <>
-        <Drawer open title="Inspector" onClose={() => { closed += 1; }}>
-          Details
-        </Drawer>
-        <Modal open title="Edit project" onClose={() => { closed += 1; }}>
-          Form body
-        </Modal>
-        <ConfirmDialog
-          open
-          title="Delete project"
-          onClose={() => { closed += 1; }}
-          onConfirm={() => { confirmed += 1; }}
-        >
-          Confirm delete?
-        </ConfirmDialog>
-      </>,
+      <Drawer open title="Inspector" onClose={() => { closed += 1; }}>
+        Details
+      </Drawer>,
     );
 
     expect(screen.getByLabelText("Inspector")).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Edit project" })).toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Delete project" })).toBeInTheDocument();
+    expect(screen.getByText("Details")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Confirm" }));
-    expect(confirmed).toBe(1);
-
-    const [firstCloseButton] = screen.getAllByRole("button", { name: /close/i });
-    expect(firstCloseButton).toBeDefined();
-    await user.click(firstCloseButton as HTMLElement);
+    await user.click(screen.getByRole("button", { name: /close/i }));
     expect(closed).toBe(1);
   });
 });

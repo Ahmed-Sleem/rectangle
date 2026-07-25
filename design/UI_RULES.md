@@ -7,13 +7,15 @@
 
 ---
 
-## 0. The five laws
+## 0. The six laws
 
 1. **No raw values.** Never write a pixel, weight, radius, or font size literal in component CSS when a token exists. If a value is missing, add a token — do not invent a one-off.
 2. **Dense but calm.** Rectangle is a desktop PMO product. Default density is compact; whitespace is structural, never decorative padding.
 3. **Consistency beats cleverness.** A new page must look like it shipped the same day as every other page.
 4. **Touch expands, desktop compacts.** Compact desktop sizing is the default; coarse pointers get full touch targets automatically.
 5. **Arabic is a first-class layout, not a translation.** Every rule here must hold in RTL.
+6. **Compose from shared blocks; never re-implement one.** If two screens need the same thing,
+   it belongs in `@/shared/ui`. Copy-pasted UI is how a product stops looking like one product.
 
 ---
 
@@ -139,7 +141,21 @@ Using 550/620/650/750/850 makes the browser synthesize a weight, which renders d
 | `--rect-pill-radius` | 999 | badges, switches, circular controls |
 | `--rect-panel-radius` | 28 | the main canvas rectangle (brand shape) |
 
-### 2.8 Canvas
+### 2.8 Overlay / window tokens
+
+| Token | Value | Use |
+|---|---|---|
+| `--rect-overlay-width-sm/md/lg/xl` | 420 / 560 / 760 / 960px | Window width ceilings |
+| `--rect-overlay-max-block` | 720px | Window height ceiling, applied after the viewport cap |
+| `--rect-overlay-margin` | 24px (12px mobile) | Gap between window and viewport edge |
+| `--rect-overlay-radius` | 20px (16px mobile) | Window corner |
+| `--rect-overlay-scrim` | rgba(24,24,27,.28) | Backdrop tint under the blur |
+| `--rect-overlay-blur` | 10px | Backdrop blur |
+| `--rect-app-blur` | 3px | Blur applied to the whole app behind a window |
+| `--rect-z-overlay` | 1000 | Windows |
+| `--rect-z-toast` | 1100 | Transient messages above windows |
+
+### 2.9 Canvas
 
 | Token | Value | Meaning |
 |---|---|---|
@@ -234,13 +250,10 @@ Visual box 16–18px, but the label row is 32px min-height so the target clears 
 
 22px min-height, 11px bold, pill radius, 8px x-padding. Tones carry **meaning only**: `success` complete/healthy, `warning` at risk, `danger` late/critical, `info` neutral system, `accent` category. Never decorative colour.
 
-### 4.8 Modals and drawers
+### 4.8 Windows (modals, dialogs, drawers)
 
-- Modal: max-width 480px, `max-height: min(100%, 720px)`, radius 24px, flex column.
-- Header 48px min-height with the close control; body scrolls internally with `overscroll-behavior: contain`; actions right-aligned with 16px top margin.
-- Backdrop inset 24px so the dialog never touches the viewport edge.
-- **A dialog must never be full-height by default and must never clip its action row.**
-- Drawer: 280–360px wide, radius 18px, same header/body contract.
+Never build one. See **§12 The window system** — every window in the product comes from the
+shared `Overlay`. A feature that writes its own backdrop, sizing, or close button is a defect.
 
 ### 4.9 Empty, loading, error, permission states
 
@@ -332,7 +345,148 @@ Text contrast must meet WCAG AA (4.5:1 body, 3:1 large text and UI boundaries).
 
 ---
 
-## 11. Definition of done for any UI work
+## 11. The building blocks
+
+Every screen is assembled from `@/shared/ui`. Feature folders hold **data and composition**,
+never new UI vocabulary. If something is missing, add it to the kit so the next screen inherits it.
+
+| Block | Use |
+|---|---|
+| `Button` · `IconButton` | All actions |
+| `Field` · `Input` · `Select` · `Textarea` · `Checkbox` · `Switch` | All form controls |
+| `Card` · `Toolbar` · `PageGrid` · `PageHeader` | Page composition |
+| `DataTable` | Every tabular surface |
+| `Badge` | Status and counts |
+| `EmptyState` · `LoadingState` · `ErrorState` · `SuccessState` · `WarningState` | The four required data states |
+| **`Overlay`** · **`FormDialog`** · **`ConfirmDialog`** | **Every window** (§12) |
+| **`SettingsSection`** · **`SettingRow`** · **`ChoiceGroup`** · **`SettingsStack`** | **Every configuration surface** (§13) |
+| `Drawer` · `Toast` | Side panels and transient messages |
+
+Rules:
+
+1. Import from `@/shared/ui`, never reach into a sibling feature for UI.
+2. A feature may style **layout** (grid areas, spans) — never a control's appearance.
+3. Adding a block means adding its tests at the same time.
+4. Before writing new UI, check this table. Duplication is rejected in review and by test.
+
+---
+
+## 12. The window system
+
+**One component powers every window: `Overlay`.** Create user, create project, create user type,
+confirmations, detail panels — all the same component. Two thin wrappers cover the common shapes:
+
+| Component | Use |
+|---|---|
+| `Overlay` | Base window. Custom content and footer. |
+| `FormDialog` | Create/edit. Supplies form wiring, submit/cancel, pending state, error surface. |
+| `ConfirmDialog` | Confirmations. Supplies confirm/cancel and destructive tone. |
+
+### 12.1 Structure — fixed, not negotiable
+
+```
+header   title + optional description + close      never scrolls
+body     the ONLY scroll region                    flex: 1, min-height: 0
+footer   actions                                   never scrolls, never clipped
+```
+
+Actions **must** be in the footer. An action inside the scroll area can be scrolled out of
+reach, which is the single most common way a window becomes unusable.
+
+### 12.2 Sizing — viewport first, ceiling second
+
+| Size | Max width | Use |
+|---|---:|---|
+| `sm` | 420px | Confirmations, single field |
+| `md` | 560px | **Default.** Standard create/edit |
+| `lg` | 760px | Multi-column forms |
+| `xl` | 960px | Dense detail or side-by-side content |
+
+```css
+max-block-size: min(calc(100dvh - 2 * margin), 720px);
+```
+
+- **The viewport cap is applied before the size ceiling.** A window can never exceed the screen.
+- Use **`dvh`, never `vh`** — mobile browser chrome makes `vh` taller than the visible area,
+  which pushes the footer off-screen.
+- **`min-height: 0` on the scrolling body is mandatory.** A flex child defaults to
+  `min-height: auto` and refuses to shrink, so `overflow-y: auto` silently does nothing and the
+  window grows past the screen. This is the most common cause of oversized dialogs.
+- Under 640px the window docks to the bottom and its actions go full width.
+- Under 560px tall the window takes nearly the full height rather than keeping a fixed ceiling.
+
+### 12.3 Backdrop — blur the whole application
+
+- The overlay **portals to `document.body`**. This is structural, not stylistic: the main canvas
+  carries a `transform`, which makes it a containing block for `position: fixed`, so an in-tree
+  window is trapped inside the canvas and its backdrop covers only that container.
+- The **entire app blurs** behind an open window (`.rect-has-overlay .rect-app`), not just the
+  region the window sits in. Nav, canvas and AI panel all recede together.
+- Blur plus a light scrim. Blur alone leaves the window's edge indistinct.
+- `prefers-reduced-transparency` gets a solid scrim and no blur.
+
+### 12.4 Behaviour — required, all of it
+
+- Escape closes (opt out only where loss is costly).
+- Backdrop press closes, but only when the press **starts and ends** on the scrim, so a drag
+  that began inside never dismisses.
+- Focus moves into the window on open and returns to the trigger on close.
+- Focus is trapped; Tab and Shift+Tab wrap inside.
+- Background scroll is locked, with scrollbar-width compensation so nothing shifts.
+- `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, and `aria-describedby` when a
+  description is present.
+- `data-autofocus="true"` marks the field that should receive focus.
+
+---
+
+## 13. Configuration surfaces
+
+Settings-style screens are built from shared blocks so every section behaves identically.
+
+- `SettingsSection` — a **controlled disclosure**. Icon, title, description, optional status,
+  and an explicit chevron that rotates on open.
+- `SettingRow` — label + description + control. Wraps the control below the text when space
+  runs out instead of overflowing.
+- `ChoiceGroup` — segmented single-select with **radio semantics**.
+- `SettingsStack` — vertical rhythm between sections.
+
+Rules:
+
+1. **Never use `<details>`/`<summary>`.** Its marker must be hidden to match the design, and
+   hiding it leaves no way to tell an open section from a closed one.
+2. Expanded state must be readable from the **header alone** — `aria-expanded` plus a rotating
+   chevron. Never rely on the presence of content below.
+3. `aria-controls` must link every trigger to its panel.
+4. One section open at a time keeps long settings pages scannable.
+5. A single choice uses **radio semantics**, not pressed toggle buttons — pressed buttons report
+   multiple independent states to assistive technology, which is wrong for a single choice.
+6. Never place a status value in prose next to a control that changes it; put it in the row's
+   description or a `Badge` in the section header.
+7. Admin-only sections are hidden entirely from users who lack the permission.
+
+---
+
+## 14. Adaptive and bulletproof
+
+Every screen must survive any viewport, any content length, and any language. Non-negotiable:
+
+1. **Nothing may exceed the viewport.** Cap against `dvh`/`dvw` before applying any fixed size.
+2. **`dvh` over `vh`.** Always.
+3. **Every flex/grid child that scrolls needs `min-width: 0` / `min-height: 0`.** Without it the
+   child refuses to shrink and pushes its parent past the screen. This single rule prevents most
+   overflow bugs.
+4. **Rows wrap, they do not overflow.** Use `flex-wrap: wrap` with a shrinkable text column.
+5. **Content-driven columns.** `repeat(auto-fit, minmax(200px, 1fr))` rather than a fixed count.
+6. **Long strings must not break layout.** Use `overflow-wrap: anywhere` or truncate with a title.
+7. **Test the extremes**: 320px wide, 560px tall, 4K, 200% zoom, and Arabic (which runs longer
+   than English in many labels).
+8. **Never assume pointer type.** Coarse pointers get 48px targets automatically.
+9. **One scroll container per region.** Nested scrollers trap users.
+10. **No fixed heights on content.** Use `min-height` and let content breathe.
+
+---
+
+## 15. Definition of done for any UI work
 
 - [ ] Every spacing, size, radius, weight and font-size comes from a token in §2.
 - [ ] The page mounts inside `.rect-panel__content` and adds no outer width or margin.
@@ -345,4 +499,9 @@ Text contrast must meet WCAG AA (4.5:1 body, 3:1 large text and UI boundaries).
 - [ ] No second full-page scroll container; any new scroll region has an overflow affordance.
 - [ ] Dialogs fit the screen and never clip their actions.
 - [ ] Semantic colour carries meaning only.
+- [ ] Every window comes from `Overlay`/`FormDialog`/`ConfirmDialog`; none is hand-rolled.
+- [ ] Window actions are in the footer and reachable at 560px viewport height.
+- [ ] Configuration UI uses `SettingsSection`/`SettingRow`/`ChoiceGroup`.
+- [ ] Verified at 320px wide and 560px tall with nothing clipped or overflowing.
+- [ ] Nothing new was built that already exists in the block table (§11).
 - [ ] `./scripts/verify.sh` passes, including `canvas-contract.test.tsx`.

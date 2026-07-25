@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
-import { Button, DataTable, EmptyState, Field, Input, Modal, Select, Textarea, Toolbar } from "@/shared/ui";
+import { Button, DataTable, EmptyState, Field, FormDialog, Input, Select, Textarea, Toolbar } from "@/shared/ui";
 import { createProject, listProjects, type CreateProjectPayload, type ProjectRecord } from "./project-api";
 import "./ProjectsPage.css";
 
@@ -105,33 +105,39 @@ export default function ProjectsPage() {
         />
       )}
 
-      <Modal open={createOpen} title="Create project" onClose={() => setCreateOpen(false)}>
-        <form className="rect-projects-form" onSubmit={form.handleSubmit((values) => create.mutate(values))}>
-          <Field label="Project name" error={form.formState.errors.name?.message} required><Input aria-label="Project name" {...form.register("name")} /></Field>
-          <Field label="Project code" hint="Uppercase letters, numbers, dot, dash, underscore." error={form.formState.errors.code?.message} required><Input aria-label="Project code" {...form.register("code")} /></Field>
-          <Field label="Status" error={form.formState.errors.status?.message} required>
-            <Select {...form.register("status")}>
-              <option value="planned">Planned</option>
-              <option value="active">Active</option>
-              <option value="on_hold">On hold</option>
-              <option value="completed">Completed</option>
-              <option value="archived">Archived</option>
-            </Select>
-          </Field>
-          <Field label="Location" error={form.formState.errors.locationName?.message}><Input {...form.register("locationName")} /></Field>
-          <div className="rect-projects-form__split">
-            <Field label="Start date" error={form.formState.errors.plannedStartDate?.message}><Input type="date" {...form.register("plannedStartDate")} /></Field>
-            <Field label="Finish date" error={form.formState.errors.plannedFinishDate?.message}><Input type="date" {...form.register("plannedFinishDate")} /></Field>
-          </div>
-          <div className="rect-projects-form__split">
-            <Field label="Budget" error={form.formState.errors.budgetAmount?.message}><Input inputMode="decimal" {...form.register("budgetAmount")} /></Field>
-            <Field label="Currency" error={form.formState.errors.budgetCurrency?.message}><Input maxLength={3} placeholder="EGP" {...form.register("budgetCurrency")} /></Field>
-          </div>
-          <Field label="Description" error={form.formState.errors.description?.message}><Textarea rows={3} {...form.register("description")} /></Field>
-          {errorMessage ? <p className="rect-projects-form__error" role="alert">{errorMessage}</p> : null}
-          <Toolbar className="rect-projects-form__actions"><Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button><Button variant="primary" type="submit" disabled={create.isPending}>{create.isPending ? "Creating…" : "Create"}</Button></Toolbar>
-        </form>
-      </Modal>
+      <FormDialog
+        open={createOpen}
+        title="Create project"
+        description="Register a project so its team, schedule, budget, and risks live in one workspace."
+        size="lg"
+        onClose={() => setCreateOpen(false)}
+        onSubmit={form.handleSubmit((values) => create.mutate(values))}
+        submitLabel="Create project"
+        pending={create.isPending}
+        error={errorMessage}
+      >
+        <Field label="Project name" error={form.formState.errors.name?.message} required><Input aria-label="Project name" data-autofocus="true" {...form.register("name")} /></Field>
+        <Field label="Project code" hint="Uppercase letters, numbers, dot, dash, underscore." error={form.formState.errors.code?.message} required><Input aria-label="Project code" {...form.register("code")} /></Field>
+        <Field label="Status" error={form.formState.errors.status?.message} required>
+          <Select {...form.register("status")}>
+            <option value="planned">Planned</option>
+            <option value="active">Active</option>
+            <option value="on_hold">On hold</option>
+            <option value="completed">Completed</option>
+            <option value="archived">Archived</option>
+          </Select>
+        </Field>
+        <Field label="Location" error={form.formState.errors.locationName?.message}><Input {...form.register("locationName")} /></Field>
+        <div className="rect-projects-form__split">
+          <Field label="Start date" error={form.formState.errors.plannedStartDate?.message}><Input type="date" {...form.register("plannedStartDate")} /></Field>
+          <Field label="Finish date" error={form.formState.errors.plannedFinishDate?.message}><Input type="date" {...form.register("plannedFinishDate")} /></Field>
+        </div>
+        <div className="rect-projects-form__split">
+          <Field label="Budget" error={form.formState.errors.budgetAmount?.message}><Input inputMode="decimal" {...form.register("budgetAmount")} /></Field>
+          <Field label="Currency" error={form.formState.errors.budgetCurrency?.message}><Input maxLength={3} placeholder="EGP" {...form.register("budgetCurrency")} /></Field>
+        </div>
+        <Field label="Description" error={form.formState.errors.description?.message}><Textarea rows={3} {...form.register("description")} /></Field>
+      </FormDialog>
     </section>
   );
 }

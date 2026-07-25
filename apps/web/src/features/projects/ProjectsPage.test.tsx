@@ -1,6 +1,6 @@
 /** Tests the real Projects register and create action UI. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -71,7 +71,9 @@ describe("ProjectsPage", () => {
     await user.click(await screen.findByRole("button", { name: "Create project" }));
     await user.type(screen.getByLabelText(/Project name/i), "New Hospital");
     await user.type(screen.getByLabelText(/Project code/i), "HOSP-01");
-    await user.click(screen.getByRole("button", { name: "Create" }));
+    // Submit from inside the window so the trigger button can never satisfy this.
+    const dialog = screen.getByRole("dialog", { name: "Create project" });
+    await user.click(within(dialog).getByRole("button", { name: "Create project" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
   });

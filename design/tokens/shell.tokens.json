@@ -3,7 +3,7 @@
   "meta": {
     "source": "apps/web/src/shared/styles/tokens.css",
     "brand": "Rectangle",
-    "version": "0.6.0",
+    "version": "0.7.0",
     "contract": "design/UI_RULES.md",
     "enforcedBy": "apps/web/src/shell/canvas-contract.test.tsx"
   },
@@ -89,7 +89,9 @@
     "menu": 1,
     "panel": 10,
     "edgeZone": 20,
-    "toggle": 30
+    "toggle": 30,
+    "overlay": 1000,
+    "toast": 1100
   },
   "space": {
     "s0": 0,
@@ -131,7 +133,10 @@
     "subsection": 15,
     "section": 17,
     "page": 20,
-    "kpi": 28
+    "kpi": 28,
+    "display": 25,
+    "wordmark": 22,
+    "wordmarkLg": 28
   },
   "leading": {
     "tight": 1.15,
@@ -146,5 +151,18 @@
     "contentMaxWidth": 1180,
     "scrollFade": 20,
     "headerMinHeight": 40
+  },
+  "overlay": {
+    "widthSm": 420,
+    "widthMd": 560,
+    "widthLg": 760,
+    "widthXl": 960,
+    "margin": 24,
+    "marginMobile": 12,
+    "maxBlock": 720,
+    "radius": 20,
+    "radiusMobile": 16,
+    "blur": 10,
+    "appBlur": 3
   }
 }

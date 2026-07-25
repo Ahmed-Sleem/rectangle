@@ -393,8 +393,7 @@
   min-width: 280px;
 }
 
-.rect-ui-drawer__header,
-.rect-ui-modal__header {
+.rect-ui-drawer__header {
   align-items: center;
   border-bottom: 1px solid var(--rect-surface-divider);
   display: flex;
@@ -403,37 +402,16 @@
   padding: var(--rect-space-2) var(--rect-space-4);
 }
 
-.rect-ui-drawer__header h3,
-.rect-ui-modal__header h3 {
+.rect-ui-drawer__header h3 {
   font-size: var(--rect-text-subsection);
   font-weight: var(--rect-weight-bold);
 }
 
-.rect-ui-drawer__body,
-.rect-ui-modal__body {
+.rect-ui-drawer__body {
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--rect-space-4);
-}
-
-.rect-ui-modal-backdrop {
-  align-items: center;
-  background: var(--rect-overlay-on-light-border);
-  display: flex;
-  inset: 0;
-  justify-content: center;
-  padding: var(--rect-space-6);
-  position: fixed;
-  z-index: 100;
-}
-
-.rect-ui-modal {
-  border-radius: var(--rect-radius-2xl);
-  display: flex;
-  flex-direction: column;
-  max-height: min(100%, 720px);
-  max-width: 480px;
-  width: min(100%, 480px);
 }
 
 .rect-ui-toast {
@@ -447,7 +425,196 @@
 .rect-ui-toast--warning { border-color: var(--rect-color-warning); }
 .rect-ui-toast--danger { border-color: var(--rect-color-danger); }
 .rect-ui-toast--info { border-color: var(--rect-color-info); }
-.rect-ui-confirm__actions { justify-content: flex-end; margin-top: var(--rect-space-4); }
+
+/* ── Overlay: the single window system ──────────────────────────────────────
+   Portaled to <body>, so it is never trapped by the canvas transform.
+   The surface is capped against the dynamic viewport before its size ceiling,
+   so a window can never exceed the screen at any breakpoint. */
+
+.rect-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--rect-z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--rect-overlay-margin);
+  background: var(--rect-overlay-scrim);
+  backdrop-filter: blur(var(--rect-overlay-blur));
+  -webkit-backdrop-filter: blur(var(--rect-overlay-blur));
+  animation: rect-overlay-in 160ms ease-out both;
+}
+
+.rect-overlay__surface {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  /* Viewport cap first, size ceiling second. */
+  max-block-size: min(
+    calc(100dvh - (2 * var(--rect-overlay-margin))),
+    var(--rect-overlay-max-block)
+  );
+  background: var(--rect-surface-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-overlay-radius);
+  box-shadow: var(--rect-shadow-panel);
+  color: var(--rect-text-primary);
+  font-family: var(--rect-font);
+  outline: none;
+  overflow: clip;
+  animation: rect-overlay-surface-in 200ms var(--rect-motion-spring) both;
+}
+
+.rect-overlay__surface--sm { max-width: var(--rect-overlay-width-sm); }
+.rect-overlay__surface--md { max-width: var(--rect-overlay-width-md); }
+.rect-overlay__surface--lg { max-width: var(--rect-overlay-width-lg); }
+.rect-overlay__surface--xl { max-width: var(--rect-overlay-width-xl); }
+
+.rect-overlay__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rect-space-3);
+  flex-shrink: 0;
+  padding: var(--rect-space-4);
+  border-bottom: 1px solid var(--rect-surface-divider);
+}
+
+.rect-overlay__heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-05);
+  min-width: 0;
+  flex: 1;
+}
+
+.rect-overlay__title {
+  font-size: var(--rect-text-section);
+  font-weight: var(--rect-weight-bold);
+  letter-spacing: -0.02em;
+  line-height: var(--rect-leading-tight);
+}
+
+.rect-overlay__description {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-regular);
+  line-height: var(--rect-leading-snug);
+}
+
+.rect-overlay__close { flex-shrink: 0; }
+
+/* The only scrolling region in a window. min-height:0 is required or the
+   flex child refuses to shrink and the window grows past the viewport. */
+.rect-overlay__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--rect-space-4);
+}
+
+/* Actions live outside the scroll area so they can never be clipped. */
+.rect-overlay__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+  flex-shrink: 0;
+  padding: var(--rect-space-3) var(--rect-space-4);
+  border-top: 1px solid var(--rect-surface-divider);
+  background: var(--rect-surface-bg);
+}
+
+.rect-overlay__form {
+  display: grid;
+  gap: var(--rect-space-3);
+}
+
+.rect-overlay__error {
+  color: var(--rect-color-danger);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-semibold);
+  line-height: var(--rect-leading-snug);
+}
+
+@keyframes rect-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes rect-overlay-surface-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Blur the whole application behind an open window. Applied to the shell root,
+   which is a sibling of the portaled overlay, so the window stays sharp. */
+.rect-has-overlay .rect-app {
+  filter: blur(var(--rect-app-blur));
+  transition: filter var(--rect-motion-nav);
+}
+
+@media (max-width: 640px) {
+  .rect-overlay {
+    padding: var(--rect-overlay-margin-mobile);
+    align-items: flex-end;
+  }
+
+  .rect-overlay__surface {
+    border-radius: var(--rect-overlay-radius-mobile);
+    max-block-size: min(
+      calc(100dvh - (2 * var(--rect-overlay-margin-mobile))),
+      var(--rect-overlay-max-block)
+    );
+  }
+
+  .rect-overlay__footer {
+    justify-content: stretch;
+  }
+
+  .rect-overlay__footer > * {
+    flex: 1;
+  }
+}
+
+/* Short viewports: give the window nearly the whole height rather than
+   letting a fixed ceiling push actions off-screen. */
+@media (max-height: 560px) {
+  .rect-overlay {
+    padding: var(--rect-overlay-margin-mobile);
+  }
+
+  .rect-overlay__surface {
+    max-block-size: calc(100dvh - (2 * var(--rect-overlay-margin-mobile)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-overlay,
+  .rect-overlay__surface {
+    animation: none !important;
+  }
+
+  .rect-has-overlay .rect-app {
+    transition: none !important;
+  }
+}
+
+/* Users who ask for reduced transparency get a solid scrim instead of blur. */
+@media (prefers-reduced-transparency: reduce) {
+  .rect-overlay {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(24, 24, 27, 0.6);
+  }
+
+  .rect-has-overlay .rect-app {
+    filter: none;
+  }
+}
+
 
 @media (max-width: 768px) {
   .rect-ui-page-grid--2,
@@ -506,6 +673,272 @@
   .rect-ui-switch__thumb,
   .rect-ui-state__spinner {
     animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── Settings building blocks ───────────────────────────────────────────────
+   Shared by every configuration surface so expand/collapse affordance and
+   row alignment stay identical everywhere. */
+
+.rect-settings-stack {
+  display: grid;
+  gap: var(--rect-space-3);
+}
+
+.rect-section {
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  overflow: clip;
+  transition: border-color var(--rect-motion-nav);
+}
+
+.rect-section--open {
+  border-color: var(--rect-color-line-strong);
+}
+
+.rect-section__h {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.rect-section__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-3);
+  width: 100%;
+  min-height: var(--rect-control-touch);
+  padding: var(--rect-space-3) var(--rect-space-4);
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font-family: var(--rect-font);
+  text-align: start;
+  transition: background var(--rect-motion-nav);
+}
+
+.rect-section__trigger:hover {
+  background: var(--rect-surface-bg-hover);
+}
+
+.rect-section__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--rect-control-compact);
+  height: var(--rect-control-compact);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  background: var(--rect-surface-bg);
+  color: var(--rect-text-primary);
+}
+
+.rect-section__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-05);
+  min-width: 0;
+  flex: 1;
+}
+
+.rect-section__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-subsection);
+  font-weight: var(--rect-weight-bold);
+  letter-spacing: -0.02em;
+  line-height: var(--rect-leading-tight);
+}
+
+.rect-section__description {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-regular);
+  line-height: var(--rect-leading-snug);
+}
+
+.rect-section__status {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The affordance. Rotates to point up when the section is open, so the state
+   is always readable without relying on content position. */
+.rect-section__chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--rect-control-xs);
+  height: var(--rect-control-xs);
+  color: var(--rect-text-secondary);
+  transition: transform var(--rect-motion-nav), color var(--rect-motion-nav);
+}
+
+.rect-section--open .rect-section__chevron {
+  transform: rotate(180deg);
+  color: var(--rect-text-primary);
+}
+
+.rect-section__panel {
+  border-top: 1px solid var(--rect-card-border);
+}
+
+.rect-section__panel[hidden] {
+  display: none;
+}
+
+.rect-section__content {
+  display: grid;
+  gap: var(--rect-space-4);
+  padding: var(--rect-space-4);
+  background: var(--rect-surface-bg);
+}
+
+/* Row: label/description on one side, control on the other. Wraps instead of
+   overflowing when space runs out. */
+.rect-setting-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rect-space-3);
+  min-width: 0;
+}
+
+.rect-setting-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-05);
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.rect-setting-row__label {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  line-height: var(--rect-leading-snug);
+}
+
+.rect-setting-row__description {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-regular);
+  line-height: var(--rect-leading-snug);
+}
+
+.rect-setting-row__control {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-2);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.rect-setting-row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.rect-setting-row--stacked .rect-setting-row__control {
+  width: 100%;
+}
+
+/* Segmented single-select. */
+.rect-choice {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-1);
+  padding: var(--rect-space-1);
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  max-width: 100%;
+}
+
+.rect-choice__option {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: var(--rect-control-compact);
+  padding: var(--rect-space-1) var(--rect-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--rect-radius-sm);
+  background: transparent;
+  color: var(--rect-text-secondary);
+  cursor: pointer;
+  font-family: var(--rect-font);
+  transition:
+    background var(--rect-motion-nav),
+    color var(--rect-motion-nav),
+    border-color var(--rect-motion-nav);
+}
+
+.rect-choice__option:hover {
+  background: var(--rect-surface-bg-hover);
+  color: var(--rect-text-primary);
+}
+
+.rect-choice__option--selected {
+  background: var(--rect-orb-bg);
+  border-color: var(--rect-orb-bg);
+  color: var(--rect-orb-text);
+}
+
+.rect-choice__option--selected:hover {
+  background: var(--rect-orb-bg-hover);
+  color: var(--rect-orb-text);
+}
+
+.rect-choice__label {
+  font-size: var(--rect-text-table);
+  font-weight: var(--rect-weight-semibold);
+  white-space: nowrap;
+}
+
+.rect-choice__hint {
+  font-size: var(--rect-text-micro);
+  font-weight: var(--rect-weight-medium);
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .rect-choice__option {
+    min-height: var(--rect-control-touch);
+  }
+}
+
+@media (max-width: 560px) {
+  .rect-setting-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .rect-setting-row__control {
+    width: 100%;
+  }
+
+  .rect-choice {
+    width: 100%;
+  }
+
+  .rect-choice__option {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-section__chevron,
+  .rect-section__trigger,
+  .rect-choice__option {
     transition: none !important;
   }
 }

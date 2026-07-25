@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Button, Card, Checkbox, DataTable, Field, Input, Modal, PageGrid, Toolbar } from "@/shared/ui";
+import { Button, Card, Checkbox, DataTable, Field, Input, FormDialog, PageGrid, Toolbar } from "@/shared/ui";
 import { ApiClientError } from "@/shared/api/client";
 import { adminApi } from "./admin-api";
 import "./TeamPage.css";
@@ -93,35 +93,49 @@ export default function TeamPage() {
         </Card>
       </PageGrid>
 
-      <Modal open={typeOpen} title="Create user type" onClose={() => setTypeOpen(false)}>
-        <form className="rect-team-form" onSubmit={typeForm.handleSubmit((values) => createType.mutate(values))}>
-          <Field label="Name" error={typeForm.formState.errors.name?.message} required><Input aria-label="Name" {...typeForm.register("name")} /></Field>
-          <Field label="Key" error={typeForm.formState.errors.key?.message} required><Input aria-label="Key" {...typeForm.register("key")} /></Field>
-          <Field label="Description" error={typeForm.formState.errors.description?.message}><Input aria-label="Description" {...typeForm.register("description")} /></Field>
+      <FormDialog
+        open={typeOpen}
+        title="Create user type"
+        description="Group permissions into a role you can assign to people on your team."
+        onClose={() => setTypeOpen(false)}
+        onSubmit={typeForm.handleSubmit((values) => createType.mutate(values))}
+        submitLabel="Create user type"
+        pending={createType.isPending}
+        error={typeError}
+      >
+        <Field label="Name" error={typeForm.formState.errors.name?.message} required><Input aria-label="Name" data-autofocus="true" {...typeForm.register("name")} /></Field>
+        <Field label="Key" error={typeForm.formState.errors.key?.message} required><Input aria-label="Key" {...typeForm.register("key")} /></Field>
+        <Field label="Description" error={typeForm.formState.errors.description?.message}><Input aria-label="Description" {...typeForm.register("description")} /></Field>
+        <Field label="Permissions">
           <div className="rect-team-permissions">
             {(permissions.data?.permissions ?? []).map((permission) => (
               <Checkbox key={permission.key} label={permission.label} description={permission.description} value={permission.key} {...typeForm.register("permissions")} />
             ))}
           </div>
-          {typeError ? <p className="rect-team-form__error" role="alert">{typeError}</p> : null}
-          <Toolbar className="rect-team-form__actions"><Button variant="ghost" onClick={() => setTypeOpen(false)}>Cancel</Button><Button variant="primary" type="submit" disabled={createType.isPending}>Create</Button></Toolbar>
-        </form>
-      </Modal>
+        </Field>
+      </FormDialog>
 
-      <Modal open={userOpen} title="Create user" onClose={() => setUserOpen(false)}>
-        <form className="rect-team-form" onSubmit={userForm.handleSubmit((values) => createUser.mutate(values))}>
-          <Field label="Name" error={userForm.formState.errors.displayName?.message} required><Input aria-label="Name" {...userForm.register("displayName")} /></Field>
-          <Field label="Email" error={userForm.formState.errors.email?.message} required><Input aria-label="Email" type="email" {...userForm.register("email")} /></Field>
-          <Field label="Temporary password" error={userForm.formState.errors.password?.message} required><Input aria-label="Temporary password" type="password" {...userForm.register("password")} /></Field>
+      <FormDialog
+        open={userOpen}
+        title="Create user"
+        description="Add a person to your company and choose what they are allowed to do."
+        onClose={() => setUserOpen(false)}
+        onSubmit={userForm.handleSubmit((values) => createUser.mutate(values))}
+        submitLabel="Create user"
+        pending={createUser.isPending}
+        error={userError}
+      >
+        <Field label="Name" error={userForm.formState.errors.displayName?.message} required><Input aria-label="Name" data-autofocus="true" {...userForm.register("displayName")} /></Field>
+        <Field label="Email" error={userForm.formState.errors.email?.message} required><Input aria-label="Email" type="email" {...userForm.register("email")} /></Field>
+        <Field label="Temporary password" error={userForm.formState.errors.password?.message} required><Input aria-label="Temporary password" type="password" {...userForm.register("password")} /></Field>
+        <Field label="User types">
           <div className="rect-team-permissions">
             {(userTypes.data?.userTypes ?? []).map((type) => (
               <Checkbox key={type.id} label={type.name} description={type.description} value={type.id} {...userForm.register("userTypeIds")} />
             ))}
           </div>
-          {userError ? <p className="rect-team-form__error" role="alert">{userError}</p> : null}
-          <Toolbar className="rect-team-form__actions"><Button variant="ghost" onClick={() => setUserOpen(false)}>Cancel</Button><Button variant="primary" type="submit" disabled={createUser.isPending}>Create</Button></Toolbar>
-        </form>
-      </Modal>
+        </Field>
+      </FormDialog>
     </section>
   );
 }

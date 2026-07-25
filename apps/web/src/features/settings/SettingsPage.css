@@ -1,156 +1,105 @@
-/* Settings page: user-facing personal and company configuration. */
+/* Settings page. Structure comes from the shared configuration blocks in
+   shared/ui; this file only handles page-level composition. */
 
 .rect-settings-page {
-  display: grid;
-  gap: var(--rect-space-3);
-  max-width: 920px;
+  max-width: 860px;
 }
 
-.rect-settings-disclosure {
-  background: var(--rect-card-bg);
-  border: 1px solid var(--rect-card-border);
-  border-radius: 14px;
-  overflow: clip;
-}
-
-.rect-settings-disclosure summary {
-  align-items: center;
-  cursor: pointer;
-  display: grid;
-  gap: var(--rect-space-3);
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  list-style: none;
-  padding: var(--rect-space-3) var(--rect-space-4);
-}
-
-.rect-settings-disclosure summary::-webkit-details-marker {
-  display: none;
-}
-
-.rect-settings-disclosure summary h2 {
-  color: var(--rect-text-primary);
-  display: block;
-  font-size: var(--rect-text-subsection);
-  margin: 0;
-  font-weight: var(--rect-weight-bold);
-  letter-spacing: -0.025em;
-}
-
-.rect-settings-disclosure summary small {
-  color: var(--rect-text-secondary);
-  display: block;
-  font-size: var(--rect-text-body);
-  font-weight: var(--rect-weight-semibold);
-  line-height: 1.45;
-  margin-top: 3px;
-  white-space: normal;
-}
-
-.rect-settings-section,
-.rect-settings-language {
-  align-items: center;
+.rect-settings-form {
   display: grid;
   gap: var(--rect-space-4);
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  padding: var(--rect-space-4);
 }
 
-.rect-settings-section--inside {
-  border: 0;
-  border-radius: 0;
-}
-
-.rect-settings-section__icon,
-.rect-settings-language__icon {
-  align-items: center;
-  background: var(--rect-card-bg);
-  border: 1px solid var(--rect-card-border);
-  border-radius: 12px;
-  color: var(--rect-text-primary);
-  display: inline-flex;
-  height: 34px;
-  justify-content: center;
-  width: 34px;
-}
-
-.rect-settings-section__actions,
-.rect-settings-language__actions,
-.rect-settings-email__actions {
-  justify-content: flex-end;
-}
-
-.rect-settings-email {
-  display: grid;
-  gap: var(--rect-space-4);
-  padding: var(--rect-space-4);
-}
-
-.rect-settings-email p {
-  color: var(--rect-text-secondary);
-  font-size: var(--rect-text-body);
-  font-weight: 600;
-  line-height: 1.45;
-  margin-top: 4px;
-  white-space: normal;
-}
-
-.rect-settings-email__form {
+/* Paired fields collapse to a single column when space runs out. */
+.rect-settings-grid {
   display: grid;
   gap: var(--rect-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  width: 100%;
 }
 
-.rect-settings-email__grid {
-  display: grid;
+.rect-settings-inline {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
   gap: var(--rect-space-2);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
 }
 
-.rect-settings-email__test {
-  align-items: end;
-  display: grid;
-  gap: var(--rect-space-2);
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.rect-settings-passkeys {
-  display: grid;
-  gap: 6px;
+.rect-settings-inline__field {
+  flex: 1 1 220px;
   min-width: 0;
 }
 
-.rect-settings-error {
-  color: var(--rect-color-danger) !important;
-  font-weight: var(--rect-weight-semibold) !important;
+.rect-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--rect-space-2);
 }
 
-.rect-settings-success {
-  color: var(--rect-color-success) !important;
-  font-weight: var(--rect-weight-semibold) !important;
+.rect-settings-divider {
+  height: 1px;
+  background: var(--rect-surface-divider);
 }
 
-html[dir="rtl"] .rect-settings-section,
-html[dir="rtl"] .rect-settings-language,
-html[dir="rtl"] .rect-settings-disclosure summary {
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+.rect-settings-message {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-regular);
+  line-height: var(--rect-leading-snug);
 }
 
-@media (max-width: 720px) {
-  .rect-settings-section,
-  .rect-settings-language,
-  .rect-settings-disclosure summary {
-    align-items: flex-start;
-    grid-template-columns: 34px minmax(0, 1fr);
+.rect-settings-message--error {
+  color: var(--rect-color-danger);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-settings-message--success {
+  color: var(--rect-color-success);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-settings-list {
+  display: grid;
+  gap: var(--rect-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-settings-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+  min-height: var(--rect-control-compact);
+  padding: var(--rect-space-2) var(--rect-space-3);
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+}
+
+.rect-settings-list__name {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rect-settings-list__meta {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-regular);
+}
+
+@media (max-width: 560px) {
+  .rect-settings-actions {
+    justify-content: stretch;
   }
 
-  .rect-settings-disclosure summary .rect-ui-badge,
-  .rect-settings-section__actions,
-  .rect-settings-language__actions {
-    grid-column: 2;
-    justify-self: start;
-  }
-
-  .rect-settings-email__grid,
-  .rect-settings-email__test {
-    grid-template-columns: 1fr;
+  .rect-settings-actions > * {
+    flex: 1;
   }
 }

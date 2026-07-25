@@ -1,14 +1,24 @@
-/** Settings page manages personal preferences and company-wide configuration. */
+/** Settings manages personal preferences and company-wide configuration. */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { KeyRound, Languages, Mail } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import { useAuth } from "@/shared/auth";
-import { Badge, Button, Card, Checkbox, Field, Input, Toolbar } from "@/shared/ui";
+import {
+  Badge,
+  Button,
+  ChoiceGroup,
+  Checkbox,
+  Field,
+  Input,
+  SettingRow,
+  SettingsSection,
+  SettingsStack,
+} from "@/shared/ui";
 import { useRectangleI18n, type RectangleLanguage } from "@/shared/i18n";
 import { settingsApi } from "./settings-api";
 import { listPasskeys, registerPasskey } from "./passkey-api";
@@ -28,20 +38,51 @@ const emailSchema = z.object({
 
 type EmailForm = z.infer<typeof emailSchema>;
 
+type SectionId = "language" | "email" | "passkeys";
+
 function canManageCompanySettings(user: ReturnType<typeof useAuth>["user"]): boolean {
   if (!user) return false;
-  return user.roles.includes("tenant_owner") || user.roles.includes("tenant_admin") || user.permissions.includes("settings.manage");
+  return (
+    user.roles.includes("tenant_owner") ||
+    user.roles.includes("tenant_admin") ||
+    user.permissions.includes("settings.manage")
+  );
 }
 
 export default function SettingsPage() {
   const { t } = useTranslation();
   const auth = useAuth();
   const canManageEmail = canManageCompanySettings(auth.user);
-  const { language, direction, setLanguage } = useRectangleI18n();
+  const { language, setLanguage } = useRectangleI18n();
   const queryClient = useQueryClient();
-  const emailSettings = useQuery({ queryKey: ["settings", "email"], queryFn: settingsApi.getEmail, retry: false, enabled: canManageEmail });
+
+  // Only one section is expanded at a time so the page stays scannable.
+  const [openSection, setOpenSection] = useState<SectionId | null>("language");
+  const toggleSection = (id: SectionId) =>
+    setOpenSection((current) => (current === id ? null : id));
+
+  const emailSettings = useQuery({
+    queryKey: ["settings", "email"],
+    queryFn: settingsApi.getEmail,
+    retry: false,
+    enabled: canManageEmail,
+  });
   const passkeys = useQuery({ queryKey: ["auth", "passkeys"], queryFn: listPasskeys, retry: false });
-  const emailForm = useForm<EmailForm>({ resolver: zodResolver(emailSchema), defaultValues: { enabled: true, host: "", port: 587, secure: false, username: "", password: "", fromEmail: "", fromName: "Rectangle", testRecipient: "" } });
+
+  const emailForm = useForm<EmailForm>({
+    resolver: zodResolver(emailSchema),
+    defaultValues: {
+      enabled: true,
+      host: "",
+      port: 587,
+      secure: false,
+      username: "",
+      password: "",
+      fromEmail: "",
+      fromName: "Rectangle",
+      testRecipient: "",
+    },
+  });
 
   useEffect(() => {
     const value = emailSettings.data?.emailSettings;
@@ -59,93 +100,297 @@ export default function SettingsPage() {
     });
   }, [emailForm, emailSettings.data?.emailSettings]);
 
-  async function selectLanguage(nextLanguage: RectangleLanguage) {
-    if (nextLanguage !== language) await setLanguage(nextLanguage);
-  }
-
   const saveEmail = useMutation({
-    mutationFn: (values: EmailForm) => settingsApi.saveEmail({
-      enabled: values.enabled,
-      host: values.host,
-      port: values.port,
-      secure: values.secure,
-      username: values.username,
-      ...(values.password ? { password: values.password } : {}),
-      fromEmail: values.fromEmail,
-      fromName: values.fromName,
-    }),
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["settings", "email"] }); emailForm.setValue("password", ""); },
+    mutationFn: (values: EmailForm) =>
+      settingsApi.saveEmail({
+        enabled: values.enabled,
+        host: values.host,
+        port: values.port,
+        secure: values.secure,
+        username: values.username,
+        ...(values.password ? { password: values.password } : {}),
+        fromEmail: values.fromEmail,
+        fromName: values.fromName,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["settings", "email"] });
+      emailForm.setValue("password", "");
+    },
   });
 
-  const testEmail = useMutation({ mutationFn: (recipientEmail: string) => settingsApi.testEmail(recipientEmail) });
-  const addPasskey = useMutation({ mutationFn: registerPasskey, onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["auth", "passkeys"] }); } });
+  const testEmail = useMutation({
+    mutationFn: (recipientEmail: string) => settingsApi.testEmail(recipientEmail),
+  });
 
-  const saveError = saveEmail.error instanceof ApiClientError ? saveEmail.error.message : saveEmail.error ? "Email settings could not be saved." : null;
-  const testError = testEmail.error instanceof ApiClientError ? testEmail.error.message : testEmail.error ? "Test email could not be sent." : null;
+  const addPasskey = useMutation({
+    mutationFn: registerPasskey,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["auth", "passkeys"] });
+    },
+  });
+
+  const saveError =
+    saveEmail.error instanceof ApiClientError
+      ? saveEmail.error.message
+      : saveEmail.error
+        ? t("settings.emailSaveFailed")
+        : null;
+  const testError =
+    testEmail.error instanceof ApiClientError
+      ? testEmail.error.message
+      : testEmail.error
+        ? t("settings.emailTestFailed")
+        : null;
+
+  const emailConfigured = emailSettings.data?.emailSettings.configured ?? false;
+  const passkeyList = passkeys.data?.passkeys ?? [];
 
   return (
-    <section className="rect-settings-page" aria-label="Settings">
-      <details className="rect-settings-disclosure" open>
-        <summary>
-          <span className="rect-settings-section__icon" aria-hidden><Languages size={18} strokeWidth={2} /></span>
-          <span><h2>{t("settings.languageTitle")}</h2><small>{t("settings.activeLanguage")}: {language === "ar" ? t("settings.arabic") : t("settings.english")}</small></span>
-          <Badge tone="info">{direction.toUpperCase()}</Badge>
-        </summary>
-        <Card className="rect-settings-section rect-settings-section--inside">
-          <Toolbar className="rect-settings-section__actions" aria-label={t("settings.activeLanguage")}>
-            <Button variant={language === "en" ? "primary" : "secondary"} aria-pressed={language === "en"} onClick={() => void selectLanguage("en")}>{t("settings.english")}</Button>
-            <Button variant={language === "ar" ? "primary" : "secondary"} aria-pressed={language === "ar"} onClick={() => void selectLanguage("ar")}>{t("settings.arabic")}</Button>
-          </Toolbar>
-        </Card>
-      </details>
+    <SettingsStack className="rect-settings-page" aria-label={t("feature.settings")}>
+      <SettingsSection
+        title={t("settings.languageTitle")}
+        description={t("settings.languageDescription")}
+        icon={<Languages size={18} strokeWidth={2} />}
+        open={openSection === "language"}
+        onToggle={() => toggleSection("language")}
+      >
+        <SettingRow
+          label={t("settings.interfaceLanguage")}
+          description={t("settings.interfaceLanguageHelp")}
+          control={
+            <ChoiceGroup<RectangleLanguage>
+              label={t("settings.interfaceLanguage")}
+              value={language}
+              onChange={(next) => void setLanguage(next)}
+              options={[
+                {
+                  value: "en",
+                  label: t("settings.english"),
+                  hint: t("settings.directionLtr"),
+                },
+                {
+                  value: "ar",
+                  label: t("settings.arabic"),
+                  hint: t("settings.directionRtl"),
+                },
+              ]}
+            />
+          }
+        />
+      </SettingsSection>
 
       {canManageEmail ? (
-        <details className="rect-settings-disclosure">
-          <summary>
-            <span className="rect-settings-section__icon" aria-hidden><Mail size={18} strokeWidth={2} /></span>
-            <span><h2>Email delivery</h2><small>Company-wide SMTP for invitations, reset emails, approvals, and reminders.</small></span>
-            <Badge tone={emailSettings.data?.emailSettings.enabled ? "success" : "neutral"}>{emailSettings.data?.emailSettings.configured ? "Configured" : "Not set"}</Badge>
-          </summary>
-          <Card className="rect-settings-email rect-settings-section--inside">
-            <form className="rect-settings-email__form" onSubmit={emailForm.handleSubmit((values) => saveEmail.mutate(values))}>
-              <Checkbox label="Enable email delivery" {...emailForm.register("enabled")} />
-              <div className="rect-settings-email__grid">
-                <Field label="SMTP host" error={emailForm.formState.errors.host?.message} required><Input aria-label="SMTP host" {...emailForm.register("host")} /></Field>
-                <Field label="Port" error={emailForm.formState.errors.port?.message} required><Input aria-label="Port" inputMode="numeric" {...emailForm.register("port", { valueAsNumber: true })} /></Field>
-                <Field label="Username" error={emailForm.formState.errors.username?.message} required><Input aria-label="Username" {...emailForm.register("username")} /></Field>
-                <Field label="Password" hint={emailSettings.data?.emailSettings.hasPassword ? "Leave blank to keep current password." : undefined} error={emailForm.formState.errors.password?.message}><Input aria-label="Password" type="password" {...emailForm.register("password")} /></Field>
-                <Field label="From email" error={emailForm.formState.errors.fromEmail?.message} required><Input aria-label="From email" type="email" {...emailForm.register("fromEmail")} /></Field>
-                <Field label="From name" error={emailForm.formState.errors.fromName?.message} required><Input aria-label="From name" {...emailForm.register("fromName")} /></Field>
+        <SettingsSection
+          title={t("settings.emailTitle")}
+          description={t("settings.emailDescription")}
+          icon={<Mail size={18} strokeWidth={2} />}
+          status={
+            <Badge tone={emailConfigured ? "success" : "neutral"}>
+              {emailConfigured ? t("settings.emailConfigured") : t("settings.emailNotConfigured")}
+            </Badge>
+          }
+          open={openSection === "email"}
+          onToggle={() => toggleSection("email")}
+        >
+          <form
+            className="rect-settings-form"
+            onSubmit={emailForm.handleSubmit((values) => saveEmail.mutate(values))}
+          >
+            <SettingRow
+              label={t("settings.emailEnable")}
+              description={t("settings.emailEnableHelp")}
+              control={<Checkbox label={t("settings.emailEnable")} {...emailForm.register("enabled")} />}
+            />
+
+            <SettingRow
+              label={t("settings.emailServer")}
+              description={t("settings.emailServerHelp")}
+              stacked
+            >
+              <div className="rect-settings-grid">
+                <Field
+                  label={t("settings.emailHost")}
+                  error={emailForm.formState.errors.host?.message}
+                  required
+                >
+                  <Input aria-label={t("settings.emailHost")} {...emailForm.register("host")} />
+                </Field>
+                <Field
+                  label={t("settings.emailPort")}
+                  error={emailForm.formState.errors.port?.message}
+                  required
+                >
+                  <Input
+                    aria-label={t("settings.emailPort")}
+                    inputMode="numeric"
+                    {...emailForm.register("port", { valueAsNumber: true })}
+                  />
+                </Field>
+                <Field
+                  label={t("settings.emailUsername")}
+                  error={emailForm.formState.errors.username?.message}
+                  required
+                >
+                  <Input aria-label={t("settings.emailUsername")} {...emailForm.register("username")} />
+                </Field>
+                <Field
+                  label={t("settings.emailPassword")}
+                  hint={
+                    emailSettings.data?.emailSettings.hasPassword
+                      ? t("settings.emailPasswordKeep")
+                      : undefined
+                  }
+                  error={emailForm.formState.errors.password?.message}
+                >
+                  <Input
+                    aria-label={t("settings.emailPassword")}
+                    type="password"
+                    {...emailForm.register("password")}
+                  />
+                </Field>
               </div>
-              <Checkbox label="Use SSL/TLS connection" {...emailForm.register("secure")} />
-              {saveError ? <p className="rect-settings-error" role="alert">{saveError}</p> : null}
-              {saveEmail.isSuccess ? <p className="rect-settings-success" role="status">Email settings saved.</p> : null}
-              <Toolbar className="rect-settings-email__actions"><Button variant="primary" type="submit" disabled={saveEmail.isPending}>{saveEmail.isPending ? "Saving…" : "Save email settings"}</Button></Toolbar>
+              <Checkbox label={t("settings.emailSecure")} {...emailForm.register("secure")} />
+            </SettingRow>
+
+            <SettingRow
+              label={t("settings.emailSender")}
+              description={t("settings.emailSenderHelp")}
+              stacked
+            >
+              <div className="rect-settings-grid">
+                <Field
+                  label={t("settings.emailFromAddress")}
+                  error={emailForm.formState.errors.fromEmail?.message}
+                  required
+                >
+                  <Input
+                    aria-label={t("settings.emailFromAddress")}
+                    type="email"
+                    {...emailForm.register("fromEmail")}
+                  />
+                </Field>
+                <Field
+                  label={t("settings.emailFromName")}
+                  error={emailForm.formState.errors.fromName?.message}
+                  required
+                >
+                  <Input aria-label={t("settings.emailFromName")} {...emailForm.register("fromName")} />
+                </Field>
+              </div>
+            </SettingRow>
+
+            {saveError ? (
+              <p className="rect-settings-message rect-settings-message--error" role="alert">
+                {saveError}
+              </p>
+            ) : null}
+            {saveEmail.isSuccess ? (
+              <p className="rect-settings-message rect-settings-message--success" role="status">
+                {t("settings.emailSaved")}
+              </p>
+            ) : null}
+
+            <div className="rect-settings-actions">
+              <Button variant="primary" type="submit" disabled={saveEmail.isPending}>
+                {saveEmail.isPending ? t("common.saving") : t("settings.emailSave")}
+              </Button>
+            </div>
+          </form>
+
+          <div className="rect-settings-divider" role="presentation" />
+
+          <SettingRow
+            label={t("settings.emailTest")}
+            description={
+              emailConfigured ? t("settings.emailTestHelp") : t("settings.emailRequiredFirst")
+            }
+            stacked
+          >
+            <form
+              className="rect-settings-inline"
+              onSubmit={emailForm.handleSubmit((values) =>
+                values.testRecipient ? testEmail.mutate(values.testRecipient) : undefined,
+              )}
+            >
+              <Field
+                className="rect-settings-inline__field"
+                label={t("settings.emailTestRecipient")}
+                error={emailForm.formState.errors.testRecipient?.message}
+              >
+                <Input
+                  aria-label={t("settings.emailTestRecipient")}
+                  type="email"
+                  {...emailForm.register("testRecipient")}
+                />
+              </Field>
+              <Button
+                variant="secondary"
+                type="submit"
+                disabled={testEmail.isPending || !emailConfigured}
+              >
+                {testEmail.isPending ? t("settings.emailTestSending") : t("settings.emailTestAction")}
+              </Button>
             </form>
-            <form className="rect-settings-email__test" onSubmit={emailForm.handleSubmit((values) => values.testRecipient ? testEmail.mutate(values.testRecipient) : undefined)}>
-              <Field label="Send test email to" error={emailForm.formState.errors.testRecipient?.message}><Input aria-label="Send test email to" type="email" {...emailForm.register("testRecipient")} /></Field>
-              <Button variant="secondary" type="submit" disabled={testEmail.isPending || !emailSettings.data?.emailSettings.configured}>{testEmail.isPending ? "Sending…" : "Send test email"}</Button>
-            </form>
-            {testError ? <p className="rect-settings-error" role="alert">{testError}</p> : null}
-            {testEmail.isSuccess ? <p className="rect-settings-success" role="status">Test email sent.</p> : null}
-          </Card>
-        </details>
+          </SettingRow>
+
+          {testError ? (
+            <p className="rect-settings-message rect-settings-message--error" role="alert">
+              {testError}
+            </p>
+          ) : null}
+          {testEmail.isSuccess ? (
+            <p className="rect-settings-message rect-settings-message--success" role="status">
+              {t("settings.emailTestSent")}
+            </p>
+          ) : null}
+        </SettingsSection>
       ) : null}
 
-      <details className="rect-settings-disclosure">
-        <summary>
-          <span className="rect-settings-section__icon" aria-hidden><KeyRound size={18} strokeWidth={2} /></span>
-          <span><h2>Passkeys</h2><small>Sign in faster with your device unlock or security key.</small></span>
-          <Badge tone="info">{passkeys.data?.passkeys.length ?? 0}</Badge>
-        </summary>
-        <Card className="rect-settings-email rect-settings-section--inside">
-          <Toolbar><Button variant="secondary" onClick={() => addPasskey.mutate()} disabled={addPasskey.isPending}>{addPasskey.isPending ? "Adding…" : "Add passkey"}</Button></Toolbar>
-          {addPasskey.error ? <p className="rect-settings-error" role="alert">Passkey could not be added.</p> : null}
-          <div className="rect-settings-passkeys">
-            {(passkeys.data?.passkeys ?? []).length === 0 ? <p>No passkeys added yet.</p> : (passkeys.data?.passkeys ?? []).map((passkey) => <p key={passkey.id}>{passkey.name} · {new Date(passkey.createdAt).toLocaleDateString()}</p>)}
-          </div>
-        </Card>
-      </details>
-    </section>
+      <SettingsSection
+        title={t("settings.passkeysTitle")}
+        description={t("settings.passkeysDescription")}
+        icon={<KeyRound size={18} strokeWidth={2} />}
+        status={<Badge tone="neutral">{t("settings.passkeysCount", { count: passkeyList.length })}</Badge>}
+        open={openSection === "passkeys"}
+        onToggle={() => toggleSection("passkeys")}
+      >
+        <SettingRow
+          label={t("settings.passkeysTitle")}
+          description={t("settings.passkeysDescription")}
+          control={
+            <Button
+              variant="secondary"
+              onClick={() => addPasskey.mutate()}
+              disabled={addPasskey.isPending}
+            >
+              {addPasskey.isPending ? t("settings.passkeysAdding") : t("settings.passkeysAdd")}
+            </Button>
+          }
+        />
+
+        {addPasskey.error ? (
+          <p className="rect-settings-message rect-settings-message--error" role="alert">
+            {t("settings.passkeysAddFailed")}
+          </p>
+        ) : null}
+
+        {passkeyList.length === 0 ? (
+          <p className="rect-settings-message">{t("settings.passkeysEmpty")}</p>
+        ) : (
+          <ul className="rect-settings-list">
+            {passkeyList.map((passkey) => (
+              <li key={passkey.id} className="rect-settings-list__item">
+                <span className="rect-settings-list__name">{passkey.name}</span>
+                <span className="rect-settings-list__meta">
+                  {t("settings.passkeysAddedOn", {
+                    date: new Date(passkey.createdAt).toLocaleDateString(),
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SettingsSection>
+    </SettingsStack>
   );
 }

@@ -19,6 +19,9 @@ import settingsCss from "@/features/settings/SettingsPage.css?raw";
 import readyGateCss from "@/app/app-ready-gate.css?raw";
 import setupCss from "@/features/setup/setup-page.css?raw";
 import mainPanelSource from "./MainPanel.tsx?raw";
+import projectsSource from "@/features/projects/ProjectsPage.tsx?raw";
+import teamSource from "@/features/team/TeamPage.tsx?raw";
+import settingsSource from "@/features/settings/SettingsPage.tsx?raw";
 import resourcesSource from "@/shared/i18n/resources.ts?raw";
 import designTokens from "../../../../design/tokens/shell.tokens.json";
 
@@ -197,5 +200,38 @@ describe("design token snapshot", () => {
     expect(cssToken("--rect-panel-padding")).toBe(
       `${designTokens.canvas.paddingY}px ${designTokens.canvas.paddingX}px`,
     );
+  });
+});
+
+describe("shared building blocks", () => {
+  const featureSources: Array<[string, string]> = [
+    ["ProjectsPage.tsx", projectsSource],
+    ["TeamPage.tsx", teamSource],
+    ["SettingsPage.tsx", settingsSource],
+  ];
+
+  it("routes every feature window through the shared overlay system", () => {
+    for (const [name, source] of featureSources) {
+      // A feature that builds its own backdrop or dialog re-introduces the
+      // sizing and containment bugs the overlay exists to solve.
+      expect(source, `${name} hand-rolls a backdrop`).not.toContain("rect-ui-modal-backdrop");
+      expect(source, `${name} hand-rolls a dialog role`).not.toContain('role="dialog"');
+      expect(source, `${name} sets its own overlay z-index`).not.toContain("z-index");
+    }
+  });
+
+  it("builds configuration surfaces from the shared section blocks", () => {
+    // <details>/<summary> hides its marker to match the design, which leaves no
+    // expand/collapse affordance. Sections must come from SettingsSection.
+    expect(settingsSource).not.toContain("<details");
+    expect(settingsSource).not.toContain("<summary");
+    expect(settingsSource).toContain("SettingsSection");
+  });
+
+  it("keeps the removed modal primitive from creeping back", () => {
+    expect(uiCss).not.toContain(".rect-ui-modal-backdrop");
+    for (const [name, source] of featureSources) {
+      expect(source, `${name} imports the retired Modal primitive`).not.toMatch(/\bModal\b/);
+    }
   });
 });

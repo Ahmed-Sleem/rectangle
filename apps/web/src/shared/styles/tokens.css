@@ -171,6 +171,22 @@
   --rect-canvas-content-max: 1180px;
   --rect-canvas-scroll-fade: 20px;
 
+  /* ── Overlay / window system ──
+     Every window in the product uses these. Widths are ceilings; the overlay
+     always shrinks to the viewport first so it can never exceed the screen. */
+  --rect-overlay-width-sm: 420px;
+  --rect-overlay-width-md: 560px;
+  --rect-overlay-width-lg: 760px;
+  --rect-overlay-width-xl: 960px;
+  --rect-overlay-margin: 24px;
+  --rect-overlay-margin-mobile: 12px;
+  --rect-overlay-max-block: 720px;
+  --rect-overlay-radius: 20px;
+  --rect-overlay-radius-mobile: 16px;
+  --rect-overlay-scrim: rgba(24, 24, 27, 0.28);
+  --rect-overlay-blur: 10px;
+  --rect-app-blur: 3px;
+
   /* Layout */
   --rect-body-padding: 12px;
   --rect-body-padding-mobile: 8px;
@@ -209,6 +225,9 @@
   --rect-z-panel: 10;
   --rect-z-edge: 20;
   --rect-z-toggle: 30;
+  /* Overlays are portaled to <body>, so this sits above the whole shell. */
+  --rect-z-overlay: 1000;
+  --rect-z-toast: 1100;
 
   --rect-font: "Inter", system-ui, -apple-system, sans-serif;
 }

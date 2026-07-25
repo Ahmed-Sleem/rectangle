@@ -1,10 +1,9 @@
-/** Public shared UI primitive exports for Rectangle feature modules. */
+/** Public shared UI building blocks for Rectangle feature modules. */
 export {
   Badge,
   Button,
   Card,
   Checkbox,
-  ConfirmDialog,
   DataTable,
   Drawer,
   EmptyState,
@@ -13,7 +12,6 @@ export {
   IconButton,
   Input,
   LoadingState,
-  Modal,
   PageGrid,
   PageHeader,
   Select,
@@ -26,14 +24,12 @@ export {
   type BadgeProps,
   type ButtonProps,
   type CheckboxProps,
-  type ConfirmDialogProps,
   type DataTableColumn,
   type DataTableProps,
   type DrawerProps,
   type FieldProps,
   type IconButtonProps,
   type InputProps,
-  type ModalProps,
   type PageGridProps,
   type SelectProps,
   type StateBlockProps,
@@ -41,3 +37,29 @@ export {
   type TextareaProps,
   type ToastProps,
 } from "./primitives";
+
+/**
+ * The window system. Every overlay in the product must come from here so
+ * sizing, focus handling, dismissal and backdrop behaviour stay identical.
+ */
+export {
+  ConfirmDialog,
+  FormDialog,
+  Overlay,
+  type ConfirmDialogProps,
+  type FormDialogProps,
+  type OverlayProps,
+  type OverlaySize,
+} from "./overlay";
+
+/** Configuration building blocks, reusable by any page. */
+export {
+  ChoiceGroup,
+  SettingRow,
+  SettingsSection,
+  SettingsStack,
+  type ChoiceGroupProps,
+  type ChoiceOption,
+  type SettingRowProps,
+  type SettingsSectionProps,
+} from "./settings-blocks";
