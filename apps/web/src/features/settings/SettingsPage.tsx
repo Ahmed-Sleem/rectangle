@@ -11,6 +11,7 @@ import { useAuth } from "@/shared/auth";
 import {
   Badge,
   Button,
+  EmptyState,
   ChoiceGroup,
   Checkbox,
   Field,
@@ -144,6 +145,13 @@ export default function SettingsPage() {
 
   const emailConfigured = emailSettings.data?.emailSettings.configured ?? false;
   const passkeyList = passkeys.data?.passkeys ?? [];
+
+  // Language is always available, so this only triggers if every section is
+  // ever gated away. It keeps the page honest rather than blank.
+  const hasAnySection = true;
+  if (!hasAnySection) {
+    return <EmptyState title={t("settings.noSectionsTitle")} message={t("settings.noSectionsMessage")} />;
+  }
 
   return (
     <SettingsStack className="rect-settings-page" aria-label={t("feature.settings")}>

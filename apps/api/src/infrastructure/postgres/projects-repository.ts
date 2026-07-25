@@ -120,4 +120,12 @@ export class PostgresProjectsRepository implements ProjectsRepository {
     );
     return result.rows[0] ? mapProject(result.rows[0]) : null;
   }
+
+  async deleteForTenant(tenantId: string, id: string): Promise<boolean> {
+    const result = await this.pool.query(
+      "delete from projects where tenant_id = $1 and id = $2",
+      [tenantId, id],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
 }

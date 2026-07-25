@@ -8,17 +8,30 @@
 @import "../ui/ui.css";
 
 :focus-visible {
-  outline: 2px solid var(--rect-focus-on-light);
-  outline-offset: 2px;
+  /* The visible ring is drawn inside the element, because an outward ring is
+     clipped by any ancestor with overflow hidden or clip — which is every scroll
+     area and every window in this product.
+     The transparent outline is deliberate: forced-colours modes discard
+     box-shadow, and an outline is the only indicator they honour. */
+  outline: var(--rect-focus-ring-width) solid transparent;
+  outline-offset: 0;
+  box-shadow: var(--rect-shadow-focus);
 }
 
 .rect-app .rect-nav a:focus-visible,
 .rect-app .rect-nav-toggle:focus-visible,
 .rect-app .rect-ai-toggle:focus-visible,
 .rect-app .rect-ai-fab:focus-visible {
-  outline: 2px solid var(--rect-focus-on-dark);
-  outline-offset: 2px;
+  box-shadow: var(--rect-shadow-focus-on-dark);
 }
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: Highlight;
+  }
+}
+
+
 
 html[dir="rtl"] .rect-app {
   direction: rtl;

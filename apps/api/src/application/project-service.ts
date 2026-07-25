@@ -31,6 +31,7 @@ export interface AuditRepository {
 }
 
 export interface ProjectsRepository {
+  deleteForTenant(tenantId: string, id: string): Promise<boolean>;
   create(tenantId: string, input: CreateProjectInput): Promise<ProjectRecord>;
   findByTenantAndCode(tenantId: string, code: string): Promise<ProjectRecord | null>;
   findByIdForTenant(tenantId: string, id: string): Promise<ProjectRecord | null>;
@@ -111,5 +112,37 @@ export class ProjectService {
       },
     });
     return updated;
+  }
+
+  /**
+   * Permanently removes a project.
+   *
+   * Archiving is the reversible path and should be preferred; this exists for
+   * records created in error. Related rows are removed by cascading foreign
+   * keys, so the audit entry is written before the row disappears.
+   */
+  async deleteProject(actor: UserPrincipal, rawProjectId: unknown): Promise<void> {
+    requireProjectManagement(actor);
+    const projectId = parseProjectId(rawProjectId);
+
+    const existing = await this.projects.findByIdForTenant(actor.tenantId, projectId);
+    if (!existing) {
+      throw new DomainError("NOT_FOUND", "Project was not found.");
+    }
+
+    await this.audit.append({
+      tenantId: actor.tenantId,
+      actorUserId: actor.userId,
+      action: "project.delete",
+      entityType: "project",
+      entityId: projectId,
+      result: "success",
+      metadata: { code: existing.code, name: existing.name, status: existing.status },
+    });
+
+    const removed = await this.projects.deleteForTenant(actor.tenantId, projectId);
+    if (!removed) {
+      throw new DomainError("NOT_FOUND", "Project was not found.");
+    }
   }
 }

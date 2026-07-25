@@ -52,6 +52,7 @@ function mockApi(state: RouteState) {
       return json({ member: { projectId, userId: teammateId, role: "viewer", displayName: "Mona Adel", email: "mona@example.com", createdAt: "", updatedAt: "" } }, 201);
     }
     if (url.includes("/members/") && method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
+    if (method === "DELETE" && url.endsWith(projectId)) return Promise.resolve(new Response(null, { status: 204 }));
     if (url.includes("/members/") && method === "PATCH") return json({ member: { ...state.members[0], role: "controls_manager" } });
     if (url.endsWith("/stakeholders") && method === "GET") return json({ stakeholders: state.stakeholders });
     if (url.endsWith("/stakeholders") && method === "POST") return json({ stakeholder: { id: "s1", projectId, name: "Authority", category: "authority", influence: "high", interest: "high", createdAt: "", updatedAt: "" } }, 201);
@@ -200,5 +201,53 @@ describe("ProjectDetailPage", () => {
       screen.getByText("This project either does not exist or you do not have access to it."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/NOT_FOUND/)).not.toBeInTheDocument();
+  });
+
+  it("offers lifecycle moves and archives through the real update endpoint", async () => {
+    const user = userEvent.setup();
+    const calls = mockApi(baseState);
+
+    renderWorkspace();
+    const lifecycle = await screen.findByLabelText("Manage project");
+
+    // Only moves that change something are offered.
+    expect(within(lifecycle).queryByRole("option", { name: "Mark as active" })).toBeNull();
+    expect(within(lifecycle).getByRole("option", { name: "Archive" })).toBeInTheDocument();
+
+    await user.selectOptions(lifecycle, "archived");
+
+    await waitFor(() => {
+      const patch = calls.find((call) => call.method === "PATCH");
+      expect(patch?.body).toMatchObject({ status: "archived" });
+    });
+  });
+
+  it("names the project and warns that deletion cannot be undone", async () => {
+    const user = userEvent.setup();
+    const calls = mockApi(baseState);
+
+    renderWorkspace();
+    await user.selectOptions(await screen.findByLabelText("Manage project"), "delete");
+
+    const dialog = await screen.findByRole("dialog", { name: "Delete this project?" });
+    // Confirmation must name the object and state the consequence.
+    expect(within(dialog).getByText(/Cairo Metro Extension/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/cannot be undone/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/Archive it instead/i)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Delete project" }));
+
+    await waitFor(() => {
+      expect(calls.some((call) => call.method === "DELETE" && call.url.endsWith(projectId))).toBe(true);
+    });
+  });
+
+  it("hides lifecycle actions from someone who cannot manage the project", async () => {
+    mockApi({ ...baseState, canManage: false });
+
+    renderWorkspace();
+    await screen.findByRole("heading", { name: "Cairo Metro Extension" });
+
+    expect(screen.queryByLabelText("Manage project")).not.toBeInTheDocument();
   });
 });

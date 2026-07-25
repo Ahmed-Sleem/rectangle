@@ -42,6 +42,7 @@ function jsonResponse(body: unknown, status = 200) {
 describe("ProjectsPage", () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
+    window.localStorage.clear();
     await setRectangleLanguage("en");
   });
 
@@ -69,8 +70,12 @@ describe("ProjectsPage", () => {
 
     renderProjectsPage();
 
-    expect(await screen.findByRole("link", { name: "Cairo Metro Extension" })).toBeInTheDocument();
+    // Cards are the default view; each card is a labelled link to the project.
+    expect(await screen.findByRole("listitem", { name: "Cairo Metro Extension" })).toBeInTheDocument();
     expect(screen.getByText("CME-01")).toBeInTheDocument();
+    // Cards are the default view, so switch to the table for column assertions.
+    await userEvent.setup().click(screen.getByRole("radio", { name: "Table view" }));
+
     // Status renders as a readable badge in the row, not the raw enum value.
     // Scope to the table so the status filter's option cannot satisfy this.
     const register = screen.getByRole("table");
@@ -141,5 +146,55 @@ describe("ProjectsPage", () => {
     expect(await screen.findByText("No projects yet")).toBeInTheDocument();
     // The action is hidden rather than shown and failing on submit.
     expect(screen.queryByRole("button", { name: "Create project" })).not.toBeInTheDocument();
+  });
+
+  it("shows projects as cards by default and remembers a switch to the table", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      jsonResponse({ projects: [{ id: "1", tenantId: "1", name: "Cairo Metro Extension", code: "CME-01", status: "active", locationName: "Cairo", createdAt: "", updatedAt: "2026-01-01" }] }),
+    );
+
+    const { unmount } = renderProjectsPage();
+
+    expect(await screen.findByRole("listitem", { name: "Cairo Metro Extension" })).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "Table view" }));
+    expect(screen.getByRole("table")).toBeInTheDocument();
+
+    // The layout is a preference, so it must survive leaving the page.
+    unmount();
+    renderProjectsPage();
+    expect(await screen.findByRole("table")).toBeInTheDocument();
+  });
+
+  it("summarises the register from the records it already has", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      jsonResponse({ projects: [
+        { id: "1", tenantId: "1", name: "A", code: "A-1", status: "active", createdAt: "", updatedAt: "2026-01-01" },
+        { id: "2", tenantId: "1", name: "B", code: "B-1", status: "active", createdAt: "", updatedAt: "2026-01-02" },
+        { id: "3", tenantId: "1", name: "C", code: "C-1", status: "on_hold", createdAt: "", updatedAt: "2026-01-03" },
+        { id: "4", tenantId: "1", name: "D", code: "D-1", status: "archived", createdAt: "", updatedAt: "2026-01-04" },
+      ] }),
+    );
+
+    renderProjectsPage();
+
+    const summary = await screen.findByRole("group", { name: "Project register" });
+    // Every figure is counted from loaded records; none is fabricated.
+    expect(within(summary).getByText("4")).toBeInTheDocument();
+    expect(within(summary).getByText("1 archived")).toBeInTheDocument();
+    expect(within(summary).getByText("Active").parentElement).toHaveTextContent("2");
+  });
+
+  it("shows a real error state instead of pretending there are no projects", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ error: { code: "SERVER_ERROR", message: "boom" } }), { status: 500, headers: { "Content-Type": "application/json" } })),
+    );
+
+    renderProjectsPage();
+
+    expect(await screen.findByText("Projects could not be loaded")).toBeInTheDocument();
+    expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
   });
 });

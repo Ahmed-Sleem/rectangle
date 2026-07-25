@@ -17,6 +17,13 @@ export type LocaleBundle<Source> = {
     : Source[Key] extends Record<string, unknown>
       ? LocaleBundle<Source[Key]>
       : never;
+} & {
+  /**
+   * Arabic distinguishes six plural categories where English has two, so a
+   * language may legitimately define forms English never needs. Only the extra
+   * plural suffixes are permitted; anything else is still a missing-key error.
+   */
+  [Key in `${string}_${"zero" | "two" | "few" | "many"}`]?: string;
 };
 
 /** A namespace that carries both languages side by side. */

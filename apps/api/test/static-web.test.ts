@@ -18,6 +18,10 @@ class MemoryAuditRepository implements AuditRepository {
 }
 
 class EmptyProjectsRepository implements ProjectsRepository {
+  async deleteForTenant(): Promise<boolean> {
+    return true;
+  }
+
   async create(_tenantId: string, _input: CreateProjectInput): Promise<ProjectRecord> { throw new Error("not used"); }
   async findByTenantAndCode(): Promise<ProjectRecord | null> { return null; }
   async findByIdForTenant(): Promise<ProjectRecord | null> { return null; }

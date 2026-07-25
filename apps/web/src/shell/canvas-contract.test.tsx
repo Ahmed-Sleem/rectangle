@@ -20,6 +20,7 @@ import readyGateCss from "@/app/app-ready-gate.css?raw";
 import setupCss from "@/features/setup/setup-page.css?raw";
 import mainPanelSource from "./MainPanel.tsx?raw";
 import projectsSource from "@/features/projects/ProjectsPage.tsx?raw";
+import globalCss from "@/shared/styles/global.css?raw";
 import teamSource from "@/features/team/TeamPage.tsx?raw";
 import settingsSource from "@/features/settings/SettingsPage.tsx?raw";
 import resourcesSource from "@/shared/i18n/resources.ts?raw";
@@ -307,5 +308,27 @@ describe("layout containment", () => {
     // A width that matches the expected input is a usability cue; stretching
     // every control across the row throws that cue away.
     expect(select).toContain("flex: 0 0 auto");
+  });
+});
+
+describe("focus indicators", () => {
+  it("draws the ring inside the element so containers cannot clip it", () => {
+    // Most scroll areas and every window clip their overflow, so an outward ring
+    // gets sliced. Drawing it inside is the only placement that always survives.
+    expect(tokensCss).toContain("--rect-shadow-focus: inset 0 0 0");
+    expect(globalCss).toContain("box-shadow: var(--rect-shadow-focus)");
+    expect(globalCss).not.toMatch(/outline-offset:\s*[1-9]/);
+  });
+
+  it("keeps a real outline for forced-colours modes", () => {
+    // Forced-colours discards box-shadow entirely; an outline is the only
+    // indicator those users will see.
+    expect(globalCss).toContain("outline: var(--rect-focus-ring-width) solid transparent");
+    expect(globalCss).toContain("forced-colors: active");
+  });
+
+  it("never uses an outward ring on a control's resting shadow", () => {
+    const toggle = tokensCss.match(/--rect-shadow-toggle:[^;]+;/)?.[0] ?? "";
+    expect(toggle).toContain("inset 0 0 0 1px");
   });
 });

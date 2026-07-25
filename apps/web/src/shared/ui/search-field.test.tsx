@@ -73,9 +73,11 @@ describe("SearchField", () => {
       uiCss.indexOf(".rect-search__icon {"),
     );
     // Amazon-style: a search box that spans the full width loses its shape and
-    // stops reading as a discrete control.
+    // stops reading as a discrete control. `max-width: 100%` is the opposite —
+    // a cap that stops it exceeding the row — so only a set width is forbidden.
     expect(block).toContain("var(--rect-field-width-search)");
-    expect(block).not.toContain("width: 100%");
+    expect(block).not.toMatch(/(?<!max-)width:\s*100%/);
+    expect(block).toContain("max-width: 100%");
   });
 });
 
@@ -107,5 +109,29 @@ describe("FilterSelect", () => {
     ]) {
       expect(tokensCss).toContain(`${token}:`);
     }
+  });
+});
+
+describe("search focus behaviour", () => {
+  it("expands a little on focus without breaking the row", () => {
+    const block = uiCss.slice(
+      uiCss.indexOf(".rect-search__field {"),
+      uiCss.indexOf(".rect-search__icon {"),
+    );
+
+    // flex-basis keeps the growth inside the row's own sizing, so expanding can
+    // never push a sibling control out of the toolbar.
+    expect(block).toContain("transition: flex-basis");
+    expect(uiCss).toContain(".rect-search__field:focus-within");
+    expect(
+      uiCss.slice(uiCss.indexOf(".rect-search__field:focus-within")),
+    ).toContain("var(--rect-field-width-search-focus)");
+  });
+
+  it("draws focus indicators inside the control so containers cannot clip them", () => {
+    const tokens = tokensCss;
+    // An outward ring is sliced by any ancestor with overflow hidden or clip.
+    expect(tokens).toContain("--rect-shadow-focus: inset 0 0 0");
+    expect(tokens).not.toMatch(/--rect-shadow-toggle:[^;]*[^t]\s0 0 0 1px/);
   });
 });

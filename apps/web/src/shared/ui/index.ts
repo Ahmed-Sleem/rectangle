@@ -74,3 +74,21 @@ export {
   type FilterSelectProps,
   type SearchFieldProps,
 } from "./search-field";
+
+/** Page composition blocks: summary figures, card grid, side panel. */
+export {
+  AvatarGroup,
+  BreakdownBar,
+  CardGrid,
+  SidePanel,
+  StatCard,
+  StatRow,
+  ViewToggle,
+  type AvatarGroupProps,
+  type BreakdownBarProps,
+  type CardGridProps,
+  type SidePanelProps,
+  type StatCardProps,
+  type StatRowProps,
+  type ViewToggleProps,
+} from "./page-blocks";

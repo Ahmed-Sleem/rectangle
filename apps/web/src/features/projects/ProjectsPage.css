@@ -137,3 +137,90 @@
   color: var(--rect-text-secondary);
   font-size: var(--rect-text-label);
 }
+
+/* Project card: status, identity, and the dates a manager scans for. */
+.rect-project-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-2);
+  padding: var(--rect-space-4);
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+  transition:
+    background var(--rect-motion-nav),
+    border-color var(--rect-motion-nav),
+    transform var(--rect-motion-nav);
+}
+
+.rect-project-card:hover {
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-color-line-strong);
+  transform: translateY(-1px);
+}
+
+.rect-project-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rect-space-2);
+}
+
+.rect-project-card__code {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.rect-project-card__name {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-subsection);
+  font-weight: var(--rect-weight-bold);
+  line-height: var(--rect-leading-tight);
+  overflow-wrap: anywhere;
+}
+
+.rect-project-card__description {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  line-height: var(--rect-leading-snug);
+  /* Two lines keeps every card the same height without truncating mid-word. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rect-project-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--rect-space-2);
+  margin-block-start: auto;
+  padding-block-start: var(--rect-space-2);
+  border-block-start: 1px solid var(--rect-surface-divider);
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-project-card {
+    transition: none !important;
+  }
+}
+
+.rect-project-lifecycle {
+  width: var(--rect-field-width-md);
+}
+
+.rect-project-archived {
+  padding: var(--rect-space-2) var(--rect-space-3);
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}

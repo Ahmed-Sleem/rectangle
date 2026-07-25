@@ -31,6 +31,10 @@ const foreignAdmin: UserPrincipal = {
 };
 
 class StubProjectsRepository implements ProjectsRepository {
+  async deleteForTenant(): Promise<boolean> {
+    return true;
+  }
+
   readonly projects = new Map<string, ProjectRecord>();
 
   seed(record: ProjectRecord): void {

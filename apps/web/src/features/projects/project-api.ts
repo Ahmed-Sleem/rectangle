@@ -201,3 +201,7 @@ export function listProjectActivity(
 ): Promise<{ activity: ProjectActivityEntry[] }> {
   return apiRequest(`/v1/projects/${projectId}/activity`);
 }
+
+export function deleteProject(projectId: string): Promise<void> {
+  return apiRequest(`/v1/projects/${projectId}`, { method: "DELETE" });
+}

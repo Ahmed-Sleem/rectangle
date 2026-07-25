@@ -34,6 +34,11 @@ export async function registerProjectRoutes(
 
   // Tells the client what this user may do here, so the UI can hide actions
   // instead of showing controls that would fail.
+  app.delete<{ Params: ProjectParams }>("/v1/projects/:projectId", async (request, reply) => {
+    await projectService.deleteProject(request.principal, request.params.projectId);
+    return reply.status(204).send();
+  });
+
   app.get<{ Params: ProjectParams }>("/v1/projects/:projectId/access", async (request) => {
     return { access: await projectTeamService.resolveAccess(request.principal, request.params.projectId) };
   });

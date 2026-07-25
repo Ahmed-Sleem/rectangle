@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import {
@@ -39,10 +39,12 @@ import {
   listProjectMembers,
   listStakeholders,
   removeProjectMember,
+  deleteProject,
   updateProject,
   updateProjectMember,
   type ProjectMemberRole,
   type ProjectStakeholder,
+  type ProjectStatus,
   type StakeholderCategory,
 } from "./project-api";
 import "./ProjectsPage.css";
@@ -112,6 +114,8 @@ export default function ProjectDetailPage() {
   const [stakeholderOpen, setStakeholderOpen] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<{ userId: string; name: string } | null>(null);
   const [pendingStakeholder, setPendingStakeholder] = useState<ProjectStakeholder | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const navigate = useNavigate();
 
   const enabled = Boolean(projectId);
   const project = useQuery({ queryKey: ["project", projectId], queryFn: () => getProject(projectId), enabled });
@@ -192,6 +196,22 @@ export default function ProjectDetailPage() {
     onSuccess: async () => { await refresh("stakeholders", "activity"); stakeholderForm.reset(); setStakeholderOpen(false); },
   });
 
+  // One mutation for every status move, so each lands in the audit trail the
+  // same way and the UI never writes status directly.
+  const changeStatus = useMutation({
+    mutationFn: (next: ProjectStatus) => updateProject(projectId, { status: next }),
+    onSuccess: async () => { await refresh("activity"); },
+  });
+
+  const removeProject = useMutation({
+    mutationFn: () => deleteProject(projectId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setConfirmDelete(false);
+      navigate("/projects");
+    },
+  });
+
   const removeStakeholder = useMutation({
     mutationFn: (stakeholderId: string) => deleteStakeholder(projectId, stakeholderId),
     onSuccess: async () => { await refresh("stakeholders", "activity"); setPendingStakeholder(null); },
@@ -239,8 +259,40 @@ export default function ProjectDetailPage() {
               {t("projects.projectSettings")}
             </Link>
           ) : null}
+          {canManage ? (
+            <Select
+              className="rect-project-lifecycle"
+              aria-label={t("projects.lifecycle")}
+              value=""
+              disabled={changeStatus.isPending}
+              onChange={(event) => {
+                const action = event.target.value;
+                event.currentTarget.value = "";
+                if (action === "delete") { setConfirmDelete(true); return; }
+                if (action) changeStatus.mutate(action as ProjectStatus);
+              }}
+            >
+              <option value="">{t("projects.lifecycle")}</option>
+              {record.status !== "active" ? <option value="active">{t("projects.markActive")}</option> : null}
+              {record.status !== "on_hold" ? <option value="on_hold">{t("projects.putOnHold")}</option> : null}
+              {record.status !== "completed" ? <option value="completed">{t("projects.markCompleted")}</option> : null}
+              {record.status !== "archived"
+                ? <option value="archived">{t("projects.archive")}</option>
+                : <option value="planned">{t("projects.restore")}</option>}
+              <option value="delete">{t("projects.deleteProject")}</option>
+            </Select>
+          ) : null}
         </Toolbar>
       </div>
+
+      {record.status === "archived" ? (
+        <p className="rect-project-archived" role="status">{t("projects.archivedNotice")}</p>
+      ) : null}
+      {changeStatus.error ? (
+        <p className="rect-projects-form__error" role="alert">
+          {messageFor(changeStatus.error, t("projects.statusChangeFailed"))}
+        </p>
+      ) : null}
 
       <PageGrid columns={12}>
         <Card className="rect-project-detail__card"><h3>{t("projects.fieldLocation")}</h3><p>{record.locationName ?? t("projects.notSet")}</p></Card>
@@ -506,6 +558,23 @@ export default function ProjectDetailPage() {
         {removeMember.error ? (
           <p className="rect-projects-form__error" role="alert">
             {messageFor(removeMember.error, t("projects.removeMemberFailed"))}
+          </p>
+        ) : null}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title={t("projects.deleteTitle")}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => removeProject.mutate()}
+        confirmLabel={t("projects.deleteProject")}
+        tone="danger"
+        pending={removeProject.isPending}
+      >
+        <p>{t("projects.deleteBody", { name: record.name })}</p>
+        {removeProject.error ? (
+          <p className="rect-projects-form__error" role="alert">
+            {messageFor(removeProject.error, t("projects.deleteFailed"))}
           </p>
         ) : null}
       </ConfirmDialog>

@@ -11,6 +11,10 @@ const admin: UserPrincipal = { tenantId, userId, roles: ["tenant_admin"], permis
 const viewer: UserPrincipal = { tenantId, userId, roles: ["viewer"], permissions: [] };
 
 class MemoryProjectsRepository implements ProjectsRepository {
+  async deleteForTenant(): Promise<boolean> {
+    return true;
+  }
+
   readonly projects = new Map<string, ProjectRecord>();
 
   async create(projectTenantId: string, input: CreateProjectInput): Promise<ProjectRecord> {

@@ -3,7 +3,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { AuthContext, type AuthContextValue } from "@/shared/auth";
 import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
+
+const adminAuth: AuthContextValue = {
+  setupRequired: false,
+  loading: false,
+  refresh: async () => undefined,
+  user: { tenantId: "1", userId: "2", roles: ["tenant_admin"], permissions: [] },
+};
 import TeamPage from "./TeamPage";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -15,7 +23,9 @@ function renderTeam() {
   return render(
     <QueryClientProvider client={queryClient}>
       <RectangleI18nProvider>
-        <TeamPage />
+        <AuthContext.Provider value={adminAuth}>
+          <TeamPage />
+        </AuthContext.Provider>
       </RectangleI18nProvider>
     </QueryClientProvider>,
   );

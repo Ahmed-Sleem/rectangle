@@ -294,11 +294,39 @@ Rules:
 7. Filters keep capped widths (§2.3) and **wrap, never overflow**.
 8. Use `FilterBarSpacer` to push the page's primary action to the far end.
 
-### 4.5 Checkbox / switch
+### 4.5 The data page skeleton
+
+Every page that shows records follows the same shape, so a user who learns one page
+has learned them all:
+
+```
+[ action bar    ]  search · filters · view toggle · primary action
+[ summary row   ]  three to six headline figures
+[ main content  ]  card grid or table, user's choice where both make sense
+[ side panel    ]  breakdown, recent activity, or upcoming work
+```
+
+Rules:
+
+1. **Summary figures must be derived from real records.** Count what is already
+   loaded. A figure with no field behind it is not shown — no invented progress
+   percentages, no health scores without a health field.
+2. **Six figures maximum.** Past that they stop being read and become wallpaper.
+3. **Cards for scanning, tables for comparing.** Offer both through `ViewToggle`
+   where the records suit both, and remember the choice.
+4. A card shows: status, identity, one or two lines of description, and the two or
+   three fields a user scans for. It is a summary, not a record dump.
+5. **Every card is one link with an explicit `aria-label`.** Without it the
+   accessible name becomes the card's entire text.
+6. The side panel is secondary. A page must still make sense without it.
+7. `AvatarGroup` derives initials from names and works in both scripts. It never
+   assumes stored images.
+
+### 4.6 Checkbox / switch
 
 Visual box 16–18px, but the label row is 32px min-height so the target clears WCAG. Switch track 36×20 with a 16px thumb.
 
-### 4.6 Cards
+### 4.7 Cards
 
 | Kind | Padding | Radius |
 |---|---:|---:|
@@ -308,7 +336,7 @@ Visual box 16–18px, but the label row is 32px min-height so the target clears 
 
 1px soft border, card background. Do not nest a bordered card inside a bordered card — use a divider instead.
 
-### 4.7 Tables
+### 4.8 Tables
 
 - Default row **32px**, header row **32px**, sticky header, 12px cell x-padding.
 - Body 13px; header 12px semibold, secondary colour.
@@ -318,16 +346,16 @@ Visual box 16–18px, but the label row is 32px min-height so the target clears 
 - Empty tables render a centred, user-facing message row — never a blank body.
 - Under `pointer: coarse`, rows expand to 48px automatically.
 
-### 4.8 Badges
+### 4.9 Badges
 
 22px min-height, 11px bold, pill radius, 8px x-padding. Tones carry **meaning only**: `success` complete/healthy, `warning` at risk, `danger` late/critical, `info` neutral system, `accent` category. Never decorative colour.
 
-### 4.9 Windows (modals, dialogs, drawers)
+### 4.10 Windows (modals, dialogs, drawers)
 
 Never build one. See **§12 The window system** — every window in the product comes from the
 shared `Overlay`. A feature that writes its own backdrop, sizing, or close button is a defect.
 
-### 4.10 Empty, loading, error, permission states
+### 4.11 Empty, loading, error, permission states
 
 Four states are mandatory for every data surface:
 
@@ -448,6 +476,7 @@ vocabulary. This is what keeps a page built next year looking like one built tod
 | `Button` · `IconButton` | All actions |
 | `Field` · `Input` · `Select` · `Textarea` · `Checkbox` · `Switch` | All form controls |
 | **`SearchField`** · **`FilterBar`** · **`FilterSelect`** · **`FilterBarSpacer`** | **Every search and filter toolbar** (§4.4) |
+| **`StatRow`** · **`StatCard`** · **`CardGrid`** · **`SidePanel`** · **`BreakdownBar`** · **`AvatarGroup`** · **`ViewToggle`** | **Every data page skeleton** (§4.5) |
 | `Card` · `Toolbar` · `PageGrid` · `PageHeader` | Page composition |
 | `DataTable` | Every tabular surface |
 | `Badge` | Status and counts |
@@ -640,7 +669,34 @@ Every screen must survive any viewport, any content length, and any language. No
 
 ---
 
-## 15. Layout correctness traps
+## 15. Destructive and lifecycle actions
+
+Friction must match the blast radius. A single confirmation on everything teaches
+users to click through without reading, so the one that mattered gets dismissed on
+autopilot.
+
+| Action | Reversible? | Friction |
+|---|---|---|
+| Change status, archive | Yes | None. It is one move and it can be moved back. |
+| Remove a member or stakeholder | Recreatable | Simple confirmation naming the person. |
+| Delete a record permanently | No | Confirmation that names the object, states the consequence, and offers the reversible alternative. |
+
+Rules:
+
+1. **Prefer archive over delete.** Archiving keeps history and can be undone;
+   deletion cannot. Always mention archiving in a delete confirmation.
+2. **Put the verb in the button** — "Delete project", never "OK" or "Yes".
+3. **Name the specific object** in the confirmation body, not "this item".
+4. **State the consequence plainly**: what is removed and whether it can be recovered.
+5. **Group lifecycle moves in one control**, not scattered buttons, and only offer
+   moves that would change something.
+6. **Destructive actions never sit next to routine ones** where a mis-click is easy.
+7. Deleting writes its audit entry **before** the row disappears, since the audit
+   trail becomes the only remaining record.
+
+---
+
+## 16. Layout correctness traps
 
 These are not style preferences. Each one has shipped a visible defect in this
 product, and each is now enforced by a test.
@@ -693,7 +749,7 @@ must be width-capped (§2.3) rather than stretched to the boundary.
 
 ---
 
-## 16. Language and translation
+## 17. Language and translation
 
 Rectangle is Arabic-first and English-capable. **Every user-visible string comes
 from a translation**, with no exceptions, because a single hardcoded label is all
@@ -742,7 +798,7 @@ is how 117 English strings accumulated across four pages.
 
 ---
 
-## 17. Deployment safety
+## 18. Deployment safety
 
 Rectangle auto-deploys to Railway from `main`. The Dockerfile builds each app from a
 **subset** of the repository, so code that compiles locally can still fail the deploy.
@@ -764,7 +820,7 @@ Rules:
 
 ---
 
-## 18. Definition of done for any UI work
+## 19. Definition of done for any UI work
 
 - [ ] Every spacing, size, radius, weight and font-size comes from a token in §2.
 - [ ] The page mounts inside `.rect-panel__content` and adds no outer width or margin.
@@ -790,4 +846,7 @@ Rules:
 - [ ] Verified at 320px wide and 560px tall with nothing clipped or overflowing.
 - [ ] Nothing new was built that already exists in the block table (§11).
 - [ ] No import escapes the app directory into `design/`, `docs/`, or another app.
-- [ ] `./scripts/verify.sh` passes in full, including the deployment checks (§15).
+- [ ] Focus indicators are drawn inside the element so containers cannot clip them.
+- [ ] Destructive actions follow the friction ladder in §15.
+- [ ] `node scripts/checks/feature-checklist.mjs` passes for this page.
+- [ ] `./scripts/verify.sh` passes in full, including the deployment checks (§18).

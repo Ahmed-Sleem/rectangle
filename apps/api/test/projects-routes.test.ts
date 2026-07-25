@@ -23,6 +23,13 @@ async function token(roles: string[]) {
 }
 
 class MemoryProjectsRepository implements ProjectsRepository {
+  async deleteForTenant(deleteTenantId: string, id: string): Promise<boolean> {
+    const project = this.projects.get(id);
+    if (!project || project.tenantId !== deleteTenantId) return false;
+    this.projects.delete(id);
+    return true;
+  }
+
   readonly projects = new Map<string, ProjectRecord>();
 
   async create(projectTenantId: string, input: CreateProjectInput): Promise<ProjectRecord> {
@@ -329,6 +336,62 @@ describe("Projects routes", () => {
     });
 
     expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("deletes a project and records why it disappeared", async () => {
+    const { app, audit } = await createTestServer();
+    const bearer = await token(["tenant_admin"]);
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      headers: { authorization: `Bearer ${bearer}` },
+      payload: { name: "Cancelled Tender", code: "CAN-01", status: "planned" },
+    });
+    const projectId = created.json().project.id as string;
+
+    const removed = await app.inject({
+      method: "DELETE",
+      url: `/v1/projects/${projectId}`,
+      headers: { authorization: `Bearer ${bearer}` },
+    });
+    expect(removed.statusCode).toBe(204);
+
+    // The record is gone, so the audit entry is the only remaining trace and
+    // must carry enough detail to identify what was removed.
+    expect(audit.events.at(-1)).toMatchObject({ action: "project.delete" });
+    expect(audit.events.at(-1)?.metadata).toMatchObject({ code: "CAN-01", name: "Cancelled Tender" });
+
+    const after = await app.inject({
+      method: "GET",
+      url: `/v1/projects/${projectId}`,
+      headers: { authorization: `Bearer ${bearer}` },
+    });
+    expect(after.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("refuses deletion from a user who cannot manage projects", async () => {
+    const { app } = await createTestServer();
+    const adminBearer = await token(["tenant_admin"]);
+    const viewerBearer = await token(["viewer"]);
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      headers: { authorization: `Bearer ${adminBearer}` },
+      payload: { name: "Protected", code: "PRO-01", status: "active" },
+    });
+    const projectId = created.json().project.id as string;
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/v1/projects/${projectId}`,
+      headers: { authorization: `Bearer ${viewerBearer}` },
+    });
+
+    expect(response.statusCode).toBe(403);
     await app.close();
   });
 });

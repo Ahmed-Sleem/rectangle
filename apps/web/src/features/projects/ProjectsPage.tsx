@@ -7,7 +7,12 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
-import { Badge, Button, DataTable, EmptyState, Field, FilterBar, FilterBarSpacer, FilterSelect, FormDialog, Input, SearchField, Select, Textarea } from "@/shared/ui";
+import {
+  Badge, Button, CardGrid, DataTable, EmptyState, ErrorState, Field, FilterBar,
+  FilterBarSpacer, FilterSelect, FormDialog, Input, SearchField, Select,
+  StatCard, StatRow, Textarea, ViewToggle,
+} from "@/shared/ui";
+import { LayoutGrid, Rows3 } from "lucide-react";
 import { useOptionalAuth } from "@/shared/auth";
 import { createProject, listProjects, type CreateProjectPayload, type ProjectRecord, type ProjectStatus } from "./project-api";
 import "./ProjectsPage.css";
@@ -57,6 +62,28 @@ function statusTone(status: ProjectStatus): "success" | "warning" | "info" | "ne
 }
 
 type SortKey = "name" | "code" | "status" | "updatedAt";
+type ViewMode = "cards" | "table";
+
+const VIEW_STORAGE_KEY = "rectangle.projects.view";
+
+/** The chosen layout is a preference, so it survives navigation and reloads. */
+function readStoredView(): ViewMode {
+  if (typeof window === "undefined") return "cards";
+  try {
+    return window.localStorage.getItem(VIEW_STORAGE_KEY) === "table" ? "table" : "cards";
+  } catch {
+    return "cards";
+  }
+}
+
+function storeView(value: ViewMode): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(VIEW_STORAGE_KEY, value);
+  } catch {
+    /* Private browsing should not break the toggle. */
+  }
+}
 
 function compareProjects(a: ProjectRecord, b: ProjectRecord, key: SortKey): number {
   if (key === "updatedAt") return b.updatedAt.localeCompare(a.updatedAt);
@@ -69,6 +96,7 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<ProjectStatus | "">("");
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
+  const [view, setView] = useState<ViewMode>(() => readStoredView());
   const { t } = useTranslation();
   const auth = useOptionalAuth();
 
@@ -114,6 +142,11 @@ export default function ProjectsPage() {
     [projects.data?.projects, sortKey],
   );
   const isFiltered = Boolean(search.trim() || status);
+
+  // Headline figures come from the records already loaded; nothing is invented.
+  const all = projects.data?.projects ?? [];
+  const countBy = (value: ProjectStatus) => all.filter((project) => project.status === value).length;
+  const archivedCount = countBy("archived");
   const errorMessage = create.error instanceof ApiClientError ? create.error.message : create.error ? t("projects.createFailed") : null;
 
   return (
@@ -149,12 +182,40 @@ export default function ProjectsPage() {
           <option value="status">{t("projects.sortStatus")}</option>
         </FilterSelect>
         <FilterBarSpacer />
+        <ViewToggle<ViewMode>
+          label={t("projects.cardView")}
+          value={view}
+          onChange={(next) => { setView(next); storeView(next); }}
+          options={[
+            { value: "cards", label: t("projects.cardView"), icon: <LayoutGrid size={16} strokeWidth={2} aria-hidden /> },
+            { value: "table", label: t("projects.tableView"), icon: <Rows3 size={16} strokeWidth={2} aria-hidden /> },
+          ]}
+        />
         {canManage ? (
           <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("projects.create")}</Button>
         ) : null}
       </FilterBar>
 
-      {projects.isLoading ? (
+      {all.length > 0 ? (
+        <StatRow label={t("projects.register")}>
+          <StatCard
+            label={t("projects.kpiTotal")}
+            value={all.length}
+            {...(archivedCount > 0 ? { hint: t("projects.kpiArchivedSuffix", { count: archivedCount }) } : {})}
+          />
+          <StatCard label={t("projects.kpiActive")} value={countBy("active")} emphasis />
+          <StatCard label={t("projects.kpiOnHold")} value={countBy("on_hold")} />
+          <StatCard label={t("projects.kpiCompleted")} value={countBy("completed")} />
+        </StatRow>
+      ) : null}
+
+      {projects.isError ? (
+        <ErrorState
+          title={t("projects.listErrorTitle")}
+          message={t("projects.listErrorMessage")}
+          action={<Button variant="secondary" onClick={() => void projects.refetch()}>{t("projects.tryAgain")}</Button>}
+        />
+      ) : projects.isLoading ? (
         <EmptyState title={t("projects.loadingTitle")} message={t("projects.loadingMessage")} />
       ) : rows.length === 0 && isFiltered ? (
         <EmptyState
@@ -172,6 +233,36 @@ export default function ProjectsPage() {
             ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("projects.create")}</Button> }
             : {})}
         />
+      ) : view === "cards" ? (
+        <CardGrid label={t("projects.register")}>
+          {rows.map((project) => (
+            <Link
+              key={project.id}
+              className="rect-project-card"
+              to={`/projects/${project.id}`}
+              role="listitem"
+              // Without this the accessible name becomes the whole card's text.
+              aria-label={project.name}
+            >
+              <span className="rect-project-card__head">
+                <Badge tone={statusTone(project.status)}>{t(`enums.projectStatus.${project.status}`)}</Badge>
+                <span className="rect-project-card__code">{project.code}</span>
+              </span>
+              <span className="rect-project-card__name">{project.name}</span>
+              {project.description ? (
+                <span className="rect-project-card__description">{project.description}</span>
+              ) : null}
+              <span className="rect-project-card__meta">
+                <span>{project.locationName ?? t("projects.notSet")}</span>
+                <span>
+                  {project.plannedStartDate && project.plannedFinishDate
+                    ? `${project.plannedStartDate} → ${project.plannedFinishDate}`
+                    : t("projects.notSet")}
+                </span>
+              </span>
+            </Link>
+          ))}
+        </CardGrid>
       ) : (
         <DataTable
           caption={t("projects.register")}
@@ -179,8 +270,8 @@ export default function ProjectsPage() {
             { id: "name", header: t("projects.columnProject"), accessor: (project) => <Link className="rect-projects-link" to={`/projects/${project.id}`}>{project.name}</Link> },
             { id: "code", header: t("projects.columnCode"), accessor: (project) => project.code },
             { id: "status", header: t("projects.columnStatus"), accessor: (project) => <Badge tone={statusTone(project.status)}>{t(`enums.projectStatus.${project.status}`)}</Badge> },
-            { id: "location", header: t("projects.columnLocation"), accessor: (project) => project.locationName ?? "—" },
-            { id: "dates", header: t("projects.columnDates"), accessor: (project) => project.plannedStartDate && project.plannedFinishDate ? `${project.plannedStartDate} → ${project.plannedFinishDate}` : "—" },
+            { id: "location", header: t("projects.columnLocation"), accessor: (project) => project.locationName ?? t("common.notAvailable") },
+            { id: "dates", header: t("projects.columnDates"), accessor: (project) => project.plannedStartDate && project.plannedFinishDate ? `${project.plannedStartDate} → ${project.plannedFinishDate}` : t("common.notAvailable") },
           ]}
           rows={rows}
           getRowKey={(project) => project.id}

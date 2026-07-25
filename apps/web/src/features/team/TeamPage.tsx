@@ -5,9 +5,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
-import { Button, Card, Checkbox, DataTable, Field, Input, FormDialog, PageGrid, Toolbar } from "@/shared/ui";
+import { Button, Card, Checkbox, DataTable, EmptyState, ErrorState, Field, Input, FormDialog, LoadingState, PageGrid, Toolbar } from "@/shared/ui";
+import { useOptionalAuth } from "@/shared/auth";
 import { ApiClientError } from "@/shared/api/client";
-import { adminApi } from "./admin-api";
+import { adminApi, type AdminUserRecord } from "./admin-api";
 import "./TeamPage.css";
 
 const userTypeSchema = z.object({
@@ -29,6 +30,12 @@ type UserForm = z.infer<typeof userSchema>;
 
 export default function TeamPage() {
   const { t } = useTranslation();
+  const auth = useOptionalAuth();
+  // Only offer administration to people whose request would actually succeed.
+  const canManage =
+    auth?.user?.roles.some((role) => ["tenant_owner", "tenant_admin"].includes(role)) ||
+    auth?.user?.permissions.includes("users.manage") ||
+    false;
   const [typeOpen, setTypeOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -55,19 +62,62 @@ export default function TeamPage() {
   const typeError = createType.error instanceof ApiClientError ? createType.error.message : createType.error ? t("team.createUserTypeFailed") : null;
   const userError = createUser.error instanceof ApiClientError ? createUser.error.message : createUser.error ? t("team.createUserFailed") : null;
 
+  const isLoading = userTypes.isLoading || users.isLoading;
+  const isError = userTypes.isError || users.isError;
+
+  if (isLoading) {
+    return <LoadingState title={t("team.loadingTitle")} message={t("team.loadingMessage")} />;
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        title={t("team.errorTitle")}
+        message={t("team.errorMessage")}
+        action={
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void userTypes.refetch();
+              void users.refetch();
+            }}
+          >
+            {t("team.tryAgain")}
+          </Button>
+        }
+      />
+    );
+  }
+
+  const typeRows = userTypes.data?.userTypes ?? [];
+  const userRows = users.data?.users ?? [];
+
   return (
     <section className="rect-team-page" aria-label={t("team.pageLabel")}>
       <Toolbar className="rect-team-toolbar">
-        <Button variant="secondary" onClick={() => setTypeOpen(true)}>{t("team.createUserType")}</Button>
-        <Button variant="primary" onClick={() => setUserOpen(true)} disabled={(userTypes.data?.userTypes.length ?? 0) === 0}>{t("team.createUser")}</Button>
+        {canManage ? (
+          <>
+            <Button variant="secondary" onClick={() => setTypeOpen(true)}>{t("team.createUserType")}</Button>
+            <Button variant="primary" onClick={() => setUserOpen(true)} disabled={typeRows.length === 0} title={typeRows.length === 0 ? t("team.needTypeFirst") : undefined}>{t("team.createUser")}</Button>
+          </>
+        ) : null}
       </Toolbar>
 
       <PageGrid columns={12}>
         <Card className="rect-team-card rect-team-card--wide">
           <h2>{t("team.userTypesTitle")}</h2>
+          {typeRows.length === 0 ? (
+            <EmptyState
+              title={t("team.noUserTypesTitle")}
+              message={canManage ? t("team.noUserTypesMessage") : t("team.readOnlyMessage")}
+              {...(canManage
+                ? { action: <Button variant="primary" onClick={() => setTypeOpen(true)}>{t("team.createUserType")}</Button> }
+                : {})}
+            />
+          ) : (
           <DataTable
             caption={t("team.userTypesTitle")}
-            rows={userTypes.data?.userTypes ?? []}
+            rows={typeRows}
             getRowKey={(row) => row.id}
             columns={[
               { id: "name", header: t("team.userTypeName"), accessor: (row) => (row.systemType ? t(`enums.systemUserType.${row.key}`, { defaultValue: row.name }) : row.name) },
@@ -76,22 +126,30 @@ export default function TeamPage() {
             ]}
             emptyMessage={t("team.noUserTypes")}
           />
+          )}
         </Card>
         <Card className="rect-team-card rect-team-card--wide">
           <h2>{t("team.usersTitle")}</h2>
+          {userRows.length === 0 ? (
+            <EmptyState
+              title={t("team.noUsersTitle")}
+              message={canManage ? t("team.noUsersMessage") : t("team.readOnlyMessage")}
+            />
+          ) : (
           <DataTable
             caption={t("team.usersTitle")}
-            rows={users.data?.users ?? []}
+            rows={userRows}
             getRowKey={(row) => row.id}
             columns={[
               { id: "name", header: t("team.userName"), accessor: (row) => row.displayName },
               { id: "email", header: t("team.userEmail"), accessor: (row) => row.email },
               { id: "types", header: t("team.userTypes"), accessor: (row) => row.userTypes.map((type) => type.name).join(t("common.listSeparator")) || t("common.notAvailable") },
               { id: "status", header: t("team.userStatus"), accessor: (row) => t(`enums.userStatus.${row.status}`) },
-              { id: "action", header: t("team.userAction"), accessor: (row) => <Button size="sm" variant="secondary" onClick={() => updateUser.mutate({ userId: row.id, status: row.status === "active" ? "disabled" : "active" })}>{row.status === "active" ? t("team.disable") : t("team.activate")}</Button> },
+              ...(canManage ? [{ id: "action", header: t("team.userAction"), accessor: (row: AdminUserRecord) => <Button size="sm" variant="secondary" onClick={() => updateUser.mutate({ userId: row.id, status: row.status === "active" ? "disabled" : "active" })}>{row.status === "active" ? t("team.disable") : t("team.activate")}</Button> }] : []),
             ]}
             emptyMessage={t("team.noUsers")}
           />
+          )}
         </Card>
       </PageGrid>
 
