@@ -52,6 +52,26 @@ A Rectangle feature is production-ready only when all of these are true:
 
 ---
 
+
+## 1.1 Mandatory UI/UX presentation contract
+
+Before implementing any feature, read [`docs/UI_UX_PRESENTATION_PLAN.md`](./UI_UX_PRESENTATION_PLAN.md) and write/confirm that feature's presentation contract. This is now part of the production-ready definition.
+
+For each feature, the implementation plan must specify:
+
+- what is displayed to the user,
+- which cards, tables, charts, lists, badges, avatars, progress bars, activity feeds, and AI panels appear,
+- which backend fields power each visible element,
+- what actions are available to each role,
+- what filters/search/sort/view toggles exist,
+- which modal/drawer/page flows create/edit/detail records,
+- what loading/empty/error/permission states look like,
+- what settings are needed for the feature,
+- what Arabic/RTL checks are required,
+- what is hidden until real backend support exists.
+
+Tornix is a coverage reference only. Rectangle must include all equivalent visible surfaces, but with better grouping, stronger production workflows, auditability, permissions, integrations, and AI grounding.
+
 ## 2. Confidence / success-rate scale
 
 These percentages are **planning confidence**, not guarantees.
@@ -462,6 +482,12 @@ Security:
 
 **Confidence:** 90% after backend/auth foundation.
 
+UI/UX display contract:
+- Show real project cards/table rows with status, health, progress, dates, manager/team, and budget/location only when backed by project fields.
+- Provide create, detail, edit/settings, members/stakeholders, search/filter/sort, and activity/audit views.
+- Hide actions the user cannot perform; show clean empty/loading/error/permission states.
+- Use the project workspace as the hub for tasks, documents, risks, approvals, schedule, controls, and field records.
+
 Pages:
 
 - `/projects` list
@@ -507,6 +533,11 @@ Success metric:
 
 **Confidence:** 85%
 
+UI/UX display contract:
+- Show role-specific focus, KPI cards, due items, active project summary, risk/issue breakdown, approvals needing action, and recent activity from real records.
+- Every card must drill into the source records the user can access.
+- AI daily brief appears only when grounded by real activity/audit/project data with citations.
+
 Pages:
 
 - `/` Today
@@ -537,6 +568,11 @@ Security:
 ## 10. Tasks / Work Packages
 
 **Confidence:** 85%
+
+UI/UX display contract:
+- Show list, board, and calendar views with real task cards, project, assignee, status, priority, due date, checklist progress, comments, and attachments.
+- Provide create/edit/detail, assignment, status movement, filters, and comments only through backend-enforced rules.
+- Keep board/list/calendar consistent and permission-aware.
 
 Pages:
 
@@ -578,6 +614,11 @@ AI:
 ## 11. Documents foundation
 
 **Confidence:** 80%; PDF annotation needs spike.
+
+UI/UX display contract:
+- Show document registry, recent files, folders/categories, metadata, versions, approval status, preview/detail, and upload flow from real document records.
+- Provide upload, metadata edit, search/filter, preview/download, submit for approval, and version history actions by permission.
+- AI categorization/indexing banners appear only after real extraction/indexing exists.
 
 Pages:
 
@@ -621,6 +662,11 @@ Security:
 
 **Confidence:** 90%
 
+UI/UX display contract:
+- Show risk KPI cards, register table, 5x5 matrix, issue log, owners, mitigation, due dates, and status from real risk/issue records.
+- Provide create/edit/detail, owner assignment, mitigation task links, filters, and status updates with derived backend scoring.
+- AI recommendation banners require evidence and human confirmation.
+
 Pages:
 
 - `/risks`
@@ -656,6 +702,11 @@ AI:
 ## 13. Approvals / workflow MVP
 
 **Confidence:** 80%
+
+UI/UX display contract:
+- Show approval inbox, action-needed cards, request detail, SLA/due indicators, comments, participants, timeline, and decision history.
+- Provide submit, approve, reject, comment, delegate/escalate where policy allows, and filters by type/status/project.
+- Enforce assigned-approver and state-machine rules in the backend.
 
 Pages:
 
@@ -697,6 +748,11 @@ Security:
 
 **Confidence:** 70% until spikes complete.
 
+UI/UX display contract:
+- Show calendar, activity table, Gantt, activity detail, baseline compare, import wizard, and validation report only after schedule engine decisions are validated.
+- Provide day/week/month calendar interactions, schedule filters, dependency editing, baseline view, and P6/MSP import validation.
+- Calendar events aggregate real tasks, milestones, inspections, approvals, meetings, and schedule activities.
+
 Spikes first:
 
 1. Gantt UI bake-off: DHTMLX vs SVAR vs Frappe.
@@ -732,6 +788,11 @@ Security:
 
 **Confidence:** 75%
 
+UI/UX display contract:
+- Show CPI/SPI, cost variance, actual cost, BAC/EAC/VAC, budget vs actual, cash flow, cost code tree, budget lines, actuals, forecast, and change orders from real financial records.
+- Provide cost code management, budget revisions, actual import/review, change order workflows, approvals, filters, and exports.
+- Financial charts are formula-backed and audited, not static visuals.
+
 Pages:
 
 - `/controls`
@@ -765,6 +826,11 @@ Security:
 ## 16. Field modules
 
 **Confidence:** 75% after Documents/Projects/Approvals.
+
+UI/UX display contract:
+- Show a Field landing page for RFIs, submittals, daily logs, punch, drawings, photos, inspections, safety, overdue/action badges, and project/site filters.
+- Provide create/detail/workflow actions, evidence upload, drawing/document/task links, and closeout actions by permission.
+- Prioritize mobile-friendly dense forms and offline-ready design later.
 
 Features:
 
@@ -802,6 +868,11 @@ Tests:
 
 **Confidence:** 65% until benchmark.
 
+UI/UX display contract:
+- Show global search/command palette with permission-filtered results grouped by project, document, task, risk, approval, meeting, correspondence, and action.
+- Provide Arabic-aware query behavior, exact code search, filters, recent searches, and keyboard navigation.
+- Never reveal restricted records in result counts, previews, or AI retrieval.
+
 Spike:
 
 - Corpus of Arabic/mixed construction text.
@@ -828,6 +899,11 @@ Tests:
 
 **Confidence:** 80% after Projects/Tasks/Risks/Controls.
 
+UI/UX display contract:
+- Show portfolio health, strategy/KPI tree, Balanced Scorecard-style executive views, report builder, briefing packs, and export center from real rollups.
+- Provide filters, saved reports, export actions, scheduled reports later, and source-record drilldown.
+- Strategic cards require company configuration and source links; no static executive numbers.
+
 Pages:
 
 - portfolio health
@@ -847,6 +923,11 @@ Tests:
 ## 19. Per-company deployment phase
 
 **Confidence:** 75% until target infra chosen.
+
+UI/UX display contract:
+- Admin/settings screens must expose deployment-relevant configuration clearly: company profile, localization, users/roles, email, security, modules, workflow, integrations, AI provider, audit retention, backup/export.
+- Only owners/admins see shared company configuration; personal settings remain separate.
+- Configuration tests must use real endpoints/secrets and show safe error states.
 
 Profiles:
 
@@ -889,6 +970,13 @@ Reuse candidates reviewed:
 License decision:
 Data model:
 API/service use-cases:
+UI presentation contract:
+Displayed cards/tables/charts/lists:
+User actions/options by role:
+Loading/empty/error/permission states:
+Filters/search/sort/view toggles:
+Create/edit/detail modal-drawer-page flow:
+Feature settings needed:
 UI states:
 Validation rules:
 Permissions:

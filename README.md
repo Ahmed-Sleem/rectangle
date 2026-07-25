@@ -85,6 +85,7 @@ rectangle/
 | [design/demo/shell.html](./design/demo/shell.html) | Original HTML design demo |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Shell + feature modules + Railway |
 | [docs/PRODUCT_FEATURE_BLUEPRINT.md](./docs/PRODUCT_FEATURE_BLUEPRINT.md) | Complete feature/page blueprint for the ultimate Arabic-first construction PMO app |
+| [docs/UI_UX_PRESENTATION_PLAN.md](./docs/UI_UX_PRESENTATION_PLAN.md) | User-visible UI/UX presentation plan and Tornix-inspired coverage guardrail |
 | [docs/FEATURE_REUSE_RESEARCH.md](./docs/FEATURE_REUSE_RESEARCH.md) | GitHub/open-source reuse candidates and per-feature research register |
 | [docs/MASTER_IMPLEMENTATION_PLAN.md](./docs/MASTER_IMPLEMENTATION_PLAN.md) | Step-by-step full-app implementation plan with tests/security/gates |
 | [docs/MASTER_PLAN_AUDIT.md](./docs/MASTER_PLAN_AUDIT.md) | Audit of the master implementation plan and remaining proof spikes |

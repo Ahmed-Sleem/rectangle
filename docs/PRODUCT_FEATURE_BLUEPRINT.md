@@ -66,6 +66,19 @@ External current scan used:
 
 ---
 
+
+### 3.1 User-visible presentation layer
+
+Rectangle's feature plan must be implemented with an explicit UI/UX presentation contract, not only a backend/module list. The detailed source is [`docs/UI_UX_PRESENTATION_PLAN.md`](./UI_UX_PRESENTATION_PLAN.md).
+
+Rules from that presentation plan are mandatory for every feature page:
+
+- Use Tornix-style visible coverage only as inspiration, never as source of truth.
+- Cover every user-visible area Tornix exposes — dashboard, projects, tasks, email/correspondence, chat, calendar, meetings, risks, documents, requests, team, purchases, costs, library, strategy, PMO — then exceed it with Rectangle's production depth.
+- Every displayed count/card/chart/table/avatar/progress/status/AI recommendation must come from real backend data or show a clean end-user state.
+- Every feature must define what is displayed, how users act, which options are available, and which settings/permissions shape the page before implementation starts.
+- Features may be grouped differently from Tornix to keep Rectangle clearer and more enterprise-ready.
+
 ## 4. Arabic / RTL requirements for the app
 
 ### 4.1 Product language behavior
@@ -678,3 +691,9 @@ The reuse research was expanded with deeper search/thinking loops for licenses, 
 - Treat remaining gaps as **hands-on spikes**, not just reading gaps.
 - The next implementation should still be foundation-first, but before coding it should answer the “no gaps before feature” checklist now added to the reuse research file.
 - It is acceptable to use lesser-known individual projects if their license, code quality, security, tests, and compatibility are validated.
+
+### 2026-07-25 — Tornix-inspired UI/UX coverage guardrail
+
+- Added `docs/UI_UX_PRESENTATION_PLAN.md` as the user-visible presentation contract for Rectangle.
+- The Tornix GUI inventory is used as inspiration only: Rectangle must cover all visible categories and exceed them with real backend-backed workflows, permissions, audit, Arabic/RTL quality, and grounded AI.
+- The blueprint remains the source of product architecture; the UI/UX presentation plan defines what each feature should display, how users act, and what must stay hidden until real.
