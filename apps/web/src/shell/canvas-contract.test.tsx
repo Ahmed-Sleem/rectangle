@@ -133,6 +133,24 @@ describe("design token discipline", () => {
     }
   });
 
+  it("has no untokenized font sizes anywhere in the app", () => {
+    const sources: Array<[string, string]> = [
+      ["ui.css", uiCss],
+      ["shell.css", shellCss],
+      ["ai-panel.css", aiPanelCss],
+      ["ProjectsPage.css", projectsCss],
+      ["TeamPage.css", teamCss],
+      ["SettingsPage.css", settingsCss],
+      ["app-ready-gate.css", readyGateCss],
+      ["setup-page.css", setupCss],
+    ];
+
+    for (const [name, source] of sources) {
+      const raw = [...source.matchAll(/font-size:\s*([0-9.]+(?:rem|px|em))/g)].map((m) => m[1]);
+      expect(raw, `${name} has untokenized font-size values: ${raw.join(", ")}`).toEqual([]);
+    }
+  });
+
   it("expands controls to a touch target on coarse pointers", () => {
     expect(uiCss).toContain("@media (pointer: coarse)");
     expect(uiCss).toContain("var(--rect-control-touch)");

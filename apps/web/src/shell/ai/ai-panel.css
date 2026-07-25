@@ -96,7 +96,7 @@
 }
 
 .rect-ai-panel__title {
-  font-size: 0.95rem;
+  font-size: var(--rect-text-subsection);
   font-weight: var(--rect-weight-bold);
   letter-spacing: -0.03em;
   line-height: 1.1;
@@ -104,7 +104,7 @@
 
 .rect-ai-panel__status {
   margin-top: 3px;
-  font-size: 0.72rem;
+  font-size: var(--rect-text-label);
   color: var(--rect-text-secondary);
   font-weight: 600;
 }
@@ -155,7 +155,7 @@
   color: var(--rect-badge-text);
   border-radius: var(--rect-pill-radius);
   padding: 5px 9px;
-  font-size: 0.68rem;
+  font-size: var(--rect-text-micro);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -193,14 +193,14 @@
 .rect-ai-panel__empty-title {
   color: var(--rect-text-primary);
   font-weight: var(--rect-weight-bold);
-  font-size: 0.95rem;
+  font-size: var(--rect-text-subsection);
   letter-spacing: -0.02em;
   margin-bottom: 7px;
 }
 
 .rect-ai-panel__empty-text {
   max-width: 250px;
-  font-size: 0.78rem;
+  font-size: var(--rect-text-label);
   line-height: 1.5;
   font-weight: var(--rect-weight-regular);
 }
@@ -213,7 +213,7 @@
 
 .rect-ai-composer__label {
   display: block;
-  font-size: 0.68rem;
+  font-size: var(--rect-text-micro);
   font-weight: var(--rect-weight-bold);
   color: var(--rect-text-secondary);
   text-transform: uppercase;
@@ -230,7 +230,7 @@
   border-radius: 16px;
   padding: 12px;
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--rect-text-table);
   line-height: 1.45;
   outline: none;
 }
@@ -278,7 +278,7 @@
 .rect-ai-composer__send {
   gap: 6px;
   padding: 0 11px;
-  font-size: 0.74rem;
+  font-size: var(--rect-text-label);
   font-weight: var(--rect-weight-bold);
 }
 

@@ -98,6 +98,16 @@ Never use 6px, 10px, 14px, 18px as spacing. Round to the scale.
 | `--rect-text-page` | 20 | bold | tight | canvas page title (h1) |
 | `--rect-text-kpi` | 28 | bold | 1.0 | headline metric numbers only |
 
+Brand/display sizes, deliberately off the content scale because they are identity surfaces rather than page content:
+
+| Token | px | Use |
+|---|---:|---|
+| `--rect-text-display` | 25 | auth/setup headline |
+| `--rect-text-wordmark` | 22 | collapsed rail wordmark |
+| `--rect-text-wordmark-lg` | 28 | expanded rail wordmark |
+
+**No raw `font-size` value may appear in any component CSS.** Every size resolves to a token — enforced by a failing test.
+
 Line-height tokens: `--rect-leading-tight` 1.15, `--rect-leading-snug` 1.3, `--rect-leading-body` 1.45.
 
 **Never render body text below 12px.**

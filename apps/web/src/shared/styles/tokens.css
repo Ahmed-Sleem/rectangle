@@ -141,6 +141,12 @@
   --rect-text-page: 20px;
   --rect-text-kpi: 28px;
 
+  /* Brand/display sizes. Deliberately off the content scale: these are
+     identity surfaces (wordmark, auth headline), not page content. */
+  --rect-text-display: 25px;
+  --rect-text-wordmark: 22px;
+  --rect-text-wordmark-lg: 28px;
+
   --rect-leading-tight: 1.15;
   --rect-leading-snug: 1.3;
   --rect-leading-body: 1.45;

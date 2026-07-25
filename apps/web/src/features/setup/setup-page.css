@@ -8,7 +8,7 @@
 
 .rect-setup-card__header p {
   color: var(--rect-text-secondary);
-  font-size: 0.78rem;
+  font-size: var(--rect-text-label);
   font-weight: var(--rect-weight-bold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -16,7 +16,7 @@
 
 .rect-setup-card__header h1 {
   color: var(--rect-text-primary);
-  font-size: 1.55rem;
+  font-size: var(--rect-text-display);
   font-weight: 900;
   letter-spacing: -0.045em;
   margin-top: 6px;
@@ -26,7 +26,7 @@
 .rect-setup-form__error {
   color: var(--rect-text-secondary);
   display: block;
-  font-size: 0.86rem;
+  font-size: var(--rect-text-body);
   font-weight: 600;
   line-height: 1.5;
   margin-top: 6px;

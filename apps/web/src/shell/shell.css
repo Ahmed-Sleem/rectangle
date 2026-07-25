@@ -39,7 +39,7 @@
 .rect-logo {
   font-family: var(--rect-font);
   font-weight: 900;
-  font-size: 1.75rem;
+  font-size: var(--rect-text-wordmark-lg);
   letter-spacing: -0.04em;
   color: var(--rect-logo);
   margin-bottom: 18px;
@@ -59,7 +59,7 @@
 }
 
 .rect-app--collapsed .rect-logo {
-  font-size: 1.35rem;
+  font-size: var(--rect-text-wordmark);
   letter-spacing: -0.05em;
   padding: 0;
   margin-bottom: 14px;
@@ -99,7 +99,7 @@
   border-radius: var(--rect-nav-item-radius);
   color: var(--rect-nav-text);
   font-weight: 500;
-  font-size: 0.8125rem;
+  font-size: var(--rect-text-table);
   letter-spacing: -0.01em;
   gap: 9px;
   white-space: nowrap;
@@ -237,7 +237,7 @@
   color: var(--rect-badge-text);
   padding: 5px 12px;
   border-radius: var(--rect-pill-radius);
-  font-size: 0.72rem;
+  font-size: var(--rect-text-label);
   font-weight: 600;
   border: 1px solid var(--rect-badge-border);
   letter-spacing: -0.01em;
@@ -302,7 +302,7 @@
   justify-content: center;
   color: var(--rect-text-muted);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--rect-text-body);
 }
 
 /* Empty state */
@@ -358,12 +358,12 @@
 
 .rect-error__title {
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: var(--rect-text-section);
 }
 
 .rect-error__text {
   color: var(--rect-text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--rect-text-body);
 }
 
 /* ── Tablet ── */
@@ -411,14 +411,14 @@
   }
 
   .rect-logo {
-    font-size: 1.35rem;
+    font-size: var(--rect-text-wordmark);
     margin-bottom: 4px;
     width: 100%;
     padding: 0 6px;
   }
 
   .rect-app--collapsed .rect-logo {
-    font-size: 1.25rem;
+    font-size: var(--rect-text-page);
     width: 100%;
     justify-content: flex-start;
     padding: 0 6px;
@@ -453,7 +453,7 @@
 
   .rect-nav-item {
     padding: 6px 10px;
-    font-size: 0.75rem;
+    font-size: var(--rect-text-label);
     min-height: 32px;
     gap: 6px;
   }
@@ -471,7 +471,7 @@
     margin: 0;
     clip: auto;
     overflow: visible;
-    font-size: 0.75rem;
+    font-size: var(--rect-text-label);
   }
 
   .rect-panel {
@@ -495,7 +495,7 @@
 
 @media (max-width: 480px) {
   .rect-nav-item {
-    font-size: 0.7rem;
+    font-size: var(--rect-text-micro);
     padding: 5px 8px;
   }
 
@@ -508,7 +508,7 @@
   }
 
   .rect-logo {
-    font-size: 1.2rem;
+    font-size: var(--rect-text-page);
   }
 }
 
@@ -566,7 +566,7 @@
 .rect-logo {
   margin-bottom: 0;
   padding: 0;
-  font-size: 1.55rem;
+  font-size: var(--rect-text-display);
   min-width: 0;
   flex: 1;
 }
@@ -578,7 +578,7 @@
 }
 
 .rect-app--collapsed .rect-logo {
-  font-size: 1.24rem;
+  font-size: var(--rect-text-page);
   margin-bottom: 0;
 }
 
@@ -603,7 +603,7 @@
   padding: 0 8px;
   cursor: pointer;
   font: inherit;
-  font-size: 0.74rem;
+  font-size: var(--rect-text-label);
   font-weight: var(--rect-weight-medium);
   letter-spacing: -0.01em;
   transition:
@@ -680,7 +680,7 @@
   min-height: 32px;
   padding: 6px 8px;
   gap: 8px;
-  font-size: 0.78rem;
+  font-size: var(--rect-text-label);
   transform: translateZ(0);
 }
 
