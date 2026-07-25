@@ -28,6 +28,7 @@ import {
   Textarea,
   Toolbar,
   buttonClassName,
+  ProgressBar,
 } from "@/shared/ui";
 import { adminApi } from "@/features/team/admin-api";
 import { listTasks } from "@/features/tasks/task-api";
@@ -428,6 +429,13 @@ export default function ProjectDetailPage() {
           <EmptyState title={t("projects.tasksEmpty")} message="" />
         ) : (
           <>
+            {record.totalTasks ? (
+              <ProgressBar
+                done={record.doneTasks ?? 0}
+                total={record.totalTasks}
+                label={t("projects.progressLabel", { name: record.name })}
+              />
+            ) : null}
             <ul className="rect-today__figures">
               <li>
                 <span className="rect-today__figure-label">{t("projects.tasksOpen")}</span>

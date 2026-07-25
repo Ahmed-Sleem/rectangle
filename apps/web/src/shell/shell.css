@@ -1147,3 +1147,50 @@
     transition: none !important;
   }
 }
+
+/* Header actions: global search entry. */
+.rect-panel__actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--rect-space-2);
+}
+
+/*
+ * Reads as a search field rather than an icon button, because a bare
+ * magnifying glass is routinely missed. Collapses to the icon alone where the
+ * label would crowd the title.
+ */
+.rect-panel__search {
+  align-items: center;
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  color: var(--rect-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: var(--rect-text-label);
+  gap: var(--rect-space-2);
+  block-size: var(--rect-control-compact);
+  padding-inline: var(--rect-space-3);
+  transition: border-color var(--rect-motion-spring), color var(--rect-motion-spring);
+}
+
+.rect-panel__search:hover,
+.rect-panel__search:focus-visible {
+  border-color: var(--rect-border-active);
+  color: var(--rect-text-primary);
+}
+
+@media (max-width: 40rem) {
+  .rect-panel__search-text {
+    display: none;
+  }
+
+  .rect-panel__search {
+    inline-size: var(--rect-control-compact);
+    justify-content: center;
+    padding-inline: 0;
+  }
+}

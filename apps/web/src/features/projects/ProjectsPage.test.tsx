@@ -197,4 +197,36 @@ describe("ProjectsPage", () => {
     expect(await screen.findByText("Projects could not be loaded")).toBeInTheDocument();
     expect(screen.queryByText("No projects yet")).not.toBeInTheDocument();
   });
+
+  it("shows completion for a project that has countable work", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      jsonResponse({
+        projects: [
+          { id: "p1", tenantId: "1", name: "New Cairo Tower", code: "NCT-01", status: "active", doneTasks: 3, totalTasks: 12, createdAt: "", updatedAt: "" },
+        ],
+      }),
+    );
+    renderProjectsPage();
+
+    expect(await screen.findByText("New Cairo Tower")).toBeInTheDocument();
+    expect(screen.getByText("25%")).toBeInTheDocument();
+    // The denominator is shown, because "25%" alone hides 1/4 versus 25/100.
+    expect(screen.getByText("3/12")).toBeInTheDocument();
+  });
+
+  it("shows no progress at all for a project with no work, rather than zero", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      jsonResponse({
+        projects: [
+          { id: "p2", tenantId: "1", name: "Alexandria Depot", code: "ALX-04", status: "planned", createdAt: "", updatedAt: "" },
+        ],
+      }),
+    );
+    renderProjectsPage();
+
+    expect(await screen.findByText("Alexandria Depot")).toBeInTheDocument();
+    // 0% would claim the project had started and achieved nothing.
+    expect(screen.queryByText("0%")).not.toBeInTheDocument();
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
 });

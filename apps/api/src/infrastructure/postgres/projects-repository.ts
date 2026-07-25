@@ -24,6 +24,11 @@ function mapProject(row: Record<string, unknown>): ProjectRecord {
   if (row.sector != null) project.sector = row.sector as NonNullable<ProjectRecord["sector"]>;
   if (row.delivery_method != null) project.deliveryMethod = row.delivery_method as NonNullable<ProjectRecord["deliveryMethod"]>;
   if (row.location_name != null) project.locationName = String(row.location_name);
+  // Only the list/detail reads join task counts; writes return the bare row.
+  if (row.total_tasks != null && Number(row.total_tasks) > 0) {
+    project.totalTasks = Number(row.total_tasks);
+    project.doneTasks = Number(row.done_tasks ?? 0);
+  }
   return project;
 }
 
@@ -62,30 +67,61 @@ export class PostgresProjectsRepository implements ProjectsRepository {
   }
 
   async findByIdForTenant(tenantId: string, id: string): Promise<ProjectRecord | null> {
-    const result = await this.pool.query("select * from projects where tenant_id = $1 and id = $2 limit 1", [tenantId, id]);
+    // Carries the same task counts as the list so the workspace and the card
+    // that led to it can never show different progress for one project.
+    const result = await this.pool.query(
+      `select p.*, counts.total_tasks, counts.done_tasks
+         from projects p
+         cross join lateral (
+           select count(*) filter (where t.status <> 'cancelled')::int as total_tasks,
+                  count(*) filter (where t.status = 'done')::int as done_tasks
+             from tasks t
+            where t.tenant_id = p.tenant_id and t.project_id = p.id
+         ) as counts
+        where p.tenant_id = $1 and p.id = $2
+        limit 1`,
+      [tenantId, id],
+    );
     return result.rows[0] ? mapProject(result.rows[0]) : null;
   }
 
   async listForTenant(tenantId: string, query: ProjectListQuery): Promise<ProjectRecord[]> {
     const values: unknown[] = [tenantId];
-    const where = ["tenant_id = $1"];
+    // Columns are qualified because the task-count join brings a second table
+    // into scope; an unqualified `status` would be ambiguous.
+    const where = ["p.tenant_id = $1"];
 
     if (query.status) {
       values.push(query.status);
-      where.push(`status = $${values.length}`);
+      where.push(`p.status = $${values.length}`);
     }
     if (query.search) {
       values.push(`%${query.search}%`);
-      where.push(`(name ilike $${values.length} or code ilike $${values.length} or location_name ilike $${values.length})`);
+      where.push(
+        `(p.name ilike $${values.length} or p.code ilike $${values.length} or p.location_name ilike $${values.length})`,
+      );
     }
     if (query.cursor) {
       values.push(query.cursor);
-      where.push(`id > $${values.length}`);
+      where.push(`p.id > $${values.length}`);
     }
     values.push(query.limit);
 
+    // Counted in one lateral join rather than a query per project. Cancelled
+    // work is excluded from both figures: it was decided against, so it is
+    // neither an achievement nor an outstanding obligation.
     const result = await this.pool.query(
-      `select * from projects where ${where.join(" and ")} order by id asc limit $${values.length}`,
+      `select p.*, counts.total_tasks, counts.done_tasks
+         from projects p
+         cross join lateral (
+           select count(*) filter (where t.status <> 'cancelled')::int as total_tasks,
+                  count(*) filter (where t.status = 'done')::int as done_tasks
+             from tasks t
+            where t.tenant_id = p.tenant_id and t.project_id = p.id
+         ) as counts
+        where ${where.join(" and ")}
+        order by p.id asc
+        limit $${values.length}`,
       values,
     );
     return result.rows.map(mapProject);

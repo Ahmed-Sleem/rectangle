@@ -1,0 +1,97 @@
+/* Global search palette. All values from tokens. */
+
+.rect-search-palette {
+  display: grid;
+  gap: var(--rect-space-3);
+}
+
+.rect-search-palette__input {
+  background: var(--rect-surface-bg-hover);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  block-size: var(--rect-control-standard);
+  color: var(--rect-text-primary);
+  font: inherit;
+  inline-size: 100%;
+  padding-inline: var(--rect-space-3);
+}
+
+.rect-search-palette__input:focus-visible {
+  border-color: var(--rect-border-active);
+  outline: none;
+}
+
+.rect-search-palette__note {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  margin: 0;
+  padding-block: var(--rect-space-2);
+}
+
+.rect-search-palette__results {
+  display: grid;
+  gap: var(--rect-space-1);
+  list-style: none;
+  margin: 0;
+  /* Bounded so a long result set scrolls rather than growing the window. */
+  max-block-size: min(50dvh, 360px);
+  overflow-y: auto;
+  padding: 0;
+}
+
+.rect-search-palette__result {
+  align-items: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--rect-radius-sm);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: var(--rect-space-3);
+  inline-size: 100%;
+  padding: var(--rect-space-2) var(--rect-space-3);
+  text-align: start;
+}
+
+/* One highlight, driven by keyboard or pointer, so both agree on what Enter
+   would open. */
+.rect-search-palette__result--active {
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-border-active);
+}
+
+.rect-search-palette__text {
+  display: grid;
+  flex: 1 1 auto;
+  gap: var(--rect-space-1);
+  min-inline-size: 0;
+}
+
+.rect-search-palette__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rect-search-palette__subtitle {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: plaintext;
+}
+
+.rect-search-palette__kind {
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-xs);
+  color: var(--rect-text-secondary);
+  flex-shrink: 0;
+  font-size: var(--rect-text-micro);
+  padding: 0 var(--rect-space-2);
+}

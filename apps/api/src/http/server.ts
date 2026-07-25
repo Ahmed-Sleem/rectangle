@@ -12,6 +12,7 @@ import type { AuthService } from "../application/auth-service.js";
 import type { OverviewService } from "../application/overview-service.js";
 import type { ProjectService } from "../application/project-service.js";
 import type { ProjectTeamService } from "../application/project-team-service.js";
+import type { SearchService } from "../application/search-service.js";
 import type { SetupService } from "../application/setup-service.js";
 import type { TaskService } from "../application/task-service.js";
 import type { PasskeyService } from "../application/passkey-service.js";
@@ -22,6 +23,7 @@ import { registerAuthRoutes } from "./auth-routes.js";
 import { errorHandler } from "./errors.js";
 import { registerOverviewRoutes } from "./overview-routes.js";
 import { registerProjectRoutes } from "./projects-routes.js";
+import { registerSearchRoutes } from "./search-routes.js";
 import { registerSetupRoutes } from "./setup-routes.js";
 import { registerTaskRoutes } from "./tasks-routes.js";
 import { registerSettingsRoutes } from "./settings-routes.js";
@@ -30,6 +32,7 @@ import { registerPasskeyRoutes } from "./passkey-routes.js";
 export interface ServerDependencies {
   overviewService: Pick<OverviewService, "getSummary">;
   projectService: ProjectService;
+  searchService: Pick<SearchService, "search">;
   taskService: Pick<TaskService, "createTask" | "listTasks" | "getTask" | "updateTask" | "deleteTask" | "listComments" | "addComment">;
   projectTeamService: ProjectTeamService;
   authService: AuthService;
@@ -89,6 +92,7 @@ export async function createServer(dependencies: ServerDependencies) {
 
   await registerOverviewRoutes(app, dependencies.overviewService);
   await registerProjectRoutes(app, dependencies.projectService, dependencies.projectTeamService);
+  await registerSearchRoutes(app, dependencies.searchService);
   await registerTaskRoutes(app, dependencies.taskService);
   await registerAdminRoutes(app, dependencies.adminService);
   await registerSettingsRoutes(app, dependencies.emailSettingsService);

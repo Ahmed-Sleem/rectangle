@@ -172,6 +172,56 @@ export function AvatarGroup({ names, max = 4, label, emptyLabel }: AvatarGroupPr
   );
 }
 
+export interface ProgressBarProps {
+  done: number;
+  total: number;
+  /** Accessible name, e.g. the project this progress belongs to. */
+  label: string;
+  /** Renders "7 of 12" beside the percentage. Off in dense table cells. */
+  showCounts?: boolean;
+  className?: string;
+}
+
+/**
+ * Completion of countable work.
+ *
+ * Only rendered where a real denominator exists — the caller decides that, and
+ * a project with no tasks shows nothing rather than an empty bar, because 0%
+ * would claim it had started and achieved nothing.
+ *
+ * The counts are shown alongside the percentage because a bare "50%" hides
+ * whether it means one task of two or fifty of a hundred.
+ */
+export function ProgressBar({ done, total, label, showCounts = true, className }: ProgressBarProps) {
+  const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+  return (
+    <div className={cn("rect-progress", className)}>
+      <div className="rect-progress__head">
+        <span className="rect-progress__percent">{percent}%</span>
+        {showCounts ? (
+          <span className="rect-progress__counts">
+            {done}/{total}
+          </span>
+        ) : null}
+      </div>
+      <div
+        className="rect-progress__track"
+        role="progressbar"
+        aria-valuenow={done}
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-label={label}
+        aria-valuetext={`${percent}%`}
+      >
+        <span
+          className={cn("rect-progress__fill", percent === 100 && "rect-progress__fill--complete")}
+          style={{ inlineSize: `${percent}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export interface SidePanelProps extends HTMLAttributes<HTMLElement> {
   title: string;
 }

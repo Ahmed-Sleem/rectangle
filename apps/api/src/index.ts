@@ -9,6 +9,7 @@ import { PasskeyService } from "./application/passkey-service.js";
 import { OverviewService } from "./application/overview-service.js";
 import { ProjectService } from "./application/project-service.js";
 import { ProjectTeamService } from "./application/project-team-service.js";
+import { SearchService } from "./application/search-service.js";
 import { SetupService } from "./application/setup-service.js";
 import { TaskService } from "./application/task-service.js";
 import { loadConfig } from "./config.js";
@@ -25,6 +26,7 @@ import { PostgresPasskeyRepository } from "./infrastructure/postgres/passkey-rep
 import { PostgresOverviewRepository } from "./infrastructure/postgres/overview-repository.js";
 import { PostgresProjectsRepository } from "./infrastructure/postgres/projects-repository.js";
 import { PostgresProjectTeamRepository } from "./infrastructure/postgres/project-team-repository.js";
+import { PostgresSearchRepository } from "./infrastructure/postgres/search-repository.js";
 import { PostgresSetupRepository } from "./infrastructure/postgres/setup-repository.js";
 import { PostgresTaskRepository } from "./infrastructure/postgres/task-repository.js";
 
@@ -47,6 +49,7 @@ const taskService = new TaskService(
   projectTeamService,
   auditRepository,
 );
+const searchService = new SearchService(new PostgresSearchRepository(pool));
 const passwordHasher = new ScryptPasswordHasher();
 const authRepository = new PostgresAuthRepository(pool);
 const authService = new AuthService(
@@ -84,6 +87,7 @@ const server = await createServer({
   projectService,
   projectTeamService,
   taskService,
+  searchService,
   authService,
   adminService,
   setupService,

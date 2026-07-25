@@ -1412,3 +1412,50 @@
     transition: none !important;
   }
 }
+
+/* Progress: completion of countable work. Never shown without a denominator. */
+.rect-progress {
+  display: grid;
+  gap: var(--rect-space-1);
+  min-inline-size: 0;
+}
+
+.rect-progress__head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--rect-space-2);
+  justify-content: space-between;
+}
+
+.rect-progress__percent {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-bold);
+}
+
+.rect-progress__counts {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-micro);
+  /* A ratio is a quantity and must not reverse in Arabic. */
+  unicode-bidi: plaintext;
+}
+
+.rect-progress__track {
+  background: var(--rect-surface-bg-hover);
+  border-radius: var(--rect-pill-radius);
+  block-size: var(--rect-space-2);
+  inline-size: 100%;
+  overflow: hidden;
+}
+
+.rect-progress__fill {
+  background: var(--rect-color-ink-strong);
+  border-radius: var(--rect-pill-radius);
+  display: block;
+  block-size: 100%;
+  transition: inline-size var(--rect-motion-spring);
+}
+
+.rect-progress__fill--complete {
+  background: var(--rect-color-success);
+}

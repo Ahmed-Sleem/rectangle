@@ -116,6 +116,15 @@ export type UpdateProjectInput = z.infer<typeof updateProjectInputSchema>;
 export type ProjectListQuery = z.infer<typeof projectListQuerySchema>;
 
 export interface ProjectRecord {
+  /**
+   * Completed and countable task totals for this project.
+   *
+   * Both absent when the project has no countable work. A project with no
+   * tasks has no progress — reporting 0% would claim it had started and
+   * achieved nothing, which is a different and untrue statement.
+   */
+  doneTasks?: number;
+  totalTasks?: number;
   id: string;
   tenantId: string;
   name: string;

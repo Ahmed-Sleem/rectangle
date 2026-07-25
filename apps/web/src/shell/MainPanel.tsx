@@ -2,10 +2,12 @@
  * Hosts the active feature inside the brand-defining white rectangle while the
  * shell keeps route/page identity and universal assistant access outside feature code.
  */
-import { Sparkles } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import type { ReactNode, MouseEvent } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavToggle } from "./NavToggle";
+import { GlobalSearch } from "./search/GlobalSearch";
 import { useScrollEdges } from "./useScrollEdges";
 
 export function MainPanel({
@@ -27,6 +29,20 @@ export function MainPanel({
 }) {
   const { t } = useTranslation();
   const { ref: bodyRef, edges } = useScrollEdges<HTMLElement>();
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Cmd/Ctrl+K is the shortcut people already expect for this. Bound at the
+  // window so it works wherever focus happens to be.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   function handleDoubleClick(e: MouseEvent<HTMLElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -58,7 +74,21 @@ export function MainPanel({
         <div className="rect-panel__heading">
           <h1 className="rect-panel__title">{title}</h1>
         </div>
+        <div className="rect-panel__actions">
+          <button
+            type="button"
+            className="rect-panel__search"
+            onClick={() => setSearchOpen(true)}
+            aria-label={t("shell.search.open")}
+            title={t("shell.search.open")}
+          >
+            <Search size={16} strokeWidth={2} aria-hidden />
+            <span className="rect-panel__search-text">{t("shell.search.open")}</span>
+          </button>
+        </div>
       </header>
+
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       <main
         className="rect-panel__body"

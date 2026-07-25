@@ -10,7 +10,7 @@ import { ApiClientError } from "@/shared/api/client";
 import {
   Badge, Button, CardGrid, DataTable, EmptyState, ErrorState, Field, FilterBar,
   FilterBarSpacer, FilterSelect, FormDialog, Input, SearchField, Select,
-  StatCard, StatRow, Textarea, ViewToggle,
+  ProgressBar, StatCard, StatRow, Textarea, ViewToggle,
 } from "@/shared/ui";
 import { LayoutGrid, Rows3 } from "lucide-react";
 import { useOptionalAuth } from "@/shared/auth";
@@ -252,6 +252,13 @@ export default function ProjectsPage() {
               {project.description ? (
                 <span className="rect-project-card__description">{project.description}</span>
               ) : null}
+              {project.totalTasks ? (
+                <ProgressBar
+                  done={project.doneTasks ?? 0}
+                  total={project.totalTasks}
+                  label={t("projects.progressLabel", { name: project.name })}
+                />
+              ) : null}
               <span className="rect-project-card__meta">
                 <span>{project.locationName ?? t("projects.notSet")}</span>
                 <span>
@@ -270,6 +277,21 @@ export default function ProjectsPage() {
             { id: "name", header: t("projects.columnProject"), accessor: (project) => <Link className="rect-projects-link" to={`/projects/${project.id}`}>{project.name}</Link> },
             { id: "code", header: t("projects.columnCode"), accessor: (project) => project.code },
             { id: "status", header: t("projects.columnStatus"), accessor: (project) => <Badge tone={statusTone(project.status)}>{t(`enums.projectStatus.${project.status}`)}</Badge> },
+            {
+              id: "progress",
+              header: t("projects.columnProgress"),
+              accessor: (project) =>
+                project.totalTasks ? (
+                  <ProgressBar
+                    done={project.doneTasks ?? 0}
+                    total={project.totalTasks}
+                    label={t("projects.progressLabel", { name: project.name })}
+                    showCounts={false}
+                  />
+                ) : (
+                  t("common.notAvailable")
+                ),
+            },
             { id: "location", header: t("projects.columnLocation"), accessor: (project) => project.locationName ?? t("common.notAvailable") },
             { id: "dates", header: t("projects.columnDates"), accessor: (project) => project.plannedStartDate && project.plannedFinishDate ? `${project.plannedStartDate} → ${project.plannedFinishDate}` : t("common.notAvailable") },
           ]}

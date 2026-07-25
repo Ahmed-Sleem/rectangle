@@ -48,6 +48,7 @@ const SERVICES = [
   { id: "overview", file: "application/overview-service.ts", readOnly: true },
   { id: "project", file: "application/project-service.js".replace(".js", ".ts") },
   { id: "project-team", file: "application/project-team-service.ts" },
+  { id: "search", file: "application/search-service.ts", readOnly: true },
   { id: "task", file: "application/task-service.ts" },
   { id: "admin", file: "application/admin-service.ts" },
 ];

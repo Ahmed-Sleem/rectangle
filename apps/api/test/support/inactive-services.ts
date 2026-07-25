@@ -22,3 +22,7 @@ export const inactiveTaskService = {
   listComments(): never { throw new Error("not used"); },
   addComment(): never { throw new Error("not used"); },
 };
+
+export const inactiveSearchService = {
+  search(): never { throw new Error("not used"); },
+};

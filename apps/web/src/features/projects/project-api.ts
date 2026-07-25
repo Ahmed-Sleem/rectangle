@@ -15,6 +15,9 @@ export interface ProjectRecord {
   sector?: string;
   deliveryMethod?: string;
   locationName?: string;
+  /** Absent when the project has no countable work — not zero. */
+  doneTasks?: number;
+  totalTasks?: number;
   createdAt: string;
   updatedAt: string;
 }

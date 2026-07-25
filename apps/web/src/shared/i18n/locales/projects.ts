@@ -139,6 +139,10 @@ const en = {
   removeStakeholderBody: "{{name}} will be removed from the stakeholder register.",
   removeStakeholderFailed: "That stakeholder could not be removed.",
 
+  columnProgress: "Progress",
+  progressLabel: "Completed work on {{name}}",
+  progressNone: "No work added yet",
+
   tasksTitle: "Work",
   tasksOpen: "Open",
   tasksOverdue: "Overdue",
@@ -325,6 +329,10 @@ const ar: LocaleBundle<typeof en> = {
   removeStakeholder: "إزالة صاحب مصلحة",
   removeStakeholderBody: "سيُزال {{name}} من سجل أصحاب المصلحة.",
   removeStakeholderFailed: "تعذّرت إزالة صاحب المصلحة.",
+
+  columnProgress: "التقدم",
+  progressLabel: "الأعمال المكتملة في {{name}}",
+  progressNone: "لم تُضف أعمال بعد",
 
   tasksTitle: "الأعمال",
   tasksOpen: "مفتوحة",
