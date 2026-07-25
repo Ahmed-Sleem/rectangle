@@ -158,7 +158,10 @@ Rules:
 1. **The page title lives in the shell header. Never repeat it inside the page.**
 2. The canvas title is **sentence case**. Never `text-transform: uppercase` and never positive `letter-spacing` — Arabic has no uppercase and tracking breaks Arabic letter joining.
 3. `.rect-panel__body` is the **only** scroll container in the canvas. A feature page must not create a second full-page scroller.
-4. Scrollbars are globally invisible. Because of that, the body carries a **mask fade at both scroll edges** so users can still see that content continues. Any new scroll region you introduce must provide an equivalent affordance (fade, sticky footer, or explicit "show more").
+4. Scrollbars are globally invisible. Because of that, the body carries a **state-driven mask fade**: an edge fades **only while content is actually hidden beyond it**. A page that fits on screen is never dimmed, and the bottom fade disappears once the user reaches the end.
+   - Driven by `useScrollEdges` → `data-scroll-top` / `data-scroll-bottom` on `.rect-panel__body`, consumed by `--rect-fade-top` / `--rect-fade-bottom`.
+   - A permanently-on fade is a **bug**, not a style: it dims real content and lies about whether more exists.
+   - Any new scroll region you introduce must provide an equivalent affordance (state-driven fade, sticky footer, or explicit "show more"). Reuse `useScrollEdges` rather than reimplementing it.
 5. Feature pages never set their own `max-width` or outer margins — the content column already does it.
 6. The canvas must never be given `overflow: hidden` in a way that clips the AI launcher or nav orb.
 

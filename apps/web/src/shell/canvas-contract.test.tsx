@@ -20,6 +20,7 @@ import readyGateCss from "@/app/app-ready-gate.css?raw";
 import setupCss from "@/features/setup/setup-page.css?raw";
 import mainPanelSource from "./MainPanel.tsx?raw";
 import resourcesSource from "@/shared/i18n/resources.ts?raw";
+import designTokens from "../../../../design/tokens/shell.tokens.json";
 
 describe("canvas empty state", () => {
   it("shows user-facing copy without internal identifiers or build wording", async () => {
@@ -76,6 +77,15 @@ describe("canvas layout contract", () => {
     expect(bodyBlock).toContain("overflow-y: auto");
     // Hidden scrollbars require a visible overflow affordance instead.
     expect(bodyBlock).toContain("mask-image");
+
+    // The fade must be driven by scroll position, so a page that fits on screen
+    // is never dimmed at an edge that has nothing beyond it.
+    expect(bodyBlock).toContain("--rect-fade-top: 0px");
+    expect(bodyBlock).toContain("--rect-fade-bottom: 0px");
+    expect(bodyBlock).toContain('[data-scroll-top="false"]');
+    expect(bodyBlock).toContain('[data-scroll-bottom="false"]');
+    expect(mainPanelSource).toContain("data-scroll-top");
+    expect(mainPanelSource).toContain("data-scroll-bottom");
   });
 
   it("renders feature content inside the shared content column", () => {
@@ -126,5 +136,48 @@ describe("design token discipline", () => {
   it("expands controls to a touch target on coarse pointers", () => {
     expect(uiCss).toContain("@media (pointer: coarse)");
     expect(uiCss).toContain("var(--rect-control-touch)");
+  });
+});
+
+describe("design token snapshot", () => {
+  // design/tokens/shell.tokens.json is the machine-readable mirror of tokens.css.
+  // If it drifts, design docs start describing a product that does not exist.
+  function cssToken(name: string): string {
+    const match = tokensCss.match(new RegExp(`${name}:\\s*([^;]+);`));
+    return (match?.[1] ?? "").trim();
+  }
+
+  it("advertises only Inter weights that global.css actually imports", () => {
+    expect(designTokens.font.weights).toEqual([400, 500, 600, 700, 900]);
+  });
+
+  it("matches the shipped spacing scale", () => {
+    const space = designTokens.space as Record<string, number>;
+    const pairs: Array<[string, number]> = [
+      ["--rect-space-1", space.s1!],
+      ["--rect-space-2", space.s2!],
+      ["--rect-space-3", space.s3!],
+      ["--rect-space-4", space.s4!],
+      ["--rect-space-6", space.s6!],
+      ["--rect-space-8", space.s8!],
+    ];
+    for (const [token, expected] of pairs) {
+      expect(cssToken(token), `${token} drifted from the token snapshot`).toBe(`${expected}px`);
+    }
+  });
+
+  it("matches the shipped control heights and table densities", () => {
+    expect(cssToken("--rect-control-compact")).toBe(`${designTokens.control.compact}px`);
+    expect(cssToken("--rect-control-standard")).toBe(`${designTokens.control.standard}px`);
+    expect(cssToken("--rect-control-touch")).toBe(`${designTokens.control.touch}px`);
+    expect(cssToken("--rect-table-row-dense")).toBe(`${designTokens.tableRow.dense}px`);
+  });
+
+  it("matches the shipped canvas contract", () => {
+    expect(cssToken("--rect-canvas-content-max")).toBe(`${designTokens.canvas.contentMaxWidth}px`);
+    expect(cssToken("--rect-panel-stack-gap")).toBe(`${designTokens.canvas.stackGap}px`);
+    expect(cssToken("--rect-panel-padding")).toBe(
+      `${designTokens.canvas.paddingY}px ${designTokens.canvas.paddingX}px`,
+    );
   });
 });

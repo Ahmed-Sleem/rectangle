@@ -6,6 +6,7 @@ import { Sparkles } from "lucide-react";
 import type { ReactNode, MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { NavToggle } from "./NavToggle";
+import { useScrollEdges } from "./useScrollEdges";
 
 export function MainPanel({
   navCollapsed,
@@ -25,6 +26,7 @@ export function MainPanel({
   children: ReactNode;
 }) {
   const { t } = useTranslation();
+  const { ref: bodyRef, edges } = useScrollEdges<HTMLElement>();
 
   function handleDoubleClick(e: MouseEvent<HTMLElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -58,7 +60,13 @@ export function MainPanel({
         </div>
       </header>
 
-      <main className="rect-panel__body" id="main-content">
+      <main
+        className="rect-panel__body"
+        id="main-content"
+        ref={bodyRef}
+        data-scroll-top={edges.atTop ? "true" : "false"}
+        data-scroll-bottom={edges.atBottom ? "true" : "false"}
+      >
         <div className="rect-panel__content">{children}</div>
       </main>
     </div>

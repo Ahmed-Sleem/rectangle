@@ -258,16 +258,29 @@
   scroll-padding-block: var(--rect-space-4);
   border-radius: 0;
   padding-block: var(--rect-space-1) var(--rect-space-2);
+
+  /* Scroll affordance. Scrollbars are hidden globally, so each edge fades only
+     while content is actually hidden beyond it. `--rect-fade-top` /
+     `--rect-fade-bottom` are switched by the data attributes below, so a page
+     that fits entirely is never dimmed. */
+  --rect-fade-top: 0px;
+  --rect-fade-bottom: 0px;
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    #000 var(--rect-canvas-scroll-fade),
-    #000 calc(100% - var(--rect-canvas-scroll-fade)),
+    #000 var(--rect-fade-top),
+    #000 calc(100% - var(--rect-fade-bottom)),
     transparent 100%
   );
-  mask-size: 100% calc(100% + (2 * var(--rect-canvas-scroll-fade)));
-  mask-position: 0 calc(-1 * var(--rect-canvas-scroll-fade));
   mask-repeat: no-repeat;
+}
+
+.rect-panel__body[data-scroll-top="false"] {
+  --rect-fade-top: var(--rect-canvas-scroll-fade);
+}
+
+.rect-panel__body[data-scroll-bottom="false"] {
+  --rect-fade-bottom: var(--rect-canvas-scroll-fade);
 }
 
 /* Feature content column: one shared gutter and max width for every page,
