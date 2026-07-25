@@ -48,6 +48,52 @@ const en = {
   createUserTypeFailed: "User type could not be created.",
   createUserFailed: "User could not be created.",
   updateUserFailed: "That user could not be updated.",
+
+  segmentLabel: "Team register",
+  segmentUsers: "People",
+  segmentTypes: "Roles",
+
+  searchLabel: "Search people",
+  searchPlaceholder: "Name or email",
+  filterType: "Filter by role",
+  allTypes: "All roles",
+  filterStatus: "Filter by status",
+  allStatuses: "All statuses",
+  cardView: "Card view",
+  tableView: "Table view",
+
+  kpiPeople: "People",
+  kpiActive: "Active",
+  kpiDisabled: "Disabled",
+  kpiRoles: "Roles",
+  kpiNoRole_one: "{{count}} without a role",
+  kpiNoRole_other: "{{count}} without a role",
+
+  noMatchTitle: "No matching people",
+  noMatchMessage: "No one matches your search and filters. Try a different term or role.",
+  clearFilters: "Clear filters",
+
+  userProjects: "Projects",
+  userProjectCount_one: "{{count}} project",
+  userProjectCount_other: "{{count}} projects",
+  noRole: "No role assigned",
+  systemRole: "Built-in",
+
+  editUser: "Edit person",
+  editUserDescription: "Change how this person appears and what they are allowed to do.",
+  editUserType: "Edit role",
+  editUserTypeDescription: "Change the name, description, and permissions of this role.",
+  saveChanges: "Save changes",
+  edit: "Edit",
+
+  disableTitle: "Disable this person?",
+  disableMessage:
+    "{{name}} will be signed out and will not be able to sign in again until you enable them. Nothing they created is removed.",
+  disableConfirm: "Disable",
+  enableAction: "Enable",
+  updateUserTypeFailed: "That role could not be updated.",
+  permissionCount_one: "{{count}} permission",
+  permissionCount_other: "{{count}} permissions",
 } as const;
 
 const ar: LocaleBundle<typeof en> = {
@@ -95,6 +141,64 @@ const ar: LocaleBundle<typeof en> = {
   createUserTypeFailed: "تعذّر إنشاء نوع المستخدم.",
   createUserFailed: "تعذّر إنشاء المستخدم.",
   updateUserFailed: "تعذّر تحديث هذا المستخدم.",
+
+  segmentLabel: "سجل الفريق",
+  segmentUsers: "الأشخاص",
+  segmentTypes: "الأدوار",
+
+  searchLabel: "البحث عن أشخاص",
+  searchPlaceholder: "الاسم أو البريد الإلكتروني",
+  filterType: "تصفية حسب الدور",
+  allTypes: "كل الأدوار",
+  filterStatus: "تصفية حسب الحالة",
+  allStatuses: "كل الحالات",
+  cardView: "عرض البطاقات",
+  tableView: "عرض الجدول",
+
+  kpiPeople: "الأشخاص",
+  kpiActive: "نشط",
+  kpiDisabled: "معطّل",
+  kpiRoles: "الأدوار",
+  kpiNoRole_zero: "لا أحد بدون دور",
+  kpiNoRole_one: "شخص واحد بدون دور",
+  kpiNoRole_two: "شخصان بدون دور",
+  kpiNoRole_few: "{{count}} أشخاص بدون دور",
+  kpiNoRole_many: "{{count}} شخصًا بدون دور",
+  kpiNoRole_other: "{{count}} شخص بدون دور",
+
+  noMatchTitle: "لا يوجد أشخاص مطابقون",
+  noMatchMessage: "لا أحد يطابق بحثك والتصفية. جرّب كلمة أو دورًا مختلفًا.",
+  clearFilters: "مسح التصفية",
+
+  userProjects: "المشاريع",
+  userProjectCount_zero: "لا مشاريع",
+  userProjectCount_one: "مشروع واحد",
+  userProjectCount_two: "مشروعان",
+  userProjectCount_few: "{{count}} مشاريع",
+  userProjectCount_many: "{{count}} مشروعًا",
+  userProjectCount_other: "{{count}} مشروع",
+  noRole: "لا يوجد دور معيّن",
+  systemRole: "مدمج",
+
+  editUser: "تعديل بيانات الشخص",
+  editUserDescription: "غيّر طريقة ظهور هذا الشخص وما يُسمح له بفعله.",
+  editUserType: "تعديل الدور",
+  editUserTypeDescription: "غيّر اسم الدور ووصفه وصلاحياته.",
+  saveChanges: "حفظ التغييرات",
+  edit: "تعديل",
+
+  disableTitle: "تعطيل هذا الشخص؟",
+  disableMessage:
+    "سيتم تسجيل خروج {{name}} ولن يتمكن من الدخول مرة أخرى حتى تقوم بتفعيله. لن يُحذف أي شيء أنشأه.",
+  disableConfirm: "تعطيل",
+  enableAction: "تفعيل",
+  updateUserTypeFailed: "تعذّر تحديث هذا الدور.",
+  permissionCount_zero: "لا صلاحيات",
+  permissionCount_one: "صلاحية واحدة",
+  permissionCount_two: "صلاحيتان",
+  permissionCount_few: "{{count}} صلاحيات",
+  permissionCount_many: "{{count}} صلاحية",
+  permissionCount_other: "{{count}} صلاحية",
 };
 
 export const team = { en, ar };

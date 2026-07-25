@@ -2,7 +2,6 @@
 export {
   Badge,
   Button,
-  buttonClassName,
   Card,
   Checkbox,
   DataTable,
@@ -38,6 +37,8 @@ export {
   type TextareaProps,
   type ToastProps,
 } from "./primitives";
+
+export { buttonClassName, type ButtonSize, type ButtonVariant } from "./button-class";
 
 /**
  * The window system. Every overlay in the product must come from here so

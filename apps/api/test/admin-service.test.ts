@@ -46,7 +46,7 @@ class MemoryAdminRepository implements AdminRepository {
   async findUserByEmail(_tenantId: string, email: string): Promise<AdminUserRecord | null> { return this.users.find((user) => user.email === email) ?? null; }
   async createUser(inputTenantId: string, input: Omit<CreateUserInput, "password"> & { passwordHash: string }): Promise<AdminUserRecord> {
     const types = this.userTypes.filter((type) => input.userTypeIds.includes(type.id));
-    const user: AdminUserRecord = { id: crypto.randomUUID(), tenantId: inputTenantId, email: input.email, displayName: input.displayName, status: "active", userTypes: types.map((type) => ({ id: type.id, name: type.name, key: type.key })), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const user: AdminUserRecord = { id: crypto.randomUUID(), tenantId: inputTenantId, email: input.email, displayName: input.displayName, status: "active", userTypes: types.map((type) => ({ id: type.id, name: type.name, key: type.key })), projectCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     this.users.push(user);
     return user;
   }

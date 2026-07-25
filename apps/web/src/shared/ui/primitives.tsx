@@ -16,6 +16,7 @@ import type {
 import { cloneElement, forwardRef, isValidElement, useId } from "react";
 import { AlertTriangle, CheckCircle2, Info, Loader2, XCircle } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
+import { buttonClassName } from "./button-class";
 
 type Tone = "neutral" | "accent" | "success" | "warning" | "danger" | "info";
 type Size = "sm" | "md" | "lg";
@@ -23,20 +24,6 @@ type Size = "sm" | "md" | "lg";
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: Size;
-}
-
-/**
- * Some actions are navigation and must render as a link so they can be opened
- * in a new tab and read as a link by assistive technology. Those cases reuse
- * this instead of copying the class names, which is how a link and a button
- * drift apart visually.
- */
-export function buttonClassName(
-  variant: NonNullable<ButtonProps["variant"]> = "secondary",
-  size: Size = "md",
-  className?: string,
-): string {
-  return cn("rect-ui-button", `rect-ui-button--${variant}`, `rect-ui-button--${size}`, className);
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(

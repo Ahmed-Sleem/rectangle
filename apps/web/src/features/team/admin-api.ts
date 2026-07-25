@@ -3,7 +3,15 @@ import { apiRequest } from "@/shared/api/client";
 
 export interface PermissionOption { key: string; label: string; description: string }
 export interface UserTypeRecord { id: string; name: string; key: string; description?: string; permissions: string[]; systemType: boolean }
-export interface AdminUserRecord { id: string; email: string; displayName: string; status: string; userTypes: Array<{ id: string; name: string; key: string }> }
+export interface AdminUserRecord {
+  id: string;
+  email: string;
+  displayName: string;
+  status: string;
+  userTypes: Array<{ id: string; name: string; key: string }>;
+  /** Projects this person is a member of. Counted from real membership rows. */
+  projectCount: number;
+}
 
 export const adminApi = {
   permissions: () => apiRequest<{ permissions: PermissionOption[] }>("/v1/admin/permissions"),

@@ -26,6 +26,7 @@ function mapUser(row: Record<string, unknown>): AdminUserRecord {
     displayName: String(row.display_name),
     status: row.status as AdminUserRecord["status"],
     userTypes: Array.isArray(row.user_types) ? row.user_types as AdminUserRecord["userTypes"] : [],
+    projectCount: Number(row.project_count ?? 0),
     createdAt: new Date(String(row.created_at)).toISOString(),
     updatedAt: new Date(String(row.updated_at)).toISOString(),
   };
@@ -87,13 +88,24 @@ export class PostgresAdminRepository implements AdminRepository {
   }
 
   async listUsers(tenantId: string): Promise<AdminUserRecord[]> {
+    // Project membership is counted in a lateral subquery rather than another
+    // join: joining it alongside the user-type join would multiply the rows and
+    // inflate both aggregates against each other.
     const result = await this.pool.query(
-      `select users.*, coalesce(json_agg(json_build_object('id', user_types.id, 'name', user_types.name, 'key', user_types.key)) filter (where user_types.id is not null), '[]') as user_types
+      `select users.*,
+              coalesce(json_agg(json_build_object('id', user_types.id, 'name', user_types.name, 'key', user_types.key)) filter (where user_types.id is not null), '[]') as user_types,
+              membership.project_count
        from users
        left join user_type_assignments on user_type_assignments.tenant_id = users.tenant_id and user_type_assignments.user_id = users.id
        left join user_types on user_types.id = user_type_assignments.user_type_id
+       cross join lateral (
+         select count(*)::int as project_count
+           from project_members
+          where project_members.tenant_id = users.tenant_id
+            and project_members.user_id = users.id
+       ) as membership
        where users.tenant_id = $1
-       group by users.id
+       group by users.id, membership.project_count
        order by users.display_name asc`,
       [tenantId],
     );

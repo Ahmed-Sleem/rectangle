@@ -25,6 +25,8 @@ export interface AdminUserRecord {
   displayName: string;
   status: "active" | "invited" | "disabled";
   userTypes: Array<{ id: string; name: string; key: string }>;
+  /** How many projects this person is a member of. Real membership, not a guess. */
+  projectCount: number;
   createdAt: string;
   updatedAt: string;
 }

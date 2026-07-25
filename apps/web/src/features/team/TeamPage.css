@@ -1,54 +1,170 @@
+/* Team administration: people and the roles that decide what they may do. */
+
 .rect-team-page {
+  align-content: start;
   display: grid;
-  gap: var(--rect-space-4);
-}
-
-.rect-team-toolbar {
-  justify-content: flex-end;
-}
-
-.rect-team-card {
-  display: grid;
-  gap: var(--rect-space-2);
-  padding: var(--rect-space-4);
-}
-
-.rect-team-card--wide {
-  grid-column: span 6;
-}
-
-.rect-team-card h2 {
-  color: var(--rect-text-primary);
-  font-size: var(--rect-text-subsection);
-  font-weight: var(--rect-weight-bold);
-  letter-spacing: -0.025em;
-}
-
-.rect-team-form {
-  display: grid;
-  gap: var(--rect-space-3);
+  gap: var(--rect-grid-gap);
 }
 
 .rect-team-permissions {
   display: grid;
-  gap: 8px;
+  gap: var(--rect-space-2);
   max-height: min(42dvh, 360px);
   overflow: auto;
-  padding-block: 2px;
+  padding-block: var(--rect-space-1);
 }
 
-.rect-team-form__actions {
-  justify-content: flex-end;
+/* ── Person card ── */
+
+.rect-person {
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  display: grid;
+  gap: var(--rect-space-3);
+  min-width: 0;
+  padding: var(--rect-space-4);
+  transition: border-color var(--rect-motion-spring);
 }
 
-.rect-team-form__error {
-  color: var(--rect-color-danger);
+.rect-person:hover {
+  border-color: var(--rect-border-active);
+}
+
+.rect-person__head {
+  align-items: center;
+  display: flex;
+  gap: var(--rect-space-3);
+  min-width: 0;
+}
+
+.rect-person__avatar {
+  align-items: center;
+  background: var(--rect-orb-bg);
+  border-radius: var(--rect-pill-radius);
+  color: var(--rect-orb-text);
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-bold);
+  block-size: var(--rect-control-compact);
+  inline-size: var(--rect-control-compact);
+  justify-content: center;
+  /* Initials are letters, not text to be reordered by the paragraph direction. */
+  unicode-bidi: isolate;
+}
+
+.rect-person__avatar--sm {
+  block-size: var(--rect-control-xs);
+  font-size: var(--rect-text-micro);
+  inline-size: var(--rect-control-xs);
+}
+
+.rect-person__identity {
+  display: grid;
+  gap: var(--rect-space-1);
+  min-width: 0;
+}
+
+.rect-person__name {
+  color: var(--rect-text-primary);
   font-size: var(--rect-text-body);
-  font-weight: 700;
+  font-weight: var(--rect-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-@media (max-width: 900px) {
-  .rect-team-card--wide {
-    grid-column: span 12;
-  }
+.rect-person__email {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* An address is a single logical unit and must not be re-ordered in Arabic. */
+  unicode-bidi: plaintext;
+}
+
+.rect-person__roles,
+.rect-role__permissions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+}
+
+.rect-person__norole,
+.rect-person__meta,
+.rect-role__meta,
+.rect-role__description {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+.rect-person__foot,
+.rect-role__foot {
+  align-items: center;
+  border-block-start: 1px solid var(--rect-surface-divider);
+  display: flex;
+  gap: var(--rect-space-3);
+  justify-content: space-between;
+  padding-block-start: var(--rect-space-3);
+}
+
+.rect-person__actions {
+  display: flex;
+  gap: var(--rect-space-2);
+}
+
+.rect-person__cell {
+  align-items: center;
+  display: flex;
+  gap: var(--rect-space-2);
+}
+
+/* ── Role card ── */
+
+.rect-role {
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  display: grid;
+  align-content: start;
+  gap: var(--rect-space-3);
+  min-width: 0;
+  padding: var(--rect-space-4);
+  transition: border-color var(--rect-motion-spring);
+}
+
+.rect-role:hover {
+  border-color: var(--rect-border-active);
+}
+
+.rect-role__head {
+  align-items: center;
+  display: flex;
+  gap: var(--rect-space-2);
+  justify-content: space-between;
+}
+
+.rect-role__name {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-subsection);
+  font-weight: var(--rect-weight-bold);
+}
+
+.rect-role__description {
+  margin: 0;
+}
+
+/*
+ * Permissions are named rather than counted. "7" tells an administrator
+ * nothing about what a role can actually do.
+ */
+.rect-role__permission {
+  background: var(--rect-surface-bg-hover);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-xs);
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-micro);
+  padding: var(--rect-space-1) var(--rect-space-2);
 }
