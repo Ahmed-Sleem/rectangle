@@ -53,11 +53,13 @@ export function MainPanel({
       ) : null}
 
       <header className="rect-panel__header">
-        <h1 className="rect-panel__title">{title}</h1>
+        <div className="rect-panel__heading">
+          <h1 className="rect-panel__title">{title}</h1>
+        </div>
       </header>
 
       <main className="rect-panel__body" id="main-content">
-        {children}
+        <div className="rect-panel__content">{children}</div>
       </main>
     </div>
   );

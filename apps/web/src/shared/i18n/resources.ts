@@ -11,7 +11,7 @@ export const resources = {
       },
       common: {
         loading: "Loading…",
-        moduleNotImplemented: "This module is not implemented yet.",
+        noRecordsYet: "No records to show here yet.",
       },
       feature: {
         overview: "Overview",
@@ -81,7 +81,7 @@ export const resources = {
       },
       common: {
         loading: "جارٍ التحميل…",
-        moduleNotImplemented: "هذه الوحدة غير مفعّلة بعد.",
+        noRecordsYet: "لا توجد سجلات لعرضها هنا بعد.",
       },
       feature: {
         overview: "نظرة عامة",

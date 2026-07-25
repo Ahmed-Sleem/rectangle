@@ -1,6 +1,10 @@
 # Rectangle GUI sizing rules — dense desktop standard
 
-**Status:** Mandatory for all Rectangle GUI work after 2026-07-23.  
+> **The enforced contract is [`UI_RULES.md`](./UI_RULES.md).**
+> This file remains the narrative rationale and research background behind the numbers.
+> Where the two differ, `UI_RULES.md` wins, because it matches the shipped tokens and is verified by automated tests.
+
+**Status:** Background standard. See `UI_RULES.md` for the mandatory, test-enforced rules.
 **Scope:** Desktop-first product UI: shell, feature pages, right AI assistant panel, cards, tables, forms, drawers, and toolbars.  
 **Goal:** Fit many construction / PMO controls on screen without making the product feel cramped, inconsistent, or toy-like.
 

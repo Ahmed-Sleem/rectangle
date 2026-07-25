@@ -2,9 +2,9 @@
 
 .rect-projects-page,
 .rect-project-detail {
+  align-content: start;
   display: grid;
-  gap: 14px;
-  max-width: 1180px;
+  gap: var(--rect-grid-gap);
 }
 
 .rect-projects-toolbar {
@@ -13,7 +13,7 @@
 
 .rect-projects-link {
   color: var(--rect-text-primary);
-  font-weight: 800;
+  font-weight: var(--rect-weight-semibold);
   text-decoration: none;
 }
 
@@ -23,12 +23,12 @@
 
 .rect-projects-form {
   display: grid;
-  gap: 12px;
+  gap: var(--rect-space-3);
 }
 
 .rect-projects-form__split {
   display: grid;
-  gap: 10px;
+  gap: var(--rect-space-3);
   grid-template-columns: 1fr 1fr;
 }
 
@@ -38,48 +38,49 @@
 
 .rect-projects-form__error {
   color: var(--rect-color-danger);
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
 }
 
 .rect-project-detail__header {
   align-items: flex-start;
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--rect-space-3);
 }
 
 .rect-project-detail__header h2 {
   color: var(--rect-text-primary);
-  font-size: 1.45rem;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+  font-size: var(--rect-text-section);
+  font-weight: var(--rect-weight-bold);
+  letter-spacing: -0.02em;
+  line-height: var(--rect-leading-tight);
 }
 
 .rect-project-detail__header p,
 .rect-project-detail__card p,
 .rect-project-detail__summary p {
   color: var(--rect-text-secondary);
-  font-size: 0.86rem;
-  font-weight: 650;
-  line-height: 1.5;
-  margin-top: 4px;
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-regular);
+  line-height: var(--rect-leading-body);
+  margin-top: var(--rect-space-1);
 }
 
 .rect-project-detail__card {
   grid-column: span 4;
-  padding: 14px;
+  padding: var(--rect-space-4);
 }
 
 .rect-project-detail__summary {
-  padding: 14px;
+  padding: var(--rect-space-4);
 }
 
 .rect-project-detail__card h3,
 .rect-project-detail__summary h3 {
   color: var(--rect-text-primary);
-  font-size: 0.9rem;
-  font-weight: 850;
+  font-size: var(--rect-text-subsection);
+  font-weight: var(--rect-weight-bold);
 }
 
 @media (max-width: 720px) {

@@ -97,7 +97,7 @@
 
 .rect-ai-panel__title {
   font-size: 0.95rem;
-  font-weight: 800;
+  font-weight: var(--rect-weight-bold);
   letter-spacing: -0.03em;
   line-height: 1.1;
 }
@@ -192,7 +192,7 @@
 
 .rect-ai-panel__empty-title {
   color: var(--rect-text-primary);
-  font-weight: 800;
+  font-weight: var(--rect-weight-bold);
   font-size: 0.95rem;
   letter-spacing: -0.02em;
   margin-bottom: 7px;
@@ -202,7 +202,7 @@
   max-width: 250px;
   font-size: 0.78rem;
   line-height: 1.5;
-  font-weight: 550;
+  font-weight: var(--rect-weight-regular);
 }
 
 .rect-ai-composer {
@@ -214,7 +214,7 @@
 .rect-ai-composer__label {
   display: block;
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: var(--rect-weight-bold);
   color: var(--rect-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -279,7 +279,7 @@
   gap: 6px;
   padding: 0 11px;
   font-size: 0.74rem;
-  font-weight: 800;
+  font-weight: var(--rect-weight-bold);
 }
 
 .sr-only {

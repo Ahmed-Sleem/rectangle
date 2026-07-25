@@ -9,7 +9,7 @@
 .rect-setup-card__header p {
   color: var(--rect-text-secondary);
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: var(--rect-weight-bold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }

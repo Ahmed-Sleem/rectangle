@@ -97,6 +97,74 @@
     linear-gradient(225deg, var(--rect-overlay-hatch) 25%, transparent 25%) -8px 0 / 16px 16px,
     var(--rect-card-bg);
 
+  /* ── Spacing scale (base 8px, 4px sub-step, 2px mini-step) ──
+     Mandatory: see design/UI_RULES.md. Never hardcode spacing in component CSS. */
+  --rect-space-0: 0;
+  --rect-space-05: 2px;
+  --rect-space-1: 4px;
+  --rect-space-2: 8px;
+  --rect-space-3: 12px;
+  --rect-space-4: 16px;
+  --rect-space-5: 20px;
+  --rect-space-6: 24px;
+  --rect-space-8: 32px;
+  --rect-space-10: 40px;
+  --rect-space-12: 48px;
+  --rect-space-16: 64px;
+
+  /* ── Control heights ──
+     compact = dense desktop default, standard = forms/primary, touch = coarse pointer. */
+  --rect-control-xs: 24px;
+  --rect-control-compact: 32px;
+  --rect-control-standard: 40px;
+  --rect-control-touch: 48px;
+  --rect-hit-min: 24px;
+
+  /* ── Table densities ── */
+  --rect-table-row-ultra: 28px;
+  --rect-table-row-dense: 32px;
+  --rect-table-row-standard: 40px;
+  --rect-table-row-two-line: 52px;
+
+  /* ── Grid gaps ── */
+  --rect-grid-gap-dense: 8px;
+  --rect-grid-gap: 12px;
+  --rect-grid-gap-standard: 16px;
+
+  /* ── Type scale (px, dense-desktop calibrated) ── */
+  --rect-text-micro: 11px;
+  --rect-text-label: 12px;
+  --rect-text-table: 13px;
+  --rect-text-body: 14px;
+  --rect-text-subsection: 15px;
+  --rect-text-section: 17px;
+  --rect-text-page: 20px;
+  --rect-text-kpi: 28px;
+
+  --rect-leading-tight: 1.15;
+  --rect-leading-snug: 1.3;
+  --rect-leading-body: 1.45;
+
+  /* ── Font weights: only weights actually loaded for Inter ──
+     Using unloaded weights (750/850) causes synthetic rendering. */
+  --rect-weight-regular: 400;
+  --rect-weight-medium: 500;
+  --rect-weight-semibold: 600;
+  --rect-weight-bold: 700;
+  --rect-weight-black: 900;
+
+  /* ── Radius scale ── */
+  --rect-radius-xs: 6px;
+  --rect-radius-sm: 8px;
+  --rect-radius-md: 10px;
+  --rect-radius-lg: 14px;
+  --rect-radius-xl: 18px;
+  --rect-radius-2xl: 24px;
+
+  /* ── Canvas content contract ── */
+  --rect-canvas-content-max: 1180px;
+  --rect-canvas-scroll-fade: 20px;
+
   /* Layout */
   --rect-body-padding: 12px;
   --rect-body-padding-mobile: 8px;
@@ -108,7 +176,7 @@
   --rect-panel-radius: 28px;
   --rect-panel-radius-mobile: 20px;
   --rect-panel-border-width: 3px;
-  --rect-panel-padding: 24px 28px;
+  --rect-panel-padding: 20px 24px;
   --rect-panel-padding-mobile: 16px;
   --rect-nav-item-radius: 8px;
   --rect-card-radius: 14px;
@@ -117,7 +185,7 @@
   --rect-toggle-size-mobile: 26px;
   --rect-nav-icon: 18px;
   --rect-min-nav-item-height: 36px;
-  --rect-panel-stack-gap: 20px;
+  --rect-panel-stack-gap: 14px;
   --rect-ai-panel-width: 360px;
   --rect-ai-panel-width-tablet: 320px;
   --rect-ai-panel-width-collapsed: 0px;

@@ -198,19 +198,38 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: var(--rect-space-3);
   border-bottom: 1px solid var(--rect-surface-divider);
-  padding-bottom: 14px;
+  padding-bottom: var(--rect-space-3);
+  min-height: var(--rect-control-standard);
   flex-shrink: 0;
 }
 
+.rect-panel__heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-05);
+  min-width: 0;
+}
+
+/* Page title: sentence case. Never uppercase or letter-spaced —
+   Arabic has no uppercase and tracking breaks Arabic letter joining. */
 .rect-panel__title {
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-size: var(--rect-text-page);
+  font-weight: var(--rect-weight-bold);
   color: var(--rect-text-primary);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  line-height: 1.2;
+  letter-spacing: -0.02em;
+  line-height: var(--rect-leading-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rect-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-2);
+  flex-shrink: 0;
 }
 
 .rect-panel__badge {
@@ -225,14 +244,42 @@
   flex-shrink: 0;
 }
 
+/* Single content contract for every feature page.
+   Scrollbars stay invisible (global reset), so overflow is communicated with
+   soft mask fades at the scroll edges instead of a visible track. */
 .rect-panel__body {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: var(--rect-space-4);
   border-radius: 0;
-  padding-top: 2px;
+  padding-block: var(--rect-space-1) var(--rect-space-2);
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--rect-canvas-scroll-fade),
+    #000 calc(100% - var(--rect-canvas-scroll-fade)),
+    transparent 100%
+  );
+  mask-size: 100% calc(100% + (2 * var(--rect-canvas-scroll-fade)));
+  mask-position: 0 calc(-1 * var(--rect-canvas-scroll-fade));
+  mask-repeat: no-repeat;
+}
+
+/* Feature content column: one shared gutter and max width for every page,
+   so pages never invent their own canvas margins. */
+.rect-panel__content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: var(--rect-canvas-content-max);
+  gap: var(--rect-grid-gap);
 }
 
 .rect-panel__fallback {
@@ -253,45 +300,33 @@
   align-items: center;
   justify-content: center;
   min-height: 180px;
-  padding: 8px;
+  padding: var(--rect-space-2);
 }
 
 .rect-empty__card {
   background: var(--rect-card-bg);
   border: 1px solid var(--rect-card-border);
-  border-radius: var(--rect-card-radius);
-  padding: 28px 32px;
+  border-radius: var(--rect-radius-xl);
+  padding: var(--rect-space-6);
   text-align: center;
-  max-width: 340px;
+  max-width: 360px;
   width: 100%;
 }
 
 .rect-empty__title {
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: var(--rect-text-section);
+  font-weight: var(--rect-weight-bold);
   color: var(--rect-text-primary);
   letter-spacing: -0.02em;
-  margin-bottom: 6px;
+  line-height: var(--rect-leading-tight);
 }
 
 .rect-empty__text {
-  font-size: 0.875rem;
+  font-size: var(--rect-text-body);
   color: var(--rect-text-secondary);
-  font-weight: 500;
-  margin-bottom: 14px;
-  line-height: 1.45;
-}
-
-.rect-empty__badge {
-  display: inline-block;
-  background: var(--rect-badge-bg);
-  color: var(--rect-badge-text);
-  border: 1px solid var(--rect-badge-border);
-  border-radius: var(--rect-pill-radius);
-  padding: 4px 11px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: var(--rect-weight-medium);
+  line-height: var(--rect-leading-body);
+  margin-top: var(--rect-space-2);
 }
 
 /* Error */
@@ -435,12 +470,11 @@
   }
 
   .rect-panel__title {
-    font-size: 0.95rem;
-    letter-spacing: 0.08em;
+    font-size: var(--rect-text-section);
   }
 
   .rect-panel__badge {
-    font-size: 0.68rem;
+    font-size: var(--rect-text-micro);
     padding: 4px 10px;
   }
 
@@ -453,11 +487,11 @@
   }
 
   .rect-panel__title {
-    font-size: 0.85rem;
+    font-size: var(--rect-text-subsection);
   }
 
   .rect-empty__card {
-    padding: 22px 18px;
+    padding: var(--rect-space-5) var(--rect-space-4);
   }
 
   .rect-logo {
@@ -479,14 +513,7 @@
 /* ── Base GUI refinement: page title, AI floating launcher, dense chrome ── */
 
 .rect-panel__header {
-  min-height: 42px;
-}
-
-.rect-panel__title {
-  font-size: 1.28rem;
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  text-transform: none;
+  min-height: var(--rect-control-standard);
 }
 
 /* ── Density pass: apply GUI_SIZING_RULES.md to shell chrome ── */
@@ -564,7 +591,7 @@
   cursor: pointer;
   font: inherit;
   font-size: 0.74rem;
-  font-weight: 650;
+  font-weight: var(--rect-weight-medium);
   letter-spacing: -0.01em;
   transition:
     background var(--rect-motion-nav),

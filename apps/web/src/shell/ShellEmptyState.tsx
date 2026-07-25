@@ -5,6 +5,10 @@ export interface ShellEmptyStateProps {
   title?: string;
 }
 
+/**
+ * Neutral, user-facing empty state for a workspace that holds no records yet.
+ * Never expose internal identifiers, build status, or implementation wording here.
+ */
 export default function ShellEmptyState({
   featureId = "module",
   title = "Module",
@@ -17,8 +21,7 @@ export default function ShellEmptyState({
     <div className="rect-empty" role="status">
       <div className="rect-empty__card">
         <h2 className="rect-empty__title">{localizedTitle}</h2>
-        <p className="rect-empty__text">{t("common.moduleNotImplemented")}</p>
-        <span className="rect-empty__badge">{featureId}</span>
+        <p className="rect-empty__text">{t("common.noRecordsYet")}</p>
       </div>
     </div>
   );

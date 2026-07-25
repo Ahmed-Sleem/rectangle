@@ -1,7 +1,6 @@
 .rect-team-page {
   display: grid;
-  gap: 14px;
-  max-width: 1180px;
+  gap: var(--rect-space-4);
 }
 
 .rect-team-toolbar {
@@ -10,8 +9,8 @@
 
 .rect-team-card {
   display: grid;
-  gap: 10px;
-  padding: 14px;
+  gap: var(--rect-space-2);
+  padding: var(--rect-space-4);
 }
 
 .rect-team-card--wide {
@@ -20,14 +19,14 @@
 
 .rect-team-card h2 {
   color: var(--rect-text-primary);
-  font-size: 0.98rem;
-  font-weight: 850;
+  font-size: var(--rect-text-subsection);
+  font-weight: var(--rect-weight-bold);
   letter-spacing: -0.025em;
 }
 
 .rect-team-form {
   display: grid;
-  gap: 12px;
+  gap: var(--rect-space-3);
 }
 
 .rect-team-permissions {
@@ -44,7 +43,7 @@
 
 .rect-team-form__error {
   color: var(--rect-color-danger);
-  font-size: 0.84rem;
+  font-size: var(--rect-text-body);
   font-weight: 700;
 }
 

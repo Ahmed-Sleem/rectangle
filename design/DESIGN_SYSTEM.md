@@ -1,6 +1,8 @@
 # Rectangle — Design System (from approved demo shell)
 
 **Source of truth demo:** [`demo/shell.html`](./demo/shell.html)  
+**Implementation contract:** [`UI_RULES.md`](./UI_RULES.md) — mandatory and test-enforced.
+
 **Status:** Visual direction **approved**. Rebuild in production framework next (not ship this HTML as the product).
 
 > The product is a **dark outer chrome + white floating “rectangle” work surface**.  

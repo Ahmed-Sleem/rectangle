@@ -29,7 +29,7 @@
   display: inline-block;
   font-family: var(--rect-font);
   font-size: clamp(1.85rem, 5.2vw, 3.45rem);
-  font-weight: 950;
+  font-weight: var(--rect-weight-black);
   letter-spacing: -0.08em;
   line-height: 1;
   opacity: 0.08;
@@ -52,7 +52,7 @@
 .rect-boot__text {
   color: var(--rect-nav-text);
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: var(--rect-weight-bold);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
