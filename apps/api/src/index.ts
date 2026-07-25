@@ -10,6 +10,7 @@ import { OverviewService } from "./application/overview-service.js";
 import { ProjectService } from "./application/project-service.js";
 import { ProjectTeamService } from "./application/project-team-service.js";
 import { SetupService } from "./application/setup-service.js";
+import { TaskService } from "./application/task-service.js";
 import { loadConfig } from "./config.js";
 import { createServer } from "./http/server.js";
 import { NodemailerEmailSender } from "./infrastructure/email-sender.js";
@@ -25,6 +26,7 @@ import { PostgresOverviewRepository } from "./infrastructure/postgres/overview-r
 import { PostgresProjectsRepository } from "./infrastructure/postgres/projects-repository.js";
 import { PostgresProjectTeamRepository } from "./infrastructure/postgres/project-team-repository.js";
 import { PostgresSetupRepository } from "./infrastructure/postgres/setup-repository.js";
+import { PostgresTaskRepository } from "./infrastructure/postgres/task-repository.js";
 
 const config = loadConfig();
 const pool = createPostgresPool(config.DATABASE_URL);
@@ -38,6 +40,11 @@ const projectService = new ProjectService(
 const projectTeamService = new ProjectTeamService(
   projectsRepository,
   new PostgresProjectTeamRepository(pool),
+  auditRepository,
+);
+const taskService = new TaskService(
+  new PostgresTaskRepository(pool),
+  projectTeamService,
   auditRepository,
 );
 const passwordHasher = new ScryptPasswordHasher();
@@ -76,6 +83,7 @@ const server = await createServer({
   overviewService,
   projectService,
   projectTeamService,
+  taskService,
   authService,
   adminService,
   setupService,

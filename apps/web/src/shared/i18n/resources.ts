@@ -9,6 +9,7 @@
 import { enums } from "./locales/enums";
 import { overview } from "./locales/overview";
 import { projects } from "./locales/projects";
+import { tasks } from "./locales/tasks";
 import { team } from "./locales/team";
 
 export const resources = {
@@ -35,6 +36,7 @@ export const resources = {
       feature: {
         overview: "Today",
         projects: "Projects",
+        tasks: "Tasks",
         analytics: "Analytics",
         team: "Team",
         settings: "Settings",
@@ -119,6 +121,7 @@ export const resources = {
       enums: enums.en,
       overview: overview.en,
       projects: projects.en,
+      tasks: tasks.en,
       team: team.en,
     },
   },
@@ -145,6 +148,7 @@ export const resources = {
       feature: {
         overview: "اليوم",
         projects: "المشاريع",
+        tasks: "المهام",
         analytics: "التحليلات",
         team: "الفريق",
         settings: "الإعدادات",
@@ -233,6 +237,7 @@ export const resources = {
       enums: enums.ar,
       overview: overview.ar,
       projects: projects.ar,
+      tasks: tasks.ar,
       team: team.ar,
     },
   },

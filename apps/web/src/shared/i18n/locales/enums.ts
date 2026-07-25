@@ -66,6 +66,20 @@ const en = {
     project_manager: "Project manager",
     viewer: "Viewer",
   },
+  taskStatus: {
+    todo: "To do",
+    in_progress: "In progress",
+    blocked: "Blocked",
+    in_review: "In review",
+    done: "Done",
+    cancelled: "Cancelled",
+  },
+  taskPriority: {
+    low: "Low",
+    medium: "Medium",
+    high: "High",
+    urgent: "Urgent",
+  },
   activity: {
     "project.create": "Created the project",
     "project.update": "Updated project details",
@@ -88,6 +102,10 @@ const en = {
     "email_settings.update": "Updated email settings",
     "email_settings.test": "Sent a test email",
     "setup.first_admin_create": "Set up the company",
+    "task.create": "Added a task",
+    "task.update": "Updated a task",
+    "task.delete": "Deleted a task",
+    "task.comment": "Commented on a task",
   },
 } as const;
 
@@ -149,6 +167,20 @@ const ar: LocaleBundle<typeof en> = {
     project_manager: "مدير المشروع",
     viewer: "مطالع",
   },
+  taskStatus: {
+    todo: "للتنفيذ",
+    in_progress: "قيد التنفيذ",
+    blocked: "متوقف",
+    in_review: "قيد المراجعة",
+    done: "مكتمل",
+    cancelled: "ملغى",
+  },
+  taskPriority: {
+    low: "منخفضة",
+    medium: "متوسطة",
+    high: "عالية",
+    urgent: "عاجلة",
+  },
   activity: {
     "project.create": "أنشأ المشروع",
     "project.update": "حدّث بيانات المشروع",
@@ -171,6 +203,10 @@ const ar: LocaleBundle<typeof en> = {
     "email_settings.update": "حدّث إعدادات البريد",
     "email_settings.test": "أرسل رسالة تجريبية",
     "setup.first_admin_create": "أعدّ الشركة",
+    "task.create": "أضاف مهمة",
+    "task.update": "حدّث مهمة",
+    "task.delete": "حذف مهمة",
+    "task.comment": "علّق على مهمة",
   },
 };
 

@@ -69,12 +69,12 @@ describe("AppShell", () => {
     renderApp("/");
     expect(await screen.findByText("rectangle")).toBeInTheDocument();
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Overview" }),
+      await screen.findByRole("heading", { level: 1, name: "Today" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { level: 1, name: "RECTANGLE" }),
     ).not.toBeInTheDocument();
-    expect(document.title).toBe("Overview · Rectangle");
+    expect(document.title).toBe("Today · Rectangle");
   });
 
   it("renders Arabic shell labels and RTL document direction", async () => {
@@ -111,7 +111,7 @@ describe("AppShell", () => {
   it("navigates to projects and updates the shell and browser titles", async () => {
     const user = userEvent.setup();
     renderApp("/");
-    await screen.findByRole("heading", { level: 1, name: "Overview" });
+    await screen.findByRole("heading", { level: 1, name: "Today" });
 
     await user.click(screen.getByRole("link", { name: "Projects" }));
 

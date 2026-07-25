@@ -1,0 +1,236 @@
+/* Tasks: board, list, and detail. All values from tokens. */
+
+.rect-tasks-page {
+  align-content: start;
+  display: grid;
+  gap: var(--rect-grid-gap);
+  min-width: 0;
+}
+
+/*
+ * Columns scroll sideways as a set rather than shrinking below a readable
+ * width, which is what makes a six-column board usable on a laptop.
+ */
+.rect-board {
+  display: grid;
+  gap: var(--rect-grid-gap);
+  grid-auto-columns: minmax(260px, 1fr);
+  grid-auto-flow: column;
+  overflow-x: auto;
+  padding-block-end: var(--rect-space-2);
+}
+
+.rect-board__column {
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-3);
+  min-inline-size: 0;
+  padding: var(--rect-space-3);
+}
+
+.rect-board__head {
+  align-items: center;
+  display: flex;
+  gap: var(--rect-space-2);
+  justify-content: space-between;
+}
+
+.rect-board__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-bold);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.rect-board__count {
+  background: var(--rect-surface-bg-hover);
+  border-radius: var(--rect-pill-radius);
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-micro);
+  font-weight: var(--rect-weight-semibold);
+  padding: 0 var(--rect-space-2);
+}
+
+.rect-board__body {
+  display: grid;
+  align-content: start;
+  gap: var(--rect-space-2);
+  /* min-height 0 so the column scrolls instead of growing past the canvas. */
+  min-block-size: 0;
+  overflow-y: auto;
+}
+
+.rect-board__empty,
+.rect-task-detail__note {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  margin: 0;
+  padding: var(--rect-space-2);
+}
+
+/* ── Task card ── */
+
+.rect-task {
+  min-inline-size: 0;
+}
+
+.rect-task__open {
+  background: var(--rect-surface-bg-hover);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: var(--rect-space-2);
+  inline-size: 100%;
+  padding: var(--rect-space-3);
+  text-align: start;
+  transition: border-color var(--rect-motion-spring);
+}
+
+.rect-task__open:hover,
+.rect-task__open:focus-visible {
+  border-color: var(--rect-border-active);
+}
+
+.rect-task__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+}
+
+.rect-task__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-task__meta {
+  color: var(--rect-text-secondary);
+  display: flex;
+  font-size: var(--rect-text-label);
+  gap: var(--rect-space-3);
+  justify-content: space-between;
+}
+
+.rect-tasks__link {
+  background: none;
+  border: 0;
+  color: var(--rect-text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--rect-weight-semibold);
+  padding: 0;
+  text-align: start;
+}
+
+.rect-tasks__link:hover {
+  text-decoration: underline;
+}
+
+.rect-tasks__overdue {
+  color: var(--rect-color-danger);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-tasks-form__split {
+  display: grid;
+  gap: var(--rect-space-3);
+  grid-template-columns: 1fr 1fr;
+}
+
+/* ── Detail ── */
+
+.rect-task-detail {
+  display: grid;
+  gap: var(--rect-space-4);
+}
+
+.rect-task-detail__facts {
+  display: grid;
+  gap: var(--rect-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  margin: 0;
+}
+
+.rect-task-detail__facts dt {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  margin-block-end: var(--rect-space-1);
+}
+
+.rect-task-detail__facts dd {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  margin: 0;
+}
+
+.rect-task-detail__description {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  line-height: var(--rect-leading-body);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.rect-task-detail__moves {
+  border-block-start: 1px solid var(--rect-surface-divider);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+  padding-block-start: var(--rect-space-3);
+}
+
+.rect-task-detail__comments {
+  border-block-start: 1px solid var(--rect-surface-divider);
+  display: grid;
+  gap: var(--rect-space-3);
+  padding-block-start: var(--rect-space-3);
+}
+
+.rect-task-detail__heading {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-subsection);
+  font-weight: var(--rect-weight-bold);
+  margin: 0;
+}
+
+.rect-task-detail__thread {
+  display: grid;
+  gap: var(--rect-space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-task-detail__comment {
+  display: grid;
+  gap: var(--rect-space-1);
+}
+
+.rect-task-detail__comment-meta {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+.rect-task-detail__comment-body {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  white-space: pre-wrap;
+}
+
+.rect-task-detail__composer {
+  display: grid;
+  gap: var(--rect-space-2);
+  justify-items: start;
+}
+
+.rect-task-detail__error {
+  color: var(--rect-color-danger);
+  font-size: var(--rect-text-label);
+  margin: 0;
+}

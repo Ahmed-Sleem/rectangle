@@ -3,6 +3,7 @@ import {
   Folder,
   LayoutGrid,
   LogOut,
+  ListChecks,
   Settings,
   User,
   Users,
@@ -13,6 +14,7 @@ import type { FeatureIconName } from "./feature-types";
 const ICON_MAP: Record<FeatureIconName, LucideIcon> = {
   overview: LayoutGrid,
   projects: Folder,
+  tasks: ListChecks,
   analytics: BarChart3,
   team: Users,
   settings: Settings,

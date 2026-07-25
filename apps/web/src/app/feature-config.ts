@@ -20,9 +20,10 @@ export interface FeatureConfigEntry {
 export type FeatureConfig = readonly FeatureConfigEntry[];
 
 export const rectangleFeatureConfig = [
-  { id: "overview", enabled: true, order: 10, title: "Overview", titleAr: "نظرة عامة" },
+  { id: "overview", enabled: true, order: 10, title: "Today", titleAr: "اليوم" },
   { id: "projects", enabled: true, order: 20, title: "Projects", titleAr: "المشاريع" },
-  { id: "analytics", enabled: true, order: 30, title: "Analytics", titleAr: "التحليلات" },
+  { id: "tasks", enabled: true, order: 30, title: "Tasks", titleAr: "المهام" },
+  { id: "analytics", enabled: true, order: 35, title: "Analytics", titleAr: "التحليلات" },
   { id: "team", enabled: true, order: 40, title: "Team", titleAr: "الفريق" },
   { id: "settings", enabled: true, order: 50, title: "Settings", titleAr: "الإعدادات" },
   { id: "profile", enabled: true, order: 900, title: "Profile", titleAr: "الملف الشخصي" },

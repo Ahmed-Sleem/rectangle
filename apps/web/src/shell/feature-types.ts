@@ -5,6 +5,7 @@ export type NavGroup = "primary" | "footer";
 export type FeatureIconName =
   | "overview"
   | "projects"
+  | "tasks"
   | "analytics"
   | "team"
   | "settings"

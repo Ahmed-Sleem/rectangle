@@ -12,3 +12,13 @@ export const inactiveOverviewService: Pick<OverviewService, "getSummary"> = {
     throw new Error("not used");
   },
 };
+
+export const inactiveTaskService = {
+  createTask(): never { throw new Error("not used"); },
+  listTasks(): never { throw new Error("not used"); },
+  getTask(): never { throw new Error("not used"); },
+  updateTask(): never { throw new Error("not used"); },
+  deleteTask(): never { throw new Error("not used"); },
+  listComments(): never { throw new Error("not used"); },
+  addComment(): never { throw new Error("not used"); },
+};

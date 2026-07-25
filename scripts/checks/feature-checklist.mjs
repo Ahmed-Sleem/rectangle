@@ -30,6 +30,7 @@ const PAGES = [
   { id: "projects.list", file: "features/projects/ProjectsPage.tsx", tests: ["features/projects/ProjectsPage.test.tsx"] },
   { id: "projects.workspace", file: "features/projects/ProjectDetailPage.tsx", tests: ["features/projects/ProjectDetailPage.test.tsx"] },
   { id: "projects.settings", file: "features/projects/ProjectSettingsPage.tsx", tests: ["features/projects/ProjectSettingsPage.test.tsx"] },
+  { id: "tasks", file: "features/tasks/TasksPage.tsx", tests: ["features/tasks/TasksPage.test.tsx"] },
   { id: "team", file: "features/team/TeamPage.tsx", tests: ["features/team/TeamPage.test.tsx"] },
   { id: "settings", file: "features/settings/SettingsPage.tsx", tests: ["features/settings/SettingsPage.test.tsx"] },
 ];
@@ -47,6 +48,7 @@ const SERVICES = [
   { id: "overview", file: "application/overview-service.ts", readOnly: true },
   { id: "project", file: "application/project-service.js".replace(".js", ".ts") },
   { id: "project-team", file: "application/project-team-service.ts" },
+  { id: "task", file: "application/task-service.ts" },
   { id: "admin", file: "application/admin-service.ts" },
 ];
 
