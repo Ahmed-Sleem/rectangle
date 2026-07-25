@@ -1,13 +1,17 @@
 import type { FeatureModule } from "@/shell/feature-types";
 
+/**
+ * The landing surface. Named "Today" rather than "Dashboard" because it answers
+ * what needs a decision now, not what happened in general.
+ */
 export const overviewFeature: FeatureModule = {
   id: "overview",
-  title: "Overview",
-  titleAr: "نظرة عامة",
+  title: "Today",
+  titleAr: "اليوم",
   icon: "overview",
   order: 10,
   navGroup: "primary",
   routePath: "/",
   enabled: true,
-  load: () => import("./OverviewEmpty"),
+  load: () => import("./TodayPage"),
 };

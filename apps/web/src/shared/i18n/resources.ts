@@ -7,6 +7,7 @@
  * fallback at runtime, which is how screens drifted back to English before.
  */
 import { enums } from "./locales/enums";
+import { overview } from "./locales/overview";
 import { projects } from "./locales/projects";
 import { team } from "./locales/team";
 
@@ -32,7 +33,7 @@ export const resources = {
         listSeparator: ", ",
       },
       feature: {
-        overview: "Overview",
+        overview: "Today",
         projects: "Projects",
         analytics: "Analytics",
         team: "Team",
@@ -116,6 +117,7 @@ export const resources = {
         },
       },
       enums: enums.en,
+      overview: overview.en,
       projects: projects.en,
       team: team.en,
     },
@@ -141,7 +143,7 @@ export const resources = {
         listSeparator: "، ",
       },
       feature: {
-        overview: "نظرة عامة",
+        overview: "اليوم",
         projects: "المشاريع",
         analytics: "التحليلات",
         team: "الفريق",
@@ -229,6 +231,7 @@ export const resources = {
         },
       },
       enums: enums.ar,
+      overview: overview.ar,
       projects: projects.ar,
       team: team.ar,
     },

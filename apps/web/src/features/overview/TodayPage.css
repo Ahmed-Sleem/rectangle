@@ -1,0 +1,155 @@
+/* Today / Command Center layout. All values come from tokens. */
+
+.rect-today {
+  align-content: start;
+  display: grid;
+  gap: var(--rect-grid-gap);
+}
+
+/*
+ * The attention list is the reason to open this page, so it takes the wide
+ * column. Below the breakpoint the aside follows underneath rather than being
+ * squeezed into an unreadable width.
+ */
+.rect-today__columns {
+  display: grid;
+  gap: var(--rect-grid-gap);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+@media (max-width: 60rem) {
+  .rect-today__columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.rect-today__main {
+  display: grid;
+  align-content: start;
+  gap: var(--rect-space-4);
+  min-width: 0;
+}
+
+.rect-today__head {
+  display: grid;
+  gap: var(--rect-space-1);
+}
+
+.rect-today__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-subsection);
+  font-weight: var(--rect-weight-bold);
+  margin: 0;
+}
+
+.rect-today__subtitle {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  margin: 0;
+}
+
+.rect-today__list {
+  display: grid;
+  gap: var(--rect-space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-today__link {
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  color: inherit;
+  display: grid;
+  gap: var(--rect-space-2);
+  padding: var(--rect-space-3) var(--rect-space-4);
+  text-decoration: none;
+  transition: border-color var(--rect-motion-spring), background var(--rect-motion-spring);
+}
+
+.rect-today__link:hover,
+.rect-today__link:focus-visible {
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-border-active);
+}
+
+.rect-today__item-head {
+  align-items: center;
+  display: flex;
+  gap: var(--rect-space-2);
+  justify-content: space-between;
+}
+
+.rect-today__code {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-medium);
+}
+
+.rect-today__name {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-today__meta,
+.rect-today__budget-meta,
+.rect-today__activity-meta {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+.rect-today__meta {
+  display: flex;
+  gap: var(--rect-space-3);
+  justify-content: space-between;
+}
+
+.rect-today__foot {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.rect-today__aside {
+  display: grid;
+  align-content: start;
+  gap: var(--rect-grid-gap);
+  min-width: 0;
+}
+
+.rect-today__note {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  margin: 0;
+}
+
+.rect-today__budgets,
+.rect-today__activity {
+  display: grid;
+  gap: var(--rect-space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-today__budget,
+.rect-today__activity-item {
+  display: grid;
+  gap: var(--rect-space-1);
+}
+
+.rect-today__budget-amount {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-bold);
+  /* Currency amounts read as quantities, so they must not reflow in Arabic. */
+  unicode-bidi: plaintext;
+}
+
+.rect-today__activity-label {
+  align-items: center;
+  color: var(--rect-text-primary);
+  display: flex;
+  font-size: var(--rect-text-body);
+  gap: var(--rect-space-2);
+}

@@ -2,6 +2,7 @@
 export {
   Badge,
   Button,
+  buttonClassName,
   Card,
   Checkbox,
   DataTable,

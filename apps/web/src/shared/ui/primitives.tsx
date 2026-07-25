@@ -25,18 +25,25 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: Size;
 }
 
+/**
+ * Some actions are navigation and must render as a link so they can be opened
+ * in a new tab and read as a link by assistive technology. Those cases reuse
+ * this instead of copying the class names, which is how a link and a button
+ * drift apart visually.
+ */
+export function buttonClassName(
+  variant: NonNullable<ButtonProps["variant"]> = "secondary",
+  size: Size = "md",
+  className?: string,
+): string {
+  return cn("rect-ui-button", `rect-ui-button--${variant}`, `rect-ui-button--${size}`, className);
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { className, variant = "secondary", size = "md", type = "button", ...props },
   ref,
 ) {
-  return (
-    <button
-      ref={ref}
-      type={type}
-      className={cn("rect-ui-button", `rect-ui-button--${variant}`, `rect-ui-button--${size}`, className)}
-      {...props}
-    />
-  );
+  return <button ref={ref} type={type} className={buttonClassName(variant, size, className)} {...props} />;
 });
 
 export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

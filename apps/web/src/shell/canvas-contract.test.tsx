@@ -34,7 +34,8 @@ describe("canvas empty state", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { level: 2, name: "Overview" }),
+      // The translated feature name is shown, not the English prop fallback.
+      await screen.findByRole("heading", { level: 2, name: "Today" }),
     ).toBeInTheDocument();
     expect(screen.getByText("No records to show here yet.")).toBeInTheDocument();
 

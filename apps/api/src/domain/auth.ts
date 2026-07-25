@@ -74,6 +74,14 @@ export function canReadProjectRegistry(principal: UserPrincipal): boolean {
   return principal.roles.some((role) => projectReadRoles.has(role)) || hasPermission(principal, "projects.read");
 }
 
+/**
+ * Surfaces that mix data from several registers ask this before including a
+ * block, so a narrower user loses that block rather than the whole page.
+ */
+export function canReadUsers(principal: UserPrincipal): boolean {
+  return hasPermission(principal, "users.read");
+}
+
 export function requireProjectManagement(principal: UserPrincipal): void {
   if (!canManageProjects(principal)) {
     throw new DomainError("FORBIDDEN", "You do not have permission to manage projects.");

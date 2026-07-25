@@ -1,0 +1,128 @@
+/** Today / Command Center copy. */
+import type { LocaleBundle } from "./types";
+
+const en = {
+  pageLabel: "Today",
+  loadingTitle: "Loading your day",
+  loadingMessage: "Gathering projects, schedule dates, and recent activity…",
+  errorTitle: "Today could not be loaded",
+  errorMessage: "Something went wrong while gathering your overview. Please try again.",
+  tryAgain: "Try again",
+
+  emptyTitle: "Nothing to show yet",
+  emptyManage: "Create your first project and this page will follow its schedule, team, and activity.",
+  emptyRead: "Once you are added to a project, its schedule and activity appear here.",
+  createProject: "Create project",
+
+  summaryLabel: "Portfolio at a glance",
+  kpiProjects: "Projects",
+  kpiActive: "Active",
+  kpiAttention: "Needs attention",
+  kpiAttentionHint_one: "{{count}} is already past its planned finish",
+  kpiAttentionHint_other: "{{count}} are already past their planned finish",
+  kpiTeam: "People",
+  kpiTeamHint_one: "{{count}} disabled account",
+  kpiTeamHint_other: "{{count}} disabled accounts",
+
+  attentionTitle: "Needs your attention",
+  attentionHorizon: "Schedule dates within the next {{count}} days",
+  attentionEmptyTitle: "Nothing due right now",
+  attentionEmptyMessage:
+    "No open project has a planned start or finish date inside the next {{count}} days.",
+  reasonOverdue: "Past planned finish",
+  reasonFinishingSoon: "Finishing soon",
+  reasonStartingSoon: "Starting soon",
+  overdueBy_one: "{{count}} day late",
+  overdueBy_other: "{{count}} days late",
+  dueIn_one: "In {{count}} day",
+  dueIn_other: "In {{count}} days",
+  dueToday: "Today",
+  openProject: "Open project",
+
+  statusTitle: "Projects by status",
+  statusEmpty: "No projects have been registered yet.",
+
+  budgetTitle: "Registered budget",
+  budgetEmpty: "No project has a budget recorded yet.",
+  budgetProjects_one: "{{count}} project",
+  budgetProjects_other: "{{count}} projects",
+
+  activityTitle: "Recent activity",
+  activityEmpty: "Actions taken in Rectangle will be listed here.",
+  activityFailed: "Failed",
+  viewAllProjects: "View all projects",
+} as const;
+
+const ar: LocaleBundle<typeof en> = {
+  pageLabel: "اليوم",
+  loadingTitle: "جارٍ تحميل يومك",
+  loadingMessage: "يتم تجميع المشاريع وتواريخ الجدول الزمني والنشاط الأخير…",
+  errorTitle: "تعذّر تحميل صفحة اليوم",
+  errorMessage: "حدث خطأ أثناء تجميع نظرتك العامة. حاول مرة أخرى.",
+  tryAgain: "إعادة المحاولة",
+
+  emptyTitle: "لا يوجد ما يُعرض بعد",
+  emptyManage: "أنشئ مشروعك الأول وستتابع هذه الصفحة جدوله الزمني وفريقه ونشاطه.",
+  emptyRead: "بمجرد إضافتك إلى مشروع، سيظهر جدوله الزمني ونشاطه هنا.",
+  createProject: "إنشاء مشروع",
+
+  summaryLabel: "نظرة عامة على المحفظة",
+  kpiProjects: "المشاريع",
+  kpiActive: "نشطة",
+  kpiAttention: "تحتاج انتباهًا",
+  kpiAttentionHint_zero: "لا شيء تجاوز تاريخ الانتهاء المخطط",
+  kpiAttentionHint_one: "مشروع واحد تجاوز تاريخ الانتهاء المخطط",
+  kpiAttentionHint_two: "مشروعان تجاوزا تاريخ الانتهاء المخطط",
+  kpiAttentionHint_few: "{{count}} مشاريع تجاوزت تاريخ الانتهاء المخطط",
+  kpiAttentionHint_many: "{{count}} مشروعًا تجاوزت تاريخ الانتهاء المخطط",
+  kpiAttentionHint_other: "{{count}} مشروع تجاوز تاريخ الانتهاء المخطط",
+  kpiTeam: "الأشخاص",
+  kpiTeamHint_zero: "لا توجد حسابات معطّلة",
+  kpiTeamHint_one: "حساب معطّل واحد",
+  kpiTeamHint_two: "حسابان معطّلان",
+  kpiTeamHint_few: "{{count}} حسابات معطّلة",
+  kpiTeamHint_many: "{{count}} حسابًا معطّلًا",
+  kpiTeamHint_other: "{{count}} حساب معطّل",
+
+  attentionTitle: "يحتاج انتباهك",
+  attentionHorizon: "تواريخ الجدول الزمني خلال {{count}} يومًا القادمة",
+  attentionEmptyTitle: "لا يوجد استحقاق حاليًا",
+  attentionEmptyMessage:
+    "لا يوجد مشروع مفتوح له تاريخ بدء أو انتهاء مخطط خلال {{count}} يومًا القادمة.",
+  reasonOverdue: "تجاوز تاريخ الانتهاء المخطط",
+  reasonFinishingSoon: "قارب على الانتهاء",
+  reasonStartingSoon: "يبدأ قريبًا",
+  overdueBy_zero: "متأخر",
+  overdueBy_one: "متأخر يومًا واحدًا",
+  overdueBy_two: "متأخر يومين",
+  overdueBy_few: "متأخر {{count}} أيام",
+  overdueBy_many: "متأخر {{count}} يومًا",
+  overdueBy_other: "متأخر {{count}} يوم",
+  dueIn_zero: "اليوم",
+  dueIn_one: "خلال يوم واحد",
+  dueIn_two: "خلال يومين",
+  dueIn_few: "خلال {{count}} أيام",
+  dueIn_many: "خلال {{count}} يومًا",
+  dueIn_other: "خلال {{count}} يوم",
+  dueToday: "اليوم",
+  openProject: "فتح المشروع",
+
+  statusTitle: "المشاريع حسب الحالة",
+  statusEmpty: "لم يُسجَّل أي مشروع بعد.",
+
+  budgetTitle: "الميزانية المسجّلة",
+  budgetEmpty: "لا يوجد مشروع مسجَّلة له ميزانية بعد.",
+  budgetProjects_zero: "لا مشاريع",
+  budgetProjects_one: "مشروع واحد",
+  budgetProjects_two: "مشروعان",
+  budgetProjects_few: "{{count}} مشاريع",
+  budgetProjects_many: "{{count}} مشروعًا",
+  budgetProjects_other: "{{count}} مشروع",
+
+  activityTitle: "النشاط الأخير",
+  activityEmpty: "ستُدرج هنا الإجراءات المنفَّذة في Rectangle.",
+  activityFailed: "فشل",
+  viewAllProjects: "عرض كل المشاريع",
+};
+
+export const overview = { en, ar };

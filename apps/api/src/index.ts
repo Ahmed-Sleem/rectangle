@@ -6,6 +6,7 @@ import { AdminService } from "./application/admin-service.js";
 import { EmailSettingsService } from "./application/email-settings-service.js";
 import { AuthService } from "./application/auth-service.js";
 import { PasskeyService } from "./application/passkey-service.js";
+import { OverviewService } from "./application/overview-service.js";
 import { ProjectService } from "./application/project-service.js";
 import { ProjectTeamService } from "./application/project-team-service.js";
 import { SetupService } from "./application/setup-service.js";
@@ -19,6 +20,7 @@ import { PostgresAuthRepository } from "./infrastructure/postgres/auth-repositor
 import { assertDatabaseReady, createPostgresPool } from "./infrastructure/postgres/pool.js";
 import { PostgresEmailSettingsRepository } from "./infrastructure/postgres/email-settings-repository.js";
 import { PostgresPasskeyRepository } from "./infrastructure/postgres/passkey-repository.js";
+import { PostgresOverviewRepository } from "./infrastructure/postgres/overview-repository.js";
 import { PostgresProjectsRepository } from "./infrastructure/postgres/projects-repository.js";
 import { PostgresProjectTeamRepository } from "./infrastructure/postgres/project-team-repository.js";
 import { PostgresSetupRepository } from "./infrastructure/postgres/setup-repository.js";
@@ -27,6 +29,7 @@ const config = loadConfig();
 const pool = createPostgresPool(config.DATABASE_URL);
 const auditRepository = new PostgresAuditRepository(pool);
 const projectsRepository = new PostgresProjectsRepository(pool);
+const overviewService = new OverviewService(new PostgresOverviewRepository(pool));
 const projectService = new ProjectService(
   projectsRepository,
   auditRepository,
@@ -66,6 +69,7 @@ const passkeyService = new PasskeyService(
 );
 
 const server = await createServer({
+  overviewService,
   projectService,
   projectTeamService,
   authService,

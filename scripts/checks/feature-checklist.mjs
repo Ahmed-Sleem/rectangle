@@ -26,6 +26,7 @@ const API = join(ROOT, "apps/api/src");
  * Add a feature here the moment its page exists, not after.
  */
 const PAGES = [
+  { id: "overview.today", file: "features/overview/TodayPage.tsx", tests: ["features/overview/TodayPage.test.tsx"] },
   { id: "projects.list", file: "features/projects/ProjectsPage.tsx", tests: ["features/projects/ProjectsPage.test.tsx"] },
   { id: "projects.workspace", file: "features/projects/ProjectDetailPage.tsx", tests: ["features/projects/ProjectDetailPage.test.tsx"] },
   { id: "projects.settings", file: "features/projects/ProjectSettingsPage.tsx", tests: ["features/projects/ProjectSettingsPage.test.tsx"] },
@@ -33,8 +34,17 @@ const PAGES = [
   { id: "settings", file: "features/settings/SettingsPage.tsx", tests: ["features/settings/SettingsPage.test.tsx"] },
 ];
 
-/** Backend slices that must carry validation, authorization, and audit. */
+/**
+ * Backend slices that must carry validation, authorization, and tenant scoping.
+ *
+ * `readOnly` marks a service that only reads. Those still owe every other
+ * guarantee; they are exempt from the audit check because logging a read would
+ * bury the mutations the audit trail exists to preserve. Marking a service that
+ * does mutate as read-only is the one way to weaken this, so the flag is
+ * verified below rather than trusted.
+ */
 const SERVICES = [
+  { id: "overview", file: "application/overview-service.ts", readOnly: true },
   { id: "project", file: "application/project-service.js".replace(".js", ".ts") },
   { id: "project-team", file: "application/project-team-service.ts" },
   { id: "admin", file: "application/admin-service.ts" },
@@ -103,7 +113,20 @@ for (const service of SERVICES) {
   check("service", service.id, "validates input", /\bparse[A-Z]\w*\(|safeParse/.test(source));
   check("service", service.id, "checks authorization", /require[A-Z]\w*|canManage|resolveAccess/.test(source));
   check("service", service.id, "scopes to tenant", /tenantId/.test(source));
-  check("service", service.id, "writes audit events", /audit\.append/.test(source));
+
+  if (service.readOnly) {
+    // A read-only claim is only credible while the service never calls a
+    // repository method that changes state.
+    check(
+      "service",
+      service.id,
+      "read-only service performs no writes",
+      !/\.(create|update|delete|add|remove|save|append)[A-Z(]/.test(source),
+      "declared readOnly but calls a mutating repository method",
+    );
+  } else {
+    check("service", service.id, "writes audit events", /audit\.append/.test(source));
+  }
 }
 
 // ── Cross-cutting ───────────────────────────────────────────────────────────

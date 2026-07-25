@@ -9,6 +9,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { AdminService } from "../application/admin-service.js";
 import type { AuthService } from "../application/auth-service.js";
+import type { OverviewService } from "../application/overview-service.js";
 import type { ProjectService } from "../application/project-service.js";
 import type { ProjectTeamService } from "../application/project-team-service.js";
 import type { SetupService } from "../application/setup-service.js";
@@ -18,12 +19,14 @@ import { createAuthenticationHook } from "./auth.js";
 import { registerAdminRoutes } from "./admin-routes.js";
 import { registerAuthRoutes } from "./auth-routes.js";
 import { errorHandler } from "./errors.js";
+import { registerOverviewRoutes } from "./overview-routes.js";
 import { registerProjectRoutes } from "./projects-routes.js";
 import { registerSetupRoutes } from "./setup-routes.js";
 import { registerSettingsRoutes } from "./settings-routes.js";
 import { registerPasskeyRoutes } from "./passkey-routes.js";
 
 export interface ServerDependencies {
+  overviewService: Pick<OverviewService, "getSummary">;
   projectService: ProjectService;
   projectTeamService: ProjectTeamService;
   authService: AuthService;
@@ -81,6 +84,7 @@ export async function createServer(dependencies: ServerDependencies) {
     )(request, reply);
   });
 
+  await registerOverviewRoutes(app, dependencies.overviewService);
   await registerProjectRoutes(app, dependencies.projectService, dependencies.projectTeamService);
   await registerAdminRoutes(app, dependencies.adminService);
   await registerSettingsRoutes(app, dependencies.emailSettingsService);

@@ -27,6 +27,7 @@ import {
   Select,
   Textarea,
   Toolbar,
+  buttonClassName,
 } from "@/shared/ui";
 import { adminApi } from "@/features/team/admin-api";
 import {
@@ -255,7 +256,7 @@ export default function ProjectDetailPage() {
           </Badge>
           {canManage ? <Button variant="secondary" onClick={() => setEditOpen(true)}>{t("projects.editProject")}</Button> : null}
           {canManage ? (
-            <Link className="rect-ui-button rect-ui-button--secondary rect-ui-button--md" to={`/projects/${projectId}/settings`}>
+            <Link className={buttonClassName("secondary")} to={`/projects/${projectId}/settings`}>
               {t("projects.projectSettings")}
             </Link>
           ) : null}
