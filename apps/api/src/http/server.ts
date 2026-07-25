@@ -10,6 +10,7 @@ import { join } from "node:path";
 import type { AdminService } from "../application/admin-service.js";
 import type { AuthService } from "../application/auth-service.js";
 import type { OverviewService } from "../application/overview-service.js";
+import type { ProfileService } from "../application/profile-service.js";
 import type { ProjectService } from "../application/project-service.js";
 import type { ProjectTeamService } from "../application/project-team-service.js";
 import type { SearchService } from "../application/search-service.js";
@@ -22,6 +23,7 @@ import { registerAdminRoutes } from "./admin-routes.js";
 import { registerAuthRoutes } from "./auth-routes.js";
 import { errorHandler } from "./errors.js";
 import { registerOverviewRoutes } from "./overview-routes.js";
+import { registerProfileRoutes } from "./profile-routes.js";
 import { registerProjectRoutes } from "./projects-routes.js";
 import { registerSearchRoutes } from "./search-routes.js";
 import { registerSetupRoutes } from "./setup-routes.js";
@@ -31,6 +33,7 @@ import { registerPasskeyRoutes } from "./passkey-routes.js";
 
 export interface ServerDependencies {
   overviewService: Pick<OverviewService, "getSummary">;
+  profileService: Pick<ProfileService, "getProfile" | "updateProfile" | "changePassword">;
   projectService: ProjectService;
   searchService: Pick<SearchService, "search">;
   taskService: Pick<TaskService, "createTask" | "listTasks" | "getTask" | "updateTask" | "deleteTask" | "listComments" | "addComment">;
@@ -92,6 +95,7 @@ export async function createServer(dependencies: ServerDependencies) {
 
   await registerOverviewRoutes(app, dependencies.overviewService);
   await registerProjectRoutes(app, dependencies.projectService, dependencies.projectTeamService);
+  await registerProfileRoutes(app, dependencies.profileService);
   await registerSearchRoutes(app, dependencies.searchService);
   await registerTaskRoutes(app, dependencies.taskService);
   await registerAdminRoutes(app, dependencies.adminService);

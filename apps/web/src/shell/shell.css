@@ -1194,3 +1194,102 @@
     padding-inline: 0;
   }
 }
+
+/* Signed-in person: shown on every screen. */
+.rect-user-menu {
+  position: relative;
+}
+
+.rect-user-menu__trigger {
+  align-items: center;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--rect-radius-md);
+  color: var(--rect-text-primary);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: var(--rect-text-label);
+  gap: var(--rect-space-2);
+  block-size: var(--rect-control-compact);
+  padding-inline: var(--rect-space-2);
+  transition: border-color var(--rect-motion-spring);
+}
+
+.rect-user-menu__trigger:hover,
+.rect-user-menu__trigger[aria-expanded="true"] {
+  border-color: var(--rect-border-active);
+}
+
+.rect-user-menu__name {
+  max-inline-size: var(--rect-field-width-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * Anchored to the trigger's trailing edge so it opens inward in both reading
+ * directions rather than off the side of the canvas in Arabic.
+ */
+.rect-user-menu__panel {
+  background: var(--rect-color-paper);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  box-shadow: var(--rect-shadow-panel);
+  display: grid;
+  gap: var(--rect-space-1);
+  inset-block-start: calc(100% + var(--rect-space-2));
+  inset-inline-end: 0;
+  min-inline-size: var(--rect-field-width-search);
+  padding: var(--rect-space-2);
+  position: absolute;
+  z-index: 20;
+}
+
+.rect-user-menu__identity {
+  border-block-end: 1px solid var(--rect-surface-divider);
+  display: grid;
+  gap: var(--rect-space-1);
+  margin-block-end: var(--rect-space-1);
+  padding: var(--rect-space-2);
+}
+
+.rect-user-menu__identity-name {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-user-menu__identity-email {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  unicode-bidi: plaintext;
+}
+
+.rect-user-menu__item {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: var(--rect-radius-sm);
+  color: var(--rect-text-primary);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--rect-text-body);
+  gap: var(--rect-space-3);
+  inline-size: 100%;
+  padding: var(--rect-space-2) var(--rect-space-3);
+  text-align: start;
+}
+
+.rect-user-menu__item:hover,
+.rect-user-menu__item:focus-visible {
+  background: var(--rect-surface-bg-hover);
+}
+
+@media (max-width: 48rem) {
+  .rect-user-menu__name {
+    display: none;
+  }
+}

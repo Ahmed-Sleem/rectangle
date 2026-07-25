@@ -26,3 +26,9 @@ export const inactiveTaskService = {
 export const inactiveSearchService = {
   search(): never { throw new Error("not used"); },
 };
+
+export const inactiveProfileService = {
+  getProfile(): never { throw new Error("not used"); },
+  updateProfile(): never { throw new Error("not used"); },
+  changePassword(): never { throw new Error("not used"); },
+};

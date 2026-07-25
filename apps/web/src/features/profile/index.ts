@@ -9,5 +9,5 @@ export const profileFeature: FeatureModule = {
   navGroup: "footer",
   routePath: "/profile",
   enabled: true,
-  load: () => import("./ProfileEmpty"),
+  load: () => import("./ProfilePage"),
 };

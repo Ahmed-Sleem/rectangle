@@ -17,6 +17,8 @@ export async function registerAuthRoutes(app: FastifyInstance, authService: Auth
     return reply.status(200).send(result);
   });
 
+  // The principal now carries identity resolved from the user row on every
+  // request, so this needs no extra query.
   app.get("/v1/me", async (request) => ({ user: request.principal }));
 
   app.post("/v1/auth/logout", async (request, reply) => {

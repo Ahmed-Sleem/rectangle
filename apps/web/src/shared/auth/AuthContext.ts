@@ -7,6 +7,13 @@ export interface RectangleUser {
   roles: string[];
   permissions: string[];
   sessionId?: string;
+  /**
+   * Who the person is, resolved live from their user row on every request.
+   * Optional only because a session-less token cannot supply it; the API
+   * refuses those, so in practice it is always present.
+   */
+  displayName?: string;
+  email?: string;
 }
 
 export interface AuthContextValue {

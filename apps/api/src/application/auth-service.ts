@@ -24,9 +24,14 @@ export interface CredentialUserRecord {
 }
 
 export interface AuthSessionRecord {
-  /** Present only on the per-request lookup, which re-reads live authority. */
+  /**
+   * Present only on the per-request lookup, which re-reads live identity and
+   * authority. Session creation does not select them.
+   */
   roles?: TenantRole[];
   permissions?: string[];
+  displayName?: string;
+  email?: string;
   id: string;
   tenantId: string;
   userId: string;
@@ -89,12 +94,21 @@ export class AuthService {
     sessionId: string,
     tenantId: string,
     userId: string,
-  ): Promise<{ roles: TenantRole[]; permissions: string[] } | null> {
+  ): Promise<{
+    roles: TenantRole[];
+    permissions: string[];
+    displayName?: string;
+    email?: string;
+  } | null> {
     const session = await this.authRepository.findActiveSession(sessionId, tenantId, userId);
     if (!session) return null;
     return {
       roles: session.roles ?? [],
       permissions: [...new Set(session.permissions ?? [])],
+      // Read from the same row as authority, so a renamed person is renamed
+      // everywhere on their next request rather than at their next sign-in.
+      ...(session.displayName ? { displayName: session.displayName } : {}),
+      ...(session.email ? { email: session.email } : {}),
     };
   }
 

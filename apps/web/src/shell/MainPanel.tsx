@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { NavToggle } from "./NavToggle";
 import { GlobalSearch } from "./search/GlobalSearch";
+import { UserMenu } from "./UserMenu";
 import { useScrollEdges } from "./useScrollEdges";
 
 export function MainPanel({
@@ -85,6 +86,7 @@ export function MainPanel({
             <Search size={16} strokeWidth={2} aria-hidden />
             <span className="rect-panel__search-text">{t("shell.search.open")}</span>
           </button>
+          <UserMenu />
         </div>
       </header>
 

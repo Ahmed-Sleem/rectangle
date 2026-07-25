@@ -7,6 +7,7 @@ import { EmailSettingsService } from "./application/email-settings-service.js";
 import { AuthService } from "./application/auth-service.js";
 import { PasskeyService } from "./application/passkey-service.js";
 import { OverviewService } from "./application/overview-service.js";
+import { ProfileService } from "./application/profile-service.js";
 import { ProjectService } from "./application/project-service.js";
 import { ProjectTeamService } from "./application/project-team-service.js";
 import { SearchService } from "./application/search-service.js";
@@ -24,6 +25,7 @@ import { assertDatabaseReady, createPostgresPool } from "./infrastructure/postgr
 import { PostgresEmailSettingsRepository } from "./infrastructure/postgres/email-settings-repository.js";
 import { PostgresPasskeyRepository } from "./infrastructure/postgres/passkey-repository.js";
 import { PostgresOverviewRepository } from "./infrastructure/postgres/overview-repository.js";
+import { PostgresProfileRepository } from "./infrastructure/postgres/profile-repository.js";
 import { PostgresProjectsRepository } from "./infrastructure/postgres/projects-repository.js";
 import { PostgresProjectTeamRepository } from "./infrastructure/postgres/project-team-repository.js";
 import { PostgresSearchRepository } from "./infrastructure/postgres/search-repository.js";
@@ -50,6 +52,7 @@ const taskService = new TaskService(
   auditRepository,
 );
 const searchService = new SearchService(new PostgresSearchRepository(pool));
+const loginThrottle = new InMemoryLoginThrottle();
 const passwordHasher = new ScryptPasswordHasher();
 const authRepository = new PostgresAuthRepository(pool);
 const authService = new AuthService(
@@ -57,7 +60,13 @@ const authService = new AuthService(
   passwordHasher,
   auditRepository,
   config.SESSION_JWT_SECRET,
-  new InMemoryLoginThrottle(),
+  loginThrottle,
+);
+const profileService = new ProfileService(
+  new PostgresProfileRepository(pool),
+  passwordHasher,
+  auditRepository,
+  loginThrottle,
 );
 const adminService = new AdminService(
   new PostgresAdminRepository(pool),
@@ -88,6 +97,7 @@ const server = await createServer({
   projectTeamService,
   taskService,
   searchService,
+  profileService,
   authService,
   adminService,
   setupService,

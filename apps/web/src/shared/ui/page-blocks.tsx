@@ -14,6 +14,7 @@
  */
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
+import { initialsOf } from "./initials";
 
 export interface StatCardProps extends HTMLAttributes<HTMLDivElement> {
   label: string;
@@ -130,20 +131,38 @@ export function CardGrid({ label, className, children, ...props }: CardGridProps
   );
 }
 
+export interface AvatarProps {
+  name: string;
+  size?: "sm" | "md";
+  className?: string;
+}
+
+/**
+ * One person, drawn as their initials.
+ *
+ * Initials are the representation, not a placeholder for a missing photograph.
+ * Rectangle stores no images yet, and a grey silhouette would imply something
+ * is absent when nothing is.
+ */
+export function Avatar({ name, size = "md", className }: AvatarProps) {
+  return (
+    <span
+      className={cn("rect-avatar", size === "sm" && "rect-avatar--sm", className)}
+      /* Decorative: the name is always rendered or labelled next to it. */
+      aria-hidden
+      title={name}
+    >
+      {initialsOf(name)}
+    </span>
+  );
+}
+
 export interface AvatarGroupProps {
   /** Display names. Initials are derived; no image storage is assumed. */
   names: string[];
   max?: number;
   label: string;
   emptyLabel: string;
-}
-
-/** Derives initials from a name, handling Arabic and Latin scripts alike. */
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/u).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return [...parts[0]!].slice(0, 1).join("");
-  return [...parts[0]!].slice(0, 1).join("") + [...parts[parts.length - 1]!].slice(0, 1).join("");
 }
 
 export function AvatarGroup({ names, max = 4, label, emptyLabel }: AvatarGroupProps) {

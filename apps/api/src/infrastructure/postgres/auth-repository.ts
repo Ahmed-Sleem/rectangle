@@ -13,9 +13,12 @@ function mapSession(row: Record<string, unknown>): AuthSessionRecord {
     userId: String(row.user_id),
     expiresAt: new Date(String(row.expires_at)).toISOString(),
   };
-  // Only the per-request lookup selects authority; session creation does not.
+  // Only the per-request lookup selects identity and authority; session
+  // creation returns the bare session row.
   if (Array.isArray(row.roles)) session.roles = row.roles.map(String) as TenantRole[];
   if (Array.isArray(row.permissions)) session.permissions = row.permissions.map(String);
+  if (row.display_name != null) session.displayName = String(row.display_name);
+  if (row.email != null) session.email = String(row.email);
   return session;
 }
 
@@ -84,6 +87,7 @@ export class PostgresAuthRepository implements AuthRepository {
       // its token expires; without re-reading roles and permissions, granting
       // or revoking access does not take effect until then either.
       `select s.id, s.tenant_id, s.user_id, s.expires_at,
+              u.display_name, u.email,
               coalesce(array_agg(distinct r.role) filter (where r.role is not null), '{}') as roles,
               coalesce(array_agg(distinct permission_value) filter (where permission_value is not null), '{}') as permissions
          from auth_sessions s
@@ -95,7 +99,7 @@ export class PostgresAuthRepository implements AuthRepository {
         where s.id = $1 and s.tenant_id = $2 and s.user_id = $3
           and s.revoked_at is null and s.expires_at > now()
           and u.status = 'active'
-        group by s.id, s.tenant_id, s.user_id, s.expires_at
+        group by s.id, s.tenant_id, s.user_id, s.expires_at, u.display_name, u.email
         limit 1`,
       [sessionId, tenantId, userId],
     );

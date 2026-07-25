@@ -40,6 +40,8 @@ export {
 
 export { buttonClassName, type ButtonSize, type ButtonVariant } from "./button-class";
 
+export { initialsOf } from "./initials";
+
 /**
  * The window system. Every overlay in the product must come from here so
  * sizing, focus handling, dismissal and backdrop behaviour stay identical.
@@ -79,6 +81,7 @@ export {
 
 /** Page composition blocks: summary figures, card grid, side panel. */
 export {
+  Avatar,
   AvatarGroup,
   BreakdownBar,
   CardGrid,
@@ -88,6 +91,7 @@ export {
   StatRow,
   ViewToggle,
   type AvatarGroupProps,
+  type AvatarProps,
   type BreakdownBarProps,
   type CardGridProps,
   type ProgressBarProps,

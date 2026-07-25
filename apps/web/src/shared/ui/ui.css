@@ -1459,3 +1459,26 @@
 .rect-progress__fill--complete {
   background: var(--rect-color-success);
 }
+
+/* A single person's initials. Shared by the shell, Team, and Profile. */
+.rect-avatar {
+  align-items: center;
+  background: var(--rect-orb-bg);
+  border-radius: var(--rect-pill-radius);
+  block-size: var(--rect-control-compact);
+  color: var(--rect-orb-text);
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-bold);
+  inline-size: var(--rect-control-compact);
+  justify-content: center;
+  /* Initials are letters, not a phrase to be reordered by paragraph direction. */
+  unicode-bidi: isolate;
+}
+
+.rect-avatar--sm {
+  block-size: var(--rect-control-xs);
+  font-size: var(--rect-text-micro);
+  inline-size: var(--rect-control-xs);
+}

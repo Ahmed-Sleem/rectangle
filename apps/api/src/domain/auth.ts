@@ -24,6 +24,15 @@ export const userPrincipalSchema = z.object({
   roles: z.array(tenantRoleSchema).min(1).max(20),
   permissions: z.array(permissionSchema).default([]),
   sessionId: z.uuid().optional(),
+  /**
+   * Who this is, not merely what they may do.
+   *
+   * Optional because a token alone cannot supply it — only the per-request
+   * session lookup reads the user row. Absent means the request was not
+   * session-backed, which the auth hook already refuses.
+   */
+  displayName: z.string().min(1).max(160).optional(),
+  email: z.string().max(254).optional(),
 });
 
 export type UserPrincipal = z.infer<typeof userPrincipalSchema>;

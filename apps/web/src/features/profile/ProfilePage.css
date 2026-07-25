@@ -1,0 +1,58 @@
+/* Your own profile. All values from tokens. */
+
+.rect-profile {
+  align-content: start;
+  display: grid;
+  gap: var(--rect-grid-gap);
+}
+
+.rect-profile__head {
+  align-items: center;
+  display: flex;
+  gap: var(--rect-space-3);
+}
+
+.rect-profile__identity {
+  display: grid;
+  gap: var(--rect-space-1);
+  min-inline-size: 0;
+}
+
+.rect-profile__name {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-section);
+  font-weight: var(--rect-weight-bold);
+}
+
+.rect-profile__email {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  /* An address is one logical unit and must not reorder in Arabic. */
+  unicode-bidi: plaintext;
+}
+
+.rect-profile__form {
+  display: grid;
+  gap: var(--rect-space-3);
+  justify-items: start;
+  /* Bounded so credential fields keep a sane, scannable width rather than
+     stretching the full canvas. */
+  max-inline-size: var(--rect-overlay-width-sm);
+}
+
+.rect-profile__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+}
+
+.rect-profile__muted {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+.rect-profile__error {
+  color: var(--rect-color-danger);
+  font-size: var(--rect-text-label);
+  margin: 0;
+}

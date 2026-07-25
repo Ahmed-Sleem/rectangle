@@ -18,7 +18,7 @@ import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import { useOptionalAuth } from "@/shared/auth";
 import {
-  Badge, Button, CardGrid, Checkbox, ConfirmDialog, DataTable, EmptyState, ErrorState,
+  Avatar, Badge, Button, CardGrid, Checkbox, ConfirmDialog, DataTable, EmptyState, ErrorState,
   Field, FilterBar, FilterBarSpacer, FilterSelect, FormDialog, Input, LoadingState,
   SearchField, StatCard, StatRow, ViewToggle,
 } from "@/shared/ui";
@@ -71,14 +71,6 @@ function storeView(value: ViewMode): void {
   } catch {
     /* Private browsing must not break the toggle. */
   }
-}
-
-/** Initials for the avatar, handling Arabic and Latin names alike. */
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/u).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return [...parts[0]!].slice(0, 1).join("");
-  return [...parts[0]!].slice(0, 1).join("") + [...parts[parts.length - 1]!].slice(0, 1).join("");
 }
 
 /** A built-in role keeps its translated name; a company's own role keeps its own. */
@@ -321,7 +313,7 @@ export default function TeamPage() {
             {filteredUsers.map((user) => (
               <article key={user.id} className="rect-person" role="listitem">
                 <header className="rect-person__head">
-                  <span className="rect-person__avatar" aria-hidden>{initialsOf(user.displayName)}</span>
+                  <Avatar name={user.displayName} />
                   <span className="rect-person__identity">
                     <span className="rect-person__name">{user.displayName}</span>
                     <span className="rect-person__email">{user.email}</span>
@@ -372,7 +364,7 @@ export default function TeamPage() {
                 header: t("team.userName"),
                 accessor: (row) => (
                   <span className="rect-person__cell">
-                    <span className="rect-person__avatar rect-person__avatar--sm" aria-hidden>{initialsOf(row.displayName)}</span>
+                    <Avatar name={row.displayName} size="sm" />
                     <span>{row.displayName}</span>
                   </span>
                 ),

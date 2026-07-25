@@ -38,28 +38,6 @@
   min-width: 0;
 }
 
-.rect-person__avatar {
-  align-items: center;
-  background: var(--rect-orb-bg);
-  border-radius: var(--rect-pill-radius);
-  color: var(--rect-orb-text);
-  display: inline-flex;
-  flex-shrink: 0;
-  font-size: var(--rect-text-label);
-  font-weight: var(--rect-weight-bold);
-  block-size: var(--rect-control-compact);
-  inline-size: var(--rect-control-compact);
-  justify-content: center;
-  /* Initials are letters, not text to be reordered by the paragraph direction. */
-  unicode-bidi: isolate;
-}
-
-.rect-person__avatar--sm {
-  block-size: var(--rect-control-xs);
-  font-size: var(--rect-text-micro);
-  inline-size: var(--rect-control-xs);
-}
-
 .rect-person__identity {
   display: grid;
   gap: var(--rect-space-1);

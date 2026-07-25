@@ -32,6 +32,14 @@ const PAGES = [
   { id: "projects.settings", file: "features/projects/ProjectSettingsPage.tsx", tests: ["features/projects/ProjectSettingsPage.test.tsx"] },
   { id: "tasks", file: "features/tasks/TasksPage.tsx", tests: ["features/tasks/TasksPage.test.tsx"] },
   { id: "team", file: "features/team/TeamPage.tsx", tests: ["features/team/TeamPage.test.tsx"] },
+  {
+    id: "profile",
+    file: "features/profile/ProfilePage.tsx",
+    tests: ["features/profile/ProfilePage.test.tsx"],
+    // Always exactly one record — your own — and you are always allowed to
+    // manage it. An empty state and a permission gate would both be dead code.
+    singleRecord: true,
+  },
   { id: "settings", file: "features/settings/SettingsPage.tsx", tests: ["features/settings/SettingsPage.test.tsx"] },
 ];
 
@@ -48,6 +56,9 @@ const SERVICES = [
   { id: "overview", file: "application/overview-service.ts", readOnly: true },
   { id: "project", file: "application/project-service.js".replace(".js", ".ts") },
   { id: "project-team", file: "application/project-team-service.ts" },
+  // Self-service: the actor is the subject, so there is no permission to
+  // check. The invariant that replaces it is stronger and verified below.
+  { id: "profile", file: "application/profile-service.ts", selfService: true },
   { id: "search", file: "application/search-service.ts", readOnly: true },
   { id: "task", file: "application/task-service.ts" },
   { id: "admin", file: "application/admin-service.ts" },
@@ -71,8 +82,11 @@ for (const page of PAGES) {
     continue;
   }
 
-  // Contract questions 1–4: the four states a data surface must handle.
-  check("page", page.id, "empty state", /EmptyState|rect-empty|noRecords/.test(source));
+  // Contract questions 1–4: the four states a data surface must handle. A
+  // single-record surface cannot be empty — the record is the page.
+  if (!page.singleRecord) {
+    check("page", page.id, "empty state", /EmptyState|rect-empty|noRecords/.test(source));
+  }
   check("page", page.id, "loading state", /LoadingState|isLoading|isPending/.test(source));
   check("page", page.id, "error state", /ErrorState|role="alert"|isError/.test(source));
   check(
@@ -84,12 +98,14 @@ for (const page of PAGES) {
 
   // Question 5: actions must be gated, not shown and then rejected.
   const hasWriteAction = /Button[^>]*variant="primary"|onClick=\{\(\) => set\w*Open/.test(source);
-  check(
-    "page",
-    page.id,
-    "actions gated by permission",
-    !hasWriteAction || /canManage|permissions\.includes|roles\.some/.test(source),
-  );
+  if (!page.singleRecord) {
+    check(
+      "page",
+      page.id,
+      "actions gated by permission",
+      !hasWriteAction || /canManage|permissions\.includes|roles\.some/.test(source),
+    );
+  }
 
   // Question 11: every visible string translated.
   check("page", page.id, "uses translations", /useTranslation/.test(source));
@@ -114,7 +130,21 @@ for (const service of SERVICES) {
     continue;
   }
   check("service", service.id, "validates input", /\bparse[A-Z]\w*\(|safeParse/.test(source));
-  check("service", service.id, "checks authorization", /require[A-Z]\w*|canManage|resolveAccess/.test(source));
+  if (service.selfService) {
+    // The subject must always be the caller. A self-service method that reads
+    // a user id from its input is an admin endpoint under the wrong name, and
+    // would let anyone edit anyone by changing one field in the request.
+    const readsSubjectFromInput = /input\.userId|rawUserId|params\.userId/.test(source);
+    check(
+      "service",
+      service.id,
+      "acts only on the caller",
+      !readsSubjectFromInput && /actor\.userId/.test(source),
+      "a self-service method must take its subject from the principal",
+    );
+  } else {
+    check("service", service.id, "checks authorization", /require[A-Z]\w*|canManage|resolveAccess/.test(source));
+  }
   check("service", service.id, "scopes to tenant", /tenantId/.test(source));
 
   if (service.readOnly) {

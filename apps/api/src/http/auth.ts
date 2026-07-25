@@ -37,6 +37,8 @@ function extractAuthToken(request: FastifyRequest): string {
 export interface ResolvedAuthority {
   roles: string[];
   permissions: string[];
+  displayName?: string;
+  email?: string;
 }
 
 export function createAuthenticationHook(
@@ -62,6 +64,7 @@ export function createAuthenticationHook(
     // may do now, which is what matters when access has just been revoked.
     let roles: string[] = claims.data.roles;
     let permissions: string[] = claims.data.permissions;
+    let identity: { displayName?: string; email?: string } = {};
 
     if (resolveSession) {
       // Fail closed: a token with no session id cannot be validated, so it is
@@ -77,6 +80,10 @@ export function createAuthenticationHook(
 
       roles = authority.roles;
       permissions = authority.permissions;
+      identity = {
+        ...(authority.displayName ? { displayName: authority.displayName } : {}),
+        ...(authority.email ? { email: authority.email } : {}),
+      };
     }
 
     const principal = userPrincipalSchema.safeParse({
@@ -85,6 +92,7 @@ export function createAuthenticationHook(
       roles,
       permissions,
       sessionId: claims.data.sid,
+      ...identity,
     });
     if (!principal.success) {
       throw new DomainError("UNAUTHENTICATED", "Token roles are invalid.");
