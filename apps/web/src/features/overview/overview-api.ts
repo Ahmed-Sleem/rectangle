@@ -39,6 +39,13 @@ export interface OverviewActivityEntry {
   createdAt: string;
 }
 
+export interface TaskSummary {
+  open: number;
+  overdue: number;
+  dueSoon: number;
+  assignedToMe: number;
+}
+
 export interface OverviewSummary {
   horizonDays: number;
   totalProjects: number;
@@ -46,6 +53,7 @@ export interface OverviewSummary {
   budgets: BudgetTotal[];
   attention: AttentionProject[];
   activity: OverviewActivityEntry[];
+  tasks: TaskSummary;
   /** Absent when this user may not read the company user register. */
   team?: { activeUsers: number; disabledUsers: number };
 }

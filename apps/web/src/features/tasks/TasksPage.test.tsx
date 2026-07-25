@@ -26,7 +26,7 @@ function jsonResponse(body: unknown, status = 200) {
   );
 }
 
-function renderTasks(auth: AuthContextValue = managerAuth) {
+function renderTasks(auth: AuthContextValue = managerAuth, route = "/tasks") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -34,7 +34,7 @@ function renderTasks(auth: AuthContextValue = managerAuth) {
     <QueryClientProvider client={queryClient}>
       <RectangleI18nProvider>
         <AuthContext.Provider value={auth}>
-          <MemoryRouter>
+          <MemoryRouter initialEntries={[route]}>
             <TasksPage />
           </MemoryRouter>
         </AuthContext.Provider>
@@ -214,5 +214,16 @@ describe("TasksPage", () => {
     expect(await screen.findByText("Pour raft foundation")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "قيد التنفيذ" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "للتنفيذ" })).toBeInTheDocument();
+  });
+
+  it("pre-selects the project when arriving from a project workspace", async () => {
+    const fetchMock = mockReads();
+    renderTasks(managerAuth, "/tasks?projectId=p1");
+
+    // The link from a project must land on that project's board, not the
+    // whole portfolio.
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("projectId=p1"), expect.anything()),
+    );
   });
 });

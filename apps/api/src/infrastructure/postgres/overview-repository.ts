@@ -15,6 +15,7 @@ import type {
   OverviewActivityEntry,
   ProjectStatusCount,
   ProjectStatusKey,
+  TaskSummary,
   TeamSummary,
 } from "../../domain/overview.js";
 
@@ -160,6 +161,63 @@ export class PostgresOverviewRepository implements OverviewRepository {
       metadata: row.metadata ?? {},
       createdAt: row.created_at.toISOString(),
     }));
+  }
+
+  /**
+   * Counts open work in one pass.
+   *
+   * `overdue` and `dueSoon` are disjoint by construction so the two figures can
+   * be read side by side without double counting, and both exclude finished
+   * work: a task completed after its due date was late, but it is not
+   * outstanding, and a dashboard that keeps counting it never reaches zero.
+   */
+  async summariseTasks(
+    tenantId: string,
+    userId: string,
+    horizonDays: number,
+    scope: "all" | "member",
+  ): Promise<TaskSummary> {
+    // Membership scoping happens inside the query. Counting everything and
+    // subtracting afterwards would report work the caller cannot open.
+    const membershipFilter =
+      scope === "member"
+        ? `and exists (
+             select 1 from project_members m
+              where m.tenant_id = t.tenant_id
+                and m.project_id = t.project_id
+                and m.user_id = $2
+           )`
+        : "";
+
+    const result = await this.pool.query<{
+      open: string;
+      overdue: string;
+      due_soon: string;
+      assigned_to_me: string;
+    }>(
+      `select
+         count(*)::text as open,
+         count(*) filter (where t.due_date is not null and t.due_date < current_date)::text as overdue,
+         count(*) filter (
+           where t.due_date is not null
+             and t.due_date >= current_date
+             and t.due_date <= current_date + make_interval(days => $3::int)
+         )::text as due_soon,
+         count(*) filter (where t.assignee_user_id = $2)::text as assigned_to_me
+       from tasks t
+      where t.tenant_id = $1
+        and t.status not in ('done', 'cancelled')
+        ${membershipFilter}`,
+      [tenantId, userId, horizonDays],
+    );
+
+    const row = result.rows[0];
+    return {
+      open: Number(row?.open ?? 0),
+      overdue: Number(row?.overdue ?? 0),
+      dueSoon: Number(row?.due_soon ?? 0),
+      assignedToMe: Number(row?.assigned_to_me ?? 0),
+    };
   }
 
   async countUsersByStatus(tenantId: string): Promise<TeamSummary> {

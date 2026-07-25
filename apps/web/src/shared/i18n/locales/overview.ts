@@ -47,6 +47,14 @@ const en = {
   budgetProjects_one: "{{count}} project",
   budgetProjects_other: "{{count}} projects",
 
+  workTitle: "Work in progress",
+  workOpen: "Open tasks",
+  workOverdue: "Overdue",
+  workDueSoon: "Due within {{count}} days",
+  workMine: "Assigned to me",
+  workEmpty: "No open work on your projects.",
+  viewAllTasks: "View all tasks",
+
   activityTitle: "Recent activity",
   activityEmpty: "Actions taken in Rectangle will be listed here.",
   activityFailed: "Failed",
@@ -118,6 +126,14 @@ const ar: LocaleBundle<typeof en> = {
   budgetProjects_few: "{{count}} مشاريع",
   budgetProjects_many: "{{count}} مشروعًا",
   budgetProjects_other: "{{count}} مشروع",
+
+  workTitle: "الأعمال الجارية",
+  workOpen: "مهام مفتوحة",
+  workOverdue: "متأخرة",
+  workDueSoon: "مستحقة خلال {{count}} يومًا",
+  workMine: "مُسندة إليّ",
+  workEmpty: "لا توجد أعمال مفتوحة في مشاريعك.",
+  viewAllTasks: "عرض كل المهام",
 
   activityTitle: "النشاط الأخير",
   activityEmpty: "ستُدرج هنا الإجراءات المنفَّذة في Rectangle.",

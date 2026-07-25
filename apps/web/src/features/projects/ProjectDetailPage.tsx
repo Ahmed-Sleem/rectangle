@@ -30,6 +30,7 @@ import {
   buttonClassName,
 } from "@/shared/ui";
 import { adminApi } from "@/features/team/admin-api";
+import { listTasks } from "@/features/tasks/task-api";
 import {
   addProjectMember,
   createStakeholder,
@@ -124,6 +125,11 @@ export default function ProjectDetailPage() {
   const members = useQuery({ queryKey: ["project", projectId, "members"], queryFn: () => listProjectMembers(projectId), enabled });
   const stakeholders = useQuery({ queryKey: ["project", projectId, "stakeholders"], queryFn: () => listStakeholders(projectId), enabled });
   const activity = useQuery({ queryKey: ["project", projectId, "activity"], queryFn: () => listProjectActivity(projectId), enabled });
+  const projectTasks = useQuery({
+    queryKey: ["tasks", { projectId }],
+    queryFn: () => listTasks({ projectId }),
+    enabled,
+  });
 
   const canManage = access.data?.access.canManage ?? false;
   // Only fetch the company directory when it will actually be used.
@@ -238,6 +244,22 @@ export default function ProjectDetailPage() {
   const memberRows = members.data?.members ?? [];
   const stakeholderRows = stakeholders.data?.stakeholders ?? [];
   const activityRows = activity.data?.activity ?? [];
+
+  // Counted from the project's own tasks, so the panel can never disagree with
+  // the board it links to.
+  const taskRows = projectTasks.data?.tasks ?? [];
+  const openTaskCount = taskRows.filter(
+    (task) => task.status !== "done" && task.status !== "cancelled",
+  ).length;
+  const doneTaskCount = taskRows.filter((task) => task.status === "done").length;
+  const today = new Date().toISOString().slice(0, 10);
+  const overdueTaskCount = taskRows.filter(
+    (task) =>
+      task.dueDate !== undefined &&
+      task.dueDate < today &&
+      task.status !== "done" &&
+      task.status !== "cancelled",
+  ).length;
   const alreadyMembers = new Set(memberRows.map((member) => member.userId));
   const assignable = (directory.data?.users ?? []).filter((user) => !alreadyMembers.has(user.id));
 
@@ -395,6 +417,43 @@ export default function ProjectDetailPage() {
               }] : []),
             ]}
           />
+        )}
+      </Card>
+
+      <Card className="rect-project-detail__panel">
+        <h3>{t("projects.tasksTitle")}</h3>
+        {projectTasks.isLoading ? (
+          <LoadingState title={t("common.loading")} message="" />
+        ) : taskRows.length === 0 ? (
+          <EmptyState title={t("projects.tasksEmpty")} message="" />
+        ) : (
+          <>
+            <ul className="rect-today__figures">
+              <li>
+                <span className="rect-today__figure-label">{t("projects.tasksOpen")}</span>
+                <span className="rect-today__figure-value">{openTaskCount}</span>
+              </li>
+              <li>
+                <span className="rect-today__figure-label">{t("projects.tasksOverdue")}</span>
+                <span
+                  className={
+                    overdueTaskCount > 0
+                      ? "rect-today__figure-value rect-today__figure-value--alert"
+                      : "rect-today__figure-value"
+                  }
+                >
+                  {overdueTaskCount}
+                </span>
+              </li>
+              <li>
+                <span className="rect-today__figure-label">{t("projects.tasksDone")}</span>
+                <span className="rect-today__figure-value">{doneTaskCount}</span>
+              </li>
+            </ul>
+            <Link className={buttonClassName("secondary", "sm")} to={`/tasks?projectId=${projectId}`}>
+              {t("projects.tasksViewAll")}
+            </Link>
+          </>
         )}
       </Card>
 

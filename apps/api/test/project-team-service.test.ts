@@ -277,4 +277,27 @@ describe("ProjectTeamService", () => {
     expect(activity).toHaveLength(1);
     expect(activity[0]).toMatchObject({ action: "project.create", actorName: "Site Owner" });
   });
+
+  it("releases the removed member's open work and records how much", async () => {
+    await service.addMember(admin, projectId, { userId: memberUserId, role: "viewer" });
+    // Two open tasks are assigned to this person on this project.
+    team.openTasksByAssignee.set(memberUserId, 2);
+
+    await service.removeMember(admin, projectId, memberUserId);
+
+    // Tasks may only be assigned to members, so leaving them assigned would
+    // put the database in a state the service treats as impossible.
+    expect(team.openTasksByAssignee.has(memberUserId)).toBe(false);
+    const event = audit.events.find((entry) => entry.action === "project.member.remove");
+    expect(event?.metadata).toMatchObject({ unassignedTasks: 2 });
+  });
+
+  it("records a removal that released no work", async () => {
+    await service.addMember(admin, projectId, { userId: memberUserId, role: "viewer" });
+
+    await service.removeMember(admin, projectId, memberUserId);
+
+    const event = audit.events.find((entry) => entry.action === "project.member.remove");
+    expect(event?.metadata).toMatchObject({ unassignedTasks: 0 });
+  });
 });

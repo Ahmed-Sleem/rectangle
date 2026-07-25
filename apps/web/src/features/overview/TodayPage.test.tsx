@@ -1,6 +1,6 @@
 /** Tests that Today renders only backend-provided figures and every state. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/shared/auth";
@@ -84,6 +84,7 @@ const populated = {
         createdAt: "2026-07-20T09:30:00.000Z",
       },
     ],
+    tasks: { open: 9, overdue: 2, dueSoon: 4, assignedToMe: 3 },
     team: { activeUsers: 6, disabledUsers: 1 },
   },
 };
@@ -101,7 +102,8 @@ describe("TodayPage", () => {
     expect(await screen.findByText("New Cairo Tower")).toBeInTheDocument();
     expect(screen.getByText("Alexandria Depot")).toBeInTheDocument();
     // Total projects comes from the rollup, not from the length of any list.
-    expect(screen.getByText("4")).toBeInTheDocument();
+    const summary = screen.getByRole("group", { name: "Portfolio at a glance" });
+    expect(within(summary).getByText("Projects").parentElement).toHaveTextContent("4");
     expect(screen.getByText("Past planned finish")).toBeInTheDocument();
     expect(screen.getByText("3 days late")).toBeInTheDocument();
     expect(screen.getByText("In 5 days")).toBeInTheDocument();
@@ -133,6 +135,7 @@ describe("TodayPage", () => {
         budgets: [],
         attention: [],
         activity: [],
+        tasks: { open: 0, overdue: 0, dueSoon: 0, assignedToMe: 0 },
       },
     };
     vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse(empty));
@@ -173,5 +176,26 @@ describe("TodayPage", () => {
 
     expect(await screen.findByText("يحتاج انتباهك")).toBeInTheDocument();
     expect(screen.getByText("تجاوز تاريخ الانتهاء المخطط")).toBeInTheDocument();
+  });
+
+  it("surfaces open work from the tasks module", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse(populated));
+    renderToday();
+
+    const panel = await screen.findByRole("complementary", { name: "Work in progress" });
+    expect(within(panel).getByText("Open tasks").parentElement).toHaveTextContent("9");
+    expect(within(panel).getByText("Overdue").parentElement).toHaveTextContent("2");
+    expect(within(panel).getByRole("link", { name: "View all tasks" })).toHaveAttribute("href", "/tasks");
+  });
+
+  it("says so plainly when there is no open work", async () => {
+    const quiet = {
+      overview: { ...populated.overview, tasks: { open: 0, overdue: 0, dueSoon: 0, assignedToMe: 0 } },
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse(quiet));
+    renderToday();
+
+    const panel = await screen.findByRole("complementary", { name: "Work in progress" });
+    expect(within(panel).getByText("No open work on your projects.")).toBeInTheDocument();
   });
 });

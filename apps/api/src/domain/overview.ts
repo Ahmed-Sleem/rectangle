@@ -76,6 +76,20 @@ export interface OverviewActivityEntry {
   createdAt: string;
 }
 
+/**
+ * Work counts for the landing page.
+ *
+ * Scoped the same way the task list is: a tenant-wide project reader sees the
+ * whole portfolio, anyone else sees only projects they belong to. A dashboard
+ * that counts work the viewer cannot open would send them to an empty list.
+ */
+export interface TaskSummary {
+  open: number;
+  overdue: number;
+  dueSoon: number;
+  assignedToMe: number;
+}
+
 export interface TeamSummary {
   activeUsers: number;
   disabledUsers: number;
@@ -89,6 +103,7 @@ export interface OverviewSummary {
   budgets: BudgetTotal[];
   attention: AttentionProject[];
   activity: OverviewActivityEntry[];
+  tasks: TaskSummary;
   /** Absent when the caller may not read the user register. */
   team?: TeamSummary;
 }

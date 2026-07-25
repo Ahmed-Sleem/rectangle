@@ -106,14 +106,28 @@ export class MemoryProjectTeamRepository implements ProjectTeamRepository {
     return member;
   }
 
-  async removeMember(tenantId: string, projectId: string, userId: string): Promise<boolean> {
+  /**
+   * Open tasks assigned to the removed member, keyed by user id. Set by a test
+   * that wants to prove the removal releases them; the real repository does
+   * this in the same transaction as the delete.
+   */
+  openTasksByAssignee = new Map<string, number>();
+
+  async removeMember(
+    tenantId: string,
+    projectId: string,
+    userId: string,
+  ): Promise<{ removed: boolean; unassignedTasks: number }> {
     const index = this.members.findIndex(
       (member) =>
         member.tenantId === tenantId && member.projectId === projectId && member.userId === userId,
     );
-    if (index === -1) return false;
+    if (index === -1) return { removed: false, unassignedTasks: 0 };
     this.members.splice(index, 1);
-    return true;
+
+    const unassignedTasks = this.openTasksByAssignee.get(userId) ?? 0;
+    this.openTasksByAssignee.delete(userId);
+    return { removed: true, unassignedTasks };
   }
 
   async countAdmins(tenantId: string, projectId: string): Promise<number> {

@@ -280,6 +280,14 @@ describe("TaskService", () => {
     expect(repository.listedForMemberProjects).toBe(true);
   });
 
+  it("shows a tenant-wide manager every project's work", async () => {
+    const service = new TaskService(repository, accessStub(), audit);
+    // An admin can open any project, so a membership-scoped list would leave
+    // them looking at an empty board for a project they can plainly see.
+    await service.listTasks(admin, {});
+    expect(repository.listedForMemberProjects).toBe(false);
+  });
+
   it("lets anyone who can see a task comment on it", async () => {
     repository.seed(baseTask());
     const service = new TaskService(repository, accessStub({ canManage: false }), audit);

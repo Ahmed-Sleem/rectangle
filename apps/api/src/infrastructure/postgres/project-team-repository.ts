@@ -146,12 +146,54 @@ export class PostgresProjectTeamRepository {
     return this.findMember(tenantId, projectId, userId);
   }
 
-  async removeMember(tenantId: string, projectId: string, userId: string): Promise<boolean> {
-    const result = await this.pool.query(
-      "delete from project_members where tenant_id = $1 and project_id = $2 and user_id = $3",
-      [tenantId, projectId, userId],
-    );
-    return (result.rowCount ?? 0) > 0;
+  /**
+   * Removes a membership and releases that person's work on the project in the
+   * same transaction.
+   *
+   * Tasks may only be assigned to project members, and that rule is checked on
+   * every write. Deleting the membership without touching the tasks would leave
+   * rows the service considers impossible: an assignee who cannot open the
+   * project, on a task that then fails validation the next time anyone edits an
+   * unrelated field. Doing both in one transaction means the invariant is never
+   * observably broken.
+   */
+  async removeMember(
+    tenantId: string,
+    projectId: string,
+    userId: string,
+  ): Promise<{ removed: boolean; unassignedTasks: number }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+
+      const result = await client.query(
+        "delete from project_members where tenant_id = $1 and project_id = $2 and user_id = $3",
+        [tenantId, projectId, userId],
+      );
+
+      if ((result.rowCount ?? 0) === 0) {
+        await client.query("rollback");
+        return { removed: false, unassignedTasks: 0 };
+      }
+
+      // Finished work keeps its assignee: it is a record of who did it, and
+      // rewriting history to say nobody did would be worse than the dangling
+      // reference. Only open work is released back to the project.
+      const released = await client.query(
+        `update tasks set assignee_user_id = null, updated_at = now()
+          where tenant_id = $1 and project_id = $2 and assignee_user_id = $3
+            and status not in ('done', 'cancelled')`,
+        [tenantId, projectId, userId],
+      );
+
+      await client.query("commit");
+      return { removed: true, unassignedTasks: released.rowCount ?? 0 };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   /** Number of remaining project administrators, used to keep at least one in place. */

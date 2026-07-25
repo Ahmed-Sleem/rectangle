@@ -112,7 +112,7 @@ export default function TodayPage() {
     return <LoadingState title={t("overview.loadingTitle")} message={t("overview.loadingMessage")} />;
   }
 
-  if (summary.totalProjects === 0) {
+  if (summary.totalProjects === 0 && summary.tasks.open === 0) {
     return (
       <EmptyState
         title={t("overview.emptyTitle")}
@@ -198,6 +198,46 @@ export default function TodayPage() {
         </Card>
 
         <div className="rect-today__aside">
+          <SidePanel title={t("overview.workTitle")}>
+            {summary.tasks.open === 0 ? (
+              <p className="rect-today__note">{t("overview.workEmpty")}</p>
+            ) : (
+              <>
+                <ul className="rect-today__figures">
+                  <li>
+                    <span className="rect-today__figure-label">{t("overview.workOpen")}</span>
+                    <span className="rect-today__figure-value">{summary.tasks.open}</span>
+                  </li>
+                  <li>
+                    <span className="rect-today__figure-label">{t("overview.workOverdue")}</span>
+                    <span
+                      className={
+                        summary.tasks.overdue > 0
+                          ? "rect-today__figure-value rect-today__figure-value--alert"
+                          : "rect-today__figure-value"
+                      }
+                    >
+                      {summary.tasks.overdue}
+                    </span>
+                  </li>
+                  <li>
+                    <span className="rect-today__figure-label">
+                      {t("overview.workDueSoon", { count: summary.horizonDays })}
+                    </span>
+                    <span className="rect-today__figure-value">{summary.tasks.dueSoon}</span>
+                  </li>
+                  <li>
+                    <span className="rect-today__figure-label">{t("overview.workMine")}</span>
+                    <span className="rect-today__figure-value">{summary.tasks.assignedToMe}</span>
+                  </li>
+                </ul>
+                <Link className={buttonClassName("secondary", "sm")} to="/tasks">
+                  {t("overview.viewAllTasks")}
+                </Link>
+              </>
+            )}
+          </SidePanel>
+
           <SidePanel title={t("overview.statusTitle")}>
             {summary.statusCounts.length === 0 ? (
               <p className="rect-today__note">{t("overview.statusEmpty")}</p>

@@ -12,7 +12,7 @@ import { Columns3, Rows3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import { useOptionalAuth } from "@/shared/auth";
@@ -117,9 +117,13 @@ export default function TasksPage() {
   const auth = useOptionalAuth();
   const queryClient = useQueryClient();
 
+  // Arriving from a project workspace pre-selects that project, so the link
+  // lands on that project's board rather than the whole portfolio.
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [view, setView] = useState<ViewMode>(() => readStoredView());
   const [search, setSearch] = useState("");
-  const [projectFilter, setProjectFilter] = useState("");
+  const [projectFilter, setProjectFilter] = useState(() => searchParams.get("projectId") ?? "");
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "">("");
   const [mineOnly, setMineOnly] = useState(false);
   const [openOnly, setOpenOnly] = useState(false);
@@ -292,7 +296,12 @@ export default function TasksPage() {
           label={t("tasks.filterProject")}
           width="md"
           value={projectFilter}
-          onChange={(event) => setProjectFilter(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            setProjectFilter(next);
+            // Keep the address bar honest so the view can be shared or reloaded.
+            setSearchParams(next ? { projectId: next } : {}, { replace: true });
+          }}
         >
           <option value="">{t("tasks.allProjects")}</option>
           {projects.map((project) => (
@@ -371,6 +380,7 @@ export default function TasksPage() {
               onClick={() => {
                 setSearch(""); setProjectFilter(""); setPriorityFilter("");
                 setMineOnly(false); setOpenOnly(false);
+                setSearchParams({}, { replace: true });
               }}
             >
               {t("tasks.clearFilters")}

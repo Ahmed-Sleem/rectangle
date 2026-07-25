@@ -5,7 +5,7 @@
  * means being able to reach the project it belongs to. That keeps one answer to
  * "who can see this project's work" instead of a second, drifting copy.
  */
-import type { UserPrincipal } from "../domain/auth.js";
+import { canManageProjects, type UserPrincipal } from "../domain/auth.js";
 import { DomainError } from "../domain/errors.js";
 import { parseProjectId } from "../domain/project.js";
 import {
@@ -142,10 +142,13 @@ export class TaskService {
   /**
    * Lists tasks the caller may see.
    *
-   * A tenant-wide project reader sees everything; anyone else sees only work on
-   * projects they belong to. The filter is applied in SQL rather than by
-   * fetching everything and discarding rows, which would leak through counts
-   * and paging even when the rows themselves were hidden.
+   * The scope mirrors `resolveAccess`: a tenant-wide project manager can reach
+   * any project, so they see all of its work; everyone else sees only projects
+   * they belong to. Using a different rule here would mean an administrator
+   * could open a project workspace but find its task list empty.
+   *
+   * The narrowing happens in SQL rather than by fetching everything and
+   * discarding rows, which would still leak their existence through counts.
    */
   async listTasks(actor: UserPrincipal, rawQuery: unknown): Promise<TaskRecord[]> {
     const query = parseTaskListQuery(rawQuery);
@@ -158,7 +161,9 @@ export class TaskService {
       return this.tasks.list(actor.tenantId, query, actor.userId);
     }
 
-    return this.tasks.listForMemberProjects(actor.tenantId, query, actor.userId);
+    return canManageProjects(actor)
+      ? this.tasks.list(actor.tenantId, query, actor.userId)
+      : this.tasks.listForMemberProjects(actor.tenantId, query, actor.userId);
   }
 
   async getTask(actor: UserPrincipal, rawTaskId: unknown): Promise<TaskRecord> {

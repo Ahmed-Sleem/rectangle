@@ -153,3 +153,34 @@
   font-size: var(--rect-text-body);
   gap: var(--rect-space-2);
 }
+
+.rect-today__figures {
+  display: grid;
+  gap: var(--rect-space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-today__figures li {
+  align-items: baseline;
+  display: flex;
+  gap: var(--rect-space-3);
+  justify-content: space-between;
+}
+
+.rect-today__figure-label {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+.rect-today__figure-value {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-bold);
+}
+
+/* Overdue work is the one figure here that demands an immediate decision. */
+.rect-today__figure-value--alert {
+  color: var(--rect-color-danger);
+}

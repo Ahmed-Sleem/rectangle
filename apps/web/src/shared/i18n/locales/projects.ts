@@ -139,6 +139,13 @@ const en = {
   removeStakeholderBody: "{{name}} will be removed from the stakeholder register.",
   removeStakeholderFailed: "That stakeholder could not be removed.",
 
+  tasksTitle: "Work",
+  tasksOpen: "Open",
+  tasksOverdue: "Overdue",
+  tasksDone: "Completed",
+  tasksEmpty: "No work has been added to this project yet.",
+  tasksViewAll: "Open task board",
+
   activityTitle: "Activity",
   loadingActivity: "Loading activity",
   loadingActivityMessage: "Fetching the project history…",
@@ -318,6 +325,13 @@ const ar: LocaleBundle<typeof en> = {
   removeStakeholder: "إزالة صاحب مصلحة",
   removeStakeholderBody: "سيُزال {{name}} من سجل أصحاب المصلحة.",
   removeStakeholderFailed: "تعذّرت إزالة صاحب المصلحة.",
+
+  tasksTitle: "الأعمال",
+  tasksOpen: "مفتوحة",
+  tasksOverdue: "متأخرة",
+  tasksDone: "مكتملة",
+  tasksEmpty: "لم تُضف أي أعمال إلى هذا المشروع بعد.",
+  tasksViewAll: "فتح لوحة المهام",
 
   activityTitle: "النشاط",
   loadingActivity: "جارٍ تحميل النشاط",

@@ -9,7 +9,12 @@
  * a user who may see projects but not the user register gets the project blocks
  * and simply has no team block, instead of being refused the page.
  */
-import { canReadUsers, requireProjectRead, type UserPrincipal } from "../domain/auth.js";
+import {
+  canManageProjects,
+  canReadUsers,
+  requireProjectRead,
+  type UserPrincipal,
+} from "../domain/auth.js";
 import {
   parseOverviewQuery,
   type AttentionProject,
@@ -17,6 +22,7 @@ import {
   type OverviewActivityEntry,
   type OverviewSummary,
   type ProjectStatusCount,
+  type TaskSummary,
   type TeamSummary,
 } from "../domain/overview.js";
 
@@ -30,6 +36,12 @@ export interface OverviewRepository {
   ): Promise<AttentionProject[]>;
   listRecentActivity(tenantId: string, limit: number): Promise<OverviewActivityEntry[]>;
   countUsersByStatus(tenantId: string): Promise<TeamSummary>;
+  summariseTasks(
+    tenantId: string,
+    userId: string,
+    horizonDays: number,
+    scope: "all" | "member",
+  ): Promise<TaskSummary>;
 }
 
 export class OverviewService {
@@ -41,7 +53,13 @@ export class OverviewService {
 
     // The blocks are independent reads, so they run together rather than
     // adding four round trips of latency to the first screen after sign-in.
-    const [statusCounts, budgets, attention, activity, team] = await Promise.all([
+    // Matches the rule the task list and project workspace already use: a
+    // tenant-wide project manager can reach any project, everyone else only
+    // the ones they belong to. Counting work the viewer cannot open would send
+    // them from a figure to an empty list.
+    const taskScope = canManageProjects(actor) ? "all" : "member";
+
+    const [statusCounts, budgets, attention, activity, tasks, team] = await Promise.all([
       this.repository.countProjectsByStatus(actor.tenantId),
       this.repository.sumBudgetsByCurrency(actor.tenantId),
       this.repository.listProjectsNeedingAttention(
@@ -50,6 +68,7 @@ export class OverviewService {
         query.attentionLimit,
       ),
       this.repository.listRecentActivity(actor.tenantId, query.activityLimit),
+      this.repository.summariseTasks(actor.tenantId, actor.userId, query.horizonDays, taskScope),
       canReadUsers(actor) ? this.repository.countUsersByStatus(actor.tenantId) : null,
     ]);
 
@@ -62,6 +81,7 @@ export class OverviewService {
       budgets,
       attention,
       activity,
+      tasks,
       ...(team ? { team } : {}),
     };
   }

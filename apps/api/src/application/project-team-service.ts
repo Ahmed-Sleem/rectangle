@@ -43,7 +43,11 @@ export interface ProjectTeamRepository {
     userId: string,
     role: ProjectMemberRecord["role"],
   ): Promise<ProjectMemberRecord | null>;
-  removeMember(tenantId: string, projectId: string, userId: string): Promise<boolean>;
+  removeMember(
+    tenantId: string,
+    projectId: string,
+    userId: string,
+  ): Promise<{ removed: boolean; unassignedTasks: number }>;
   countAdmins(tenantId: string, projectId: string): Promise<number>;
   listStakeholders(tenantId: string, projectId: string): Promise<StakeholderRecord[]>;
   createStakeholder(
@@ -220,8 +224,8 @@ export class ProjectTeamService {
       }
     }
 
-    const removed = await this.team.removeMember(actor.tenantId, projectId, userId);
-    if (!removed) {
+    const outcome = await this.team.removeMember(actor.tenantId, projectId, userId);
+    if (!outcome.removed) {
       throw new DomainError("NOT_FOUND", "That person is not on this project.");
     }
 
@@ -232,7 +236,15 @@ export class ProjectTeamService {
       entityType: "project_member",
       entityId: projectId,
       result: "success",
-      metadata: { projectId, memberUserId: userId, role: current.role },
+      // Work released by the removal is recorded, because tasks silently
+      // losing their owner is exactly the kind of change someone later needs
+      // to explain.
+      metadata: {
+        projectId,
+        memberUserId: userId,
+        role: current.role,
+        unassignedTasks: outcome.unassignedTasks,
+      },
     });
   }
 

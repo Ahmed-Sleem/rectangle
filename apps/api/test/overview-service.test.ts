@@ -8,6 +8,7 @@ import type {
   BudgetTotal,
   OverviewActivityEntry,
   ProjectStatusCount,
+  TaskSummary,
   TeamSummary,
 } from "../src/domain/overview.js";
 
@@ -27,6 +28,7 @@ const outsider: UserPrincipal = {
 class RecordingRepository implements OverviewRepository {
   readonly tenantIds: string[] = [];
   teamCalls = 0;
+  lastTaskScope: "all" | "member" | null = null;
   lastHorizon = 0;
   lastAttentionLimit = 0;
   lastActivityLimit = 0;
@@ -38,6 +40,7 @@ class RecordingRepository implements OverviewRepository {
       attention?: AttentionProject[];
       activity?: OverviewActivityEntry[];
       team?: TeamSummary;
+      tasks?: TaskSummary;
     } = {},
   ) {}
 
@@ -66,6 +69,17 @@ class RecordingRepository implements OverviewRepository {
     this.tenantIds.push(id);
     this.lastActivityLimit = limit;
     return this.data.activity ?? [];
+  }
+
+  async summariseTasks(
+    id: string,
+    _userId: string,
+    _horizonDays: number,
+    scope: "all" | "member",
+  ): Promise<TaskSummary> {
+    this.tenantIds.push(id);
+    this.lastTaskScope = scope;
+    return this.data.tasks ?? { open: 0, overdue: 0, dueSoon: 0, assignedToMe: 0 };
   }
 
   async countUsersByStatus(id: string): Promise<TeamSummary> {
@@ -156,5 +170,24 @@ describe("OverviewService", () => {
     await expect(
       new OverviewService(repository).getSummary(admin, { activityLimit: 5000 }),
     ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  });
+
+  it("counts the whole portfolio's work for a tenant-wide project reader", async () => {
+    const repository = new RecordingRepository({
+      tasks: { open: 12, overdue: 3, dueSoon: 4, assignedToMe: 2 },
+    });
+    const summary = await new OverviewService(repository).getSummary(admin, {});
+
+    expect(repository.lastTaskScope).toBe("all");
+    expect(summary.tasks).toEqual({ open: 12, overdue: 3, dueSoon: 4, assignedToMe: 2 });
+  });
+
+  it("counts only the caller's own projects when they are not a tenant-wide reader", async () => {
+    const repository = new RecordingRepository();
+    // A viewer may read the register but cannot manage any project, so their
+    // work counts follow their memberships.
+    await new OverviewService(repository).getSummary(viewer, {});
+
+    expect(repository.lastTaskScope).toBe("member");
   });
 });
