@@ -39,4 +39,11 @@ run_step "api typecheck" npm run typecheck
 run_step "api tests" npm test
 run_step "api production build" npm run build
 
+# Repo-level checks. These live outside the apps because the deployable image
+# only contains an app directory, and because they guard the deployment itself.
+cd "$ROOT_DIR"
+run_step "design token snapshot" node scripts/checks/token-snapshot.mjs
+run_step "deploy build context" node scripts/checks/deploy-context.mjs
+run_step "docker build simulation" ./scripts/checks/docker-build-sim.sh
+
 echo "\n[verify] All checks passed"

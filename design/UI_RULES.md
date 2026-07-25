@@ -486,7 +486,29 @@ Every screen must survive any viewport, any content length, and any language. No
 
 ---
 
-## 15. Definition of done for any UI work
+## 15. Deployment safety
+
+Rectangle auto-deploys to Railway from `main`. The Dockerfile builds each app from a
+**subset** of the repository, so code that compiles locally can still fail the deploy.
+
+Rules:
+
+1. **An app may only import from inside its own directory.** `apps/web` cannot import from
+   `design/`, `docs/`, or `apps/api`, because those paths are not copied into its build stage.
+2. **Repo-level checks live in `scripts/checks/`**, never inside a deployable app.
+3. **`./scripts/verify.sh` is the gate.** It runs the app suites plus:
+   - `token-snapshot.mjs` — design token snapshot matches the shipped CSS
+   - `deploy-context.mjs` — no app imports escape its Docker build context
+   - `docker-build-sim.sh` — rebuilds each image stage from a reproduced context
+4. **Never push without a green `verify.sh`.** A passing app test suite alone does not prove
+   the image will build.
+5. When the Dockerfile's `COPY` list changes, update `deploy-context.mjs` and
+   `docker-build-sim.sh` in the same commit; the context check self-verifies against the
+   Dockerfile and fails if they disagree.
+
+---
+
+## 16. Definition of done for any UI work
 
 - [ ] Every spacing, size, radius, weight and font-size comes from a token in §2.
 - [ ] The page mounts inside `.rect-panel__content` and adds no outer width or margin.
@@ -504,4 +526,5 @@ Every screen must survive any viewport, any content length, and any language. No
 - [ ] Configuration UI uses `SettingsSection`/`SettingRow`/`ChoiceGroup`.
 - [ ] Verified at 320px wide and 560px tall with nothing clipped or overflowing.
 - [ ] Nothing new was built that already exists in the block table (§11).
-- [ ] `./scripts/verify.sh` passes, including `canvas-contract.test.tsx`.
+- [ ] No import escapes the app directory into `design/`, `docs/`, or another app.
+- [ ] `./scripts/verify.sh` passes in full, including the deployment checks (§15).

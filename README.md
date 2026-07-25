@@ -45,16 +45,33 @@ The API requires real environment configuration before serving production traffi
 ./scripts/verify.sh
 ```
 
+This is the single gate before any push. It runs both app suites (typecheck, lint, tests,
+production build) and the repository-level deployment checks:
+
+| Check | Guards against |
+|---|---|
+| `scripts/checks/token-snapshot.mjs` | Design token docs drifting from the shipped CSS |
+| `scripts/checks/deploy-context.mjs` | An app importing files the Docker build does not copy |
+| `scripts/checks/docker-build-sim.sh` | Image stages that fail to build from their own context |
+
+The last two exist because the Dockerfile builds each app from a subset of the repository.
+Code can compile locally, where the whole repo is present, and still fail the deploy.
+
 ### Railway
 
 **Ready to connect** — step-by-step: [docs/DEPLOY_RAILWAY.md](./docs/DEPLOY_RAILWAY.md)
 
 1. New Project → Deploy from GitHub → `Ahmed-Sleem/rectangle`
-2. **Root Directory:** `apps/web`
-3. Build: `npm ci --include=dev && npm run build` · Start: `npm run start`
-4. Generate domain · auto-deploy on `main`
+2. **Root Directory:** repository root (leave empty)
+3. **Builder:** Dockerfile · **Dockerfile path:** `Dockerfile`
+4. Start: `npm run start` · Healthcheck: `/health/live`
+5. Add a PostgreSQL service and set `DATABASE_URL`, `SESSION_JWT_SECRET`, `APP_SECRET_KEY`, `NODE_ENV=production`
+6. Generate domain · auto-deploy on `main`
 
-Local parity check: `cd apps/web && npm run verify:deploy`
+One service serves the web app, the `/v1` API, and health routes.
+
+Local parity check: `./scripts/verify.sh` — this reproduces the Docker build context and will
+fail for the same reasons Railway would.
 
 ---
 
