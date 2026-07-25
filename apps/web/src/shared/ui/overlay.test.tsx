@@ -138,10 +138,12 @@ describe("Overlay", () => {
 
     await user.keyboard("{Escape}");
 
-    // Still present, now marked as closing so CSS can animate it out.
+    // Still present, now marked closed so CSS can animate it out. State drives
+    // both directions, so the animation name changes rather than a class
+    // toggling on the same animation.
     const closing = screen.getByTestId("overlay-backdrop");
-    expect(closing).toHaveAttribute("data-state", "closing");
-    expect(closing).toHaveClass("rect-overlay--closing");
+    expect(closing).toHaveAttribute("data-state", "closed");
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-state", "closed");
 
     // CSS owns the duration; the animation end event completes the unmount.
     fireEvent.animationEnd(closing);
@@ -158,7 +160,43 @@ describe("Overlay", () => {
     fireEvent.mouseDown(closing);
 
     // A press during the exit must not restart or re-trigger anything.
-    expect(closing).toHaveAttribute("data-state", "closing");
+    expect(closing).toHaveAttribute("data-state", "closed");
+  });
+
+  it("keeps the page dimmed and locked until the window has actually gone", async () => {
+    const user = userEvent.setup();
+    render(withI18n(<Harness />));
+    await user.click(screen.getByRole("button", { name: "Open window" }));
+
+    await user.keyboard("{Escape}");
+
+    // Releasing these when `open` flips would restore the page while the window
+    // is still on screen, which is what made the close look broken.
+    expect(document.documentElement).toHaveClass("rect-has-overlay");
+    expect(document.body.style.overflow).toBe("hidden");
+
+    // Held for the whole exit, not released the instant `open` flipped.
+    expect(__getOverlayCounters()).toEqual({ scrollLockCount: 1, blurCount: 1 });
+
+    fireEvent.animationEnd(screen.getByTestId("overlay-backdrop"));
+
+    await waitFor(() => expect(document.documentElement).not.toHaveClass("rect-has-overlay"));
+    expect(document.body.style.overflow).toBe("");
+  });
+
+  it("returns to the open state cleanly when reopened mid-exit", async () => {
+    const user = userEvent.setup();
+    render(withI18n(<Harness />));
+    const trigger = screen.getByRole("button", { name: "Open window" });
+
+    await user.click(trigger);
+    await user.keyboard("{Escape}");
+    expect(screen.getByTestId("overlay-backdrop")).toHaveAttribute("data-state", "closed");
+
+    // Reopening must not leave the window stuck in its exited appearance.
+    await user.click(trigger);
+    expect(screen.getByTestId("overlay-backdrop")).toHaveAttribute("data-state", "open");
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-state", "open");
   });
 
   it("can opt out of backdrop dismissal for flows where loss is costly", async () => {

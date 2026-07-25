@@ -41,10 +41,19 @@ function lockScroll(): void {
   restoreOverflow = body.style.overflow;
   restorePaddingInline = body.style.paddingInlineEnd;
 
-  // Compensate for the scrollbar so the layout does not shift on lock.
-  const gap = window.innerWidth - document.documentElement.clientWidth;
   body.style.overflow = "hidden";
-  if (gap > 0) body.style.paddingInlineEnd = `${gap}px`;
+
+  // `scrollbar-gutter: stable` already reserves the space, so padding here would
+  // double-count and shift the page. Compensate only where it is unsupported.
+  const supportsGutter =
+    typeof CSS !== "undefined" &&
+    typeof CSS.supports === "function" &&
+    CSS.supports("scrollbar-gutter", "stable");
+
+  if (!supportsGutter) {
+    const gap = window.innerWidth - document.documentElement.clientWidth;
+    if (gap > 0) body.style.paddingInlineEnd = `${gap}px`;
+  }
 }
 
 function unlockScroll(): void {
@@ -74,13 +83,19 @@ function removeAppBlur(): void {
 }
 
 export interface OverlayBehaviourOptions {
-  open: boolean;
   onClose: () => void;
   closeOnEscape?: boolean;
 }
 
+/**
+ * Scroll lock, app dimming, focus containment, and focus restoration.
+ *
+ * The effect runs for the lifetime of the mounted overlay rather than keying off
+ * an `open` flag. That matters during the exit: releasing the lock and the blur
+ * the instant `open` flips would snap the page back to normal while the window
+ * is still visible on top of it, which reads as a glitch.
+ */
 export function useOverlayBehaviour<T extends HTMLElement>({
-  open,
   onClose,
   closeOnEscape = true,
 }: OverlayBehaviourOptions) {
@@ -90,8 +105,6 @@ export function useOverlayBehaviour<T extends HTMLElement>({
   closeRef.current = onClose;
 
   useEffect(() => {
-    if (!open) return;
-
     const previouslyFocused = document.activeElement as HTMLElement | null;
     lockScroll();
     applyAppBlur();
@@ -148,7 +161,9 @@ export function useOverlayBehaviour<T extends HTMLElement>({
         previouslyFocused.focus();
       }
     };
-  }, [open, closeOnEscape]);
+    // Deliberately mount-scoped: the overlay only renders while it should be
+    // holding these, so setup and teardown follow its lifetime exactly.
+  }, [closeOnEscape]);
 
   return surfaceRef;
 }

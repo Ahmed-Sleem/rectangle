@@ -3,57 +3,54 @@ import { useCallback, useEffect, useRef, useState } from "react";
 /**
  * Keeps a component mounted long enough to play an exit animation.
  *
- * React removes a node the moment its condition turns false, so a closing
- * animation never gets a chance to run. This holds the node in a `closing`
+ * React removes a node as soon as its condition turns false, so a closing
+ * animation never gets a chance to run. This holds the node through a `closed`
  * phase, lets CSS finish, then unmounts.
  *
- * Completion is driven by `animationend` rather than a timer so the CSS keeps
- * ownership of the duration. A timeout only exists as a fallback for cases
- * where the event cannot arrive: reduced motion, a background tab, or a browser
- * that skips the animation entirely.
+ * The returned `state` is meant to drive a `data-state` attribute, matching the
+ * approach Radix uses. Selecting on `[data-state="closed"]` swaps the animation
+ * *name* rather than toggling a modifier class, which is what lets the browser
+ * restart the entry animation cleanly if the element is reopened mid-exit.
  */
-export type TransitionPhase = "closed" | "open" | "closing";
+export type TransitionState = "open" | "closed";
 
-const FALLBACK_GRACE_MS = 120;
+const FALLBACK_GRACE_MS = 150;
 
 export interface ExitTransitionOptions {
   open: boolean;
-  /** Upper bound for the exit animation, used only if `animationend` never fires. */
+  /** Upper bound for the exit, used only if `animationend` never arrives. */
   durationMs?: number;
 }
 
-export function useExitTransition<T extends HTMLElement>({
-  open,
-  durationMs = 200,
-}: ExitTransitionOptions) {
-  const [phase, setPhase] = useState<TransitionPhase>(open ? "open" : "closed");
-  const surfaceRef = useRef<T | null>(null);
+export function useExitTransition({ open, durationMs = 200 }: ExitTransitionOptions) {
+  // Tracks only the exit. Entry needs no bookkeeping because the node is
+  // already being rendered.
+  const [exiting, setExiting] = useState(false);
+  const wasOpen = useRef(open);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const finish = useCallback(() => {
+  const clearFallback = useCallback(() => {
     if (timeoutRef.current !== undefined) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = undefined;
     }
-    setPhase((current) => (current === "closing" ? "closed" : current));
   }, []);
 
+  if (open && wasOpen.current === false) {
+    // Reopened, possibly mid-exit. Drop the exit during render so the element
+    // never paints a frame in its closing state.
+    wasOpen.current = true;
+    if (exiting) setExiting(false);
+  } else if (!open && wasOpen.current) {
+    wasOpen.current = false;
+    if (!exiting) setExiting(true);
+  }
+
   useEffect(() => {
-    if (open) {
-      if (timeoutRef.current !== undefined) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = undefined;
-      }
-      setPhase("open");
+    if (!exiting) {
+      clearFallback();
       return;
     }
-
-    // Only animate out from a genuinely open state; never on first render.
-    setPhase((current) => (current === "open" || current === "closing" ? "closing" : "closed"));
-  }, [open]);
-
-  useEffect(() => {
-    if (phase !== "closing") return;
 
     const prefersReducedMotion =
       typeof window !== "undefined" &&
@@ -61,48 +58,30 @@ export function useExitTransition<T extends HTMLElement>({
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReducedMotion) {
-      finish();
+      setExiting(false);
       return;
     }
 
-    timeoutRef.current = setTimeout(finish, durationMs + FALLBACK_GRACE_MS);
+    timeoutRef.current = setTimeout(() => setExiting(false), durationMs + FALLBACK_GRACE_MS);
+    return clearFallback;
+  }, [clearFallback, durationMs, exiting]);
 
-    return () => {
-      if (timeoutRef.current !== undefined) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = undefined;
-      }
-    };
-  }, [durationMs, finish, phase]);
+  useEffect(() => clearFallback, [clearFallback]);
 
-  useEffect(
-    () => () => {
-      if (timeoutRef.current !== undefined) clearTimeout(timeoutRef.current);
-    },
-    [],
-  );
-
-  /** Attach to the animated element so CSS decides when the exit is done. */
   const onAnimationEnd = useCallback(
     (event: { target: EventTarget | null; currentTarget: EventTarget | null }) => {
       // Ignore animations bubbling up from children.
       if (event.target !== event.currentTarget) return;
-      finish();
+      setExiting(false);
     },
-    [finish],
+    [],
   );
-
-  // Derived synchronously rather than from state: waiting for an effect would
-  // withhold the node for one render, and any effect that expects the surface to
-  // exist on open (focus handling) would find nothing there.
-  const closing = !open && phase === "closing";
 
   return {
     /** True while the node must stay in the tree, including during the exit. */
-    mounted: open || closing,
-    closing,
-    phase,
-    surfaceRef,
+    mounted: open || exiting,
+    /** Drive `data-state` with this so CSS owns both directions. */
+    state: (open ? "open" : "closed") satisfies TransitionState as TransitionState,
     onAnimationEnd,
   };
 }

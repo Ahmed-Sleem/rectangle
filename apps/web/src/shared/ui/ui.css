@@ -452,7 +452,18 @@
   background: var(--rect-overlay-scrim);
   backdrop-filter: blur(var(--rect-overlay-blur));
   -webkit-backdrop-filter: blur(var(--rect-overlay-blur));
+}
+
+/* Both directions are selected by state rather than a modifier class. Swapping
+   the animation name is what allows a reopen mid-exit to restart cleanly. */
+.rect-overlay[data-state="open"] {
   animation: rect-overlay-in var(--rect-duration-overlay-scrim) ease-out both;
+}
+
+.rect-overlay[data-state="closed"] {
+  animation: rect-overlay-out var(--rect-duration-overlay-scrim-exit) var(--rect-ease-in) both;
+  /* On its way out it must not intercept a click meant for the page. */
+  pointer-events: none;
 }
 
 .rect-overlay__surface {
@@ -473,7 +484,17 @@
   font-family: var(--rect-font);
   outline: none;
   overflow: clip;
+  /* Promote once so the compositor animates transform/opacity off the main
+     thread instead of repainting the surface each frame. */
+  will-change: transform, opacity;
+}
+
+.rect-overlay__surface[data-state="open"] {
   animation: rect-overlay-surface-in var(--rect-duration-overlay) var(--rect-ease-spring) both;
+}
+
+.rect-overlay__surface[data-state="closed"] {
+  animation: rect-overlay-surface-out var(--rect-duration-overlay-exit) var(--rect-ease-in) both;
 }
 
 .rect-overlay__surface--sm { max-width: var(--rect-overlay-width-sm); }
@@ -549,18 +570,6 @@
   line-height: var(--rect-leading-snug);
 }
 
-/* Exit reverses the entry, quicker and with ease-in. Easing out on the way out
-   makes an element look like it is lagging rather than leaving. */
-.rect-overlay--closing {
-  animation: rect-overlay-out var(--rect-duration-overlay-scrim-exit) var(--rect-ease-in) both;
-  /* The window is on its way out; stop it swallowing clicks meant for the page. */
-  pointer-events: none;
-}
-
-.rect-overlay--closing .rect-overlay__surface {
-  animation: rect-overlay-surface-out var(--rect-duration-overlay-exit) var(--rect-ease-in) both;
-}
-
 @keyframes rect-overlay-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -581,11 +590,16 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Blur the whole application behind an open window. Applied to the shell root,
-   which is a sibling of the portaled overlay, so the window stays sharp. */
-.rect-has-overlay .rect-app {
-  filter: blur(var(--rect-app-blur));
-  transition: filter var(--rect-motion-nav);
+/* The scrim covers the viewport and carries its own backdrop-filter, so the
+   application behind it is already blurred and fades in exact step with the
+   overlay. Blurring the shell subtree as well would rasterise the entire app
+   every frame and, because that transition is independent, keep animating after
+   the window has gone. It is kept only where backdrop-filter is unsupported. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .rect-has-overlay .rect-app {
+    filter: blur(var(--rect-app-blur));
+    transition: filter var(--rect-duration-overlay) var(--rect-ease-out);
+  }
 }
 
 @media (max-width: 640px) {
@@ -626,8 +640,10 @@
 @media (prefers-reduced-motion: reduce) {
   .rect-overlay,
   .rect-overlay__surface,
-  .rect-overlay--closing,
-  .rect-overlay--closing .rect-overlay__surface {
+  .rect-overlay[data-state="open"],
+  .rect-overlay[data-state="closed"],
+  .rect-overlay__surface[data-state="open"],
+  .rect-overlay__surface[data-state="closed"] {
     animation: none !important;
   }
 

@@ -553,12 +553,31 @@ max-block-size: min(calc(100dvh - 2 * margin), 720px);
 out makes an element look like it is lagging behind the user's decision; the window
 should arrive gracefully and leave promptly.
 
+Four rules make the close feel calm rather than glitchy. Each one was learned from a
+visible defect:
+
+1. **Drive both directions from `data-state="open" | "closed"`, never a modifier
+   class.** Selecting on state swaps the animation *name*, and a changed name is what
+   lets the browser restart the entry animation if the window is reopened mid-exit.
+   Toggling a class on the same animation leaves it stuck in its exited appearance.
+2. **Release scroll lock, dimming, and focus on unmount — not when `open` flips.**
+   The window outlives `open` by the length of its exit. Releasing early un-blurs the
+   page, returns the scrollbar, and moves focus while the window is still fully
+   visible, so the two halves of one gesture run in opposite order.
+3. **Blur once.** The scrim is `position: fixed; inset: 0` with its own
+   `backdrop-filter`, which already blurs everything behind it and fades in exact step
+   with the scrim's own opacity. A second `filter` on the shell subtree forces the
+   browser to rasterise the whole application every frame, and its transition runs on
+   an independent clock that outlasts the exit. Keep the subtree filter only inside
+   `@supports not (backdrop-filter: ...)`.
+4. **Reserve the scrollbar with `scrollbar-gutter: stable`.** Locking body scroll
+   removes the scrollbar and widens the viewport, shifting every centred element
+   sideways mid-animation. With the gutter reserved, skip the JavaScript padding
+   compensation too, or the two will double-count.
+
 A closing window must stay mounted until its animation finishes, otherwise React
 removes the node and no exit motion ever runs. Use `useExitTransition`, which keys
 completion off `animationend` so the CSS owns the duration.
-
-A window must feel like it is *already there*. Anything past ~150ms reads as waiting, because
-the user has already decided to act. Never add an `animation-delay` to an overlay.
 
 ### 12.5 Behaviour — required, all of it
 

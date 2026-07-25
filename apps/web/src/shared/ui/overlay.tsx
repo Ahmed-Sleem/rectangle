@@ -80,17 +80,89 @@ export function Overlay({
   const descriptionId = useId();
   // Hold the window in the tree while its exit animation plays; unmounting on
   // the same tick would remove it before any closing motion could run.
-  const { mounted, closing, onAnimationEnd } = useExitTransition<HTMLElement>({ open });
-  const surfaceRef = useOverlayBehaviour<HTMLElement>({ open, onClose, closeOnEscape });
+  const { mounted, state, onAnimationEnd } = useExitTransition({ open });
 
   if (!mounted || typeof document === "undefined") return null;
 
   return createPortal(
+    <OverlaySurface
+      state={state}
+      title={title}
+      onClose={onClose}
+      closeOnEscape={closeOnEscape}
+      dismissOnBackdrop={dismissOnBackdrop}
+      hideCloseButton={hideCloseButton}
+      size={size}
+      headingId={headingId}
+      descriptionId={descriptionId}
+      closeLabel={t("common.close")}
+      onExitAnimationEnd={onAnimationEnd}
+      {...(footer !== undefined ? { footer } : {})}
+      {...(description ? { description } : {})}
+      {...(className ? { className } : {})}
+      {...props}
+    >
+      {children}
+    </OverlaySurface>,
+    document.body,
+  );
+}
+
+interface OverlaySurfaceProps
+  extends Omit<HTMLAttributes<HTMLElement>, "title" | "onAnimationEnd"> {
+  state: "open" | "closed";
+  title: string;
+  onClose: () => void;
+  closeOnEscape: boolean;
+  dismissOnBackdrop: boolean;
+  hideCloseButton: boolean;
+  size: OverlaySize;
+  footer?: ReactNode;
+  description?: string;
+  headingId: string;
+  descriptionId: string;
+  closeLabel: string;
+  onExitAnimationEnd: (event: {
+    target: EventTarget | null;
+    currentTarget: EventTarget | null;
+  }) => void;
+}
+
+/**
+ * Split out from `Overlay` so scroll lock, dimming, and focus handling live in a
+ * component whose lifetime matches the window's presence in the DOM.
+ *
+ * This is the whole reason closing looks calm: if those were released the moment
+ * `open` turned false, the page would un-blur, the scrollbar would return, and
+ * focus would jump while the window was still fully visible on top.
+ */
+function OverlaySurface({
+  state,
+  title,
+  onClose,
+  closeOnEscape,
+  dismissOnBackdrop,
+  hideCloseButton,
+  size,
+  footer,
+  description,
+  headingId,
+  descriptionId,
+  closeLabel,
+  onExitAnimationEnd,
+  className,
+  children,
+  ...props
+}: OverlaySurfaceProps) {
+  const surfaceRef = useOverlayBehaviour<HTMLElement>({ onClose, closeOnEscape });
+  const closing = state === "closed";
+
+  return (
     <div
-      className={cn("rect-overlay", closing && "rect-overlay--closing")}
+      className="rect-overlay"
       data-testid="overlay-backdrop"
-      data-state={closing ? "closing" : "open"}
-      onAnimationEnd={onAnimationEnd}
+      data-state={state}
+      onAnimationEnd={onExitAnimationEnd}
       onMouseDown={(event) => {
         // A window on its way out must not react to a stray press.
         if (closing) return;
@@ -105,6 +177,7 @@ export function Overlay({
         aria-modal="true"
         aria-labelledby={headingId}
         aria-describedby={description ? descriptionId : undefined}
+        data-state={state}
         ref={surfaceRef}
         tabIndex={-1}
         {...props}
@@ -122,7 +195,7 @@ export function Overlay({
           </div>
           {hideCloseButton ? null : (
             <IconButton
-              label={t("common.close")}
+              label={closeLabel}
               size="sm"
               variant="plain"
               className="rect-overlay__close"
@@ -137,8 +210,7 @@ export function Overlay({
 
         {footer ? <footer className="rect-overlay__footer">{footer}</footer> : null}
       </section>
-    </div>,
-    document.body,
+    </div>
   );
 }
 

@@ -12,6 +12,15 @@ body,
   height: 100%;
 }
 
+/* Reserve the scrollbar's space permanently. Without this, locking body scroll
+   for a window removes the scrollbar and the viewport widens by its width,
+   shifting every centred element sideways mid-animation. */
+@supports (scrollbar-gutter: stable) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
 html,
 body,
 * {
