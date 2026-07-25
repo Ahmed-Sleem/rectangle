@@ -1,0 +1,315 @@
+/**
+ * PostgreSQL persistence for project members, stakeholders, and project activity.
+ *
+ * Every statement filters by tenant_id. Tenant scoping is enforced here as well
+ * as in the service layer so a future caller cannot reach across tenants by
+ * skipping a use case.
+ */
+import type { Pool } from "pg";
+import type {
+  AddProjectMemberInput,
+  CreateStakeholderInput,
+  ProjectActivityRecord,
+  ProjectMemberRecord,
+  ProjectMemberRole,
+  StakeholderRecord,
+  UpdateStakeholderInput,
+} from "../../domain/project-team.js";
+
+interface MemberRow {
+  project_id: string;
+  tenant_id: string;
+  user_id: string;
+  role: ProjectMemberRole;
+  display_name: string;
+  email: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+function mapMember(row: MemberRow): ProjectMemberRecord {
+  return {
+    projectId: row.project_id,
+    tenantId: row.tenant_id,
+    userId: row.user_id,
+    role: row.role,
+    displayName: row.display_name,
+    email: row.email,
+    createdAt: row.created_at.toISOString(),
+    updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+interface StakeholderRow {
+  id: string;
+  project_id: string;
+  tenant_id: string;
+  name: string;
+  organization: string | null;
+  category: StakeholderRecord["category"];
+  influence: StakeholderRecord["influence"];
+  interest: StakeholderRecord["interest"];
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+function mapStakeholder(row: StakeholderRow): StakeholderRecord {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    tenantId: row.tenant_id,
+    name: row.name,
+    ...(row.organization ? { organization: row.organization } : {}),
+    category: row.category,
+    influence: row.influence,
+    interest: row.interest,
+    ...(row.email ? { email: row.email } : {}),
+    ...(row.phone ? { phone: row.phone } : {}),
+    ...(row.notes ? { notes: row.notes } : {}),
+    createdAt: row.created_at.toISOString(),
+    updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+export class PostgresProjectTeamRepository {
+  constructor(private readonly pool: Pool) {}
+
+  async listMembers(tenantId: string, projectId: string): Promise<ProjectMemberRecord[]> {
+    const result = await this.pool.query<MemberRow>(
+      `select m.project_id, m.tenant_id, m.user_id, m.role, m.created_at, m.updated_at,
+              u.display_name, u.email
+         from project_members m
+         join users u on u.id = m.user_id and u.tenant_id = m.tenant_id
+        where m.tenant_id = $1 and m.project_id = $2
+        order by m.created_at asc`,
+      [tenantId, projectId],
+    );
+    return result.rows.map(mapMember);
+  }
+
+  async findMember(
+    tenantId: string,
+    projectId: string,
+    userId: string,
+  ): Promise<ProjectMemberRecord | null> {
+    const result = await this.pool.query<MemberRow>(
+      `select m.project_id, m.tenant_id, m.user_id, m.role, m.created_at, m.updated_at,
+              u.display_name, u.email
+         from project_members m
+         join users u on u.id = m.user_id and u.tenant_id = m.tenant_id
+        where m.tenant_id = $1 and m.project_id = $2 and m.user_id = $3`,
+      [tenantId, projectId, userId],
+    );
+    const row = result.rows[0];
+    return row ? mapMember(row) : null;
+  }
+
+  /** Confirms the target user exists inside the same tenant before membership is granted. */
+  async tenantUserExists(tenantId: string, userId: string): Promise<boolean> {
+    const result = await this.pool.query<{ exists: boolean }>(
+      "select true as exists from users where tenant_id = $1 and id = $2",
+      [tenantId, userId],
+    );
+    return result.rows.length > 0;
+  }
+
+  async addMember(
+    tenantId: string,
+    projectId: string,
+    input: AddProjectMemberInput,
+  ): Promise<ProjectMemberRecord | null> {
+    await this.pool.query(
+      `insert into project_members (project_id, tenant_id, user_id, role)
+       values ($1, $2, $3, $4)
+       on conflict (project_id, user_id)
+       do update set role = excluded.role, updated_at = now()`,
+      [projectId, tenantId, input.userId, input.role],
+    );
+    return this.findMember(tenantId, projectId, input.userId);
+  }
+
+  async updateMemberRole(
+    tenantId: string,
+    projectId: string,
+    userId: string,
+    role: ProjectMemberRole,
+  ): Promise<ProjectMemberRecord | null> {
+    const result = await this.pool.query(
+      `update project_members set role = $4, updated_at = now()
+        where tenant_id = $1 and project_id = $2 and user_id = $3`,
+      [tenantId, projectId, userId, role],
+    );
+    if (result.rowCount === 0) return null;
+    return this.findMember(tenantId, projectId, userId);
+  }
+
+  async removeMember(tenantId: string, projectId: string, userId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      "delete from project_members where tenant_id = $1 and project_id = $2 and user_id = $3",
+      [tenantId, projectId, userId],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  /** Number of remaining project administrators, used to keep at least one in place. */
+  async countAdmins(tenantId: string, projectId: string): Promise<number> {
+    const result = await this.pool.query<{ count: string }>(
+      `select count(*)::text as count from project_members
+        where tenant_id = $1 and project_id = $2 and role in ('project_admin','project_manager')`,
+      [tenantId, projectId],
+    );
+    return Number(result.rows[0]?.count ?? "0");
+  }
+
+  async listStakeholders(tenantId: string, projectId: string): Promise<StakeholderRecord[]> {
+    const result = await this.pool.query<StakeholderRow>(
+      `select * from project_stakeholders
+        where tenant_id = $1 and project_id = $2
+        order by created_at desc`,
+      [tenantId, projectId],
+    );
+    return result.rows.map(mapStakeholder);
+  }
+
+  async createStakeholder(
+    tenantId: string,
+    projectId: string,
+    input: CreateStakeholderInput,
+  ): Promise<StakeholderRecord> {
+    const result = await this.pool.query<StakeholderRow>(
+      `insert into project_stakeholders
+         (project_id, tenant_id, name, organization, category, influence, interest, email, phone, notes)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       returning *`,
+      [
+        projectId,
+        tenantId,
+        input.name,
+        input.organization ?? null,
+        input.category,
+        input.influence,
+        input.interest,
+        input.email ?? null,
+        input.phone ?? null,
+        input.notes ?? null,
+      ],
+    );
+    return mapStakeholder(result.rows[0]!);
+  }
+
+  async updateStakeholder(
+    tenantId: string,
+    projectId: string,
+    stakeholderId: string,
+    input: UpdateStakeholderInput,
+  ): Promise<StakeholderRecord | null> {
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    const add = (column: string, value: unknown) => {
+      values.push(value);
+      fields.push(`${column} = $${values.length}`);
+    };
+
+    if (input.name !== undefined) add("name", input.name);
+    if (input.organization !== undefined) add("organization", input.organization ?? null);
+    if (input.category !== undefined) add("category", input.category);
+    if (input.influence !== undefined) add("influence", input.influence);
+    if (input.interest !== undefined) add("interest", input.interest);
+    if (input.email !== undefined) add("email", input.email ?? null);
+    if (input.phone !== undefined) add("phone", input.phone ?? null);
+    if (input.notes !== undefined) add("notes", input.notes ?? null);
+
+    if (fields.length === 0) {
+      return this.findStakeholder(tenantId, projectId, stakeholderId);
+    }
+
+    fields.push("updated_at = now()");
+    values.push(tenantId, projectId, stakeholderId);
+
+    const result = await this.pool.query<StakeholderRow>(
+      `update project_stakeholders set ${fields.join(", ")}
+        where tenant_id = $${values.length - 2}
+          and project_id = $${values.length - 1}
+          and id = $${values.length}
+        returning *`,
+      values,
+    );
+    const row = result.rows[0];
+    return row ? mapStakeholder(row) : null;
+  }
+
+  async findStakeholder(
+    tenantId: string,
+    projectId: string,
+    stakeholderId: string,
+  ): Promise<StakeholderRecord | null> {
+    const result = await this.pool.query<StakeholderRow>(
+      "select * from project_stakeholders where tenant_id = $1 and project_id = $2 and id = $3",
+      [tenantId, projectId, stakeholderId],
+    );
+    const row = result.rows[0];
+    return row ? mapStakeholder(row) : null;
+  }
+
+  async deleteStakeholder(
+    tenantId: string,
+    projectId: string,
+    stakeholderId: string,
+  ): Promise<boolean> {
+    const result = await this.pool.query(
+      "delete from project_stakeholders where tenant_id = $1 and project_id = $2 and id = $3",
+      [tenantId, projectId, stakeholderId],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Activity for a project: events on the project itself plus events on records
+   * that belong to it, so the timeline reflects the whole workspace.
+   */
+  async listActivity(
+    tenantId: string,
+    projectId: string,
+    limit: number,
+  ): Promise<ProjectActivityRecord[]> {
+    const result = await this.pool.query<{
+      id: string;
+      action: string;
+      entity_type: string;
+      entity_id: string;
+      result: "success" | "failure";
+      actor_user_id: string | null;
+      actor_name: string | null;
+      metadata: Record<string, unknown>;
+      created_at: Date;
+    }>(
+      `select a.id, a.action, a.entity_type, a.entity_id, a.result,
+              a.actor_user_id, u.display_name as actor_name, a.metadata, a.created_at
+         from audit_events a
+         left join users u on u.id = a.actor_user_id and u.tenant_id = a.tenant_id
+        where a.tenant_id = $1
+          and (
+            (a.entity_type = 'project' and a.entity_id = $2)
+            or a.metadata ->> 'projectId' = $2::text
+          )
+        order by a.created_at desc, a.id desc
+        limit $3`,
+      [tenantId, projectId, limit],
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      action: row.action,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      result: row.result,
+      ...(row.actor_user_id ? { actorUserId: row.actor_user_id } : {}),
+      ...(row.actor_name ? { actorName: row.actor_name } : {}),
+      metadata: row.metadata ?? {},
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+}

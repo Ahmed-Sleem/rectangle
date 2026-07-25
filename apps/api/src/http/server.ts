@@ -10,6 +10,7 @@ import { join } from "node:path";
 import type { AdminService } from "../application/admin-service.js";
 import type { AuthService } from "../application/auth-service.js";
 import type { ProjectService } from "../application/project-service.js";
+import type { ProjectTeamService } from "../application/project-team-service.js";
 import type { SetupService } from "../application/setup-service.js";
 import type { PasskeyService } from "../application/passkey-service.js";
 import type { EmailSettingsService } from "../application/email-settings-service.js";
@@ -24,6 +25,7 @@ import { registerPasskeyRoutes } from "./passkey-routes.js";
 
 export interface ServerDependencies {
   projectService: ProjectService;
+  projectTeamService: ProjectTeamService;
   authService: AuthService;
   adminService: Pick<AdminService, "listPermissions" | "listUserTypes" | "createUserType" | "updateUserType" | "listUsers" | "createUser" | "updateUser">;
   setupService: Pick<SetupService, "getStatus" | "createFirstAdmin">;
@@ -79,7 +81,7 @@ export async function createServer(dependencies: ServerDependencies) {
     )(request, reply);
   });
 
-  await registerProjectRoutes(app, dependencies.projectService);
+  await registerProjectRoutes(app, dependencies.projectService, dependencies.projectTeamService);
   await registerAdminRoutes(app, dependencies.adminService);
   await registerSettingsRoutes(app, dependencies.emailSettingsService);
 

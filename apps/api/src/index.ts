@@ -7,6 +7,7 @@ import { EmailSettingsService } from "./application/email-settings-service.js";
 import { AuthService } from "./application/auth-service.js";
 import { PasskeyService } from "./application/passkey-service.js";
 import { ProjectService } from "./application/project-service.js";
+import { ProjectTeamService } from "./application/project-team-service.js";
 import { SetupService } from "./application/setup-service.js";
 import { loadConfig } from "./config.js";
 import { createServer } from "./http/server.js";
@@ -19,13 +20,20 @@ import { assertDatabaseReady, createPostgresPool } from "./infrastructure/postgr
 import { PostgresEmailSettingsRepository } from "./infrastructure/postgres/email-settings-repository.js";
 import { PostgresPasskeyRepository } from "./infrastructure/postgres/passkey-repository.js";
 import { PostgresProjectsRepository } from "./infrastructure/postgres/projects-repository.js";
+import { PostgresProjectTeamRepository } from "./infrastructure/postgres/project-team-repository.js";
 import { PostgresSetupRepository } from "./infrastructure/postgres/setup-repository.js";
 
 const config = loadConfig();
 const pool = createPostgresPool(config.DATABASE_URL);
 const auditRepository = new PostgresAuditRepository(pool);
+const projectsRepository = new PostgresProjectsRepository(pool);
 const projectService = new ProjectService(
-  new PostgresProjectsRepository(pool),
+  projectsRepository,
+  auditRepository,
+);
+const projectTeamService = new ProjectTeamService(
+  projectsRepository,
+  new PostgresProjectTeamRepository(pool),
   auditRepository,
 );
 const passwordHasher = new ScryptPasswordHasher();
@@ -59,6 +67,7 @@ const passkeyService = new PasskeyService(
 
 const server = await createServer({
   projectService,
+  projectTeamService,
   authService,
   adminService,
   setupService,

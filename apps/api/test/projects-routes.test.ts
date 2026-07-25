@@ -3,6 +3,8 @@ import { SignJWT } from "jose";
 import { describe, expect, it } from "vitest";
 import { AuthService, type AuthRepository, type CredentialUserRecord } from "../src/application/auth-service.js";
 import { ProjectService, type AuditEventInput, type AuditRepository, type ProjectsRepository } from "../src/application/project-service.js";
+import { ProjectTeamService } from "../src/application/project-team-service.js";
+import { MemoryProjectTeamRepository } from "./support/memory-project-team-repository.js";
 import { createServer } from "../src/http/server.js";
 import type { CreateProjectInput, ProjectListQuery, ProjectRecord, UpdateProjectInput } from "../src/domain/project.js";
 import type { PasswordHasher } from "../src/infrastructure/password.js";
@@ -130,19 +132,21 @@ const inactiveSetupService = {
 
 async function createTestServer() {
   const projects = new MemoryProjectsRepository();
+  const team = new MemoryProjectTeamRepository();
   const audit = new MemoryAuditRepository();
   const app = await createServer({
     adminService: inactiveAdminService,
     emailSettingsService: inactiveEmailSettingsService,
     passkeyService: inactivePasskeyService,
     projectService: new ProjectService(projects, audit),
+    projectTeamService: new ProjectTeamService(projects, team, audit),
     setupService: inactiveSetupService,
     authService: new AuthService(new MemoryAuthRepository(), new TestPasswordHasher(), audit, jwtSecret),
     jwtSecret,
     corsOrigin: "http://localhost:5173",
     logger: false,
   });
-  return { app, projects, audit };
+  return { app, projects, team, audit };
 }
 
 describe("Projects routes", () => {
@@ -194,6 +198,137 @@ describe("Projects routes", () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ error: { code: "VALIDATION_FAILED" } });
+    await app.close();
+  });
+
+  it("exposes project team, stakeholder, and activity endpoints end to end", async () => {
+    const { app, team, audit } = await createTestServer();
+    const bearer = await token(["tenant_admin"]);
+    const teammateId = "44444444-4444-4444-8444-444444444444";
+    team.addTenantUser({ id: teammateId, tenantId, displayName: "Mona Adel", email: "mona@example.com" });
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      headers: { authorization: `Bearer ${bearer}` },
+      payload: { name: "Cairo Metro Extension", code: "CME-02", status: "active" },
+    });
+    const projectId = created.json().project.id as string;
+
+    const access = await app.inject({
+      method: "GET",
+      url: `/v1/projects/${projectId}/access`,
+      headers: { authorization: `Bearer ${bearer}` },
+    });
+    expect(access.statusCode).toBe(200);
+    expect(access.json().access).toMatchObject({ canRead: true, canManage: true });
+
+    const addMember = await app.inject({
+      method: "POST",
+      url: `/v1/projects/${projectId}/members`,
+      headers: { authorization: `Bearer ${bearer}` },
+      payload: { userId: teammateId, role: "project_manager" },
+    });
+    expect(addMember.statusCode).toBe(201);
+    expect(addMember.json().member).toMatchObject({ userId: teammateId, displayName: "Mona Adel" });
+
+    const members = await app.inject({
+      method: "GET",
+      url: `/v1/projects/${projectId}/members`,
+      headers: { authorization: `Bearer ${bearer}` },
+    });
+    expect(members.json().members).toHaveLength(1);
+
+    const stakeholder = await app.inject({
+      method: "POST",
+      url: `/v1/projects/${projectId}/stakeholders`,
+      headers: { authorization: `Bearer ${bearer}` },
+      payload: { name: "الهيئة القومية للأنفاق", category: "authority" },
+    });
+    expect(stakeholder.statusCode).toBe(201);
+    const stakeholderId = stakeholder.json().stakeholder.id as string;
+    expect(stakeholder.json().stakeholder.name).toBe("الهيئة القومية للأنفاق");
+
+    const removed = await app.inject({
+      method: "DELETE",
+      url: `/v1/projects/${projectId}/stakeholders/${stakeholderId}`,
+      headers: { authorization: `Bearer ${bearer}` },
+    });
+    expect(removed.statusCode).toBe(204);
+
+    // Every write above must have produced an audit trail entry.
+    const actions = audit.events.map((event) => event.action);
+    expect(actions).toEqual([
+      "project.create",
+      "project.member.add",
+      "project.stakeholder.create",
+      "project.stakeholder.delete",
+    ]);
+
+    const activity = await app.inject({
+      method: "GET",
+      url: `/v1/projects/${projectId}/activity`,
+      headers: { authorization: `Bearer ${bearer}` },
+    });
+    expect(activity.statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("refuses team changes from a user without project management rights", async () => {
+    const { app, team } = await createTestServer();
+    const adminBearer = await token(["tenant_admin"]);
+    const viewerBearer = await token(["viewer"]);
+    const teammateId = "44444444-4444-4444-8444-444444444444";
+    team.addTenantUser({ id: teammateId, tenantId, displayName: "Mona Adel", email: "mona@example.com" });
+    team.addTenantUser({ id: userId, tenantId, displayName: "Viewer", email: "viewer@example.com" });
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      headers: { authorization: `Bearer ${adminBearer}` },
+      payload: { name: "Riyadh Tower", code: "RYD-01", status: "planned" },
+    });
+    const projectId = created.json().project.id as string;
+
+    await app.inject({
+      method: "POST",
+      url: `/v1/projects/${projectId}/members`,
+      headers: { authorization: `Bearer ${adminBearer}` },
+      payload: { userId, role: "viewer" },
+    });
+
+    const forbidden = await app.inject({
+      method: "POST",
+      url: `/v1/projects/${projectId}/members`,
+      headers: { authorization: `Bearer ${viewerBearer}` },
+      payload: { userId: teammateId, role: "viewer" },
+    });
+
+    expect(forbidden.statusCode).toBe(403);
+    expect(forbidden.json()).toMatchObject({ error: { code: "FORBIDDEN" } });
+    await app.close();
+  });
+
+  it("does not reveal a project to a user who cannot reach it", async () => {
+    const { app } = await createTestServer();
+    const adminBearer = await token(["tenant_admin"]);
+    const viewerBearer = await token(["viewer"]);
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/projects",
+      headers: { authorization: `Bearer ${adminBearer}` },
+      payload: { name: "Private Site", code: "PRV-01", status: "planned" },
+    });
+    const projectId = created.json().project.id as string;
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/v1/projects/${projectId}/members`,
+      headers: { authorization: `Bearer ${viewerBearer}` },
+    });
+
+    expect(response.statusCode).toBe(404);
     await app.close();
   });
 });

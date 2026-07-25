@@ -146,4 +146,38 @@ describe("shared UI primitives", () => {
     await user.click(screen.getByRole("button", { name: /close/i }));
     expect(closed).toBe(1);
   });
+
+  it("associates a field label, hint, and error with its control", () => {
+    const { rerender } = render(
+      <Field label="Project code" hint="Uppercase letters and numbers." required>
+        <Input />
+      </Field>,
+    );
+
+    // The label must resolve without the caller passing an id, and the required
+    // marker must stay out of the accessible name so it is not read as "star".
+    const input = screen.getByLabelText("Project code");
+    expect(input).toHaveAttribute("aria-required", "true");
+    expect(input).toHaveAccessibleDescription("Uppercase letters and numbers.");
+
+    rerender(
+      <Field label="Project code" error="That code is already in use." required>
+        <Input />
+      </Field>,
+    );
+
+    const invalid = screen.getByLabelText("Project code");
+    expect(invalid).toHaveAttribute("aria-invalid", "true");
+    expect(invalid).toHaveAccessibleDescription("That code is already in use.");
+  });
+
+  it("keeps an explicit control id when one is supplied", () => {
+    render(
+      <Field label="Search" htmlFor="search-field">
+        <Input id="search-field" />
+      </Field>,
+    );
+
+    expect(screen.getByLabelText("Search")).toHaveAttribute("id", "search-field");
+  });
 });

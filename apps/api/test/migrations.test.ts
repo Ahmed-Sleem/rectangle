@@ -11,11 +11,21 @@ describe("PostgreSQL migrations", () => {
   it("keeps migration files ordered and free of unsupported expression constraints", () => {
     const files = readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort();
 
-    expect(files).toEqual(["001_core_projects.sql", "002_auth_sessions.sql", "003_user_types.sql", "004_email_settings.sql", "005_passkeys.sql"]);
+    expect(files).toEqual([
+      "001_core_projects.sql",
+      "002_auth_sessions.sql",
+      "003_user_types.sql",
+      "004_email_settings.sql",
+      "005_passkeys.sql",
+      "006_project_members_stakeholders.sql",
+    ]);
 
     for (const file of files) {
       const sql = readFileSync(join(migrationsDir.pathname, file), "utf8");
       expect(sql).not.toMatch(/unique\s*\([^)]*lower\s*\(/iu);
+      // Startup runs every migration on each boot, so they must be re-runnable.
+      expect(sql, `${file} must be idempotent`).not.toMatch(/create table (?!if not exists)/iu);
+      expect(sql, `${file} must be idempotent`).not.toMatch(/create index (?!if not exists)/iu);
     }
   });
 

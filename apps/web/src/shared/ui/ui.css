@@ -106,11 +106,21 @@
   gap: var(--rect-space-1);
 }
 
+.rect-ui-field__label-row {
+  align-items: baseline;
+  display: flex;
+  gap: var(--rect-space-05);
+}
+
 .rect-ui-field__label {
   color: var(--rect-text-primary);
   font-size: var(--rect-text-label);
   font-weight: var(--rect-weight-bold);
   letter-spacing: -0.01em;
+}
+
+.rect-ui-field__required {
+  color: var(--rect-color-danger);
 }
 
 .rect-ui-field__hint,

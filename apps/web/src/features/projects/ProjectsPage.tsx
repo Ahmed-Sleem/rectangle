@@ -1,13 +1,14 @@
 /** Projects page lists and creates real tenant-owned project records. */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
-import { Button, DataTable, EmptyState, Field, FormDialog, Input, Select, Textarea, Toolbar } from "@/shared/ui";
-import { createProject, listProjects, type CreateProjectPayload, type ProjectRecord } from "./project-api";
+import { Badge, Button, DataTable, EmptyState, Field, FormDialog, Input, Select, Textarea, Toolbar } from "@/shared/ui";
+import { useOptionalAuth } from "@/shared/auth";
+import { createProject, listProjects, type CreateProjectPayload, type ProjectRecord, type ProjectStatus } from "./project-api";
 import "./ProjectsPage.css";
 
 const createProjectSchema = z.object({
@@ -45,14 +46,53 @@ function toPayload(values: ProjectForm): CreateProjectPayload {
   };
 }
 
-function statusLabel(status: ProjectRecord["status"]): string {
-  return status.replace("_", " ");
+const STATUS_OPTIONS: ReadonlyArray<{ value: ProjectStatus; label: string }> = [
+  { value: "planned", label: "Planned" },
+  { value: "active", label: "Active" },
+  { value: "on_hold", label: "On hold" },
+  { value: "completed", label: "Completed" },
+  { value: "archived", label: "Archived" },
+];
+
+function statusLabel(status: ProjectStatus): string {
+  return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
+}
+
+function statusTone(status: ProjectStatus): "success" | "warning" | "info" | "neutral" {
+  if (status === "active") return "success";
+  if (status === "on_hold") return "warning";
+  if (status === "completed") return "info";
+  return "neutral";
+}
+
+type SortKey = "name" | "code" | "status" | "updatedAt";
+
+function compareProjects(a: ProjectRecord, b: ProjectRecord, key: SortKey): number {
+  if (key === "updatedAt") return b.updatedAt.localeCompare(a.updatedAt);
+  // Arabic and English project names must both sort naturally.
+  return a[key].localeCompare(b[key], undefined, { numeric: true, sensitivity: "base" });
 }
 
 export default function ProjectsPage() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<ProjectStatus | "">("");
+  const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
+  const auth = useOptionalAuth();
+
+  // Only offer creation to people whose request would actually succeed.
+  const canManage =
+    auth?.user?.roles.some((role) =>
+      ["tenant_owner", "tenant_admin", "project_admin", "project_manager"].includes(role),
+    ) || auth?.user?.permissions.includes("projects.manage") || false;
+
   const queryClient = useQueryClient();
-  const projects = useQuery({ queryKey: ["projects"], queryFn: listProjects });
+  const filters = { ...(search.trim() ? { search: search.trim() } : {}), ...(status ? { status } : {}) };
+  const projects = useQuery({
+    queryKey: ["projects", filters],
+    queryFn: () => listProjects(filters),
+    placeholderData: (previous) => previous,
+  });
   const form = useForm<ProjectForm>({
     resolver: zodResolver(createProjectSchema),
     defaultValues: {
@@ -77,26 +117,74 @@ export default function ProjectsPage() {
     },
   });
 
-  const rows = projects.data?.projects ?? [];
+  const rows = useMemo(
+    () => [...(projects.data?.projects ?? [])].sort((a, b) => compareProjects(a, b, sortKey)),
+    [projects.data?.projects, sortKey],
+  );
+  const isFiltered = Boolean(search.trim() || status);
   const errorMessage = create.error instanceof ApiClientError ? create.error.message : create.error ? "Project could not be created." : null;
 
   return (
     <section className="rect-projects-page" aria-label="Projects workspace">
       <Toolbar className="rect-projects-toolbar">
-        <Button variant="primary" onClick={() => setCreateOpen(true)}>Create project</Button>
+        <Input
+          className="rect-projects-search"
+          type="search"
+          aria-label="Search projects"
+          placeholder="Search by name, code, or location"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <Select
+          aria-label="Filter by status"
+          value={status}
+          onChange={(event) => setStatus(event.target.value as ProjectStatus | "")}
+        >
+          <option value="">All statuses</option>
+          {STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </Select>
+        <Select
+          aria-label="Sort projects"
+          value={sortKey}
+          onChange={(event) => setSortKey(event.target.value as SortKey)}
+        >
+          <option value="updatedAt">Recently updated</option>
+          <option value="name">Name</option>
+          <option value="code">Code</option>
+          <option value="status">Status</option>
+        </Select>
+        {canManage ? (
+          <Button variant="primary" onClick={() => setCreateOpen(true)}>Create project</Button>
+        ) : null}
       </Toolbar>
 
       {projects.isLoading ? (
         <EmptyState title="Loading projects" message="Preparing your project register…" />
+      ) : rows.length === 0 && isFiltered ? (
+        <EmptyState
+          title="No matching projects"
+          message="No projects match your search and filters. Try a different search term or status."
+          action={<Button variant="secondary" onClick={() => { setSearch(""); setStatus(""); }}>Clear filters</Button>}
+        />
       ) : rows.length === 0 ? (
-        <EmptyState title="No projects yet" message="Create your first project to track team, schedule, budget, risks, and progress." action={<Button variant="primary" onClick={() => setCreateOpen(true)}>Create project</Button>} />
+        <EmptyState
+          title="No projects yet"
+          message={canManage
+            ? "Create your first project to track team, schedule, budget, risks, and progress."
+            : "Projects you are added to will appear here."}
+          {...(canManage
+            ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>Create project</Button> }
+            : {})}
+        />
       ) : (
         <DataTable
           caption="Project register"
           columns={[
             { id: "name", header: "Project", accessor: (project) => <Link className="rect-projects-link" to={`/projects/${project.id}`}>{project.name}</Link> },
             { id: "code", header: "Code", accessor: (project) => project.code },
-            { id: "status", header: "Status", accessor: (project) => statusLabel(project.status) },
+            { id: "status", header: "Status", accessor: (project) => <Badge tone={statusTone(project.status)}>{statusLabel(project.status)}</Badge> },
             { id: "location", header: "Location", accessor: (project) => project.locationName ?? "—" },
             { id: "dates", header: "Dates", accessor: (project) => project.plannedStartDate && project.plannedFinishDate ? `${project.plannedStartDate} → ${project.plannedFinishDate}` : "—" },
           ]}

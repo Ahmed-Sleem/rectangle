@@ -5,6 +5,7 @@
  * start duplicating UI patterns.
  */
 import type {
+  ReactElement,
   ButtonHTMLAttributes,
   HTMLAttributes,
   InputHTMLAttributes,
@@ -12,7 +13,7 @@ import type {
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
-import { forwardRef } from "react";
+import { cloneElement, forwardRef, isValidElement, useId } from "react";
 import { AlertTriangle, CheckCircle2, Info, Loader2, XCircle } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 
@@ -71,17 +72,47 @@ export interface FieldProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export function Field({ label, htmlFor, hint, error, required, className, children, ...props }: FieldProps) {
+  const generatedId = useId();
+  const controlId = htmlFor ?? generatedId;
+  const hintId = `${controlId}-hint`;
+  const errorId = `${controlId}-error`;
+
+  // Associate the label, hint, and error with the control automatically. Callers
+  // should not have to remember an id for every field, and a label that is not
+  // programmatically linked is invisible to assistive technology.
+  const describedBy = [error ? errorId : null, hint && !error ? hintId : null]
+    .filter(Boolean)
+    .join(" ");
+
+  const control = isValidElement(children)
+    ? cloneElement(children as ReactElement<Record<string, unknown>>, {
+        id: (children.props as { id?: string }).id ?? controlId,
+        ...(describedBy ? { "aria-describedby": describedBy } : {}),
+        ...(error ? { "aria-invalid": true } : {}),
+        ...(required ? { "aria-required": true } : {}),
+      })
+    : children;
+
   return (
     <div className={cn("rect-ui-field", className)} {...props}>
       {label ? (
-        <label className="rect-ui-field__label" htmlFor={htmlFor}>
-          {label}
-          {required ? <span aria-hidden="true"> *</span> : null}
-        </label>
+        <span className="rect-ui-field__label-row">
+          <label className="rect-ui-field__label" htmlFor={controlId}>
+            {label}
+          </label>
+          {/* Rendered outside the <label> so the required marker never becomes
+              part of the field's accessible name. aria-required on the control
+              carries the meaning for assistive technology. */}
+          {required ? (
+            <span className="rect-ui-field__required" aria-hidden="true">
+              *
+            </span>
+          ) : null}
+        </span>
       ) : null}
-      {children}
-      {hint && !error ? <p className="rect-ui-field__hint">{hint}</p> : null}
-      {error ? <p className="rect-ui-field__error">{error}</p> : null}
+      {control}
+      {hint && !error ? <p className="rect-ui-field__hint" id={hintId}>{hint}</p> : null}
+      {error ? <p className="rect-ui-field__error" id={errorId}>{error}</p> : null}
     </div>
   );
 }

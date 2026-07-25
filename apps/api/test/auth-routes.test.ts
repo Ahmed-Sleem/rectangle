@@ -2,6 +2,8 @@
 import { describe, expect, it } from "vitest";
 import { AuthService, type AuthRepository, type CredentialUserRecord } from "../src/application/auth-service.js";
 import { ProjectService, type AuditEventInput, type AuditRepository, type ProjectsRepository } from "../src/application/project-service.js";
+import { ProjectTeamService } from "../src/application/project-team-service.js";
+import { MemoryProjectTeamRepository } from "./support/memory-project-team-repository.js";
 import type { CreateProjectInput, ProjectListQuery, ProjectRecord, UpdateProjectInput } from "../src/domain/project.js";
 import { createServer } from "../src/http/server.js";
 import { ScryptPasswordHasher } from "../src/infrastructure/password.js";
@@ -86,6 +88,7 @@ async function createTestServer() {
     emailSettingsService: inactiveEmailSettingsService,
     passkeyService: inactivePasskeyService,
     projectService: new ProjectService(new EmptyProjectsRepository(), audit),
+    projectTeamService: new ProjectTeamService(new EmptyProjectsRepository(), new MemoryProjectTeamRepository(), audit),
     setupService: inactiveSetupService,
     authService: new AuthService(new MemoryAuthRepository(user), hasher, audit, jwtSecret),
     jwtSecret,

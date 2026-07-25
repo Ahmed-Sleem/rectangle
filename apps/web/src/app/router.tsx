@@ -6,6 +6,7 @@ import NotFound from "./NotFound";
 import SetupPage from "@/features/setup/SetupPage";
 import LoginPage from "@/features/login/LoginPage";
 import ProjectDetailPage from "@/features/projects/ProjectDetailPage";
+import ProjectSettingsPage from "@/features/projects/ProjectSettingsPage";
 
 function buildChildren() {
   const features = getEnabledFeatures();
@@ -56,6 +57,11 @@ export function createAppRouter() {
         {
           path: "projects/:projectId",
           element: <ProjectDetailPage />,
+          errorElement: <RouteError />,
+        },
+        {
+          path: "projects/:projectId/settings",
+          element: <ProjectSettingsPage />,
           errorElement: <RouteError />,
         },
         {
