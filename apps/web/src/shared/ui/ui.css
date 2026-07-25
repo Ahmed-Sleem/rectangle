@@ -549,9 +549,31 @@
   line-height: var(--rect-leading-snug);
 }
 
+/* Exit reverses the entry, quicker and with ease-in. Easing out on the way out
+   makes an element look like it is lagging rather than leaving. */
+.rect-overlay--closing {
+  animation: rect-overlay-out var(--rect-duration-overlay-scrim-exit) var(--rect-ease-in) both;
+  /* The window is on its way out; stop it swallowing clicks meant for the page. */
+  pointer-events: none;
+}
+
+.rect-overlay--closing .rect-overlay__surface {
+  animation: rect-overlay-surface-out var(--rect-duration-overlay-exit) var(--rect-ease-in) both;
+}
+
 @keyframes rect-overlay-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes rect-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes rect-overlay-surface-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(4px) scale(0.985); }
 }
 
 @keyframes rect-overlay-surface-in {
@@ -603,7 +625,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rect-overlay,
-  .rect-overlay__surface {
+  .rect-overlay__surface,
+  .rect-overlay--closing,
+  .rect-overlay--closing .rect-overlay__surface {
     animation: none !important;
   }
 

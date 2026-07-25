@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/cn";
 import { Button, IconButton } from "./primitives";
 import { useOverlayBehaviour } from "./overlay-behaviour";
+import { useExitTransition } from "./use-exit-transition";
 
 /**
  * Overlay chrome must render even if a surface is mounted outside the i18n
@@ -77,15 +78,22 @@ export function Overlay({
   const t = useOverlayLabels();
   const headingId = useId();
   const descriptionId = useId();
+  // Hold the window in the tree while its exit animation plays; unmounting on
+  // the same tick would remove it before any closing motion could run.
+  const { mounted, closing, onAnimationEnd } = useExitTransition<HTMLElement>({ open });
   const surfaceRef = useOverlayBehaviour<HTMLElement>({ open, onClose, closeOnEscape });
 
-  if (!open || typeof document === "undefined") return null;
+  if (!mounted || typeof document === "undefined") return null;
 
   return createPortal(
     <div
-      className="rect-overlay"
+      className={cn("rect-overlay", closing && "rect-overlay--closing")}
       data-testid="overlay-backdrop"
+      data-state={closing ? "closing" : "open"}
+      onAnimationEnd={onAnimationEnd}
       onMouseDown={(event) => {
+        // A window on its way out must not react to a stray press.
+        if (closing) return;
         // Only a press that both starts and ends on the scrim dismisses, so a
         // drag that began inside the window never closes it.
         if (dismissOnBackdrop && event.target === event.currentTarget) onClose();

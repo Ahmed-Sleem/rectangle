@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/shared/auth";
+import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import ProjectsPage from "./ProjectsPage";
 
 const managerAuth: AuthContextValue = {
@@ -23,11 +24,13 @@ function renderProjectsPage(auth = managerAuth) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={auth}>
-        <MemoryRouter>
-          <ProjectsPage />
-        </MemoryRouter>
-      </AuthContext.Provider>
+      <RectangleI18nProvider>
+        <AuthContext.Provider value={auth}>
+          <MemoryRouter>
+            <ProjectsPage />
+          </MemoryRouter>
+        </AuthContext.Provider>
+      </RectangleI18nProvider>
     </QueryClientProvider>,
   );
 }
@@ -37,8 +40,9 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe("ProjectsPage", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
+    await setRectangleLanguage("en");
   });
 
   it("shows an end-user empty state and real create action", async () => {

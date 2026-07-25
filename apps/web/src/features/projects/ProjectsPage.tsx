@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
@@ -46,17 +47,7 @@ function toPayload(values: ProjectForm): CreateProjectPayload {
   };
 }
 
-const STATUS_OPTIONS: ReadonlyArray<{ value: ProjectStatus; label: string }> = [
-  { value: "planned", label: "Planned" },
-  { value: "active", label: "Active" },
-  { value: "on_hold", label: "On hold" },
-  { value: "completed", label: "Completed" },
-  { value: "archived", label: "Archived" },
-];
-
-function statusLabel(status: ProjectStatus): string {
-  return STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
-}
+const STATUS_VALUES = ["planned", "active", "on_hold", "completed", "archived"] as const;
 
 function statusTone(status: ProjectStatus): "success" | "warning" | "info" | "neutral" {
   if (status === "active") return "success";
@@ -78,6 +69,7 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<ProjectStatus | "">("");
   const [sortKey, setSortKey] = useState<SortKey>("updatedAt");
+  const { t } = useTranslation();
   const auth = useOptionalAuth();
 
   // Only offer creation to people whose request would actually succeed.
@@ -122,73 +114,73 @@ export default function ProjectsPage() {
     [projects.data?.projects, sortKey],
   );
   const isFiltered = Boolean(search.trim() || status);
-  const errorMessage = create.error instanceof ApiClientError ? create.error.message : create.error ? "Project could not be created." : null;
+  const errorMessage = create.error instanceof ApiClientError ? create.error.message : create.error ? t("projects.createFailed") : null;
 
   return (
-    <section className="rect-projects-page" aria-label="Projects workspace">
+    <section className="rect-projects-page" aria-label={t("projects.workspaceLabel")}>
       <FilterBar>
         <SearchField
-          label="Search projects"
-          placeholder="Name, code, or location"
+          label={t("projects.searchLabel")}
+          placeholder={t("projects.searchPlaceholder")}
           value={search}
           onChange={setSearch}
-          submitLabel="Search"
+          submitLabel={t("common.search")}
         />
         <FilterSelect
-          label="Filter by status"
+          label={t("projects.filterStatus")}
           width="sm"
           value={status}
           onChange={(event) => setStatus(event.target.value as ProjectStatus | "")}
         >
-          <option value="">All statuses</option>
-          {STATUS_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
+          <option value="">{t("projects.allStatuses")}</option>
+          {STATUS_VALUES.map((value) => (
+            <option key={value} value={value}>{t(`enums.projectStatus.${value}`)}</option>
           ))}
         </FilterSelect>
         <FilterSelect
-          label="Sort projects"
+          label={t("projects.sortLabel")}
           width="md"
           value={sortKey}
           onChange={(event) => setSortKey(event.target.value as SortKey)}
         >
-          <option value="updatedAt">Recently updated</option>
-          <option value="name">Name</option>
-          <option value="code">Code</option>
-          <option value="status">Status</option>
+          <option value="updatedAt">{t("projects.sortRecent")}</option>
+          <option value="name">{t("projects.sortName")}</option>
+          <option value="code">{t("projects.sortCode")}</option>
+          <option value="status">{t("projects.sortStatus")}</option>
         </FilterSelect>
         <FilterBarSpacer />
         {canManage ? (
-          <Button variant="primary" onClick={() => setCreateOpen(true)}>Create project</Button>
+          <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("projects.create")}</Button>
         ) : null}
       </FilterBar>
 
       {projects.isLoading ? (
-        <EmptyState title="Loading projects" message="Preparing your project register…" />
+        <EmptyState title={t("projects.loadingTitle")} message={t("projects.loadingMessage")} />
       ) : rows.length === 0 && isFiltered ? (
         <EmptyState
-          title="No matching projects"
-          message="No projects match your search and filters. Try a different search term or status."
-          action={<Button variant="secondary" onClick={() => { setSearch(""); setStatus(""); }}>Clear filters</Button>}
+          title={t("projects.noMatchTitle")}
+          message={t("projects.noMatchMessage")}
+          action={<Button variant="secondary" onClick={() => { setSearch(""); setStatus(""); }}>{t("projects.clearFilters")}</Button>}
         />
       ) : rows.length === 0 ? (
         <EmptyState
-          title="No projects yet"
+          title={t("projects.emptyTitle")}
           message={canManage
-            ? "Create your first project to track team, schedule, budget, risks, and progress."
-            : "Projects you are added to will appear here."}
+            ? t("projects.emptyManage")
+            : t("projects.emptyRead")}
           {...(canManage
-            ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>Create project</Button> }
+            ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("projects.create")}</Button> }
             : {})}
         />
       ) : (
         <DataTable
-          caption="Project register"
+          caption={t("projects.register")}
           columns={[
-            { id: "name", header: "Project", accessor: (project) => <Link className="rect-projects-link" to={`/projects/${project.id}`}>{project.name}</Link> },
-            { id: "code", header: "Code", accessor: (project) => project.code },
-            { id: "status", header: "Status", accessor: (project) => <Badge tone={statusTone(project.status)}>{statusLabel(project.status)}</Badge> },
-            { id: "location", header: "Location", accessor: (project) => project.locationName ?? "—" },
-            { id: "dates", header: "Dates", accessor: (project) => project.plannedStartDate && project.plannedFinishDate ? `${project.plannedStartDate} → ${project.plannedFinishDate}` : "—" },
+            { id: "name", header: t("projects.columnProject"), accessor: (project) => <Link className="rect-projects-link" to={`/projects/${project.id}`}>{project.name}</Link> },
+            { id: "code", header: t("projects.columnCode"), accessor: (project) => project.code },
+            { id: "status", header: t("projects.columnStatus"), accessor: (project) => <Badge tone={statusTone(project.status)}>{t(`enums.projectStatus.${project.status}`)}</Badge> },
+            { id: "location", header: t("projects.columnLocation"), accessor: (project) => project.locationName ?? "—" },
+            { id: "dates", header: t("projects.columnDates"), accessor: (project) => project.plannedStartDate && project.plannedFinishDate ? `${project.plannedStartDate} → ${project.plannedFinishDate}` : "—" },
           ]}
           rows={rows}
           getRowKey={(project) => project.id}
@@ -197,36 +189,34 @@ export default function ProjectsPage() {
 
       <FormDialog
         open={createOpen}
-        title="Create project"
-        description="Register a project so its team, schedule, budget, and risks live in one workspace."
+        title={t("projects.create")}
+        description={t("projects.createDescription")}
         size="lg"
         onClose={() => setCreateOpen(false)}
         onSubmit={form.handleSubmit((values) => create.mutate(values))}
-        submitLabel="Create project"
+        submitLabel={t("projects.create")}
         pending={create.isPending}
         error={errorMessage}
       >
-        <Field label="Project name" error={form.formState.errors.name?.message} required><Input aria-label="Project name" data-autofocus="true" {...form.register("name")} /></Field>
-        <Field label="Project code" hint="Uppercase letters, numbers, dot, dash, underscore." error={form.formState.errors.code?.message} required><Input aria-label="Project code" {...form.register("code")} /></Field>
-        <Field label="Status" error={form.formState.errors.status?.message} required>
+        <Field label={t("projects.fieldName")} error={form.formState.errors.name?.message} required><Input aria-label={t("projects.fieldName")} data-autofocus="true" {...form.register("name")} /></Field>
+        <Field label={t("projects.fieldCode")} hint={t("projects.fieldCodeHint")} error={form.formState.errors.code?.message} required><Input aria-label={t("projects.fieldCode")} {...form.register("code")} /></Field>
+        <Field label={t("projects.fieldStatus")} error={form.formState.errors.status?.message} required>
           <Select {...form.register("status")}>
-            <option value="planned">Planned</option>
-            <option value="active">Active</option>
-            <option value="on_hold">On hold</option>
-            <option value="completed">Completed</option>
-            <option value="archived">Archived</option>
+            {STATUS_VALUES.map((value) => (
+              <option key={value} value={value}>{t(`enums.projectStatus.${value}`)}</option>
+            ))}
           </Select>
         </Field>
-        <Field label="Location" error={form.formState.errors.locationName?.message}><Input {...form.register("locationName")} /></Field>
+        <Field label={t("projects.fieldLocation")} error={form.formState.errors.locationName?.message}><Input {...form.register("locationName")} /></Field>
         <div className="rect-projects-form__split">
-          <Field label="Start date" error={form.formState.errors.plannedStartDate?.message}><Input type="date" {...form.register("plannedStartDate")} /></Field>
-          <Field label="Finish date" error={form.formState.errors.plannedFinishDate?.message}><Input type="date" {...form.register("plannedFinishDate")} /></Field>
+          <Field label={t("projects.fieldStart")} error={form.formState.errors.plannedStartDate?.message}><Input type="date" {...form.register("plannedStartDate")} /></Field>
+          <Field label={t("projects.fieldFinish")} error={form.formState.errors.plannedFinishDate?.message}><Input type="date" {...form.register("plannedFinishDate")} /></Field>
         </div>
         <div className="rect-projects-form__split">
-          <Field label="Budget" error={form.formState.errors.budgetAmount?.message}><Input inputMode="decimal" {...form.register("budgetAmount")} /></Field>
-          <Field label="Currency" error={form.formState.errors.budgetCurrency?.message}><Input maxLength={3} placeholder="EGP" {...form.register("budgetCurrency")} /></Field>
+          <Field label={t("projects.fieldBudget")} error={form.formState.errors.budgetAmount?.message}><Input inputMode="decimal" {...form.register("budgetAmount")} /></Field>
+          <Field label={t("projects.fieldCurrency")} error={form.formState.errors.budgetCurrency?.message}><Input maxLength={3} placeholder="EGP" {...form.register("budgetCurrency")} /></Field>
         </div>
-        <Field label="Description" error={form.formState.errors.description?.message}><Textarea rows={3} {...form.register("description")} /></Field>
+        <Field label={t("projects.fieldDescription")} error={form.formState.errors.description?.message}><Textarea rows={3} {...form.register("description")} /></Field>
       </FormDialog>
     </section>
   );

@@ -237,6 +237,11 @@
   /* Overlay motion. Fast enough to feel instant, slow enough to read as motion. */
   --rect-duration-overlay: 140ms;
   --rect-duration-overlay-scrim: 110ms;
+  /* Exit is quicker than entry. An element that lingers on the way out reads as
+     lagging rather than graceful, so it leaves promptly and decisively. */
+  --rect-duration-overlay-exit: 110ms;
+  --rect-duration-overlay-scrim-exit: 90ms;
+  --rect-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --rect-motion-label: 0.25s ease;
 
   /* Z-index */

@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
@@ -46,25 +47,18 @@ import {
 } from "./project-api";
 import "./ProjectsPage.css";
 
-const MEMBER_ROLES: ReadonlyArray<{ value: ProjectMemberRole; label: string }> = [
-  { value: "project_admin", label: "Project admin" },
-  { value: "project_manager", label: "Project manager" },
-  { value: "controls_manager", label: "Controls manager" },
-  { value: "viewer", label: "Viewer" },
-  { value: "external_collaborator", label: "External collaborator" },
-];
+const MEMBER_ROLES = [
+  "project_admin",
+  "project_manager",
+  "controls_manager",
+  "viewer",
+  "external_collaborator",
+] as const satisfies ReadonlyArray<ProjectMemberRole>;
 
-const STAKEHOLDER_CATEGORIES: ReadonlyArray<{ value: StakeholderCategory; label: string }> = [
-  { value: "client", label: "Client" },
-  { value: "consultant", label: "Consultant" },
-  { value: "contractor", label: "Contractor" },
-  { value: "subcontractor", label: "Subcontractor" },
-  { value: "supplier", label: "Supplier" },
-  { value: "authority", label: "Authority" },
-  { value: "community", label: "Community" },
-  { value: "internal", label: "Internal" },
-  { value: "other", label: "Other" },
-];
+const STAKEHOLDER_CATEGORIES = [
+  "client", "consultant", "contractor", "subcontractor", "supplier",
+  "authority", "community", "internal", "other",
+] as const satisfies ReadonlyArray<StakeholderCategory>;
 
 const LEVELS = ["low", "medium", "high"] as const;
 
@@ -104,35 +98,13 @@ type EditForm = z.infer<typeof editSchema>;
 type MemberForm = z.infer<typeof memberSchema>;
 type StakeholderForm = z.infer<typeof stakeholderSchema>;
 
-function roleLabel(role: ProjectMemberRole): string {
-  return MEMBER_ROLES.find((option) => option.value === role)?.label ?? role;
-}
-
-function categoryLabel(category: StakeholderCategory): string {
-  return STAKEHOLDER_CATEGORIES.find((option) => option.value === category)?.label ?? category;
-}
-
-/** Turns an audit action key into a sentence a site manager can read. */
-function activityLabel(action: string): string {
-  const labels: Record<string, string> = {
-    "project.create": "Created the project",
-    "project.update": "Updated project details",
-    "project.member.add": "Added a team member",
-    "project.member.update": "Changed a team member's role",
-    "project.member.remove": "Removed a team member",
-    "project.stakeholder.create": "Added a stakeholder",
-    "project.stakeholder.update": "Updated a stakeholder",
-    "project.stakeholder.delete": "Removed a stakeholder",
-  };
-  return labels[action] ?? action;
-}
-
 function messageFor(error: unknown, fallback: string): string | null {
   if (!error) return null;
   return error instanceof ApiClientError ? error.message : fallback;
 }
 
 export default function ProjectDetailPage() {
+  const { t } = useTranslation();
   const { projectId = "" } = useParams();
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
@@ -225,22 +197,22 @@ export default function ProjectDetailPage() {
     onSuccess: async () => { await refresh("stakeholders", "activity"); setPendingStakeholder(null); },
   });
 
-  if (project.isLoading) return <LoadingState title="Loading project" message="Preparing the project workspace…" />;
+  if (project.isLoading) return <LoadingState title={t("projects.loadingWorkspaceTitle")} message={t("projects.loadingWorkspaceMessage")} />;
 
   if (project.isError) {
     const notFound = project.error instanceof ApiClientError && project.error.status === 404;
     return (
       <ErrorState
-        title={notFound ? "Project not available" : "Project could not be opened"}
+        title={notFound ? t("projects.unavailableTitle") : t("projects.openFailedTitle")}
         message={notFound
-          ? "This project either does not exist or you do not have access to it."
-          : "Something went wrong while loading this project. Please try again."}
-        action={<Button variant="secondary" onClick={() => void project.refetch()}>Try again</Button>}
+          ? t("projects.unavailableMessage")
+          : t("projects.openFailedMessage")}
+        action={<Button variant="secondary" onClick={() => void project.refetch()}>{t("projects.tryAgain")}</Button>}
       />
     );
   }
 
-  if (!record) return <EmptyState title="Project not available" message="This project could not be opened." />;
+  if (!record) return <EmptyState title={t("projects.unavailableTitle")} message={t("projects.unavailableMessage")} />;
 
   const memberRows = members.data?.members ?? [];
   const stakeholderRows = stakeholders.data?.stakeholders ?? [];
@@ -250,7 +222,7 @@ export default function ProjectDetailPage() {
 
   return (
     <section className="rect-project-detail" aria-label={record.name}>
-      <Link className="rect-projects-link" to="/projects">← Projects</Link>
+      <Link className="rect-projects-link" to="/projects">← {t("projects.backToProjects")}</Link>
 
       <div className="rect-project-detail__header">
         <div>
@@ -259,113 +231,113 @@ export default function ProjectDetailPage() {
         </div>
         <Toolbar>
           <Badge tone={record.status === "active" ? "success" : "neutral"}>
-            {record.status.replace("_", " ")}
+            {t(`enums.projectStatus.${record.status}`)}
           </Badge>
-          {canManage ? <Button variant="secondary" onClick={() => setEditOpen(true)}>Edit project</Button> : null}
+          {canManage ? <Button variant="secondary" onClick={() => setEditOpen(true)}>{t("projects.editProject")}</Button> : null}
           {canManage ? (
             <Link className="rect-ui-button rect-ui-button--secondary rect-ui-button--md" to={`/projects/${projectId}/settings`}>
-              Project settings
+              {t("projects.projectSettings")}
             </Link>
           ) : null}
         </Toolbar>
       </div>
 
       <PageGrid columns={12}>
-        <Card className="rect-project-detail__card"><h3>Location</h3><p>{record.locationName ?? "Not set"}</p></Card>
+        <Card className="rect-project-detail__card"><h3>{t("projects.fieldLocation")}</h3><p>{record.locationName ?? t("projects.notSet")}</p></Card>
         <Card className="rect-project-detail__card">
-          <h3>Planned dates</h3>
-          <p>{record.plannedStartDate && record.plannedFinishDate ? `${record.plannedStartDate} → ${record.plannedFinishDate}` : "Not set"}</p>
+          <h3>{t("projects.plannedDates")}</h3>
+          <p>{record.plannedStartDate && record.plannedFinishDate ? `${record.plannedStartDate} → ${record.plannedFinishDate}`  : t("projects.notSet")}</p>
         </Card>
         <Card className="rect-project-detail__card">
-          <h3>Budget</h3>
-          <p>{record.budgetAmount && record.budgetCurrency ? `${record.budgetAmount} ${record.budgetCurrency}` : "Not set"}</p>
+          <h3>{t("projects.fieldBudget")}</h3>
+          <p>{record.budgetAmount && record.budgetCurrency ? `${record.budgetAmount} ${record.budgetCurrency}`  : t("projects.notSet")}</p>
         </Card>
       </PageGrid>
 
       <Card className="rect-project-detail__summary">
-        <h3>Description</h3>
-        <p>{record.description || "No description added yet."}</p>
+        <h3>{t("projects.fieldDescription")}</h3>
+        <p>{record.description || t("projects.noDescription")}</p>
       </Card>
 
       <Card className="rect-project-detail__panel">
         <div className="rect-project-detail__panel-head">
-          <h3>Team</h3>
-          {canManage ? <Button size="sm" variant="secondary" onClick={() => setMemberOpen(true)}>Add member</Button> : null}
+          <h3>{t("projects.teamTitle")}</h3>
+          {canManage ? <Button size="sm" variant="secondary" onClick={() => setMemberOpen(true)}>{t("projects.addMember")}</Button> : null}
         </div>
         {members.isLoading ? (
-          <LoadingState title="Loading team" message="Fetching project members…" />
+          <LoadingState title={t("projects.loadingTeam")} message={t("projects.loadingTeamMessage")} />
         ) : memberRows.length === 0 ? (
           <EmptyState
-            title="No team members yet"
-            message={canManage ? "Add people so they can reach this project." : "Team members will appear here once they are added."}
+            title={t("projects.noMembersTitle")}
+            message={canManage ? t("projects.noMembersManage") : t("projects.noMembersRead")}
           />
         ) : (
           <DataTable
-            caption="Project team"
+            caption={t("projects.teamTitle")}
             rows={memberRows}
             getRowKey={(member) => member.userId}
             columns={[
-              { id: "name", header: "Name", accessor: (member) => member.displayName },
-              { id: "email", header: "Email", accessor: (member) => member.email },
+              { id: "name", header: t("projects.memberName"), accessor: (member) => member.displayName },
+              { id: "email", header: t("projects.memberEmail"), accessor: (member) => member.email },
               {
                 id: "role",
-                header: "Role",
+                header: t("projects.memberRole"),
                 accessor: (member) => canManage ? (
                   <Select
-                    aria-label={`Role for ${member.displayName}`}
+                    aria-label={t("projects.memberRoleFor", { name: member.displayName })}
                     value={member.role}
                     disabled={changeRole.isPending}
                     onChange={(event) => changeRole.mutate({ userId: member.userId, role: event.target.value as ProjectMemberRole })}
                   >
-                    {MEMBER_ROLES.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                    {MEMBER_ROLES.map((role) => (
+                      <option key={role} value={role}>{t(`enums.memberRole.${role}`)}</option>
                     ))}
                   </Select>
-                ) : roleLabel(member.role),
+                ) : t(`enums.memberRole.${member.role}`),
               },
               ...(canManage ? [{
                 id: "action",
-                header: "Action",
+                header: t("projects.actionColumn"),
                 accessor: (member: (typeof memberRows)[number]) => (
                   <Button size="sm" variant="ghost" onClick={() => setPendingRemoval({ userId: member.userId, name: member.displayName })}>
-                    Remove
+                    {t("projects.remove")}
                   </Button>
                 ),
               }] : []),
             ]}
           />
         )}
-        {changeRole.error ? <p className="rect-projects-form__error" role="alert">{messageFor(changeRole.error, "That role could not be changed.")}</p> : null}
+        {changeRole.error ? <p className="rect-projects-form__error" role="alert">{messageFor(changeRole.error, t("projects.roleChangeFailed"))}</p> : null}
       </Card>
 
       <Card className="rect-project-detail__panel">
         <div className="rect-project-detail__panel-head">
-          <h3>Stakeholders</h3>
-          {canManage ? <Button size="sm" variant="secondary" onClick={() => setStakeholderOpen(true)}>Add stakeholder</Button> : null}
+          <h3>{t("projects.stakeholdersTitle")}</h3>
+          {canManage ? <Button size="sm" variant="secondary" onClick={() => setStakeholderOpen(true)}>{t("projects.addStakeholder")}</Button> : null}
         </div>
         {stakeholders.isLoading ? (
-          <LoadingState title="Loading stakeholders" message="Fetching the stakeholder register…" />
+          <LoadingState title={t("projects.loadingStakeholders")} message={t("projects.loadingStakeholdersMessage")} />
         ) : stakeholderRows.length === 0 ? (
           <EmptyState
-            title="No stakeholders yet"
-            message={canManage ? "Record the clients, consultants, and authorities involved in this project." : "Stakeholders will appear here once they are added."}
+            title={t("projects.noStakeholdersTitle")}
+            message={canManage ? t("projects.noStakeholdersManage") : t("projects.noStakeholdersRead")}
           />
         ) : (
           <DataTable
-            caption="Stakeholder register"
+            caption={t("projects.stakeholderRegister")}
             rows={stakeholderRows}
             getRowKey={(item) => item.id}
             columns={[
-              { id: "name", header: "Name", accessor: (item) => item.name },
-              { id: "organization", header: "Organization", accessor: (item) => item.organization ?? "—" },
-              { id: "category", header: "Category", accessor: (item) => categoryLabel(item.category) },
-              { id: "influence", header: "Influence", accessor: (item) => item.influence },
-              { id: "interest", header: "Interest", accessor: (item) => item.interest },
+              { id: "name", header: t("projects.stakeholderName"), accessor: (item) => item.name },
+              { id: "organization", header: t("projects.stakeholderOrganization"), accessor: (item) => item.organization ?? t("common.notAvailable") },
+              { id: "category", header: t("projects.stakeholderCategory"), accessor: (item) => t(`enums.stakeholderCategory.${item.category}`) },
+              { id: "influence", header: t("projects.stakeholderInfluence"), accessor: (item) => t(`enums.level.${item.influence}`) },
+              { id: "interest", header: t("projects.stakeholderInterest"), accessor: (item) => t(`enums.level.${item.interest}`) },
               ...(canManage ? [{
                 id: "action",
-                header: "Action",
+                header: t("projects.actionColumn"),
                 accessor: (item: ProjectStakeholder) => (
-                  <Button size="sm" variant="ghost" onClick={() => setPendingStakeholder(item)}>Remove</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setPendingStakeholder(item)}>{t("projects.remove")}</Button>
                 ),
               }] : []),
             ]}
@@ -374,16 +346,16 @@ export default function ProjectDetailPage() {
       </Card>
 
       <Card className="rect-project-detail__panel">
-        <h3>Activity</h3>
+        <h3>{t("projects.activityTitle")}</h3>
         {activity.isLoading ? (
-          <LoadingState title="Loading activity" message="Fetching the project history…" />
+          <LoadingState title={t("projects.loadingActivity")} message={t("projects.loadingActivityMessage")} />
         ) : activityRows.length === 0 ? (
-          <EmptyState title="No activity yet" message="Changes to this project will be recorded here." />
+          <EmptyState title={t("projects.noActivityTitle")} message={t("projects.noActivityMessage")} />
         ) : (
           <ul className="rect-project-activity">
             {activityRows.map((entry) => (
               <li key={entry.id} className="rect-project-activity__item">
-                <span className="rect-project-activity__label">{activityLabel(entry.action)}</span>
+                <span className="rect-project-activity__label">{t(`enums.activity.${entry.action}`, { defaultValue: entry.action })}</span>
                 <span className="rect-project-activity__meta">
                   {entry.actorName ? `${entry.actorName} · ` : ""}
                   {new Date(entry.createdAt).toLocaleString()}
@@ -396,19 +368,19 @@ export default function ProjectDetailPage() {
 
       <FormDialog
         open={editOpen}
-        title="Edit project"
-        description="Update the details shown across this project workspace."
+        title={t("projects.editProject")}
+        description={t("projects.editDescription")}
         size="lg"
         onClose={() => setEditOpen(false)}
         onSubmit={editForm.handleSubmit((values) => saveProject.mutate(values))}
-        submitLabel="Save changes"
+        submitLabel={t("projects.saveChanges")}
         pending={saveProject.isPending}
-        error={messageFor(saveProject.error, "This project could not be saved.")}
+        error={messageFor(saveProject.error, t("projects.saveFailed"))}
       >
-        <Field label="Project name" error={editForm.formState.errors.name?.message} required>
-          <Input aria-label="Project name" data-autofocus="true" {...editForm.register("name")} />
+        <Field label={t("projects.fieldName")} error={editForm.formState.errors.name?.message} required>
+          <Input aria-label={t("projects.fieldName")} data-autofocus="true" {...editForm.register("name")} />
         </Field>
-        <Field label="Status" error={editForm.formState.errors.status?.message} required>
+        <Field label={t("projects.fieldStatus")} error={editForm.formState.errors.status?.message} required>
           <Select {...editForm.register("status")}>
             <option value="planned">Planned</option>
             <option value="active">Active</option>
@@ -417,54 +389,54 @@ export default function ProjectDetailPage() {
             <option value="archived">Archived</option>
           </Select>
         </Field>
-        <Field label="Location" error={editForm.formState.errors.locationName?.message}>
+        <Field label={t("projects.fieldLocation")} error={editForm.formState.errors.locationName?.message}>
           <Input {...editForm.register("locationName")} />
         </Field>
         <div className="rect-projects-form__split">
-          <Field label="Start date" error={editForm.formState.errors.plannedStartDate?.message}>
+          <Field label={t("projects.fieldStart")} error={editForm.formState.errors.plannedStartDate?.message}>
             <Input type="date" {...editForm.register("plannedStartDate")} />
           </Field>
-          <Field label="Finish date" error={editForm.formState.errors.plannedFinishDate?.message}>
+          <Field label={t("projects.fieldFinish")} error={editForm.formState.errors.plannedFinishDate?.message}>
             <Input type="date" {...editForm.register("plannedFinishDate")} />
           </Field>
         </div>
-        <Field label="Description" error={editForm.formState.errors.description?.message}>
+        <Field label={t("projects.fieldDescription")} error={editForm.formState.errors.description?.message}>
           <Textarea rows={3} {...editForm.register("description")} />
         </Field>
       </FormDialog>
 
       <FormDialog
         open={memberOpen}
-        title="Add team member"
-        description="Give someone in your company access to this project."
+        title={t("projects.addMemberTitle")}
+        description={t("projects.addMemberDescription")}
         onClose={() => setMemberOpen(false)}
         onSubmit={memberForm.handleSubmit((values) => addMember.mutate(values))}
-        submitLabel="Add member"
+        submitLabel={t("projects.addMember")}
         pending={addMember.isPending}
         submitDisabled={assignable.length === 0}
-        error={messageFor(addMember.error, "That person could not be added.")}
+        error={messageFor(addMember.error, t("projects.addMemberFailed"))}
       >
         {directory.isLoading ? (
-          <LoadingState title="Loading people" message="Fetching your company directory…" />
+          <LoadingState title={t("projects.loadingPeople")} message={t("projects.loadingPeopleMessage")} />
         ) : assignable.length === 0 ? (
           <EmptyState
-            title="Everyone is already on this project"
-            message="Add more people to your company from the Team page before assigning them here."
+            title={t("projects.everyoneAssignedTitle")}
+            message={t("projects.everyoneAssignedMessage")}
           />
         ) : (
           <>
-            <Field label="Person" error={memberForm.formState.errors.userId?.message} required>
-              <Select aria-label="Person" data-autofocus="true" {...memberForm.register("userId")}>
-                <option value="">Select a person</option>
+            <Field label={t("projects.memberPerson")} error={memberForm.formState.errors.userId?.message} required>
+              <Select aria-label={t("projects.memberPerson")} data-autofocus="true" {...memberForm.register("userId")}>
+                <option value="">{t("projects.memberSelectPerson")}</option>
                 {assignable.map((user) => (
                   <option key={user.id} value={user.id}>{user.displayName} · {user.email}</option>
                 ))}
               </Select>
             </Field>
-            <Field label="Role" error={memberForm.formState.errors.role?.message} required>
+            <Field label={t("projects.memberRole")} error={memberForm.formState.errors.role?.message} required>
               <Select {...memberForm.register("role")}>
-                {MEMBER_ROLES.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                {MEMBER_ROLES.map((role) => (
+                  <option key={role} value={role}>{t(`enums.memberRole.${role}`)}</option>
                 ))}
               </Select>
             </Field>
@@ -474,83 +446,83 @@ export default function ProjectDetailPage() {
 
       <FormDialog
         open={stakeholderOpen}
-        title="Add stakeholder"
-        description="Record a party with an interest in this project."
+        title={t("projects.addStakeholder")}
+        description={t("projects.addStakeholderDescription")}
         size="lg"
         onClose={() => setStakeholderOpen(false)}
         onSubmit={stakeholderForm.handleSubmit((values) => addStakeholder.mutate(values))}
-        submitLabel="Add stakeholder"
+        submitLabel={t("projects.addStakeholder")}
         pending={addStakeholder.isPending}
-        error={messageFor(addStakeholder.error, "That stakeholder could not be added.")}
+        error={messageFor(addStakeholder.error, t("projects.addStakeholderFailed"))}
       >
-        <Field label="Name" error={stakeholderForm.formState.errors.name?.message} required>
-          <Input aria-label="Name" data-autofocus="true" {...stakeholderForm.register("name")} />
+        <Field label={t("projects.stakeholderName")} error={stakeholderForm.formState.errors.name?.message} required>
+          <Input aria-label={t("projects.stakeholderName")} data-autofocus="true" {...stakeholderForm.register("name")} />
         </Field>
-        <Field label="Organization" error={stakeholderForm.formState.errors.organization?.message}>
+        <Field label={t("projects.stakeholderOrganization")} error={stakeholderForm.formState.errors.organization?.message}>
           <Input {...stakeholderForm.register("organization")} />
         </Field>
-        <Field label="Category" error={stakeholderForm.formState.errors.category?.message} required>
+        <Field label={t("projects.stakeholderCategory")} error={stakeholderForm.formState.errors.category?.message} required>
           <Select {...stakeholderForm.register("category")}>
-            {STAKEHOLDER_CATEGORIES.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+            {STAKEHOLDER_CATEGORIES.map((category) => (
+              <option key={category} value={category}>{t(`enums.stakeholderCategory.${category}`)}</option>
             ))}
           </Select>
         </Field>
         <div className="rect-projects-form__split">
-          <Field label="Influence" error={stakeholderForm.formState.errors.influence?.message}>
+          <Field label={t("projects.stakeholderInfluence")} error={stakeholderForm.formState.errors.influence?.message}>
             <Select {...stakeholderForm.register("influence")}>
-              {LEVELS.map((level) => <option key={level} value={level}>{level}</option>)}
+              {LEVELS.map((level) => <option key={level} value={level}>{t(`enums.level.${level}`)}</option>)}
             </Select>
           </Field>
-          <Field label="Interest" error={stakeholderForm.formState.errors.interest?.message}>
+          <Field label={t("projects.stakeholderInterest")} error={stakeholderForm.formState.errors.interest?.message}>
             <Select {...stakeholderForm.register("interest")}>
-              {LEVELS.map((level) => <option key={level} value={level}>{level}</option>)}
+              {LEVELS.map((level) => <option key={level} value={level}>{t(`enums.level.${level}`)}</option>)}
             </Select>
           </Field>
         </div>
         <div className="rect-projects-form__split">
-          <Field label="Email" error={stakeholderForm.formState.errors.email?.message}>
+          <Field label={t("projects.stakeholderEmail")} error={stakeholderForm.formState.errors.email?.message}>
             <Input type="email" {...stakeholderForm.register("email")} />
           </Field>
-          <Field label="Phone" error={stakeholderForm.formState.errors.phone?.message}>
+          <Field label={t("projects.stakeholderPhone")} error={stakeholderForm.formState.errors.phone?.message}>
             <Input {...stakeholderForm.register("phone")} />
           </Field>
         </div>
-        <Field label="Notes" error={stakeholderForm.formState.errors.notes?.message}>
+        <Field label={t("projects.stakeholderNotes")} error={stakeholderForm.formState.errors.notes?.message}>
           <Textarea rows={3} {...stakeholderForm.register("notes")} />
         </Field>
       </FormDialog>
 
       <ConfirmDialog
         open={pendingRemoval !== null}
-        title="Remove team member"
+        title={t("projects.removeMember")}
         onClose={() => setPendingRemoval(null)}
         onConfirm={() => pendingRemoval && removeMember.mutate(pendingRemoval.userId)}
-        confirmLabel="Remove"
+        confirmLabel={t("projects.remove")}
         tone="danger"
         pending={removeMember.isPending}
       >
-        <p>{pendingRemoval?.name} will lose access to this project.</p>
+        <p>{t("projects.removeMemberBody", { name: pendingRemoval?.name ?? "" })}</p>
         {removeMember.error ? (
           <p className="rect-projects-form__error" role="alert">
-            {messageFor(removeMember.error, "That person could not be removed.")}
+            {messageFor(removeMember.error, t("projects.removeMemberFailed"))}
           </p>
         ) : null}
       </ConfirmDialog>
 
       <ConfirmDialog
         open={pendingStakeholder !== null}
-        title="Remove stakeholder"
+        title={t("projects.removeStakeholder")}
         onClose={() => setPendingStakeholder(null)}
         onConfirm={() => pendingStakeholder && removeStakeholder.mutate(pendingStakeholder.id)}
-        confirmLabel="Remove"
+        confirmLabel={t("projects.remove")}
         tone="danger"
         pending={removeStakeholder.isPending}
       >
-        <p>{pendingStakeholder?.name} will be removed from the stakeholder register.</p>
+        <p>{t("projects.removeStakeholderBody", { name: pendingStakeholder?.name ?? "" })}</p>
         {removeStakeholder.error ? (
           <p className="rect-projects-form__error" role="alert">
-            {messageFor(removeStakeholder.error, "That stakeholder could not be removed.")}
+            {messageFor(removeStakeholder.error, t("projects.removeStakeholderFailed"))}
           </p>
         ) : null}
       </ConfirmDialog>

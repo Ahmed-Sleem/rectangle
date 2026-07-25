@@ -1,8 +1,15 @@
 /**
- * Translation resources for the Rectangle shell foundation. Keeping the first
- * language set small and explicit lets every future feature add its own typed
- * namespace without hardcoding labels in components.
+ * Rectangle translation resources.
+ *
+ * Feature namespaces live in `./locales` where each file holds English and
+ * Arabic side by side and the Arabic bundle is typed against the English one.
+ * That makes an untranslated key a compile error instead of a silent English
+ * fallback at runtime, which is how screens drifted back to English before.
  */
+import { enums } from "./locales/enums";
+import { projects } from "./locales/projects";
+import { team } from "./locales/team";
+
 export const resources = {
   en: {
     translation: {
@@ -19,6 +26,10 @@ export const resources = {
         saving: "Saving…",
         create: "Create",
         creating: "Creating…",
+        search: "Search",
+        clearSearch: "Clear search",
+        notAvailable: "—",
+        listSeparator: ", ",
       },
       feature: {
         overview: "Overview",
@@ -78,25 +89,6 @@ export const resources = {
         passkeysAddFailed: "This passkey could not be added. Please try again.",
         passkeysAddedOn: "Added {{date}}",
       },
-      projects: {
-        pageTitle: "Organize your projects",
-        pageDescription:
-          "Keep each project’s team, scope, location, schedule, budget, risks, and progress connected in one workspace.",
-        emptyTitle: "No projects yet",
-        emptyMessage:
-          "Your project list will appear here when projects are added to Rectangle.",
-        areasLabel: "Project workspace areas",
-        areas: {
-          portfolioTitle: "Portfolio clarity",
-          portfolioDescription: "See active projects, status, priority, and ownership from one organized project register.",
-          teamTitle: "Teams and stakeholders",
-          teamDescription: "Keep owners, consultants, contractors, and internal team responsibilities easy to find.",
-          locationsTitle: "Scope and locations",
-          locationsDescription: "Track project sectors, delivery methods, sites, zones, and key project information consistently.",
-          controlsTitle: "Controls overview",
-          controlsDescription: "Connect project status with schedule, cost, risk, approvals, and executive reporting as the workspace grows.",
-        },
-      },
       shell: {
         nav: {
           main: "Main",
@@ -121,6 +113,9 @@ export const resources = {
           send: "Send",
         },
       },
+      enums: enums.en,
+      projects: projects.en,
+      team: team.en,
     },
   },
   ar: {
@@ -138,6 +133,10 @@ export const resources = {
         saving: "جارٍ الحفظ…",
         create: "إنشاء",
         creating: "جارٍ الإنشاء…",
+        search: "بحث",
+        clearSearch: "مسح البحث",
+        notAvailable: "—",
+        listSeparator: "، ",
       },
       feature: {
         overview: "نظرة عامة",
@@ -201,25 +200,6 @@ export const resources = {
         passkeysAddFailed: "تعذّر إضافة مفتاح المرور. حاول مرة أخرى.",
         passkeysAddedOn: "أُضيف في {{date}}",
       },
-      projects: {
-        pageTitle: "تنظيم المشاريع",
-        pageDescription:
-          "اجمع فريق كل مشروع ونطاقه وموقعه وجدوله وميزانيته ومخاطره وتقدمه في مساحة عمل واحدة.",
-        emptyTitle: "لا توجد مشاريع بعد",
-        emptyMessage:
-          "ستظهر قائمة المشاريع هنا عند إضافة المشاريع إلى Rectangle.",
-        areasLabel: "مناطق مساحة عمل المشروع",
-        areas: {
-          portfolioTitle: "وضوح المحفظة",
-          portfolioDescription: "اعرض المشاريع النشطة والحالة والأولوية والملكية من سجل مشاريع منظم واحد.",
-          teamTitle: "الفرق وأصحاب المصلحة",
-          teamDescription: "اجعل مسؤوليات المالكين والاستشاريين والمقاولين والفريق الداخلي سهلة الوصول.",
-          locationsTitle: "النطاق والمواقع",
-          locationsDescription: "تابع قطاعات المشاريع وطرق التسليم والمواقع والمناطق ومعلومات المشروع الرئيسية باتساق.",
-          controlsTitle: "نظرة على الضوابط",
-          controlsDescription: "اربط حالة المشروع بالجدول والتكلفة والمخاطر والاعتمادات وتقارير الإدارة مع نمو مساحة العمل.",
-        },
-      },
       shell: {
         nav: {
           main: "الرئيسية",
@@ -244,6 +224,9 @@ export const resources = {
           send: "إرسال",
         },
       },
+      enums: enums.ar,
+      projects: projects.ar,
+      team: team.ar,
     },
   },
 } as const;

@@ -2,7 +2,7 @@
  * The window system is used by every feature, so its behaviour is pinned here:
  * portalling, sizing, focus handling, dismissal, scroll lock and app blur.
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
@@ -76,8 +76,10 @@ describe("Overlay", () => {
 
     await user.keyboard("{Escape}");
 
+    // The window stays mounted briefly so its exit animation can play, but focus
+    // returns to the trigger immediately so the keyboard is never stranded.
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(document.activeElement).toBe(trigger);
   });
 
   it("keeps Tab focus inside the open window", async () => {
@@ -124,6 +126,39 @@ describe("Overlay", () => {
 
     await user.click(screen.getByTestId("overlay-backdrop"));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("plays an exit animation before leaving the tree", async () => {
+    const user = userEvent.setup();
+    render(withI18n(<Harness />));
+    await user.click(screen.getByRole("button", { name: "Open window" }));
+
+    const backdrop = screen.getByTestId("overlay-backdrop");
+    expect(backdrop).toHaveAttribute("data-state", "open");
+
+    await user.keyboard("{Escape}");
+
+    // Still present, now marked as closing so CSS can animate it out.
+    const closing = screen.getByTestId("overlay-backdrop");
+    expect(closing).toHaveAttribute("data-state", "closing");
+    expect(closing).toHaveClass("rect-overlay--closing");
+
+    // CSS owns the duration; the animation end event completes the unmount.
+    fireEvent.animationEnd(closing);
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("ignores a backdrop press once the window is closing", async () => {
+    const user = userEvent.setup();
+    render(withI18n(<Harness />));
+    await user.click(screen.getByRole("button", { name: "Open window" }));
+    await user.keyboard("{Escape}");
+
+    const closing = screen.getByTestId("overlay-backdrop");
+    fireEvent.mouseDown(closing);
+
+    // A press during the exit must not restart or re-trigger anything.
+    expect(closing).toHaveAttribute("data-state", "closing");
   });
 
   it("can opt out of backdrop dismissal for flows where loss is costly", async () => {

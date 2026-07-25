@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button, Card, Checkbox, DataTable, Field, Input, FormDialog, PageGrid, Toolbar } from "@/shared/ui";
 import { ApiClientError } from "@/shared/api/client";
@@ -27,6 +28,7 @@ type UserTypeForm = z.infer<typeof userTypeSchema>;
 type UserForm = z.infer<typeof userSchema>;
 
 export default function TeamPage() {
+  const { t } = useTranslation();
   const [typeOpen, setTypeOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -50,63 +52,63 @@ export default function TeamPage() {
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ["admin", "users"] }); },
   });
 
-  const typeError = createType.error instanceof ApiClientError ? createType.error.message : createType.error ? "User type could not be created." : null;
-  const userError = createUser.error instanceof ApiClientError ? createUser.error.message : createUser.error ? "User could not be created." : null;
+  const typeError = createType.error instanceof ApiClientError ? createType.error.message : createType.error ? t("team.createUserTypeFailed") : null;
+  const userError = createUser.error instanceof ApiClientError ? createUser.error.message : createUser.error ? t("team.createUserFailed") : null;
 
   return (
-    <section className="rect-team-page" aria-label="Team administration">
+    <section className="rect-team-page" aria-label={t("team.pageLabel")}>
       <Toolbar className="rect-team-toolbar">
-        <Button variant="secondary" onClick={() => setTypeOpen(true)}>Create user type</Button>
-        <Button variant="primary" onClick={() => setUserOpen(true)} disabled={(userTypes.data?.userTypes.length ?? 0) === 0}>Create user</Button>
+        <Button variant="secondary" onClick={() => setTypeOpen(true)}>{t("team.createUserType")}</Button>
+        <Button variant="primary" onClick={() => setUserOpen(true)} disabled={(userTypes.data?.userTypes.length ?? 0) === 0}>{t("team.createUser")}</Button>
       </Toolbar>
 
       <PageGrid columns={12}>
         <Card className="rect-team-card rect-team-card--wide">
-          <h2>User types</h2>
+          <h2>{t("team.userTypesTitle")}</h2>
           <DataTable
-            caption="User types"
+            caption={t("team.userTypesTitle")}
             rows={userTypes.data?.userTypes ?? []}
             getRowKey={(row) => row.id}
             columns={[
-              { id: "name", header: "Type", accessor: (row) => row.name },
-              { id: "key", header: "Key", accessor: (row) => row.key },
-              { id: "permissions", header: "Permissions", accessor: (row) => row.permissions.length },
+              { id: "name", header: t("team.userTypeName"), accessor: (row) => (row.systemType ? t(`enums.systemUserType.${row.key}`, { defaultValue: row.name }) : row.name) },
+              { id: "key", header: t("team.userTypeKey"), accessor: (row) => row.key },
+              { id: "permissions", header: t("team.userTypePermissions"), accessor: (row) => row.permissions.length },
             ]}
-            emptyMessage="No user types yet."
+            emptyMessage={t("team.noUserTypes")}
           />
         </Card>
         <Card className="rect-team-card rect-team-card--wide">
-          <h2>Users</h2>
+          <h2>{t("team.usersTitle")}</h2>
           <DataTable
-            caption="Users"
+            caption={t("team.usersTitle")}
             rows={users.data?.users ?? []}
             getRowKey={(row) => row.id}
             columns={[
-              { id: "name", header: "Name", accessor: (row) => row.displayName },
-              { id: "email", header: "Email", accessor: (row) => row.email },
-              { id: "types", header: "User types", accessor: (row) => row.userTypes.map((type) => type.name).join(", ") || "—" },
-              { id: "status", header: "Status", accessor: (row) => row.status },
-              { id: "action", header: "Action", accessor: (row) => <Button size="sm" variant="secondary" onClick={() => updateUser.mutate({ userId: row.id, status: row.status === "active" ? "disabled" : "active" })}>{row.status === "active" ? "Disable" : "Activate"}</Button> },
+              { id: "name", header: t("team.userName"), accessor: (row) => row.displayName },
+              { id: "email", header: t("team.userEmail"), accessor: (row) => row.email },
+              { id: "types", header: t("team.userTypes"), accessor: (row) => row.userTypes.map((type) => type.name).join(t("common.listSeparator")) || t("common.notAvailable") },
+              { id: "status", header: t("team.userStatus"), accessor: (row) => t(`enums.userStatus.${row.status}`) },
+              { id: "action", header: t("team.userAction"), accessor: (row) => <Button size="sm" variant="secondary" onClick={() => updateUser.mutate({ userId: row.id, status: row.status === "active" ? "disabled" : "active" })}>{row.status === "active" ? t("team.disable") : t("team.activate")}</Button> },
             ]}
-            emptyMessage="No users yet."
+            emptyMessage={t("team.noUsers")}
           />
         </Card>
       </PageGrid>
 
       <FormDialog
         open={typeOpen}
-        title="Create user type"
-        description="Group permissions into a role you can assign to people on your team."
+        title={t("team.createUserType")}
+        description={t("team.createUserTypeDescription")}
         onClose={() => setTypeOpen(false)}
         onSubmit={typeForm.handleSubmit((values) => createType.mutate(values))}
-        submitLabel="Create user type"
+        submitLabel={t("team.createUserType")}
         pending={createType.isPending}
         error={typeError}
       >
-        <Field label="Name" error={typeForm.formState.errors.name?.message} required><Input aria-label="Name" data-autofocus="true" {...typeForm.register("name")} /></Field>
-        <Field label="Key" error={typeForm.formState.errors.key?.message} required><Input aria-label="Key" {...typeForm.register("key")} /></Field>
-        <Field label="Description" error={typeForm.formState.errors.description?.message}><Input aria-label="Description" {...typeForm.register("description")} /></Field>
-        <Field label="Permissions">
+        <Field label={t("team.fieldName")} error={typeForm.formState.errors.name?.message} required><Input aria-label={t("team.fieldName")} data-autofocus="true" {...typeForm.register("name")} /></Field>
+        <Field label={t("team.fieldKey")} error={typeForm.formState.errors.key?.message} required><Input aria-label={t("team.fieldKey")} {...typeForm.register("key")} /></Field>
+        <Field label={t("team.fieldDescription")} error={typeForm.formState.errors.description?.message}><Input aria-label={t("team.fieldDescription")} {...typeForm.register("description")} /></Field>
+        <Field label={t("team.fieldPermissions")}>
           <div className="rect-team-permissions">
             {(permissions.data?.permissions ?? []).map((permission) => (
               <Checkbox key={permission.key} label={permission.label} description={permission.description} value={permission.key} {...typeForm.register("permissions")} />
@@ -117,18 +119,18 @@ export default function TeamPage() {
 
       <FormDialog
         open={userOpen}
-        title="Create user"
-        description="Add a person to your company and choose what they are allowed to do."
+        title={t("team.createUser")}
+        description={t("team.createUserDescription")}
         onClose={() => setUserOpen(false)}
         onSubmit={userForm.handleSubmit((values) => createUser.mutate(values))}
-        submitLabel="Create user"
+        submitLabel={t("team.createUser")}
         pending={createUser.isPending}
         error={userError}
       >
-        <Field label="Name" error={userForm.formState.errors.displayName?.message} required><Input aria-label="Name" data-autofocus="true" {...userForm.register("displayName")} /></Field>
-        <Field label="Email" error={userForm.formState.errors.email?.message} required><Input aria-label="Email" type="email" {...userForm.register("email")} /></Field>
-        <Field label="Temporary password" error={userForm.formState.errors.password?.message} required><Input aria-label="Temporary password" type="password" {...userForm.register("password")} /></Field>
-        <Field label="User types">
+        <Field label={t("team.fieldName")} error={userForm.formState.errors.displayName?.message} required><Input aria-label={t("team.fieldName")} data-autofocus="true" {...userForm.register("displayName")} /></Field>
+        <Field label={t("team.fieldEmail")} error={userForm.formState.errors.email?.message} required><Input aria-label={t("team.fieldEmail")} type="email" {...userForm.register("email")} /></Field>
+        <Field label={t("team.fieldTemporaryPassword")} error={userForm.formState.errors.password?.message} required><Input aria-label={t("team.fieldTemporaryPassword")} type="password" {...userForm.register("password")} /></Field>
+        <Field label={t("team.userTypes")}>
           <div className="rect-team-permissions">
             {(userTypes.data?.userTypes ?? []).map((type) => (
               <Checkbox key={type.id} label={type.name} description={type.description} value={type.id} {...userForm.register("userTypeIds")} />

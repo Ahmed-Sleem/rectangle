@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import ProjectSettingsPage from "./ProjectSettingsPage";
 
 const projectId = "33333333-3333-4333-8333-333333333333";
@@ -45,18 +46,21 @@ function renderSettings() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
+      <RectangleI18nProvider>
       <MemoryRouter initialEntries={[`/projects/${projectId}/settings`]}>
         <Routes>
           <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
         </Routes>
       </MemoryRouter>
+      </RectangleI18nProvider>
     </QueryClientProvider>,
   );
 }
 
 describe("ProjectSettingsPage", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.restoreAllMocks();
+    await setRectangleLanguage("en");
   });
 
   it("loads current values into the identity section", async () => {

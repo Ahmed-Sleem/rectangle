@@ -544,8 +544,18 @@ max-block-size: min(calc(100dvh - 2 * margin), 720px);
 
 | Element | Duration | Easing |
 |---|---:|---|
-| Scrim fade | `--rect-duration-overlay-scrim` (110ms) | `ease-out` |
-| Surface | `--rect-duration-overlay` (140ms) | `--rect-ease-spring` |
+| Scrim fade in | `--rect-duration-overlay-scrim` (110ms) | `ease-out` |
+| Surface in | `--rect-duration-overlay` (140ms) | `--rect-ease-spring` |
+| Scrim fade out | `--rect-duration-overlay-scrim-exit` (90ms) | `--rect-ease-in` |
+| Surface out | `--rect-duration-overlay-exit` (110ms) | `--rect-ease-in` |
+
+**Exit is faster than entry and uses the opposite easing.** Easing *out* on the way
+out makes an element look like it is lagging behind the user's decision; the window
+should arrive gracefully and leave promptly.
+
+A closing window must stay mounted until its animation finishes, otherwise React
+removes the node and no exit motion ever runs. Use `useExitTransition`, which keys
+completion off `animationend` so the CSS owns the duration.
 
 A window must feel like it is *already there*. Anything past ~150ms reads as waiting, because
 the user has already decided to act. Never add an `animation-delay` to an overlay.
@@ -664,7 +674,56 @@ must be width-capped (§2.3) rather than stretched to the boundary.
 
 ---
 
-## 16. Deployment safety
+## 16. Language and translation
+
+Rectangle is Arabic-first and English-capable. **Every user-visible string comes
+from a translation**, with no exceptions, because a single hardcoded label is all
+it takes for a screen to switch back to English mid-sentence.
+
+### 16.1 Where copy lives
+
+```
+shared/i18n/locales/
+  types.ts      LocaleBundle — types a language against English
+  enums.ts      values the API stores as machine keys
+  projects.ts   one file per feature, both languages side by side
+  team.ts
+```
+
+Each file exports `{ en, ar }` with the Arabic bundle typed as
+`LocaleBundle<typeof en>`. Add an English key without an Arabic one and
+**the build fails**. That is deliberate: i18next silently falls back to English at
+runtime, so nothing would otherwise reveal the omission.
+
+### 16.2 Rules
+
+1. **No user-visible literal in a component.** Enforced by test on
+   `label`, `title`, `description`, `placeholder`, `caption`, `header`, `message`,
+   `submitLabel`, `confirmLabel`, `emptyMessage`, `hint`, and `status` props.
+2. **Translate enums at the edge.** The API returns `on_hold`; only the interface
+   turns it into words, through `enums`. Never store translated text.
+3. **Never translate tenant data.** A company's own project or user-type names are
+   shown exactly as authored. Seeded records carry a stable key and are translated
+   through `enums.systemUserType`.
+4. **Validation messages are keys**, resolved where they are rendered, so errors
+   speak the user's language too.
+5. **Interpolate, never concatenate.** `t("x", { name })`, because word order
+   differs between languages.
+6. **Punctuation is translatable.** Arabic uses `،` for lists; that separator is a
+   token like any other string.
+7. **Arabic has six plural categories** to English's two. Supply `_zero`, `_two`,
+   `_few`, and `_many` where a count is shown.
+8. Codes such as currency or `EPC` are language-neutral and stay as they are.
+
+### 16.3 Adding a feature
+
+Create `locales/<feature>.ts` with both languages, register it in `resources.ts`,
+and use `t()` from the first line of the component. Retrofitting translation later
+is how 117 English strings accumulated across four pages.
+
+---
+
+## 17. Deployment safety
 
 Rectangle auto-deploys to Railway from `main`. The Dockerfile builds each app from a
 **subset** of the repository, so code that compiles locally can still fail the deploy.
@@ -686,13 +745,15 @@ Rules:
 
 ---
 
-## 17. Definition of done for any UI work
+## 18. Definition of done for any UI work
 
 - [ ] Every spacing, size, radius, weight and font-size comes from a token in §2.
 - [ ] The page mounts inside `.rect-panel__content` and adds no outer width or margin.
 - [ ] The page title is not duplicated inside the content area.
 - [ ] Loading, empty, error and no-permission states all exist and are user-facing.
 - [ ] No banned wording (§5) and no internal identifiers are visible.
+- [ ] Every visible string comes from a translation; both languages are complete (§16).
+- [ ] Enum values render through the `enums` namespace, never as raw keys.
 - [ ] Reviewed in Arabic/RTL; logical properties used throughout.
 - [ ] Smallest interactive target ≥ 24px; verified at `pointer: coarse`.
 - [ ] Keyboard path and focus ring verified.

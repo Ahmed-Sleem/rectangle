@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Building2, CalendarRange, Wallet } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { z } from "zod";
@@ -36,13 +37,9 @@ const DELIVERY_METHODS = [
   "design_bid_build", "design_build", "construction_management", "epc", "other",
 ] as const;
 
-function humanize(value: string): string {
-  return value.replace(/_/g, " ").replace(/^./, (character) => character.toUpperCase());
-}
-
 const identitySchema = z.object({
   name: z.string().trim().min(2).max(120),
-  code: z.string().trim().min(2).max(40).regex(/^[A-Z0-9][A-Z0-9._-]*$/u, "Use uppercase letters, numbers, dot, dash, or underscore."),
+  code: z.string().trim().min(2).max(40).regex(/^[A-Z0-9][A-Z0-9._-]*$/u, "projects.codeFormat"),
   status: z.enum(["planned", "active", "on_hold", "completed", "archived"]),
   description: z.string().trim().max(2000).optional(),
 });
@@ -55,19 +52,19 @@ const deliverySchema = z.object({
   plannedFinishDate: z.string().optional(),
 }).superRefine((value, context) => {
   if (value.plannedStartDate && value.plannedFinishDate && value.plannedFinishDate < value.plannedStartDate) {
-    context.addIssue({ code: "custom", path: ["plannedFinishDate"], message: "Finish date cannot be before start date." });
+    context.addIssue({ code: "custom", path: ["plannedFinishDate"], message: "projects.finishBeforeStart" });
   }
 });
 
 const budgetSchema = z.object({
-  budgetAmount: z.string().trim().regex(/^\d{1,12}(\.\d{1,2})?$/u, "Enter an amount such as 1500000.00.").optional().or(z.literal("")),
-  budgetCurrency: z.string().trim().regex(/^[A-Z]{3}$/u, "Use a three-letter currency code such as EGP.").optional().or(z.literal("")),
+  budgetAmount: z.string().trim().regex(/^\d{1,12}(\.\d{1,2})?$/u, "projects.amountFormat").optional().or(z.literal("")),
+  budgetCurrency: z.string().trim().regex(/^[A-Z]{3}$/u, "projects.currencyFormat").optional().or(z.literal("")),
 }).superRefine((value, context) => {
   if (value.budgetAmount && !value.budgetCurrency) {
-    context.addIssue({ code: "custom", path: ["budgetCurrency"], message: "Currency is required when a budget is set." });
+    context.addIssue({ code: "custom", path: ["budgetCurrency"], message: "projects.currencyRequired" });
   }
   if (value.budgetCurrency && !value.budgetAmount) {
-    context.addIssue({ code: "custom", path: ["budgetAmount"], message: "Amount is required when a currency is set." });
+    context.addIssue({ code: "custom", path: ["budgetAmount"], message: "projects.amountRequired" });
   }
 });
 
@@ -83,6 +80,10 @@ function messageFor(error: unknown, fallback: string): string | null {
 }
 
 export default function ProjectSettingsPage() {
+  const { t } = useTranslation();
+  /** Schema messages are translation keys so validation speaks the user's language. */
+  const translateError = (message?: string) =>
+    message ? t(message, { defaultValue: message }) : undefined;
   const { projectId = "" } = useParams();
   const queryClient = useQueryClient();
   const [openSection, setOpenSection] = useState<SectionId | null>("identity");
@@ -136,39 +137,39 @@ export default function ProjectSettingsPage() {
   }
 
   if (project.isLoading) {
-    return <LoadingState title="Loading project settings" message="Preparing this project's configuration…" />;
+    return <LoadingState title={t("projects.settingsLoadingTitle")} message={t("projects.settingsLoadingMessage")} />;
   }
 
   if (project.isError) {
     const notFound = project.error instanceof ApiClientError && project.error.status === 404;
     return (
       <ErrorState
-        title={notFound ? "Project not available" : "Settings could not be opened"}
+        title={notFound ? t("projects.unavailableTitle") : t("projects.settingsFailedTitle")}
         message={notFound
-          ? "This project either does not exist or you do not have access to it."
-          : "Something went wrong while loading these settings. Please try again."}
-        action={<Button variant="secondary" onClick={() => void project.refetch()}>Try again</Button>}
+          ? t("projects.unavailableMessage")
+          : t("projects.settingsFailedMessage")}
+        action={<Button variant="secondary" onClick={() => void project.refetch()}>{t("projects.tryAgain")}</Button>}
       />
     );
   }
 
-  if (!record) return <EmptyState title="Project not available" message="This project could not be opened." />;
+  if (!record) return <EmptyState title={t("projects.unavailableTitle")} message={t("projects.unavailableMessage")} />;
 
   if (!canManage) {
     return (
       <EmptyState
-        title="Settings are managed by the project team"
-        message="Ask a project manager or admin to change this project's configuration."
+        title={t("projects.settingsReadOnlyTitle")}
+        message={t("projects.settingsReadOnlyMessage")}
       />
     );
   }
 
-  const saveError = messageFor(save.error, "These settings could not be saved.");
+  const saveError = messageFor(save.error, t("projects.settingsSaveFailed"));
 
   function savedNotice(section: SectionId) {
     return savedSection === section && save.isSuccess ? (
       <p className="rect-settings-message rect-settings-message--success" role="status">
-        Saved.
+        {t("projects.saved")}
       </p>
     ) : null;
   }
@@ -178,8 +179,8 @@ export default function ProjectSettingsPage() {
       <Link className="rect-projects-link" to={`/projects/${projectId}`}>← {record.name}</Link>
 
       <SettingsSection
-        title="Project identity"
-        description="The name, code, and status shown wherever this project appears."
+        title={t("projects.identityTitle")}
+        description={t("projects.identityDescription")}
         icon={<Building2 size={18} strokeWidth={2} />}
         open={openSection === "identity"}
         onToggle={() => setOpenSection((current) => (current === "identity" ? null : "identity"))}
@@ -194,23 +195,19 @@ export default function ProjectSettingsPage() {
           }))}
         >
           <div className="rect-settings-grid">
-            <Field label="Project name" error={identityForm.formState.errors.name?.message} required>
+            <Field label={t("projects.fieldName")} error={translateError(identityForm.formState.errors.name?.message)} required>
               <Input {...identityForm.register("name")} />
             </Field>
-            <Field label="Project code" error={identityForm.formState.errors.code?.message} required>
+            <Field label={t("projects.fieldCode")} error={translateError(identityForm.formState.errors.code?.message)} required>
               <Input {...identityForm.register("code")} />
             </Field>
           </div>
-          <Field label="Status" error={identityForm.formState.errors.status?.message} required>
+          <Field label={t("projects.fieldStatus")} error={translateError(identityForm.formState.errors.status?.message)} required>
             <Select {...identityForm.register("status")}>
-              <option value="planned">Planned</option>
-              <option value="active">Active</option>
-              <option value="on_hold">On hold</option>
-              <option value="completed">Completed</option>
-              <option value="archived">Archived</option>
+
             </Select>
           </Field>
-          <Field label="Description" error={identityForm.formState.errors.description?.message}>
+          <Field label={t("projects.fieldDescription")} error={translateError(identityForm.formState.errors.description?.message)}>
             <Textarea rows={3} {...identityForm.register("description")} />
           </Field>
           {saveError && savedSection === null ? (
@@ -219,15 +216,15 @@ export default function ProjectSettingsPage() {
           {savedNotice("identity")}
           <div className="rect-settings-actions">
             <Button variant="primary" type="submit" disabled={save.isPending}>
-              {save.isPending ? "Saving…" : "Save identity"}
+              {save.isPending ? t("common.saving") : t("projects.saveIdentity")}
             </Button>
           </div>
         </form>
       </SettingsSection>
 
       <SettingsSection
-        title="Delivery and location"
-        description="How this project is delivered, where it is, and when it is planned to run."
+        title={t("projects.deliveryTitle")}
+        description={t("projects.deliveryDescription")}
         icon={<CalendarRange size={18} strokeWidth={2} />}
         open={openSection === "delivery"}
         onToggle={() => setOpenSection((current) => (current === "delivery" ? null : "delivery"))}
@@ -243,42 +240,42 @@ export default function ProjectSettingsPage() {
           }))}
         >
           <div className="rect-settings-grid">
-            <Field label="Sector" error={deliveryForm.formState.errors.sector?.message}>
+            <Field label={t("projects.fieldSector")} error={translateError(deliveryForm.formState.errors.sector?.message)}>
               <Select {...deliveryForm.register("sector")}>
-                <option value="">Not set</option>
-                {SECTORS.map((value) => <option key={value} value={value}>{humanize(value)}</option>)}
+                <option value="">{t("projects.notSet")}</option>
+                {SECTORS.map((value) => <option key={value} value={value}>{t(`enums.projectSector.${value}`)}</option>)}
               </Select>
             </Field>
-            <Field label="Delivery method" error={deliveryForm.formState.errors.deliveryMethod?.message}>
+            <Field label={t("projects.fieldDeliveryMethod")} error={translateError(deliveryForm.formState.errors.deliveryMethod?.message)}>
               <Select {...deliveryForm.register("deliveryMethod")}>
-                <option value="">Not set</option>
-                {DELIVERY_METHODS.map((value) => <option key={value} value={value}>{humanize(value)}</option>)}
+                <option value="">{t("projects.notSet")}</option>
+                {DELIVERY_METHODS.map((value) => <option key={value} value={value}>{t(`enums.deliveryMethod.${value}`)}</option>)}
               </Select>
             </Field>
           </div>
-          <Field label="Location" error={deliveryForm.formState.errors.locationName?.message}>
+          <Field label={t("projects.fieldLocation")} error={translateError(deliveryForm.formState.errors.locationName?.message)}>
             <Input {...deliveryForm.register("locationName")} />
           </Field>
           <div className="rect-settings-grid">
-            <Field label="Planned start" error={deliveryForm.formState.errors.plannedStartDate?.message}>
+            <Field label={t("projects.plannedStart")} error={translateError(deliveryForm.formState.errors.plannedStartDate?.message)}>
               <Input type="date" {...deliveryForm.register("plannedStartDate")} />
             </Field>
-            <Field label="Planned finish" error={deliveryForm.formState.errors.plannedFinishDate?.message}>
+            <Field label={t("projects.plannedFinish")} error={translateError(deliveryForm.formState.errors.plannedFinishDate?.message)}>
               <Input type="date" {...deliveryForm.register("plannedFinishDate")} />
             </Field>
           </div>
           {savedNotice("delivery")}
           <div className="rect-settings-actions">
             <Button variant="primary" type="submit" disabled={save.isPending}>
-              {save.isPending ? "Saving…" : "Save delivery details"}
+              {save.isPending ? t("common.saving") : t("projects.saveDelivery")}
             </Button>
           </div>
         </form>
       </SettingsSection>
 
       <SettingsSection
-        title="Budget"
-        description="The approved budget used across cost reporting for this project."
+        title={t("projects.budgetTitle")}
+        description={t("projects.budgetDescription")}
         icon={<Wallet size={18} strokeWidth={2} />}
         open={openSection === "budget"}
         onToggle={() => setOpenSection((current) => (current === "budget" ? null : "budget"))}
@@ -291,15 +288,15 @@ export default function ProjectSettingsPage() {
           }))}
         >
           <SettingRow
-            label="Approved budget"
-            description="Leave both fields empty until a budget is approved."
+            label={t("projects.approvedBudget")}
+            description={t("projects.approvedBudgetHint")}
             stacked
           >
             <div className="rect-settings-grid">
-              <Field label="Amount" error={budgetForm.formState.errors.budgetAmount?.message}>
+              <Field label={t("projects.fieldAmount")} error={translateError(budgetForm.formState.errors.budgetAmount?.message)}>
                 <Input inputMode="decimal" {...budgetForm.register("budgetAmount")} />
               </Field>
-              <Field label="Currency" error={budgetForm.formState.errors.budgetCurrency?.message}>
+              <Field label={t("projects.fieldCurrency")} error={translateError(budgetForm.formState.errors.budgetCurrency?.message)}>
                 <Input maxLength={3} placeholder="EGP" {...budgetForm.register("budgetCurrency")} />
               </Field>
             </div>
@@ -307,7 +304,7 @@ export default function ProjectSettingsPage() {
           {savedNotice("budget")}
           <div className="rect-settings-actions">
             <Button variant="primary" type="submit" disabled={save.isPending}>
-              {save.isPending ? "Saving…" : "Save budget"}
+              {save.isPending ? t("common.saving") : t("projects.saveBudget")}
             </Button>
           </div>
         </form>
