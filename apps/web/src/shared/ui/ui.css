@@ -442,7 +442,7 @@
   background: var(--rect-overlay-scrim);
   backdrop-filter: blur(var(--rect-overlay-blur));
   -webkit-backdrop-filter: blur(var(--rect-overlay-blur));
-  animation: rect-overlay-in 160ms ease-out both;
+  animation: rect-overlay-in var(--rect-duration-overlay-scrim) ease-out both;
 }
 
 .rect-overlay__surface {
@@ -463,7 +463,7 @@
   font-family: var(--rect-font);
   outline: none;
   overflow: clip;
-  animation: rect-overlay-surface-in 200ms var(--rect-motion-spring) both;
+  animation: rect-overlay-surface-in var(--rect-duration-overlay) var(--rect-ease-spring) both;
 }
 
 .rect-overlay__surface--sm { max-width: var(--rect-overlay-width-sm); }
@@ -794,7 +794,7 @@
 
 .rect-section__content {
   display: grid;
-  gap: var(--rect-space-4);
+  gap: var(--rect-space-3);
   padding: var(--rect-space-4);
   background: var(--rect-surface-bg);
 }
@@ -843,6 +843,7 @@
 .rect-setting-row--stacked {
   flex-direction: column;
   align-items: stretch;
+  gap: var(--rect-space-2);
 }
 
 .rect-setting-row--stacked .rect-setting-row__control {

@@ -7,13 +7,13 @@
 
 .rect-settings-form {
   display: grid;
-  gap: var(--rect-space-4);
+  gap: var(--rect-space-3);
 }
 
 /* Paired fields collapse to a single column when space runs out. */
 .rect-settings-grid {
   display: grid;
-  gap: var(--rect-space-3);
+  gap: var(--rect-space-2) var(--rect-space-3);
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   width: 100%;
 }
@@ -40,6 +40,7 @@
 .rect-settings-divider {
   height: 1px;
   background: var(--rect-surface-divider);
+  margin-block: var(--rect-space-1);
 }
 
 .rect-settings-message {

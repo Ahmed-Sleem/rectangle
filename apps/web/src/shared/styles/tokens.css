@@ -217,7 +217,16 @@
   --rect-motion-layout: 390ms cubic-bezier(0.18, 0.95, 0.22, 1.02);
   --rect-motion-nav: 0.18s ease;
   --rect-motion-toggle: 0.2s ease;
-  --rect-motion-spring: 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+  --rect-motion-spring: 0.28s var(--rect-ease-spring);
+
+  /* Pure easing curves. Use these in `animation` shorthands, where a token that
+     also carries a duration would be read as the animation-delay. */
+  --rect-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --rect-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Overlay motion. Fast enough to feel instant, slow enough to read as motion. */
+  --rect-duration-overlay: 140ms;
+  --rect-duration-overlay-scrim: 110ms;
   --rect-motion-label: 0.25s ease;
 
   /* Z-index */

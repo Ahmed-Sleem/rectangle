@@ -191,3 +191,69 @@ describe("shared building blocks", () => {
     }
   });
 });
+
+describe("motion tokens", () => {
+  it("never puts a duration-bearing token in an animation shorthand", () => {
+    // In `animation`, the second <time> is the delay. A --rect-motion-* token
+    // carries its own duration, so it silently becomes a delay and the motion
+    // reads as sluggish rather than broken.
+    for (const [name, source] of [
+      ["ui.css", uiCss],
+      ["shell.css", shellCss],
+      ["ai-panel.css", aiPanelCss],
+      ["app-ready-gate.css", readyGateCss],
+    ] as Array<[string, string]>) {
+      const offenders = [...source.matchAll(/animation:[^;]*var\(--rect-motion-[^)]*\)[^;]*;/g)].map(
+        (match) => match[0].trim(),
+      );
+      expect(offenders, `${name} uses a duration token inside an animation shorthand`).toEqual([]);
+    }
+  });
+
+  it("keeps overlay motion fast enough to feel immediate", () => {
+    const read = (token: string) => {
+      const match = tokensCss.match(new RegExp(`${token}:\\s*(\\d+)ms`));
+      return match?.[1] ? Number(match[1]) : Number.NaN;
+    };
+
+    // Past roughly 150ms a window reads as waiting: the user has already acted.
+    expect(read("--rect-duration-overlay")).toBeLessThanOrEqual(150);
+    expect(read("--rect-duration-overlay-scrim")).toBeLessThanOrEqual(150);
+  });
+
+  it("never delays an overlay animation", () => {
+    const overlayBlock = uiCss.slice(
+      uiCss.indexOf(".rect-overlay {"),
+      uiCss.indexOf(".rect-overlay__form"),
+    );
+    expect(overlayBlock).not.toContain("animation-delay");
+  });
+});
+
+describe("nested spacing", () => {
+  function gapOf(css: string, selector: string): string | null {
+    const start = css.indexOf(`${selector} {`);
+    if (start === -1) return null;
+    const block = css.slice(start, css.indexOf("}", start));
+    const match = block.match(/gap:\s*([^;]+);/);
+    return match?.[1]?.trim() ?? null;
+  }
+
+  const step = (token: string | null): number => {
+    const match = token?.match(/--rect-space-(\d+)/);
+    return match?.[1] ? Number(match[1]) : Number.NaN;
+  };
+
+  it("tightens the gap at each level of the settings hierarchy", () => {
+    const section = step(gapOf(uiCss, ".rect-section__content"));
+    const form = step(gapOf(settingsCss, ".rect-settings-form"));
+    const stacked = step(gapOf(uiCss, ".rect-setting-row--stacked"));
+    const field = step(gapOf(uiCss, ".rect-ui-field"));
+
+    // Gaps must shrink as they nest. Equal gaps at every level compound into
+    // one large void instead of communicating structure.
+    expect(section).toBeLessThanOrEqual(3);
+    expect(stacked).toBeLessThan(form);
+    expect(field).toBeLessThan(stacked);
+  });
+});

@@ -60,6 +60,22 @@ Defined in `apps/web/src/shared/styles/tokens.css`. **This table is the contract
 
 Never use 6px, 10px, 14px, 18px as spacing. Round to the scale.
 
+**Nested containers must not repeat the same gap.** Spacing compounds: a 16px section gap
+inside a 16px form gap inside a 16px row gap reads as one enormous gap, not as structure.
+Step the scale down as you nest, so hierarchy comes from *contrast* between levels:
+
+| Nesting level | Gap | Meaning |
+|---|---:|---|
+| Between sections | `space-3` (12) | Separate topics |
+| Between rows in a section | `space-3` (12) | Separate settings |
+| Between a label block and its controls | `space-2` (8) | One unit |
+| Between fields in a grid | `space-2` row / `space-3` column | Peers |
+| Between a label and its own control | `space-1` (4) | Inseparable |
+
+Rule of thumb: **each level inward is one step smaller, never equal or larger.** If a block
+feels airy, count the nested gaps before adding anything new — the fix is almost always
+removing a duplicated gap, not adding a divider.
+
 ### 2.2 Control heights
 
 | Token | px | Use |
@@ -306,6 +322,24 @@ Every visible sentence must help the user finish a task. Write for a constructio
 - No decorative wordmark animation.
 - Every animation and transition must be disabled under `prefers-reduced-motion: reduce`.
 
+### Duration and easing tokens are separate
+
+`--rect-motion-*` tokens carry **duration + easing** and are for the `transition` shorthand.
+`--rect-ease-*` tokens carry **easing only** and are for the `animation` shorthand.
+
+```css
+/* WRONG — in `animation`, the second <time> is the DELAY.
+   This waits 280ms, then animates for 200ms. */
+animation: fade-in 200ms var(--rect-motion-spring) both;
+
+/* RIGHT */
+animation: fade-in var(--rect-duration-overlay) var(--rect-ease-spring) both;
+transition: opacity var(--rect-motion-nav);
+```
+
+Never put a duration-bearing token in an `animation` shorthand. It fails silently — the
+animation still runs, just delayed, so it reads as "sluggish" rather than "broken".
+
 ---
 
 ## 8. Layout & responsiveness
@@ -425,7 +459,17 @@ max-block-size: min(calc(100dvh - 2 * margin), 720px);
 - Blur plus a light scrim. Blur alone leaves the window's edge indistinct.
 - `prefers-reduced-transparency` gets a solid scrim and no blur.
 
-### 12.4 Behaviour — required, all of it
+### 12.4 Motion
+
+| Element | Duration | Easing |
+|---|---:|---|
+| Scrim fade | `--rect-duration-overlay-scrim` (110ms) | `ease-out` |
+| Surface | `--rect-duration-overlay` (140ms) | `--rect-ease-spring` |
+
+A window must feel like it is *already there*. Anything past ~150ms reads as waiting, because
+the user has already decided to act. Never add an `animation-delay` to an overlay.
+
+### 12.5 Behaviour — required, all of it
 
 - Escape closes (opt out only where loss is costly).
 - Backdrop press closes, but only when the press **starts and ends** on the scrim, so a drag

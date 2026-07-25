@@ -726,7 +726,7 @@
   box-shadow:
     0 12px 28px var(--rect-overlay-on-light-border),
     0 2px 6px var(--rect-overlay-on-light-inner);
-  animation: rect-fab-in 240ms var(--rect-motion-spring) both;
+  animation: rect-fab-in 240ms var(--rect-ease-spring) both;
   transition:
     background var(--rect-motion-nav),
     border-color var(--rect-motion-nav),
@@ -867,7 +867,7 @@
   box-shadow:
     0 10px 22px var(--rect-overlay-on-light-border),
     0 2px 6px var(--rect-overlay-on-light-inner);
-  animation: rect-nav-orb-in 260ms var(--rect-motion-spring) both;
+  animation: rect-nav-orb-in 260ms var(--rect-ease-spring) both;
 }
 
 .rect-nav-toggle:hover,
@@ -960,7 +960,7 @@
     inset 0 0 0 1px var(--rect-overlay-on-light-inner),
     0 12px 28px var(--rect-overlay-on-light-inner),
     0 2px 6px var(--rect-toggle-ring);
-  animation: rect-nav-orb-in 260ms var(--rect-motion-spring) both;
+  animation: rect-nav-orb-in 260ms var(--rect-ease-spring) both;
   transition:
     background var(--rect-motion-nav),
     border-color var(--rect-motion-nav),
@@ -1126,7 +1126,7 @@
 }
 
 .rect-app--collapsed .rect-logo__short {
-  animation: rect-fab-in 220ms var(--rect-motion-spring) both;
+  animation: rect-fab-in 220ms var(--rect-ease-spring) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
