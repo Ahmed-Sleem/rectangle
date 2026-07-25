@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
-import { Badge, Button, DataTable, EmptyState, Field, FormDialog, Input, Select, Textarea, Toolbar } from "@/shared/ui";
+import { Badge, Button, DataTable, EmptyState, Field, FilterBar, FilterBarSpacer, FilterSelect, FormDialog, Input, SearchField, Select, Textarea } from "@/shared/ui";
 import { useOptionalAuth } from "@/shared/auth";
 import { createProject, listProjects, type CreateProjectPayload, type ProjectRecord, type ProjectStatus } from "./project-api";
 import "./ProjectsPage.css";
@@ -126,17 +126,17 @@ export default function ProjectsPage() {
 
   return (
     <section className="rect-projects-page" aria-label="Projects workspace">
-      <Toolbar className="rect-projects-toolbar">
-        <Input
-          className="rect-projects-search"
-          type="search"
-          aria-label="Search projects"
-          placeholder="Search by name, code, or location"
+      <FilterBar>
+        <SearchField
+          label="Search projects"
+          placeholder="Name, code, or location"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={setSearch}
+          submitLabel="Search"
         />
-        <Select
-          aria-label="Filter by status"
+        <FilterSelect
+          label="Filter by status"
+          width="sm"
           value={status}
           onChange={(event) => setStatus(event.target.value as ProjectStatus | "")}
         >
@@ -144,9 +144,10 @@ export default function ProjectsPage() {
           {STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
-        </Select>
-        <Select
-          aria-label="Sort projects"
+        </FilterSelect>
+        <FilterSelect
+          label="Sort projects"
+          width="md"
           value={sortKey}
           onChange={(event) => setSortKey(event.target.value as SortKey)}
         >
@@ -154,11 +155,12 @@ export default function ProjectsPage() {
           <option value="name">Name</option>
           <option value="code">Code</option>
           <option value="status">Status</option>
-        </Select>
+        </FilterSelect>
+        <FilterBarSpacer />
         {canManage ? (
           <Button variant="primary" onClick={() => setCreateOpen(true)}>Create project</Button>
         ) : null}
-      </Toolbar>
+      </FilterBar>
 
       {projects.isLoading ? (
         <EmptyState title="Loading projects" message="Preparing your project register…" />

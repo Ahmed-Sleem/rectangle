@@ -1,10 +1,6 @@
 /* Settings page. Structure comes from the shared configuration blocks in
    shared/ui; this file only handles page-level composition. */
 
-.rect-settings-page {
-  max-width: 860px;
-}
-
 .rect-settings-form {
   display: grid;
   gap: var(--rect-space-3);

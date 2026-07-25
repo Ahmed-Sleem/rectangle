@@ -86,7 +86,32 @@ removing a duplicated gap, not adding a divider.
 | `--rect-control-standard` | 40 | primary form controls, dialog primary actions, canvas header min-height |
 | `--rect-control-touch` | 48 | applied automatically under `@media (pointer: coarse)` |
 
-### 2.3 Table rows
+### 2.3 Control widths
+
+A control's width is a usability cue: it tells the user how much input is
+expected. Stretching every field to fill its row throws that cue away and makes a
+two-word status look like a long answer.
+
+| Token | px | Use |
+|---|---:|---|
+| `--rect-field-width-xs` | 96 | Codes, quantities, currency codes |
+| `--rect-field-width-sm` | 140 | Short pickers, e.g. a status filter |
+| `--rect-field-width-md` | 176 | **Default filter width.** Fits ~18 characters |
+| `--rect-field-width-lg` | 240 | Longer pickers and compact text inputs |
+| `--rect-field-width-search` | 320 | Search fields |
+
+Rules:
+
+1. **Match the width to the expected input length.** Mismatched widths cause
+   measurable hesitation — users pause, re-read the label, and sometimes type and
+   delete extra characters.
+2. **Cap, do not stretch.** Set a max width instead of letting a control grow with
+   the viewport. A 1500px text field makes long entries hard to track.
+3. Form fields inside a `Field` may fill their grid cell; **toolbar controls may not.**
+4. Below 640px controls may fill, because a stacked layout no longer carries a
+   width cue to lose.
+
+### 2.4 Table rows
 
 | Token | px | Use |
 |---|---:|---|
@@ -95,7 +120,7 @@ removing a duplicated gap, not adding a divider.
 | `--rect-table-row-standard` | 40 | rows containing inputs or controls |
 | `--rect-table-row-two-line` | 52 | primary + subtext rows |
 
-### 2.4 Grid gaps
+### 2.5 Grid gaps
 
 | Token | px | Use |
 |---|---:|---|
@@ -103,7 +128,7 @@ removing a duplicated gap, not adding a divider.
 | `--rect-grid-gap` | 12 | **default** feature page grid |
 | `--rect-grid-gap-standard` | 16 | roomy detail layouts |
 
-### 2.5 Typography
+### 2.6 Typography
 
 | Token | px | Weight | Line-height | Use |
 |---|---:|---|---|---|
@@ -130,7 +155,7 @@ Line-height tokens: `--rect-leading-tight` 1.15, `--rect-leading-snug` 1.3, `--r
 
 **Never render body text below 12px.**
 
-### 2.6 Font weights
+### 2.7 Font weights
 
 Inter is loaded at **400 / 500 / 600 / 700 / 900 only**.
 
@@ -144,7 +169,7 @@ Inter is loaded at **400 / 500 / 600 / 700 / 900 only**.
 
 Using 550/620/650/750/850 makes the browser synthesize a weight, which renders differently across platforms and looks subtly broken. **This is enforced by a failing test.**
 
-### 2.7 Radius
+### 2.8 Radius
 
 | Token | px | Use |
 |---|---:|---|
@@ -157,7 +182,7 @@ Using 550/620/650/750/850 makes the browser synthesize a weight, which renders d
 | `--rect-pill-radius` | 999 | badges, switches, circular controls |
 | `--rect-panel-radius` | 28 | the main canvas rectangle (brand shape) |
 
-### 2.8 Overlay / window tokens
+### 2.9 Overlay / window tokens
 
 | Token | Value | Use |
 |---|---|---|
@@ -171,7 +196,7 @@ Using 550/620/650/750/850 makes the browser synthesize a weight, which renders d
 | `--rect-z-overlay` | 1000 | Windows |
 | `--rect-z-toast` | 1100 | Transient messages above windows |
 
-### 2.9 Canvas
+### 2.10 Canvas
 
 | Token | Value | Meaning |
 |---|---|---|
@@ -238,11 +263,42 @@ Sizes 24 / 32 / 40px (`xs`/`compact`/`standard`), always circular, always with a
 - Errors: red border + red message + `aria-invalid`. Never colour-only.
 - Placeholders are hints, never labels. Every control has a real label.
 
-### 4.4 Checkbox / switch
+### 4.4 Search and filter toolbars
+
+Search is one of the few controls users expect to recognise on sight. Its shape is
+fixed by `SearchField` and must not be rebuilt per page.
+
+Anatomy, in this order on one row:
+
+```
+[ 🔍 search field ] [ status filter ] [ sort ] ......... [ primary action ]
+        320px             140px         176px            pushed to the end
+```
+
+Rules:
+
+1. **A magnifying glass sits inside the field, at the start.** It is the universal
+   search symbol; use the plain schematic version, because graphic detail slows
+   recognition. It is decorative (`aria-hidden`) since the field already has a name.
+2. **Never full width.** A search box spanning the page stops reading as a discrete
+   control. Amazon deliberately caps its search box for this reason.
+3. **Provide a real submit button** where results are fetched. Many users still
+   expect to click rather than press Enter. Label it "Search" — never "Go" or "Submit".
+   Clicking the icon or the button must both submit.
+4. **Clear control appears only when there is a query**, at the end of the field.
+   The native `::-webkit-search-cancel-button` is inconsistent, so it is suppressed
+   and replaced.
+5. **Placeholder is an example, never a label.** Every search field carries a real
+   accessible name.
+6. Wrap the row in `role="search"` so assistive technology can jump to it.
+7. Filters keep capped widths (§2.3) and **wrap, never overflow**.
+8. Use `FilterBarSpacer` to push the page's primary action to the far end.
+
+### 4.5 Checkbox / switch
 
 Visual box 16–18px, but the label row is 32px min-height so the target clears WCAG. Switch track 36×20 with a 16px thumb.
 
-### 4.5 Cards
+### 4.6 Cards
 
 | Kind | Padding | Radius |
 |---|---:|---:|
@@ -252,7 +308,7 @@ Visual box 16–18px, but the label row is 32px min-height so the target clears 
 
 1px soft border, card background. Do not nest a bordered card inside a bordered card — use a divider instead.
 
-### 4.6 Tables
+### 4.7 Tables
 
 - Default row **32px**, header row **32px**, sticky header, 12px cell x-padding.
 - Body 13px; header 12px semibold, secondary colour.
@@ -262,16 +318,16 @@ Visual box 16–18px, but the label row is 32px min-height so the target clears 
 - Empty tables render a centred, user-facing message row — never a blank body.
 - Under `pointer: coarse`, rows expand to 48px automatically.
 
-### 4.7 Badges
+### 4.8 Badges
 
 22px min-height, 11px bold, pill radius, 8px x-padding. Tones carry **meaning only**: `success` complete/healthy, `warning` at risk, `danger` late/critical, `info` neutral system, `accent` category. Never decorative colour.
 
-### 4.8 Windows (modals, dialogs, drawers)
+### 4.9 Windows (modals, dialogs, drawers)
 
 Never build one. See **§12 The window system** — every window in the product comes from the
 shared `Overlay`. A feature that writes its own backdrop, sizing, or close button is a defect.
 
-### 4.9 Empty, loading, error, permission states
+### 4.10 Empty, loading, error, permission states
 
 Four states are mandatory for every data surface:
 
@@ -381,13 +437,17 @@ Text contrast must meet WCAG AA (4.5:1 body, 3:1 large text and UI boundaries).
 
 ## 11. The building blocks
 
-Every screen is assembled from `@/shared/ui`. Feature folders hold **data and composition**,
-never new UI vocabulary. If something is missing, add it to the kit so the next screen inherits it.
+**Rectangle is assembled, not drawn.** Every screen is composed from `@/shared/ui`.
+Feature folders hold **data and composition**; they never introduce new UI
+vocabulary. This is what keeps a page built next year looking like one built today.
+
+### 11.1 The kit
 
 | Block | Use |
 |---|---|
 | `Button` · `IconButton` | All actions |
 | `Field` · `Input` · `Select` · `Textarea` · `Checkbox` · `Switch` | All form controls |
+| **`SearchField`** · **`FilterBar`** · **`FilterSelect`** · **`FilterBarSpacer`** | **Every search and filter toolbar** (§4.4) |
 | `Card` · `Toolbar` · `PageGrid` · `PageHeader` | Page composition |
 | `DataTable` | Every tabular surface |
 | `Badge` | Status and counts |
@@ -396,12 +456,33 @@ never new UI vocabulary. If something is missing, add it to the kit so the next 
 | **`SettingsSection`** · **`SettingRow`** · **`ChoiceGroup`** · **`SettingsStack`** | **Every configuration surface** (§13) |
 | `Drawer` · `Toast` | Side panels and transient messages |
 
-Rules:
+### 11.2 Rules
 
-1. Import from `@/shared/ui`, never reach into a sibling feature for UI.
-2. A feature may style **layout** (grid areas, spans) — never a control's appearance.
-3. Adding a block means adding its tests at the same time.
-4. Before writing new UI, check this table. Duplication is rejected in review and by test.
+1. **Import from `@/shared/ui`.** Never reach into a sibling feature for UI.
+2. **A feature may style layout, never appearance.** Grid areas and column spans are
+   the feature's business. Padding, radius, colour, and control size are the kit's.
+3. **If two screens need the same thing, it belongs in the kit** — not copied. Copy
+   and paste is how a product stops looking like one product.
+4. **Adding a block means adding its tests in the same change.**
+5. **Check this table before writing new UI.** Duplication is rejected in review and
+   by `canvas-contract.test.tsx`.
+
+### 11.3 When to add a block
+
+Add one when a pattern appears a **second** time, or when getting it right requires
+knowledge a feature author should not need to carry — focus trapping, scroll
+locking, search affordance, disclosure state. Those belong in one tested place.
+
+A block is finished when it has: a single clear purpose, tokens for every value,
+loading/empty/error handling where it owns data, an accessible name, keyboard
+support, RTL correctness, and tests.
+
+### 11.4 Theming is centralized
+
+Every colour, size, radius, weight, and duration resolves to a token in
+`apps/web/src/shared/styles/tokens.css`. **Changing the theme means editing that one
+file**, and the entire product follows. A literal colour in component CSS breaks that
+guarantee and is rejected by test.
 
 ---
 
@@ -530,7 +611,60 @@ Every screen must survive any viewport, any content length, and any language. No
 
 ---
 
-## 15. Deployment safety
+## 15. Layout correctness traps
+
+These are not style preferences. Each one has shipped a visible defect in this
+product, and each is now enforced by a test.
+
+### 15.1 `flex-basis` follows the main axis
+
+```css
+/* A row: basis is a WIDTH. Correct. */
+.row        { display: flex; }
+.row__text  { flex: 1 1 220px; }
+
+/* The same element in a column: basis is now a HEIGHT.
+   This silently reserves 220px of vertical space. */
+.row--stacked { flex-direction: column; }
+```
+
+**Any rule that changes `flex-direction` must reset a basis set for the other
+axis.** In the stacked settings row this opened a ~220px void above every group of
+fields, and it read as "too much spacing" rather than as a broken box model — so
+the instinct is to shrink gaps, which never fixes it.
+
+```css
+.row--stacked .row__text { flex: 0 0 auto; }
+```
+
+**When a gap looks wrong, inspect the box model before tuning a token.**
+
+### 15.2 A narrower flex child does not centre itself
+
+A flex child with a `max-width` smaller than its parent aligns to the **start**, so
+every pixel of leftover space piles onto one side. Capped content columns need
+`margin-inline: auto` — the logical property, so RTL stays correct.
+
+### 15.3 Content must never sit flush against a clipped edge
+
+`overflow: hidden` and `overflow-x: hidden` clip at the **border box**. A focus ring
+drawn with `outline-offset` lives outside that box, so a control touching the edge
+loses part of its ring and looks cropped.
+
+Any clipping scroll container needs a small inline padding, and controls inside it
+must be width-capped (§2.3) rather than stretched to the boundary.
+
+### 15.4 Checklist for any new layout
+
+- [ ] Does any rule flip `flex-direction`? If so, is the basis reset?
+- [ ] Is a capped-width column centred with `margin-inline: auto`?
+- [ ] Does anything sit flush against a clipping edge?
+- [ ] Do toolbar controls have capped widths, or do they stretch?
+- [ ] Does the row wrap instead of overflowing at 320px?
+
+---
+
+## 16. Deployment safety
 
 Rectangle auto-deploys to Railway from `main`. The Dockerfile builds each app from a
 **subset** of the repository, so code that compiles locally can still fail the deploy.
@@ -552,7 +686,7 @@ Rules:
 
 ---
 
-## 16. Definition of done for any UI work
+## 17. Definition of done for any UI work
 
 - [ ] Every spacing, size, radius, weight and font-size comes from a token in §2.
 - [ ] The page mounts inside `.rect-panel__content` and adds no outer width or margin.
@@ -565,6 +699,11 @@ Rules:
 - [ ] No second full-page scroll container; any new scroll region has an overflow affordance.
 - [ ] Dialogs fit the screen and never clip their actions.
 - [ ] Semantic colour carries meaning only.
+- [ ] Search and filters come from `SearchField`/`FilterBar`/`FilterSelect`.
+- [ ] Toolbar control widths are capped and hint at the expected input (§2.3).
+- [ ] No rule flips `flex-direction` while leaving a basis set for the other axis (§15.1).
+- [ ] Capped-width columns are centred with `margin-inline: auto` (§15.2).
+- [ ] Nothing sits flush against a clipping scroll edge (§15.3).
 - [ ] Every window comes from `Overlay`/`FormDialog`/`ConfirmDialog`; none is hand-rolled.
 - [ ] Window actions are in the footer and reachable at 560px viewport height.
 - [ ] Configuration UI uses `SettingsSection`/`SettingRow`/`ChoiceGroup`.

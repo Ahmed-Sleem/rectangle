@@ -63,3 +63,14 @@ export {
   type SettingRowProps,
   type SettingsSectionProps,
 } from "./settings-blocks";
+
+/** Search and filter toolbar blocks. */
+export {
+  FilterBar,
+  FilterBarSpacer,
+  FilterSelect,
+  SearchField,
+  type FilterBarProps,
+  type FilterSelectProps,
+  type SearchFieldProps,
+} from "./search-field";

@@ -120,6 +120,16 @@
   --rect-control-touch: 48px;
   --rect-hit-min: 24px;
 
+  /* ── Control widths ──
+     A control's width should hint at the length of input it expects. Stretching
+     every field to fill the row removes that cue and makes short values look
+     like long ones. */
+  --rect-field-width-xs: 96px;
+  --rect-field-width-sm: 140px;
+  --rect-field-width-md: 176px;
+  --rect-field-width-lg: 240px;
+  --rect-field-width-search: 320px;
+
   /* ── Table densities ── */
   --rect-table-row-ultra: 28px;
   --rect-table-row-dense: 32px;

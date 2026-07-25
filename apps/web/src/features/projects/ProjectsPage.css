@@ -7,10 +7,6 @@
   gap: var(--rect-grid-gap);
 }
 
-.rect-projects-toolbar {
-  justify-content: flex-end;
-}
-
 .rect-projects-link {
   color: var(--rect-text-primary);
   font-weight: var(--rect-weight-semibold);
@@ -93,16 +89,6 @@
   }
 }
 
-.rect-projects-search {
-  flex: 1 1 240px;
-  min-width: 0;
-}
-
-.rect-projects-toolbar {
-  justify-content: flex-start;
-  gap: var(--rect-space-2);
-}
-
 .rect-project-detail__panel {
   display: grid;
   gap: var(--rect-space-3);
@@ -150,10 +136,4 @@
 .rect-project-activity__meta {
   color: var(--rect-text-secondary);
   font-size: var(--rect-text-label);
-}
-
-@media (max-width: 640px) {
-  .rect-projects-toolbar > * {
-    flex: 1 1 100%;
-  }
 }

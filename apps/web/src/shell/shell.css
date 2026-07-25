@@ -256,6 +256,9 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scroll-padding-block: var(--rect-space-4);
+  /* overflow-x clips at the border box, so a control sitting flush against the
+     edge loses part of its focus ring. This keeps content off the clip line. */
+  padding-inline: var(--rect-space-05);
   border-radius: 0;
   padding-block: var(--rect-space-1) var(--rect-space-2);
 
@@ -292,6 +295,10 @@
   min-height: 0;
   width: 100%;
   max-width: var(--rect-canvas-content-max);
+  /* A flex child narrower than its parent aligns to the start, which pushes all
+     leftover space to one side. Centring keeps the margins equal, and the
+     logical property keeps it correct in RTL. */
+  margin-inline: auto;
   gap: var(--rect-grid-gap);
 }
 

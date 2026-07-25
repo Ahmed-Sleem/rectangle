@@ -3,7 +3,7 @@
   "meta": {
     "source": "apps/web/src/shared/styles/tokens.css",
     "brand": "Rectangle",
-    "version": "0.7.0",
+    "version": "0.8.0",
     "contract": "design/UI_RULES.md",
     "enforcedBy": "apps/web/src/shell/canvas-contract.test.tsx"
   },
@@ -164,5 +164,12 @@
     "radiusMobile": 16,
     "blur": 10,
     "appBlur": 3
+  },
+  "fieldWidth": {
+    "xs": 96,
+    "sm": 140,
+    "md": 176,
+    "lg": 240,
+    "search": 320
   }
 }

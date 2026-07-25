@@ -257,3 +257,55 @@ describe("nested spacing", () => {
     expect(field).toBeLessThan(stacked);
   });
 });
+
+describe("layout containment", () => {
+  it("centres the canvas content so side margins stay equal", () => {
+    const block = shellCss.slice(
+      shellCss.indexOf(".rect-panel__content {"),
+      shellCss.indexOf(".rect-panel__content {") + 400,
+    );
+    // A flex child narrower than its parent aligns to the start, piling all the
+    // leftover space onto one side.
+    expect(block).toContain("margin-inline: auto");
+  });
+
+  it("keeps content off the clipped scroll edge", () => {
+    const block = shellCss.slice(
+      shellCss.indexOf(".rect-panel__body {"),
+      shellCss.indexOf(".rect-panel__content {"),
+    );
+    // overflow-x clips at the border box, which would slice a focus ring off a
+    // control sitting flush against the edge.
+    expect(block).toContain("overflow-x: hidden");
+    expect(block).toContain("padding-inline:");
+  });
+
+  it("never leaves a row flex-basis on a column-direction row", () => {
+    // flex-basis resolves along the main axis, so a basis meant as a width
+    // silently becomes a height once the container switches to a column.
+    const rowText = uiCss.slice(
+      uiCss.indexOf(".rect-setting-row__text {"),
+      uiCss.indexOf(".rect-setting-row__label {"),
+    );
+    expect(rowText).toContain("flex: 1 1 220px");
+
+    const stackedText = uiCss.slice(
+      uiCss.indexOf(".rect-setting-row--stacked .rect-setting-row__text"),
+      uiCss.indexOf(".rect-setting-row--stacked .rect-setting-row__control"),
+    );
+    expect(stackedText, "stacked rows must reset the row flex-basis").toContain("flex: 0 0 auto");
+  });
+
+  it("caps filter controls instead of letting them fill the row", () => {
+    const bar = uiCss.slice(uiCss.indexOf(".rect-filter-bar {"), uiCss.indexOf(".rect-search {"));
+    expect(bar).toContain("flex-wrap: wrap");
+
+    const select = uiCss.slice(
+      uiCss.indexOf(".rect-filter-select {"),
+      uiCss.indexOf(".rect-filter-select:focus"),
+    );
+    // A width that matches the expected input is a usability cue; stretching
+    // every control across the row throws that cue away.
+    expect(select).toContain("flex: 0 0 auto");
+  });
+});
