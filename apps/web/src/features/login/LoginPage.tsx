@@ -6,7 +6,7 @@ import { z } from "zod";
 import { useAuth } from "@/shared/auth";
 import { apiRequest, ApiClientError } from "@/shared/api/client";
 import { Button, buttonClassName, Card, Field, Input, Toolbar } from "@/shared/ui";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { loginWithPasskey } from "./passkey-api";
 import "../setup/setup-page.css";
 

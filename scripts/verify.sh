@@ -44,7 +44,9 @@ run_step "api production build" npm run build
 cd "$ROOT_DIR"
 run_step "feature checklist" node scripts/checks/feature-checklist.mjs
 run_step "design token snapshot" node scripts/checks/token-snapshot.mjs
+run_step "rules reference integrity" node scripts/checks/rules-reference.mjs
 run_step "deploy build context" node scripts/checks/deploy-context.mjs
+run_step "dependency advisories" node scripts/checks/dependency-audit.mjs
 run_step "docker build simulation" ./scripts/checks/docker-build-sim.sh
 
 echo "\n[verify] All checks passed"

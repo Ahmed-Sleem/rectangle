@@ -24,7 +24,6 @@ Open http://localhost:5173 — dark chrome + white rectangle shell, collapsible 
 
 ```bash
 npm test && npm run lint && npm run typecheck && npm run build
-npm run start   # production static serve on PORT (default 3000)
 ```
 
 More detail: [apps/web/README.md](./apps/web/README.md).

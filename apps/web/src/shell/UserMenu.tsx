@@ -17,7 +17,7 @@ import { LogOut, Settings as SettingsIcon, User } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useOptionalAuth } from "@/shared/auth";
 import { Avatar } from "@/shared/ui";
 

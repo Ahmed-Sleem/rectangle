@@ -8,7 +8,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import { Button, buttonClassName, Card, Field, Input } from "@/shared/ui";

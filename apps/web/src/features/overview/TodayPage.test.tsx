@@ -1,7 +1,7 @@
 /** Tests that Today renders only backend-provided figures and every state. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/shared/auth";
 import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";

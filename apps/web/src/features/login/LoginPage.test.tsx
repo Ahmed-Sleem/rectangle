@@ -4,7 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "@/shared/auth";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import LoginPage from "./LoginPage";
 
 function renderLogin() {

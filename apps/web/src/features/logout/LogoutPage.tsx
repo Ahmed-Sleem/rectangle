@@ -1,7 +1,7 @@
 /** Logout route ends the real server session and returns to login. */
 import { useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 import { apiRequest } from "@/shared/api/client";
 import { useAuth } from "@/shared/auth";
 import { LoadingState } from "@/shared/ui";

@@ -1,4 +1,4 @@
-import { RouterProvider } from "react-router-dom";
+import { RouterProvider } from "react-router/dom";
 import { AppReadyGate } from "./AppReadyGate";
 import { AppProviders } from "./providers";
 import { createAppRouter } from "./router";

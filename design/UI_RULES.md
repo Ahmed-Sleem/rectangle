@@ -285,41 +285,62 @@ Sizes 24 / 32 / 40px (`xs`/`compact`/`standard`), always circular, always with a
 
 ### 4.4 Search and filter toolbars
 
-Search is one of the few controls users expect to recognise on sight. Its shape is
-fixed by `SearchField` and must not be rebuilt per page.
+Every data page wears the same toolbar, and it is `PageToolbar` — not a row each
+page assembles for itself. Search sits in the same place, filters open the same
+way, and the primary action lands against the same edge everywhere.
 
 Anatomy, in this order on one row:
 
 ```
-[ 🔍 search field ] [ status filter ] [ sort ] ......... [ primary action ]
-        320px             140px         176px            pushed to the end
+[ leading ] [ 🔍 search ] ....... [ filters (n) ] [ primary action ] [ view toggle ]
+                                                                     against the end
 ```
+
+When any filter is set, a **second row** appears beneath carrying one badge per
+active filter and a control that clears them all. When none is set the row is
+absent entirely — an empty container is not a neutral element, it is a gap the
+user has to account for.
 
 Rules:
 
-1. **A magnifying glass sits inside the field, at the start.** It is the universal
+1. **Filters are declared as data, never passed as children.** `PageToolbar`
+   receives an array of `ToolbarFilter`. That is the only reason it can put them
+   in a window, summarise them as badges, count them, and clear them. Opaque JSX
+   can do none of that, and a toolbar that cannot describe its own state cannot
+   offer to reset it.
+2. **Filters live in a window, not on the row.** A page with six filters cannot
+   show them inline without either wrapping into a wall of controls or
+   overflowing. The button carries a count so the state is legible while the
+   window is shut, and filters apply live so closing the window is not a commit
+   step.
+3. **One search control in the product.** `SearchInput` (`variant="bar"` in the
+   toolbar, `variant="panel"` in the command palette). Never rebuild it.
+4. **A magnifying glass sits inside the field, at the start.** The universal
    search symbol; use the plain schematic version, because graphic detail slows
-   recognition. It is decorative (`aria-hidden`) since the field already has a name.
-2. **Never full width.** A search box spanning the page stops reading as a discrete
-   control. Amazon deliberately caps its search box for this reason.
-3. **Provide a real submit button** where results are fetched. Many users still
-   expect to click rather than press Enter. Label it "Search" — never "Go" or "Submit".
-   Clicking the icon or the button must both submit.
-4. **Clear control appears only when there is a query**, at the end of the field.
-   The native `::-webkit-search-cancel-button` is inconsistent, so it is suppressed
-   and replaced.
-5. **Placeholder is an example, never a label.** Every search field carries a real
-   accessible name.
-6. Wrap the row in `role="search"` so assistive technology can jump to it.
-7. Filters keep capped widths (§2.3) and **wrap, never overflow**.
-8. **Search widens while in use**, 320px → 400px, and returns at the same speed.
-   The animation belongs on the element the toolbar actually lays out — the form
-   — not on a nested child. A child can grow its own basis all it likes; if the
-   parent is still sized to its old content, nothing visibly moves. This is the
-   single most common reason an expand-on-focus appears to do nothing.
-   Use `:focus-within` so the field stays open while the clear control is reached,
-   and drop the growth entirely below 640px where the row already stacks.
-8. Use `FilterBarSpacer` to push the page's primary action to the far end.
+   recognition. It is decorative (`aria-hidden`) since the field has a real name.
+5. **Never full width.** A search box spanning the page stops reading as a
+   discrete control.
+6. **No submit button.** Results filter as the user types. A submit control
+   implies the list is stale until pressed, which would be a lie.
+7. **Clear control appears only when there is a query**, at the end of the field.
+   The native `::-webkit-search-cancel-button` is inconsistent, so it is
+   suppressed and replaced.
+8. **Placeholder is an example, never a label.** Every search field carries a
+   real accessible name.
+9. The row is wrapped in `role="search"` so assistive technology can jump to it.
+10. **The focus ring belongs to the container, not the input.** `global.css`
+    gives every `:focus-visible` element an *inset* `box-shadow`. A bare input
+    inside a bordered wrapper therefore paints a second rectangle within the
+    first — the "border inside a border" fault that recurred three times before
+    being fixed properly. The wrapper takes the ring on `:focus-within` and the
+    input sets `box-shadow: none`. Any new composite control must do the same.
+11. **Search widens while in use** and returns at the same speed. The animation
+    belongs on the element the toolbar actually lays out — the form — not on a
+    nested child. A child can grow its own basis all it likes; if the parent is
+    still sized to its old content, nothing visibly moves. This is the single
+    most common reason an expand-on-focus appears to do nothing. Use
+    `:focus-within` so the field stays open while the clear control is reached,
+    and drop the growth entirely below 640px where the row already stacks.
 
 ### 4.5 The data page skeleton
 
@@ -502,7 +523,7 @@ vocabulary. This is what keeps a page built next year looking like one built tod
 |---|---|
 | `Button` · `IconButton` | All actions |
 | `Field` · `Input` · `Select` · `Textarea` · `Checkbox` · `Switch` | All form controls |
-| **`SearchField`** · **`FilterBar`** · **`FilterSelect`** · **`FilterBarSpacer`** | **Every search and filter toolbar** (§4.4) |
+| **`PageToolbar`** · **`SearchInput`** | **Every search and filter toolbar** (§4.4) |
 | **`StatRow`** · **`StatCard`** · **`CardGrid`** · **`SidePanel`** · **`BreakdownBar`** · **`AvatarGroup`** · **`ViewToggle`** | **Every data page skeleton** (§4.5) |
 | `Card` · `Toolbar` · `PageGrid` · `PageHeader` | Page composition |
 | `DataTable` | Every tabular surface |
@@ -862,7 +883,8 @@ Rules:
 - [ ] No second full-page scroll container; any new scroll region has an overflow affordance.
 - [ ] Dialogs fit the screen and never clip their actions.
 - [ ] Semantic colour carries meaning only.
-- [ ] Search and filters come from `SearchField`/`FilterBar`/`FilterSelect`.
+- [ ] Search and filters come from `PageToolbar`; the search control is `SearchInput`.
+- [ ] Composite controls take the focus ring on the container, never on a bare inner input (§4.4).
 - [ ] Toolbar control widths are capped and hint at the expected input (§2.3).
 - [ ] No rule flips `flex-direction` while leaving a basis set for the other axis (§15.1).
 - [ ] Capped-width columns are centred with `margin-inline: auto` (§15.2).

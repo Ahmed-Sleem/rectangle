@@ -12,7 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FolderOpen, ListChecks, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Overlay, SearchInput } from "@/shared/ui";
 import { search, type SearchResult, type SearchResultKind } from "./search-api";
 import "./search.css";

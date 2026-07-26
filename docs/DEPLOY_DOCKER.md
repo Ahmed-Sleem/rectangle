@@ -5,7 +5,7 @@ Rectangle uses separate production containers for each deployable service. This 
 ## Service layout
 
 ```text
-web       apps/web/Dockerfile      React/Vite static app served by Node `serve`
+web       apps/web/Dockerfile      React/Vite static app served by nginx
 api       apps/api/Dockerfile      Fastify API
 postgres  managed database or Compose Postgres
 migrate   API image running `npm run migrate`

@@ -12,7 +12,7 @@ import { LayoutGrid, Rows3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import { useOptionalAuth } from "@/shared/auth";

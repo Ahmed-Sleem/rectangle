@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import type { FeatureModule } from "./feature-types";
 import { FeatureIcon } from "./icons";
 import { cn } from "@/shared/lib/cn";

@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter } from "react-router";
 import { ProtectedShellRoute, LoginRoute, SetupRoute } from "./AuthRoutes";
 import { RouteError } from "./RouteError";
 import { getEnabledFeatures } from "@/shell/registry";

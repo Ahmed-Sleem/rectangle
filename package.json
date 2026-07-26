@@ -16,7 +16,6 @@
     "lint": "npm run lint --prefix apps/web",
     "typecheck": "npm run typecheck --prefix apps/web && npm run typecheck --prefix apps/api",
     "start": "npm --prefix apps/api run migrate && npm --prefix apps/api run start",
-    "start:web": "npm run start --prefix apps/web",
     "start:api": "npm run start --prefix apps/api",
     "verify": "./scripts/verify.sh",
     "verify:all": "./scripts/verify.sh"

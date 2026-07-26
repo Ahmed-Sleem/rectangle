@@ -13,17 +13,15 @@ npm ci
 npm run dev            # http://localhost:5173
 npm run verify:deploy  # typecheck + lint + test + build
 npm run verify         # alias for verify:deploy
-npm run start          # serve dist on PORT (default 3000), SPA fallback
 ```
 
 ## Stack
 
 - Vite 8 + React 19 + TypeScript (strict)
-- React Router 7 (data router + lazy feature routes)
+- React Router 8 (data router + lazy feature routes)
 - i18next + react-i18next for Arabic/English shell localization
 - Lucide icons, Inter via `@fontsource/inter`
 - Vitest + Testing Library
-- `serve` (**production dependency**) for Railway / static SPA
 
 ## Arabic / RTL foundation
 
@@ -59,9 +57,8 @@ The right AI panel is shell-owned (`src/shell/ai/`) so feature pages remain stan
 
 Config file: [`railway.toml`](./railway.toml) in this folder.
 
-`PORT` is injected by Railway. No secrets required for P0.
-
-Deep links (`/projects`) need SPA fallback — provided by `serve -s` in `start`.
+The runtime image is nginx, configured by [`nginx.conf`](./nginx.conf). It listens on 3000 and
+falls back to `index.html`, so deep links such as `/projects` reach the client router.
 
 ## Env
 

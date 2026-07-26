@@ -6,7 +6,7 @@
  */
 import { useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import { ApiClientError } from "@/shared/api/client";
 import { buttonClassName, Card, LoadingState } from "@/shared/ui";
 import { confirmEmailChange, revertEmailChange } from "./lifecycle-api";
