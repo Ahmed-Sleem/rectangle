@@ -282,6 +282,7 @@ describe("ProjectTeamService", () => {
     await service.addMember(admin, projectId, { userId: memberUserId, role: "viewer" });
     // Two open tasks are assigned to this person on this project.
     team.openTasksByAssignee.set(memberUserId, 2);
+    team.openRisksByOwner.set(memberUserId, 3);
 
     await service.removeMember(admin, projectId, memberUserId);
 
@@ -289,7 +290,7 @@ describe("ProjectTeamService", () => {
     // put the database in a state the service treats as impossible.
     expect(team.openTasksByAssignee.has(memberUserId)).toBe(false);
     const event = audit.events.find((entry) => entry.action === "project.member.remove");
-    expect(event?.metadata).toMatchObject({ unassignedTasks: 2 });
+    expect(event?.metadata).toMatchObject({ unassignedTasks: 2, unassignedRisks: 3 });
   });
 
   it("records a removal that released no work", async () => {

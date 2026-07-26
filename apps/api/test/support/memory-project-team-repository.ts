@@ -112,22 +112,26 @@ export class MemoryProjectTeamRepository implements ProjectTeamRepository {
    * this in the same transaction as the delete.
    */
   openTasksByAssignee = new Map<string, number>();
+  /** Open risks owned by the removed member, released by the same transaction. */
+  openRisksByOwner = new Map<string, number>();
 
   async removeMember(
     tenantId: string,
     projectId: string,
     userId: string,
-  ): Promise<{ removed: boolean; unassignedTasks: number }> {
+  ): Promise<{ removed: boolean; unassignedTasks: number; unassignedRisks: number }> {
     const index = this.members.findIndex(
       (member) =>
         member.tenantId === tenantId && member.projectId === projectId && member.userId === userId,
     );
-    if (index === -1) return { removed: false, unassignedTasks: 0 };
+    if (index === -1) return { removed: false, unassignedTasks: 0, unassignedRisks: 0 };
     this.members.splice(index, 1);
 
     const unassignedTasks = this.openTasksByAssignee.get(userId) ?? 0;
     this.openTasksByAssignee.delete(userId);
-    return { removed: true, unassignedTasks };
+    const unassignedRisks = this.openRisksByOwner.get(userId) ?? 0;
+    this.openRisksByOwner.delete(userId);
+    return { removed: true, unassignedTasks, unassignedRisks };
   }
 
   async countAdmins(tenantId: string, projectId: string): Promise<number> {

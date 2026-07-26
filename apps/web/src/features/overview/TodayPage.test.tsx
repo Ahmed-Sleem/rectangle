@@ -85,6 +85,7 @@ const populated = {
       },
     ],
     tasks: { open: 9, overdue: 2, dueSoon: 4, assignedToMe: 3 },
+    risks: { open: 5, criticalOrHigh: 2, occurred: 1 },
     team: { activeUsers: 6, disabledUsers: 1 },
   },
 };
@@ -136,6 +137,7 @@ describe("TodayPage", () => {
         attention: [],
         activity: [],
         tasks: { open: 0, overdue: 0, dueSoon: 0, assignedToMe: 0 },
+        risks: { open: 0, criticalOrHigh: 0, occurred: 0 },
       },
     };
     vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse(empty));

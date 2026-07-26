@@ -1,0 +1,175 @@
+/* Risk register and exposure matrix. All values from tokens. */
+
+.rect-risks-page {
+  align-content: start;
+  display: grid;
+  gap: var(--rect-grid-gap);
+  min-width: 0;
+}
+
+.rect-matrix {
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  display: grid;
+  gap: var(--rect-space-3);
+  justify-items: start;
+  padding: var(--rect-space-4);
+}
+
+.rect-matrix__head {
+  display: grid;
+  gap: var(--rect-space-1);
+}
+
+.rect-matrix__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-subsection);
+  font-weight: var(--rect-weight-bold);
+  margin: 0;
+}
+
+.rect-matrix__hint {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  margin: 0;
+}
+
+/*
+ * Axis labels sit outside the grid rather than inside a cell, so the grid
+ * stays a clean 5x5 and the labels can be read at any size.
+ */
+.rect-matrix__layout {
+  display: grid;
+  gap: var(--rect-space-2);
+  grid-template-areas:
+    "axis-y grid"
+    ".      axis-x";
+  grid-template-columns: auto auto;
+  align-items: center;
+}
+
+.rect-matrix__grid {
+  display: grid;
+  gap: var(--rect-space-1);
+  grid-area: grid;
+  grid-template-columns: repeat(5, var(--rect-control-standard));
+}
+
+.rect-matrix__axis {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-medium);
+}
+
+.rect-matrix__axis--y {
+  grid-area: axis-y;
+  /* Reads bottom-to-top beside the probability axis it names. */
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+.rect-matrix__axis--x {
+  grid-area: axis-x;
+  justify-self: center;
+}
+
+.rect-matrix__cell {
+  align-items: center;
+  background: var(--rect-matrix-fill);
+  border: 1px solid transparent;
+  border-radius: var(--rect-radius-sm);
+  color: var(--rect-color-paper);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-bold);
+  block-size: var(--rect-control-standard);
+  justify-content: center;
+  transition: transform var(--rect-motion-spring), box-shadow var(--rect-motion-spring);
+}
+
+/*
+ * An empty intersection still shows its band, faintly. The grid describes the
+ * shape of the scale as well as what currently sits on it, so a blank cell is
+ * information rather than a hole.
+ */
+.rect-matrix__cell[data-empty="true"] {
+  background: var(--rect-matrix-fill-empty);
+}
+
+.rect-matrix__cell[data-severity="low"] {
+  --rect-matrix-fill: var(--rect-color-success);
+  --rect-matrix-fill-empty: color-mix(in srgb, var(--rect-color-success) 12%, var(--rect-color-paper));
+}
+
+.rect-matrix__cell[data-severity="medium"] {
+  --rect-matrix-fill: var(--rect-color-info);
+  --rect-matrix-fill-empty: color-mix(in srgb, var(--rect-color-info) 12%, var(--rect-color-paper));
+}
+
+.rect-matrix__cell[data-severity="high"] {
+  --rect-matrix-fill: var(--rect-color-warning);
+  --rect-matrix-fill-empty: color-mix(in srgb, var(--rect-color-warning) 12%, var(--rect-color-paper));
+}
+
+.rect-matrix__cell[data-severity="critical"] {
+  --rect-matrix-fill: var(--rect-color-danger);
+  --rect-matrix-fill-empty: color-mix(in srgb, var(--rect-color-danger) 12%, var(--rect-color-paper));
+}
+
+.rect-matrix__cell:hover {
+  transform: translateY(-1px);
+}
+
+.rect-matrix__cell[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px var(--rect-color-ink-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-matrix__cell {
+    transition: none;
+  }
+  .rect-matrix__cell:hover {
+    transform: none;
+  }
+}
+
+.rect-risk__title {
+  align-items: center;
+  display: flex;
+  gap: var(--rect-space-2);
+}
+
+.rect-risk__link {
+  background: none;
+  border: 0;
+  color: var(--rect-text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--rect-weight-semibold);
+  padding: 0;
+  text-align: start;
+}
+
+.rect-risk__link:hover {
+  text-decoration: underline;
+}
+
+.rect-risk__score {
+  display: grid;
+  gap: var(--rect-space-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.rect-risk__residual {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-micro);
+}
+
+.rect-risks-form__split {
+  display: grid;
+  gap: var(--rect-space-3);
+  grid-template-columns: 1fr 1fr;
+}

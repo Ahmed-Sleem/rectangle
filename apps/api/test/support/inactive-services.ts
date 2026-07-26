@@ -43,3 +43,12 @@ export const inactiveAuthLifecycleService = {
   confirmEmailChange(): never { throw new Error("not used"); },
   revertEmailChange(): never { throw new Error("not used"); },
 } as unknown as import("../../src/application/auth-lifecycle-service.js").AuthLifecycleService;
+
+export const inactiveRiskService = {
+  createRisk(): never { throw new Error("not used"); },
+  listRisks(): never { throw new Error("not used"); },
+  getRisk(): never { throw new Error("not used"); },
+  updateRisk(): never { throw new Error("not used"); },
+  deleteRisk(): never { throw new Error("not used"); },
+  summarise(): never { throw new Error("not used"); },
+};

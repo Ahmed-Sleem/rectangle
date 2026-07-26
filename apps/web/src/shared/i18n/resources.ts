@@ -9,6 +9,7 @@
 import { enums } from "./locales/enums";
 import { overview } from "./locales/overview";
 import { projects } from "./locales/projects";
+import { risks } from "./locales/risks";
 import { tasks } from "./locales/tasks";
 import { team } from "./locales/team";
 
@@ -32,11 +33,13 @@ export const resources = {
         clearSearch: "Clear search",
         notAvailable: "—",
         listSeparator: ", ",
+        actions: "Actions",
       },
       feature: {
         overview: "Today",
         projects: "Projects",
         tasks: "Tasks",
+        risks: "Risks",
         analytics: "Analytics",
         team: "Team",
         settings: "Settings",
@@ -182,6 +185,7 @@ export const resources = {
       enums: enums.en,
       overview: overview.en,
       projects: projects.en,
+      risks: risks.en,
       tasks: tasks.en,
       team: team.en,
     },
@@ -205,11 +209,13 @@ export const resources = {
         clearSearch: "مسح البحث",
         notAvailable: "—",
         listSeparator: "، ",
+        actions: "إجراءات",
       },
       feature: {
         overview: "اليوم",
         projects: "المشاريع",
         tasks: "المهام",
+        risks: "المخاطر",
         analytics: "التحليلات",
         team: "الفريق",
         settings: "الإعدادات",
@@ -367,6 +373,7 @@ export const resources = {
       enums: enums.ar,
       overview: overview.ar,
       projects: projects.ar,
+      risks: risks.ar,
       tasks: tasks.ar,
       team: team.ar,
     },

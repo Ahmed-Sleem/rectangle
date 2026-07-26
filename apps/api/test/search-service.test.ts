@@ -35,6 +35,20 @@ class RecordingRepository implements SearchRepository {
     return [{ kind: "task", id: "t1", title: "Pour raft", href: "/tasks?projectId=p1" }];
   }
 
+  risksCalled = false;
+
+  async searchRisks(
+    _tenantId: string,
+    _userId: string,
+    _term: string,
+    _limit: number,
+    scope: "all" | "member",
+  ): Promise<SearchResult[]> {
+    this.risksCalled = true;
+    this.lastScope = scope;
+    return [{ kind: "risk", id: "r1", title: "Rebar delay", href: "/risks?projectId=p1" }];
+  }
+
   async searchPeople(): Promise<SearchResult[]> {
     this.peopleCalled = true;
     return [{ kind: "person", id: "u1", title: "Mona Adel", href: "/team" }];
@@ -45,7 +59,7 @@ describe("SearchService", () => {
   it("returns every kind of record for an administrator", async () => {
     const repository = new RecordingRepository();
     const results = await new SearchService(repository).search(admin, { q: "cairo" });
-    expect(results.map((result) => result.kind)).toEqual(["project", "task", "person"]);
+    expect(results.map((result) => result.kind)).toEqual(["project", "task", "risk", "person"]);
   });
 
   it("omits people for someone who may not read the user register", async () => {

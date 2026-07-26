@@ -31,6 +31,7 @@ const PAGES = [
   { id: "projects.workspace", file: "features/projects/ProjectDetailPage.tsx", tests: ["features/projects/ProjectDetailPage.test.tsx"] },
   { id: "projects.settings", file: "features/projects/ProjectSettingsPage.tsx", tests: ["features/projects/ProjectSettingsPage.test.tsx"] },
   { id: "tasks", file: "features/tasks/TasksPage.tsx", tests: ["features/tasks/TasksPage.test.tsx"] },
+  { id: "risks", file: "features/risks/RisksPage.tsx", tests: ["features/risks/RisksPage.test.tsx"] },
   { id: "team", file: "features/team/TeamPage.tsx", tests: ["features/team/TeamPage.test.tsx"] },
   {
     id: "profile",
@@ -63,6 +64,7 @@ const SERVICES = [
   // yet, so the token is the credential and the service verifies it.
   { id: "auth-lifecycle", file: "application/auth-lifecycle-service.ts", tokenAuthorised: true },
   { id: "search", file: "application/search-service.ts", readOnly: true },
+  { id: "risk", file: "application/risk-service.ts" },
   { id: "task", file: "application/task-service.ts" },
   { id: "admin", file: "application/admin-service.ts" },
 ];

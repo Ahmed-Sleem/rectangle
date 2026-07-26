@@ -47,7 +47,7 @@ export interface ProjectTeamRepository {
     tenantId: string,
     projectId: string,
     userId: string,
-  ): Promise<{ removed: boolean; unassignedTasks: number }>;
+  ): Promise<{ removed: boolean; unassignedTasks: number; unassignedRisks: number }>;
   countAdmins(tenantId: string, projectId: string): Promise<number>;
   listStakeholders(tenantId: string, projectId: string): Promise<StakeholderRecord[]>;
   createStakeholder(
@@ -244,6 +244,7 @@ export class ProjectTeamService {
         memberUserId: userId,
         role: current.role,
         unassignedTasks: outcome.unassignedTasks,
+        unassignedRisks: outcome.unassignedRisks,
       },
     });
   }

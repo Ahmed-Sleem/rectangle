@@ -161,7 +161,7 @@ export class PostgresProjectTeamRepository {
     tenantId: string,
     projectId: string,
     userId: string,
-  ): Promise<{ removed: boolean; unassignedTasks: number }> {
+  ): Promise<{ removed: boolean; unassignedTasks: number; unassignedRisks: number }> {
     const client = await this.pool.connect();
     try {
       await client.query("begin");
@@ -173,7 +173,7 @@ export class PostgresProjectTeamRepository {
 
       if ((result.rowCount ?? 0) === 0) {
         await client.query("rollback");
-        return { removed: false, unassignedTasks: 0 };
+        return { removed: false, unassignedTasks: 0, unassignedRisks: 0 };
       }
 
       // Finished work keeps its assignee: it is a record of who did it, and
@@ -186,8 +186,23 @@ export class PostgresProjectTeamRepository {
         [tenantId, projectId, userId],
       );
 
+      // Risks carry an owner under the same rule as tasks carry an assignee,
+      // so they need releasing for the same reason: leaving them would store
+      // an owner the service considers impossible. Settled entries keep their
+      // owner, since that is the record of who handled them.
+      const releasedRisks = await client.query(
+        `update risks set owner_user_id = null, updated_at = now()
+          where tenant_id = $1 and project_id = $2 and owner_user_id = $3
+            and status not in ('closed', 'accepted')`,
+        [tenantId, projectId, userId],
+      );
+
       await client.query("commit");
-      return { removed: true, unassignedTasks: released.rowCount ?? 0 };
+      return {
+        removed: true,
+        unassignedTasks: released.rowCount ?? 0,
+        unassignedRisks: releasedRisks.rowCount ?? 0,
+      };
     } catch (error) {
       await client.query("rollback");
       throw error;

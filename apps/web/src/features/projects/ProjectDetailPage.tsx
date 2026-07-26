@@ -34,6 +34,7 @@ import {
 } from "@/shared/ui";
 import { adminApi } from "@/features/team/admin-api";
 import { listTasks } from "@/features/tasks/task-api";
+import { getRiskSummary } from "@/features/risks/risk-api";
 import {
   addProjectMember,
   createStakeholder,
@@ -128,6 +129,11 @@ export default function ProjectDetailPage() {
   const members = useQuery({ queryKey: ["project", projectId, "members"], queryFn: () => listProjectMembers(projectId), enabled });
   const stakeholders = useQuery({ queryKey: ["project", projectId, "stakeholders"], queryFn: () => listStakeholders(projectId), enabled });
   const activity = useQuery({ queryKey: ["project", projectId, "activity"], queryFn: () => listProjectActivity(projectId), enabled });
+  const projectRisks = useQuery({
+    queryKey: ["risks", "summary", projectId],
+    queryFn: () => getRiskSummary(projectId),
+    enabled,
+  });
   const projectTasks = useQuery({
     queryKey: ["tasks", { projectId }],
     queryFn: () => listTasks({ projectId }),
@@ -453,6 +459,34 @@ export default function ProjectDetailPage() {
 
             <Link className={buttonClassName("secondary")} to={`/tasks?projectId=${projectId}`}>
               {t("projects.tasksViewAll")}
+            </Link>
+          </div>
+        )}
+      </Card>
+
+      <Card className="rect-project-detail__panel">
+        <h3>{t("projects.risksTitle")}</h3>
+        {projectRisks.isLoading ? (
+          <LoadingState title={t("common.loading")} message="" />
+        ) : (projectRisks.data?.summary.total ?? 0) === 0 ? (
+          <EmptyState title={t("projects.risksEmpty")} message="" />
+        ) : (
+          <div className="rect-project-detail__work">
+            <StatRow label={t("projects.risksTitle")}>
+              <StatCard
+                label={t("projects.risksOpen")}
+                value={
+                  (projectRisks.data?.summary.total ?? 0) - (projectRisks.data?.summary.closed ?? 0)
+                }
+              />
+              <StatCard
+                label={t("projects.risksCriticalHigh")}
+                value={projectRisks.data?.summary.criticalOrHigh ?? 0}
+                emphasis={(projectRisks.data?.summary.criticalOrHigh ?? 0) > 0}
+              />
+            </StatRow>
+            <Link className={buttonClassName("secondary")} to={`/risks?projectId=${projectId}`}>
+              {t("projects.risksViewAll")}
             </Link>
           </div>
         )}

@@ -27,7 +27,7 @@ export const searchQuerySchema = z.object({
 
 export type SearchQuery = z.infer<typeof searchQuerySchema>;
 
-export type SearchResultKind = "project" | "task" | "person";
+export type SearchResultKind = "project" | "task" | "risk" | "person";
 
 export interface SearchResult {
   kind: SearchResultKind;
@@ -42,6 +42,13 @@ export interface SearchResult {
 export interface SearchRepository {
   searchProjects(tenantId: string, term: string, limit: number): Promise<SearchResult[]>;
   searchTasks(
+    tenantId: string,
+    userId: string,
+    term: string,
+    limit: number,
+    scope: "all" | "member",
+  ): Promise<SearchResult[]>;
+  searchRisks(
     tenantId: string,
     userId: string,
     term: string,
@@ -65,16 +72,19 @@ export class SearchService {
     // workspace, so search can never surface work its owner cannot open.
     const taskScope = canManageProjects(actor) ? "all" : "member";
 
-    const [projects, tasks, people] = await Promise.all([
+    const [projects, tasks, risks, people] = await Promise.all([
       canReadProjectRegistry(actor)
         ? this.repository.searchProjects(actor.tenantId, q, limit)
         : [],
       canReadProjectRegistry(actor)
         ? this.repository.searchTasks(actor.tenantId, actor.userId, q, limit, taskScope)
         : [],
+      canReadProjectRegistry(actor)
+        ? this.repository.searchRisks(actor.tenantId, actor.userId, q, limit, taskScope)
+        : [],
       canReadUsers(actor) ? this.repository.searchPeople(actor.tenantId, q, limit) : [],
     ]);
 
-    return [...projects, ...tasks, ...people];
+    return [...projects, ...tasks, ...risks, ...people];
   }
 }

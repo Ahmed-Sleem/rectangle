@@ -12,6 +12,7 @@ import { SmtpNotificationSender } from "./application/notification-sender.js";
 import { ProfileService } from "./application/profile-service.js";
 import { ProjectService } from "./application/project-service.js";
 import { ProjectTeamService } from "./application/project-team-service.js";
+import { RiskService } from "./application/risk-service.js";
 import { SearchService } from "./application/search-service.js";
 import { SetupService } from "./application/setup-service.js";
 import { TaskService } from "./application/task-service.js";
@@ -31,6 +32,7 @@ import { PostgresAuthTokenRepository } from "./infrastructure/postgres/auth-toke
 import { PostgresProfileRepository } from "./infrastructure/postgres/profile-repository.js";
 import { PostgresProjectsRepository } from "./infrastructure/postgres/projects-repository.js";
 import { PostgresProjectTeamRepository } from "./infrastructure/postgres/project-team-repository.js";
+import { PostgresRiskRepository } from "./infrastructure/postgres/risk-repository.js";
 import { PostgresSearchRepository } from "./infrastructure/postgres/search-repository.js";
 import { PostgresSetupRepository } from "./infrastructure/postgres/setup-repository.js";
 import { PostgresTaskRepository } from "./infrastructure/postgres/task-repository.js";
@@ -51,6 +53,11 @@ const projectTeamService = new ProjectTeamService(
 );
 const taskService = new TaskService(
   new PostgresTaskRepository(pool),
+  projectTeamService,
+  auditRepository,
+);
+const riskService = new RiskService(
+  new PostgresRiskRepository(pool),
   projectTeamService,
   auditRepository,
 );
@@ -112,6 +119,7 @@ const server = await createServer({
   projectService,
   projectTeamService,
   taskService,
+  riskService,
   searchService,
   profileService,
   authLifecycleService,

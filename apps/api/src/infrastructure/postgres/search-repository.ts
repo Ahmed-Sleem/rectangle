@@ -113,6 +113,59 @@ export class PostgresSearchRepository implements SearchRepository {
     }));
   }
 
+  async searchRisks(
+    tenantId: string,
+    userId: string,
+    term: string,
+    limit: number,
+    scope: "all" | "member",
+  ): Promise<SearchResult[]> {
+    const query = prefixQuery(term);
+    if (!query) return [];
+
+    const values: unknown[] = [tenantId, query];
+    let membershipFilter = "";
+
+    if (scope === "member") {
+      values.push(userId);
+      membershipFilter = `and exists (
+             select 1 from project_members m
+              where m.tenant_id = r.tenant_id
+                and m.project_id = r.project_id
+                and m.user_id = $${values.length}
+           )`;
+    }
+
+    values.push(limit);
+    const limitPlaceholder = `$${values.length}`;
+
+    const result = await this.pool.query<{
+      id: string;
+      title: string;
+      project_id: string;
+      project_name: string;
+    }>(
+      `select r.id, r.title, r.project_id, p.name as project_name
+         from risks r
+         join projects p on p.id = r.project_id and p.tenant_id = r.tenant_id
+        where r.tenant_id = $1
+          and r.search_document @@ to_tsquery('simple', $2)
+          ${membershipFilter}
+        order by ts_rank_cd(r.search_document, to_tsquery('simple', $2)) desc,
+                 r.score desc
+        limit ${limitPlaceholder}`,
+      values,
+    );
+
+    return result.rows.map((row) => ({
+      kind: "risk" as const,
+      id: row.id,
+      title: row.title,
+      subtitle: row.project_name,
+      href: `/risks?projectId=${row.project_id}`,
+    }));
+  }
+
   async searchPeople(tenantId: string, term: string, limit: number): Promise<SearchResult[]> {
     const query = prefixQuery(term);
     if (!query) return [];

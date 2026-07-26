@@ -47,8 +47,10 @@ describe("search SQL", () => {
     await repository.searchPeople(tenantId, "cairo", 5);
     await repository.searchTasks(tenantId, userId, "cairo", 5, "member");
     await repository.searchTasks(tenantId, userId, "cairo", 5, "all");
+    await repository.searchRisks(tenantId, userId, "cairo", 5, "member");
+    await repository.searchRisks(tenantId, userId, "cairo", 5, "all");
 
-    expect(captured).toHaveLength(4);
+    expect(captured).toHaveLength(6);
     for (const { sql, values } of captured) {
       expect(placeholderCount(sql)).toBe(values.length);
     }

@@ -143,6 +143,12 @@ const en = {
   progressLabel: "Completed work on {{name}}",
   progressNone: "No work added yet",
 
+  risksTitle: "Risks",
+  risksOpen: "Live",
+  risksCriticalHigh: "Critical or high",
+  risksEmpty: "No risks recorded on this project yet.",
+  risksViewAll: "Open risk register",
+
   tasksTitle: "Work",
   tasksOpen: "Open",
   tasksOverdue: "Overdue",
@@ -333,6 +339,12 @@ const ar: LocaleBundle<typeof en> = {
   columnProgress: "التقدم",
   progressLabel: "الأعمال المكتملة في {{name}}",
   progressNone: "لم تُضف أعمال بعد",
+
+  risksTitle: "المخاطر",
+  risksOpen: "نشطة",
+  risksCriticalHigh: "حرجة أو عالية",
+  risksEmpty: "لم تُسجَّل مخاطر على هذا المشروع بعد.",
+  risksViewAll: "فتح سجل المخاطر",
 
   tasksTitle: "الأعمال",
   tasksOpen: "مفتوحة",

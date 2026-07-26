@@ -90,6 +90,18 @@ export interface TaskSummary {
   assignedToMe: number;
 }
 
+/**
+ * Live risk exposure for the landing page.
+ *
+ * Only entries still demanding attention: a count that keeps including closed
+ * risks never falls, and stops describing the situation now.
+ */
+export interface RiskExposure {
+  open: number;
+  criticalOrHigh: number;
+  occurred: number;
+}
+
 export interface TeamSummary {
   activeUsers: number;
   disabledUsers: number;
@@ -104,6 +116,7 @@ export interface OverviewSummary {
   attention: AttentionProject[];
   activity: OverviewActivityEntry[];
   tasks: TaskSummary;
+  risks: RiskExposure;
   /** Absent when the caller may not read the user register. */
   team?: TeamSummary;
 }

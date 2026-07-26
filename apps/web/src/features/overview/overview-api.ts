@@ -46,6 +46,12 @@ export interface TaskSummary {
   assignedToMe: number;
 }
 
+export interface RiskExposure {
+  open: number;
+  criticalOrHigh: number;
+  occurred: number;
+}
+
 export interface OverviewSummary {
   horizonDays: number;
   totalProjects: number;
@@ -54,6 +60,7 @@ export interface OverviewSummary {
   attention: AttentionProject[];
   activity: OverviewActivityEntry[];
   tasks: TaskSummary;
+  risks: RiskExposure;
   /** Absent when this user may not read the company user register. */
   team?: { activeUsers: number; disabledUsers: number };
 }

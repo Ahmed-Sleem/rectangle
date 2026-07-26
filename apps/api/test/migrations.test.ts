@@ -21,6 +21,7 @@ describe("PostgreSQL migrations", () => {
       "007_tasks.sql",
       "008_auth_tokens.sql",
       "009_search_indexes.sql",
+      "010_risks.sql",
     ]);
 
     for (const file of files) {

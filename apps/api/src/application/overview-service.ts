@@ -22,6 +22,7 @@ import {
   type OverviewActivityEntry,
   type OverviewSummary,
   type ProjectStatusCount,
+  type RiskExposure,
   type TaskSummary,
   type TeamSummary,
 } from "../domain/overview.js";
@@ -36,6 +37,11 @@ export interface OverviewRepository {
   ): Promise<AttentionProject[]>;
   listRecentActivity(tenantId: string, limit: number): Promise<OverviewActivityEntry[]>;
   countUsersByStatus(tenantId: string): Promise<TeamSummary>;
+  summariseRisks(
+    tenantId: string,
+    userId: string,
+    scope: "all" | "member",
+  ): Promise<RiskExposure>;
   summariseTasks(
     tenantId: string,
     userId: string,
@@ -59,7 +65,7 @@ export class OverviewService {
     // them from a figure to an empty list.
     const taskScope = canManageProjects(actor) ? "all" : "member";
 
-    const [statusCounts, budgets, attention, activity, tasks, team] = await Promise.all([
+    const [statusCounts, budgets, attention, activity, tasks, risks, team] = await Promise.all([
       this.repository.countProjectsByStatus(actor.tenantId),
       this.repository.sumBudgetsByCurrency(actor.tenantId),
       this.repository.listProjectsNeedingAttention(
@@ -69,6 +75,7 @@ export class OverviewService {
       ),
       this.repository.listRecentActivity(actor.tenantId, query.activityLimit),
       this.repository.summariseTasks(actor.tenantId, actor.userId, query.horizonDays, taskScope),
+      this.repository.summariseRisks(actor.tenantId, actor.userId, taskScope),
       canReadUsers(actor) ? this.repository.countUsersByStatus(actor.tenantId) : null,
     ]);
 
@@ -82,6 +89,7 @@ export class OverviewService {
       attention,
       activity,
       tasks,
+      risks,
       ...(team ? { team } : {}),
     };
   }

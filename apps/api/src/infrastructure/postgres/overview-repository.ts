@@ -15,6 +15,7 @@ import type {
   OverviewActivityEntry,
   ProjectStatusCount,
   ProjectStatusKey,
+  RiskExposure,
   TaskSummary,
   TeamSummary,
 } from "../../domain/overview.js";
@@ -217,6 +218,46 @@ export class PostgresOverviewRepository implements OverviewRepository {
       overdue: Number(row?.overdue ?? 0),
       dueSoon: Number(row?.due_soon ?? 0),
       assignedToMe: Number(row?.assigned_to_me ?? 0),
+    };
+  }
+
+  /** Live exposure only, scoped the same way the register itself is. */
+  async summariseRisks(
+    tenantId: string,
+    userId: string,
+    scope: "all" | "member",
+  ): Promise<RiskExposure> {
+    const values: unknown[] = [tenantId];
+    let membershipFilter = "";
+
+    if (scope === "member") {
+      values.push(userId);
+      membershipFilter = `and exists (
+        select 1 from project_members m
+         where m.tenant_id = r.tenant_id and m.project_id = r.project_id and m.user_id = $${values.length}
+      )`;
+    }
+
+    const result = await this.pool.query<{
+      open: string;
+      critical_or_high: string;
+      occurred: string;
+    }>(
+      `select count(*)::text as open,
+              count(*) filter (where r.score >= 10)::text as critical_or_high,
+              count(*) filter (where r.status = 'occurred')::text as occurred
+         from risks r
+        where r.tenant_id = $1
+          and r.status not in ('closed', 'accepted')
+          ${membershipFilter}`,
+      values,
+    );
+
+    const row = result.rows[0];
+    return {
+      open: Number(row?.open ?? 0),
+      criticalOrHigh: Number(row?.critical_or_high ?? 0),
+      occurred: Number(row?.occurred ?? 0),
     };
   }
 

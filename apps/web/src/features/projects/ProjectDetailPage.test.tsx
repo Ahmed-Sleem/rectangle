@@ -57,6 +57,12 @@ function mockApi(state: RouteState) {
     if (url.endsWith("/stakeholders") && method === "GET") return json({ stakeholders: state.stakeholders });
     if (url.endsWith("/stakeholders") && method === "POST") return json({ stakeholder: { id: "s1", projectId, name: "Authority", category: "authority", influence: "high", interest: "high", createdAt: "", updatedAt: "" } }, 201);
     if (url.endsWith("/activity")) return json({ activity: state.activity });
+    // Matched before the project fallback: these carry the project id in a
+    // query string, so a looser check would answer them with the project.
+    if (url.includes("/v1/risks/summary")) {
+      return json({ summary: { total: 0, criticalOrHigh: 0, underReview: 0, closed: 0, occurred: 0, matrix: [] } });
+    }
+    if (url.includes("/v1/tasks")) return json({ tasks: [] });
     if (url.includes("/v1/admin/users")) {
       return json({ users: [{ id: teammateId, email: "mona@example.com", displayName: "Mona Adel", status: "active", userTypes: [] }] });
     }

@@ -6,6 +6,7 @@ export type FeatureIconName =
   | "overview"
   | "projects"
   | "tasks"
+  | "risks"
   | "analytics"
   | "team"
   | "settings"

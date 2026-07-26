@@ -112,7 +112,7 @@ export default function TodayPage() {
     return <LoadingState title={t("overview.loadingTitle")} message={t("overview.loadingMessage")} />;
   }
 
-  if (summary.totalProjects === 0 && summary.tasks.open === 0) {
+  if (summary.totalProjects === 0 && summary.tasks.open === 0 && summary.risks.open === 0) {
     return (
       <EmptyState
         title={t("overview.emptyTitle")}
@@ -140,6 +140,14 @@ export default function TodayPage() {
           value={summary.attention.length}
           emphasis={summary.attention.length > 0}
           {...(overdueCount > 0 ? { hint: t("overview.kpiAttentionHint", { count: overdueCount }) } : {})}
+        />
+        <StatCard
+          label={t("overview.kpiRisks")}
+          value={summary.risks.open}
+          emphasis={summary.risks.criticalOrHigh > 0}
+          {...(summary.risks.criticalOrHigh > 0
+            ? { hint: t("overview.kpiRisksHint", { count: summary.risks.criticalOrHigh }) }
+            : {})}
         />
         {summary.team ? (
           <StatCard

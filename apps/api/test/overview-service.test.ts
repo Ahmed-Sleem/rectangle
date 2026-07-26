@@ -8,6 +8,7 @@ import type {
   BudgetTotal,
   OverviewActivityEntry,
   ProjectStatusCount,
+  RiskExposure,
   TaskSummary,
   TeamSummary,
 } from "../src/domain/overview.js";
@@ -41,6 +42,7 @@ class RecordingRepository implements OverviewRepository {
       activity?: OverviewActivityEntry[];
       team?: TeamSummary;
       tasks?: TaskSummary;
+      risks?: RiskExposure;
     } = {},
   ) {}
 
@@ -80,6 +82,11 @@ class RecordingRepository implements OverviewRepository {
     this.tenantIds.push(id);
     this.lastTaskScope = scope;
     return this.data.tasks ?? { open: 0, overdue: 0, dueSoon: 0, assignedToMe: 0 };
+  }
+
+  async summariseRisks(id: string): Promise<RiskExposure> {
+    this.tenantIds.push(id);
+    return this.data.risks ?? { open: 0, criticalOrHigh: 0, occurred: 0 };
   }
 
   async countUsersByStatus(id: string): Promise<TeamSummary> {

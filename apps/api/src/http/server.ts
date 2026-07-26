@@ -14,6 +14,7 @@ import type { AuthLifecycleService } from "../application/auth-lifecycle-service
 import type { ProfileService } from "../application/profile-service.js";
 import type { ProjectService } from "../application/project-service.js";
 import type { ProjectTeamService } from "../application/project-team-service.js";
+import type { RiskService } from "../application/risk-service.js";
 import type { SearchService } from "../application/search-service.js";
 import type { SetupService } from "../application/setup-service.js";
 import type { TaskService } from "../application/task-service.js";
@@ -27,6 +28,7 @@ import { registerOverviewRoutes } from "./overview-routes.js";
 import { registerAuthLifecycleRoutes, registerProfileEmailRoutes } from "./auth-lifecycle-routes.js";
 import { registerProfileRoutes } from "./profile-routes.js";
 import { registerProjectRoutes } from "./projects-routes.js";
+import { registerRiskRoutes } from "./risks-routes.js";
 import { registerSearchRoutes } from "./search-routes.js";
 import { registerSetupRoutes } from "./setup-routes.js";
 import { registerTaskRoutes } from "./tasks-routes.js";
@@ -38,6 +40,7 @@ export interface ServerDependencies {
   authLifecycleService: AuthLifecycleService;
   profileService: Pick<ProfileService, "getProfile" | "updateProfile" | "changePassword">;
   projectService: ProjectService;
+  riskService: Pick<RiskService, "createRisk" | "listRisks" | "getRisk" | "updateRisk" | "deleteRisk" | "summarise">;
   searchService: Pick<SearchService, "search">;
   taskService: Pick<TaskService, "createTask" | "listTasks" | "getTask" | "updateTask" | "deleteTask" | "listComments" | "addComment">;
   projectTeamService: ProjectTeamService;
@@ -117,6 +120,7 @@ export async function createServer(dependencies: ServerDependencies) {
   await registerProfileEmailRoutes(app, dependencies.authLifecycleService);
   await registerSearchRoutes(app, dependencies.searchService);
   await registerTaskRoutes(app, dependencies.taskService);
+  await registerRiskRoutes(app, dependencies.riskService);
   await registerAdminRoutes(app, dependencies.adminService);
   await registerSettingsRoutes(app, dependencies.emailSettingsService);
 
