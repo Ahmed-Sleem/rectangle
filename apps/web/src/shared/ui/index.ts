@@ -40,7 +40,17 @@ export {
 
 export { buttonClassName, type ButtonSize, type ButtonVariant } from "./button-class";
 
-export { initialsOf } from "./initials";
+export { avatarTint, initialsOf, AVATAR_TINT_COUNT } from "./initials";
+
+/** Centralised notifications. One provider at the root; `useToast` anywhere. */
+export {
+  ToastProvider,
+  useToast,
+  type ToastApi,
+  type ToastOptions,
+  type ToastRecord,
+  type ToastTone,
+} from "./toast";
 
 /**
  * The window system. Every overlay in the product must come from here so

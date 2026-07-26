@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/shared/auth";
 import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
+import { ToastProvider } from "@/shared/ui";
 import ProfilePage from "./ProfilePage";
 
 const auth: AuthContextValue = {
@@ -49,9 +50,11 @@ function renderProfile() {
   return render(
     <QueryClientProvider client={queryClient}>
       <RectangleI18nProvider>
-        <AuthContext.Provider value={auth}>
-          <ProfilePage />
-        </AuthContext.Provider>
+        <ToastProvider>
+          <AuthContext.Provider value={auth}>
+            <ProfilePage />
+          </AuthContext.Provider>
+        </ToastProvider>
       </RectangleI18nProvider>
     </QueryClientProvider>,
   );

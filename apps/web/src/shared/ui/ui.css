@@ -1448,12 +1448,17 @@
   overflow: hidden;
 }
 
+/*
+ * Accent while work is under way, success once it is finished. Near-black read
+ * as "filled" rather than "progressing", and gave a complete project no more
+ * standing than one barely started.
+ */
 .rect-progress__fill {
-  background: var(--rect-color-ink-strong);
+  background: var(--rect-color-accent);
   border-radius: var(--rect-pill-radius);
   display: block;
   block-size: 100%;
-  transition: inline-size var(--rect-motion-spring);
+  transition: inline-size var(--rect-motion-spring), background var(--rect-motion-nav);
 }
 
 .rect-progress__fill--complete {
@@ -1463,7 +1468,7 @@
 /* A single person's initials. Shared by the shell, Team, and Profile. */
 .rect-avatar {
   align-items: center;
-  background: var(--rect-orb-bg);
+  background: var(--rect-avatar-bg, var(--rect-orb-bg));
   border-radius: var(--rect-pill-radius);
   block-size: var(--rect-control-compact);
   color: var(--rect-orb-text);
@@ -1482,3 +1487,17 @@
   font-size: var(--rect-text-micro);
   inline-size: var(--rect-control-xs);
 }
+
+/*
+ * One tint per person, chosen deterministically from their id. Selecting by
+ * attribute keeps the choice in the component and the colours in the token
+ * layer, so neither has to know about the other.
+ */
+.rect-avatar[data-tint="0"] { --rect-avatar-bg: var(--rect-avatar-0); }
+.rect-avatar[data-tint="1"] { --rect-avatar-bg: var(--rect-avatar-1); }
+.rect-avatar[data-tint="2"] { --rect-avatar-bg: var(--rect-avatar-2); }
+.rect-avatar[data-tint="3"] { --rect-avatar-bg: var(--rect-avatar-3); }
+.rect-avatar[data-tint="4"] { --rect-avatar-bg: var(--rect-avatar-4); }
+.rect-avatar[data-tint="5"] { --rect-avatar-bg: var(--rect-avatar-5); }
+.rect-avatar[data-tint="6"] { --rect-avatar-bg: var(--rect-avatar-6); }
+.rect-avatar[data-tint="7"] { --rect-avatar-bg: var(--rect-avatar-7); }

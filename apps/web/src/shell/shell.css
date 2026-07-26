@@ -1213,11 +1213,12 @@
   gap: var(--rect-space-2);
   block-size: var(--rect-control-compact);
   padding-inline: var(--rect-space-2);
-  transition: border-color var(--rect-motion-spring);
+  transition: border-color var(--rect-motion-spring), background var(--rect-motion-spring);
 }
 
 .rect-user-menu__trigger:hover,
 .rect-user-menu__trigger[aria-expanded="true"] {
+  background: var(--rect-card-bg);
   border-color: var(--rect-border-active);
 }
 
@@ -1229,30 +1230,82 @@
 }
 
 /*
- * Anchored to the trigger's trailing edge so it opens inward in both reading
- * directions rather than off the side of the canvas in Arabic.
+ * Portalled to the body, so it is positioned from the trigger's measured
+ * rectangle rather than by CSS. `.rect-panel` and `.rect-panel__header` each
+ * create a stacking context; a menu left inside them cannot rise above later
+ * page content whatever z-index it is given.
  */
 .rect-user-menu__panel {
+  position: fixed;
+  z-index: var(--rect-z-overlay);
+
   background: var(--rect-color-paper);
   border: 1px solid var(--rect-card-border);
-  border-radius: var(--rect-radius-md);
+  border-radius: var(--rect-radius-lg);
   box-shadow: var(--rect-shadow-panel);
   display: grid;
   gap: var(--rect-space-1);
-  inset-block-start: calc(100% + var(--rect-space-2));
-  inset-inline-end: 0;
   min-inline-size: var(--rect-field-width-search);
   padding: var(--rect-space-2);
-  position: absolute;
-  z-index: 20;
+
+  /* Grows from the corner nearest its trigger rather than from its middle. */
+  transform-origin: var(--rect-menu-origin, top right);
+}
+
+html[dir="rtl"] .rect-user-menu__panel {
+  --rect-menu-origin: top left;
+}
+
+.rect-user-menu__panel[data-state="open"] {
+  animation: rect-menu-in var(--rect-duration-menu) var(--rect-ease-out) both;
+}
+
+.rect-user-menu__panel[data-state="closed"] {
+  animation: rect-menu-out var(--rect-duration-menu-exit) var(--rect-ease-in) both;
+}
+
+@keyframes rect-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rect-menu-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-user-menu__panel[data-state="open"],
+  .rect-user-menu__panel[data-state="closed"] {
+    animation-duration: 1ms;
+  }
 }
 
 .rect-user-menu__identity {
+  align-items: center;
   border-block-end: 1px solid var(--rect-surface-divider);
+  display: flex;
+  gap: var(--rect-space-3);
+  margin-block-end: var(--rect-space-1);
+  padding: var(--rect-space-2) var(--rect-space-3) var(--rect-space-3);
+}
+
+.rect-user-menu__identity-text {
   display: grid;
   gap: var(--rect-space-1);
-  margin-block-end: var(--rect-space-1);
-  padding: var(--rect-space-2);
+  min-inline-size: 0;
 }
 
 .rect-user-menu__identity-name {
@@ -1264,7 +1317,11 @@
 .rect-user-menu__identity-email {
   color: var(--rect-text-secondary);
   font-size: var(--rect-text-label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* An address is one logical unit and must not reorder in Arabic. */
   unicode-bidi: plaintext;
+  white-space: nowrap;
 }
 
 .rect-user-menu__item {
@@ -1281,11 +1338,18 @@
   inline-size: 100%;
   padding: var(--rect-space-2) var(--rect-space-3);
   text-align: start;
+  transition: background var(--rect-motion-nav), color var(--rect-motion-nav);
 }
 
 .rect-user-menu__item:hover,
 .rect-user-menu__item:focus-visible {
   background: var(--rect-surface-bg-hover);
+}
+
+/* Signing out ends the session, so it reads differently from navigation. */
+.rect-user-menu__item--danger:hover,
+.rect-user-menu__item--danger:focus-visible {
+  color: var(--rect-color-danger);
 }
 
 @media (max-width: 48rem) {

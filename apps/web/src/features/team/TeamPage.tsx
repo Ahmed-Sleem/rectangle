@@ -313,7 +313,7 @@ export default function TeamPage() {
             {filteredUsers.map((user) => (
               <article key={user.id} className="rect-person" role="listitem">
                 <header className="rect-person__head">
-                  <Avatar name={user.displayName} />
+                  <Avatar name={user.displayName} colorKey={user.id} />
                   <span className="rect-person__identity">
                     <span className="rect-person__name">{user.displayName}</span>
                     <span className="rect-person__email">{user.email}</span>
@@ -364,7 +364,7 @@ export default function TeamPage() {
                 header: t("team.userName"),
                 accessor: (row) => (
                   <span className="rect-person__cell">
-                    <Avatar name={row.displayName} size="sm" />
+                    <Avatar name={row.displayName} colorKey={row.id} size="sm" />
                     <span>{row.displayName}</span>
                   </span>
                 ),

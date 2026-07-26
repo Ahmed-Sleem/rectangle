@@ -29,6 +29,8 @@ import {
   Toolbar,
   buttonClassName,
   ProgressBar,
+  StatRow,
+  StatCard,
 } from "@/shared/ui";
 import { adminApi } from "@/features/team/admin-api";
 import { listTasks } from "@/features/tasks/task-api";
@@ -428,7 +430,7 @@ export default function ProjectDetailPage() {
         ) : taskRows.length === 0 ? (
           <EmptyState title={t("projects.tasksEmpty")} message="" />
         ) : (
-          <>
+          <div className="rect-project-detail__work">
             {record.totalTasks ? (
               <ProgressBar
                 done={record.doneTasks ?? 0}
@@ -436,32 +438,23 @@ export default function ProjectDetailPage() {
                 label={t("projects.progressLabel", { name: record.name })}
               />
             ) : null}
-            <ul className="rect-today__figures">
-              <li>
-                <span className="rect-today__figure-label">{t("projects.tasksOpen")}</span>
-                <span className="rect-today__figure-value">{openTaskCount}</span>
-              </li>
-              <li>
-                <span className="rect-today__figure-label">{t("projects.tasksOverdue")}</span>
-                <span
-                  className={
-                    overdueTaskCount > 0
-                      ? "rect-today__figure-value rect-today__figure-value--alert"
-                      : "rect-today__figure-value"
-                  }
-                >
-                  {overdueTaskCount}
-                </span>
-              </li>
-              <li>
-                <span className="rect-today__figure-label">{t("projects.tasksDone")}</span>
-                <span className="rect-today__figure-value">{doneTaskCount}</span>
-              </li>
-            </ul>
-            <Link className={buttonClassName("secondary", "sm")} to={`/tasks?projectId=${projectId}`}>
+
+            {/* The same summary blocks every other page uses, rather than a
+                list borrowed from another feature's stylesheet. */}
+            <StatRow label={t("projects.tasksTitle")}>
+              <StatCard label={t("projects.tasksOpen")} value={openTaskCount} />
+              <StatCard
+                label={t("projects.tasksOverdue")}
+                value={overdueTaskCount}
+                emphasis={overdueTaskCount > 0}
+              />
+              <StatCard label={t("projects.tasksDone")} value={doneTaskCount} />
+            </StatRow>
+
+            <Link className={buttonClassName("secondary")} to={`/tasks?projectId=${projectId}`}>
               {t("projects.tasksViewAll")}
             </Link>
-          </>
+          </div>
         )}
       </Card>
 

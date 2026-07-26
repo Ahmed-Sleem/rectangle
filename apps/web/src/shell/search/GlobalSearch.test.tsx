@@ -52,7 +52,6 @@ describe("GlobalSearch", () => {
     const user = userEvent.setup();
     renderSearch();
 
-    expect(screen.getByText("Type at least two characters.")).toBeInTheDocument();
     await user.type(screen.getByRole("combobox"), "a");
 
     // One character is not worth a round trip.

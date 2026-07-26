@@ -225,3 +225,22 @@
   color: var(--rect-text-secondary);
   font-size: var(--rect-text-label);
 }
+
+/*
+ * Work summary inside the project workspace. `justify-items: start` stops the
+ * link stretching to the panel's full width, which is what made it read as a
+ * wide, short bar rather than a button.
+ */
+.rect-project-detail__work {
+  display: grid;
+  gap: var(--rect-space-4);
+  justify-items: start;
+}
+
+.rect-project-detail__work > * {
+  inline-size: 100%;
+}
+
+.rect-project-detail__work > a {
+  inline-size: auto;
+}

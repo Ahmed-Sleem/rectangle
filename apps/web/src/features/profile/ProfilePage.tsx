@@ -17,7 +17,7 @@ import { useOptionalAuth } from "@/shared/auth";
 import { getCurrentLanguage } from "@/shared/i18n";
 import {
   Avatar, Badge, Button, ErrorState, Field, Input, LoadingState,
-  SettingRow, SettingsSection, SettingsStack, Toast,
+  SettingRow, SettingsSection, SettingsStack, useToast,
 } from "@/shared/ui";
 import { changePassword, getProfile, updateProfile } from "./profile-api";
 import "./ProfilePage.css";
@@ -58,7 +58,7 @@ export default function ProfilePage() {
   const queryClient = useQueryClient();
 
   const [openSection, setOpenSection] = useState<SectionId | null>("identity");
-  const [notice, setNotice] = useState<string | null>(null);
+  const toast = useToast();
 
   const profile = useQuery({ queryKey: ["profile"], queryFn: getProfile });
   const record = profile.data?.profile;
@@ -81,7 +81,7 @@ export default function ProfilePage() {
   const saveIdentity = useMutation({
     mutationFn: (values: IdentityForm) => updateProfile(values),
     onSuccess: async () => {
-      setNotice(t("profile.saved"));
+      toast.success(t("profile.saved"));
       // The shell shows this name, so its copy is now stale.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["profile"] }),
@@ -95,7 +95,7 @@ export default function ProfilePage() {
     mutationFn: (values: PasswordForm) =>
       changePassword({ currentPassword: values.currentPassword, newPassword: values.newPassword }),
     onSuccess: (result) => {
-      setNotice(
+      toast.success(
         result.revokedSessions > 0
           ? t("profile.passwordChangedSignedOut", { count: result.revokedSessions })
           : t("profile.passwordChanged"),
@@ -133,14 +133,12 @@ export default function ProfilePage() {
   return (
     <section className="rect-profile" aria-label={t("profile.pageLabel")}>
       <header className="rect-profile__head">
-        <Avatar name={record.displayName} />
+        <Avatar name={record.displayName} colorKey={record.userId} />
         <span className="rect-profile__identity">
           <span className="rect-profile__name">{record.displayName}</span>
           <span className="rect-profile__email">{record.email}</span>
         </span>
       </header>
-
-      {notice ? <Toast tone="success" title={notice} /> : null}
 
       <SettingsStack>
         <SettingsSection

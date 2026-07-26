@@ -1,0 +1,138 @@
+/*
+ * Notification stack.
+ *
+ * Bottom trailing corner, sliding in from the trailing edge. Logical
+ * properties throughout, so in Arabic the stack sits bottom-left and slides
+ * from the left without a second rule.
+ */
+.rect-toasts {
+  position: fixed;
+  inset-block-end: var(--rect-space-4);
+  inset-inline-end: var(--rect-space-4);
+  z-index: var(--rect-z-toast);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-2);
+  /* The region spans the corner but must not swallow clicks where it is
+     empty; individual toasts re-enable pointer events. */
+  pointer-events: none;
+  max-inline-size: min(92vw, var(--rect-overlay-width-sm));
+}
+
+.rect-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rect-space-3);
+
+  background: var(--rect-color-paper);
+  border: 1px solid var(--rect-card-border);
+  /* A tinted leading edge carries the tone without colouring the whole
+     surface, which would fight the rest of the chrome. */
+  border-inline-start: 3px solid var(--rect-toast-accent);
+  border-radius: var(--rect-radius-md);
+  box-shadow: var(--rect-shadow-panel);
+  padding: var(--rect-space-3) var(--rect-space-3);
+  min-inline-size: min(80vw, 280px);
+}
+
+.rect-toast[data-state="open"] {
+  animation: rect-toast-in var(--rect-duration-toast) var(--rect-ease-out) both;
+}
+
+.rect-toast[data-state="closed"] {
+  animation: rect-toast-out var(--rect-duration-toast-exit) var(--rect-ease-in) both;
+}
+
+/*
+ * `translateX` is physical, so right-to-left needs the sign flipped for the
+ * toast to still enter from the edge it sits on rather than across the page.
+ */
+html[dir="rtl"] .rect-toast {
+  --rect-toast-enter-x: -24px;
+}
+
+@keyframes rect-toast-in {
+  from {
+    opacity: 0;
+    /* Enters from the trailing edge, which is the side it lives on. */
+    transform: translateX(var(--rect-toast-enter-x)) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes rect-toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(var(--rect-toast-enter-x)) scale(0.98);
+  }
+}
+
+.rect-toast__icon {
+  color: var(--rect-toast-accent);
+  display: inline-flex;
+  flex-shrink: 0;
+  /* Optically aligned with the first line of the title. */
+  padding-block-start: 1px;
+}
+
+.rect-toast__body {
+  display: grid;
+  gap: var(--rect-space-1);
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.rect-toast__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  line-height: var(--rect-leading-snug);
+}
+
+.rect-toast__description {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  line-height: var(--rect-leading-body);
+}
+
+.rect-toast__close {
+  background: none;
+  border: 0;
+  border-radius: var(--rect-radius-xs);
+  color: var(--rect-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: var(--rect-space-1);
+  transition: color var(--rect-motion-nav), background var(--rect-motion-nav);
+}
+
+.rect-toast__close:hover,
+.rect-toast__close:focus-visible {
+  background: var(--rect-surface-bg-hover);
+  color: var(--rect-text-primary);
+}
+
+/* Tones. Only the accent changes; the surface stays the product's paper so a
+   notification never looks like it came from a different application. */
+.rect-toast--success { --rect-toast-accent: var(--rect-color-success); }
+.rect-toast--error { --rect-toast-accent: var(--rect-color-danger); }
+.rect-toast--warning { --rect-toast-accent: var(--rect-color-warning); }
+.rect-toast--info { --rect-toast-accent: var(--rect-color-info); }
+
+/* Motion is decoration here; the message is the point. */
+@media (prefers-reduced-motion: reduce) {
+  .rect-toast[data-state="open"],
+  .rect-toast[data-state="closed"] {
+    animation-duration: 1ms;
+  }
+}

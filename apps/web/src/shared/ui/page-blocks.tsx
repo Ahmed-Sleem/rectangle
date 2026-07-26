@@ -14,7 +14,7 @@
  */
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
-import { initialsOf } from "./initials";
+import { avatarTint, initialsOf } from "./initials";
 
 export interface StatCardProps extends HTMLAttributes<HTMLDivElement> {
   label: string;
@@ -133,6 +133,11 @@ export function CardGrid({ label, className, children, ...props }: CardGridProps
 
 export interface AvatarProps {
   name: string;
+  /**
+   * Stable identifier for colour selection. Pass the user id where there is
+   * one, so a person keeps their colour after changing their name.
+   */
+  colorKey?: string;
   size?: "sm" | "md";
   className?: string;
 }
@@ -144,10 +149,11 @@ export interface AvatarProps {
  * Rectangle stores no images yet, and a grey silhouette would imply something
  * is absent when nothing is.
  */
-export function Avatar({ name, size = "md", className }: AvatarProps) {
+export function Avatar({ name, colorKey, size = "md", className }: AvatarProps) {
   return (
     <span
       className={cn("rect-avatar", size === "sm" && "rect-avatar--sm", className)}
+      data-tint={avatarTint(colorKey ?? name)}
       /* Decorative: the name is always rendered or labelled next to it. */
       aria-hidden
       title={name}

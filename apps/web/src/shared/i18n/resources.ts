@@ -138,11 +138,14 @@ export const resources = {
           collapse: "Collapse menu",
           expand: "Expand menu",
         },
+        toasts: {
+          label: "Notifications",
+          dismiss: "Dismiss notification",
+        },
         search: {
           open: "Search",
           title: "Search",
           placeholder: "Search projects, tasks, and people…",
-          hint: "Type at least two characters.",
           searching: "Searching…",
           noResults: "Nothing matches that search.",
           failed: "Search could not be completed.",
@@ -311,11 +314,14 @@ export const resources = {
           collapse: "طي القائمة",
           expand: "توسيع القائمة",
         },
+        toasts: {
+          label: "الإشعارات",
+          dismiss: "إغلاق الإشعار",
+        },
         search: {
           open: "بحث",
           title: "بحث",
           placeholder: "ابحث في المشاريع والمهام والأشخاص…",
-          hint: "اكتب حرفين على الأقل.",
           searching: "جارٍ البحث…",
           noResults: "لا يوجد ما يطابق هذا البحث.",
           failed: "تعذّر إتمام البحث.",

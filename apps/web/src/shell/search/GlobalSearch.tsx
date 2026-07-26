@@ -106,7 +106,9 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
         />
 
         {!ready ? (
-          <p className="rect-search-palette__note">{t("shell.search.hint")}</p>
+          /* Nothing is wrong yet, so nothing is said: the placeholder already
+             explains what the field is for. */
+          null
         ) : results.isLoading ? (
           <p className="rect-search-palette__note">{t("shell.search.searching")}</p>
         ) : results.isError ? (
