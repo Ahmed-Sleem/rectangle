@@ -7,13 +7,15 @@ import { EmailSettingsService } from "./application/email-settings-service.js";
 import { AuthService } from "./application/auth-service.js";
 import { PasskeyService } from "./application/passkey-service.js";
 import { OverviewService } from "./application/overview-service.js";
+import { AuthLifecycleService } from "./application/auth-lifecycle-service.js";
+import { SmtpNotificationSender } from "./application/notification-sender.js";
 import { ProfileService } from "./application/profile-service.js";
 import { ProjectService } from "./application/project-service.js";
 import { ProjectTeamService } from "./application/project-team-service.js";
 import { SearchService } from "./application/search-service.js";
 import { SetupService } from "./application/setup-service.js";
 import { TaskService } from "./application/task-service.js";
-import { loadConfig } from "./config.js";
+import { loadConfig, resolveAppBaseUrl } from "./config.js";
 import { createServer } from "./http/server.js";
 import { NodemailerEmailSender } from "./infrastructure/email-sender.js";
 import { ScryptPasswordHasher } from "./infrastructure/password.js";
@@ -25,6 +27,7 @@ import { assertDatabaseReady, createPostgresPool } from "./infrastructure/postgr
 import { PostgresEmailSettingsRepository } from "./infrastructure/postgres/email-settings-repository.js";
 import { PostgresPasskeyRepository } from "./infrastructure/postgres/passkey-repository.js";
 import { PostgresOverviewRepository } from "./infrastructure/postgres/overview-repository.js";
+import { PostgresAuthTokenRepository } from "./infrastructure/postgres/auth-token-repository.js";
 import { PostgresProfileRepository } from "./infrastructure/postgres/profile-repository.js";
 import { PostgresProjectsRepository } from "./infrastructure/postgres/projects-repository.js";
 import { PostgresProjectTeamRepository } from "./infrastructure/postgres/project-team-repository.js";
@@ -68,6 +71,18 @@ const profileService = new ProfileService(
   auditRepository,
   loginThrottle,
 );
+const emailSettingsRepository = new PostgresEmailSettingsRepository(pool);
+const emailSender = new NodemailerEmailSender();
+const authLifecycleService = new AuthLifecycleService(
+  new PostgresAuthTokenRepository(pool),
+  new SmtpNotificationSender(emailSettingsRepository, emailSender),
+  passwordHasher,
+  auditRepository,
+  // Links in email must be absolute and point at the deployment, which only
+  // the environment knows.
+  resolveAppBaseUrl(config),
+  loginThrottle,
+);
 const adminService = new AdminService(
   new PostgresAdminRepository(pool),
   passwordHasher,
@@ -81,8 +96,8 @@ const setupService = new SetupService(
   config.SESSION_JWT_SECRET,
 );
 const emailSettingsService = new EmailSettingsService(
-  new PostgresEmailSettingsRepository(pool),
-  new NodemailerEmailSender(),
+  emailSettingsRepository,
+  emailSender,
   auditRepository,
 );
 const passkeyService = new PasskeyService(
@@ -98,6 +113,7 @@ const server = await createServer({
   taskService,
   searchService,
   profileService,
+  authLifecycleService,
   authService,
   adminService,
   setupService,

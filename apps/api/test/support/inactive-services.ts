@@ -32,3 +32,14 @@ export const inactiveProfileService = {
   updateProfile(): never { throw new Error("not used"); },
   changePassword(): never { throw new Error("not used"); },
 };
+
+export const inactiveAuthLifecycleService = {
+  requestPasswordReset(): never { throw new Error("not used"); },
+  confirmPasswordReset(): never { throw new Error("not used"); },
+  sendInvitation(): never { throw new Error("not used"); },
+  describeInvitation(): never { throw new Error("not used"); },
+  acceptInvitation(): never { throw new Error("not used"); },
+  requestEmailChange(): never { throw new Error("not used"); },
+  confirmEmailChange(): never { throw new Error("not used"); },
+  revertEmailChange(): never { throw new Error("not used"); },
+} as unknown as import("../../src/application/auth-lifecycle-service.js").AuthLifecycleService;

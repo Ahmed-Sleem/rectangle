@@ -10,10 +10,28 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   SESSION_JWT_SECRET: z.string().min(32),
   CORS_ORIGIN: z.string().url().optional(),
+  /**
+   * Absolute origin used to build links inside transactional email.
+   *
+   * A relative link is useless in an inbox, and deriving one from the
+   * incoming request would let a forged Host header point a password reset at
+   * an attacker's site. It therefore comes from the environment or not at all.
+   */
+  APP_BASE_URL: z.string().url().optional(),
 });
 
 export type ApiConfig = z.infer<typeof envSchema>;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   return envSchema.parse(env);
+}
+
+/**
+ * Where emailed links should point.
+ *
+ * Falls back to the configured browser origin, which is the same host in a
+ * single-service deployment, and finally to localhost for development.
+ */
+export function resolveAppBaseUrl(config: ApiConfig): string {
+  return config.APP_BASE_URL ?? config.CORS_ORIGIN ?? "http://localhost:5173";
 }

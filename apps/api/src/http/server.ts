@@ -10,6 +10,7 @@ import { join } from "node:path";
 import type { AdminService } from "../application/admin-service.js";
 import type { AuthService } from "../application/auth-service.js";
 import type { OverviewService } from "../application/overview-service.js";
+import type { AuthLifecycleService } from "../application/auth-lifecycle-service.js";
 import type { ProfileService } from "../application/profile-service.js";
 import type { ProjectService } from "../application/project-service.js";
 import type { ProjectTeamService } from "../application/project-team-service.js";
@@ -23,6 +24,7 @@ import { registerAdminRoutes } from "./admin-routes.js";
 import { registerAuthRoutes } from "./auth-routes.js";
 import { errorHandler } from "./errors.js";
 import { registerOverviewRoutes } from "./overview-routes.js";
+import { registerAuthLifecycleRoutes, registerProfileEmailRoutes } from "./auth-lifecycle-routes.js";
 import { registerProfileRoutes } from "./profile-routes.js";
 import { registerProjectRoutes } from "./projects-routes.js";
 import { registerSearchRoutes } from "./search-routes.js";
@@ -33,6 +35,7 @@ import { registerPasskeyRoutes } from "./passkey-routes.js";
 
 export interface ServerDependencies {
   overviewService: Pick<OverviewService, "getSummary">;
+  authLifecycleService: AuthLifecycleService;
   profileService: Pick<ProfileService, "getProfile" | "updateProfile" | "changePassword">;
   projectService: ProjectService;
   searchService: Pick<SearchService, "search">;
@@ -51,7 +54,21 @@ export interface ServerDependencies {
 }
 
 function isPublicRoute(url: string): boolean {
-  return url.startsWith("/health/") || url === "/v1/auth/login" || url.startsWith("/v1/auth/passkeys/login/") || url.startsWith("/v1/setup/") || !url.startsWith("/v1/");
+  // Lifecycle endpoints are reached by people with no session: their
+  // authorisation is the token in the request, checked by the service.
+  const publicLifecycle =
+    url.startsWith("/v1/auth/password-reset") ||
+    url.startsWith("/v1/auth/invitation") ||
+    url.startsWith("/v1/auth/email-change/");
+
+  return (
+    url.startsWith("/health/") ||
+    url === "/v1/auth/login" ||
+    url.startsWith("/v1/auth/passkeys/login/") ||
+    url.startsWith("/v1/setup/") ||
+    publicLifecycle ||
+    !url.startsWith("/v1/")
+  );
 }
 
 export async function createServer(dependencies: ServerDependencies) {
@@ -82,6 +99,7 @@ export async function createServer(dependencies: ServerDependencies) {
   await registerSetupRoutes(app, dependencies.setupService);
   await registerAuthRoutes(app, dependencies.authService);
   await registerPasskeyRoutes(app, dependencies.passkeyService);
+  await registerAuthLifecycleRoutes(app, dependencies.authLifecycleService);
 
   app.addHook("preHandler", async (request, reply) => {
     if (isPublicRoute(request.url)) {
@@ -96,6 +114,7 @@ export async function createServer(dependencies: ServerDependencies) {
   await registerOverviewRoutes(app, dependencies.overviewService);
   await registerProjectRoutes(app, dependencies.projectService, dependencies.projectTeamService);
   await registerProfileRoutes(app, dependencies.profileService);
+  await registerProfileEmailRoutes(app, dependencies.authLifecycleService);
   await registerSearchRoutes(app, dependencies.searchService);
   await registerTaskRoutes(app, dependencies.taskService);
   await registerAdminRoutes(app, dependencies.adminService);
