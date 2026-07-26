@@ -135,7 +135,11 @@ describe("TasksPage", () => {
     renderTasks();
 
     await screen.findByText("Pour raft foundation");
-    await user.click(screen.getByRole("checkbox", { name: "My tasks" }));
+
+    // Filters live in a window now, so the page keeps its row uncluttered.
+    await user.click(screen.getByRole("button", { name: /Filters/u }));
+    const dialog = await screen.findByRole("dialog", { name: "Filters" });
+    await user.click(within(dialog).getByRole("checkbox", { name: "My tasks" }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("mine=true"), expect.anything()),
@@ -225,5 +229,42 @@ describe("TasksPage", () => {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("projectId=p1"), expect.anything()),
     );
+  });
+
+  it("keeps a filter applied after the window is closed", async () => {
+    const fetchMock = mockReads();
+    const user = userEvent.setup();
+    renderTasks();
+
+    await screen.findByText("Pour raft foundation");
+    await user.click(screen.getByRole("button", { name: /Filters/u }));
+    const dialog = await screen.findByRole("dialog", { name: "Filters" });
+    await user.click(within(dialog).getByRole("checkbox", { name: "Open work only" }));
+    await user.click(within(dialog).getByRole("button", { name: "Done" }));
+
+    // Choosing a filter is not a transaction to be confirmed; closing the
+    // window must not undo it.
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("openOnly=true"), expect.anything()),
+    );
+    expect(screen.getByRole("button", { name: /Remove filter: Open work only/u })).toBeInTheDocument();
+  });
+
+  it("shows what is filtered and lets one be removed", async () => {
+    mockReads();
+    const user = userEvent.setup();
+    renderTasks();
+
+    await screen.findByText("Pour raft foundation");
+    await user.click(screen.getByRole("button", { name: /Filters/u }));
+    const dialog = await screen.findByRole("dialog", { name: "Filters" });
+    await user.click(within(dialog).getByRole("checkbox", { name: "My tasks" }));
+    await user.click(within(dialog).getByRole("button", { name: "Done" }));
+
+    // Without this the state is invisible once the window closes and a short
+    // list looks like missing data.
+    const chip = await screen.findByRole("button", { name: /Remove filter: My tasks/u });
+    await user.click(chip);
+    expect(screen.queryByRole("button", { name: /Remove filter: My tasks/u })).not.toBeInTheDocument();
   });
 });

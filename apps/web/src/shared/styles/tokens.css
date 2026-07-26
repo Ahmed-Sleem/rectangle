@@ -160,6 +160,8 @@
   /* Focused search grows a little to give a long query room, while staying
      capped so the row never overflows. */
   --rect-field-width-search-focus: 400px;
+  /* The header search once its label is showing. */
+  --rect-field-width-search-collapsed: 132px;
 
   /* ── Table densities ── */
   --rect-table-row-ultra: 28px;

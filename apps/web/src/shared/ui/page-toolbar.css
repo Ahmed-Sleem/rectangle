@@ -1,0 +1,166 @@
+/* The shared page toolbar. All values from tokens. */
+
+.rect-toolbar {
+  display: grid;
+  gap: var(--rect-space-2);
+}
+
+.rect-toolbar__row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+}
+
+.rect-toolbar__spacer {
+  flex: 1 1 auto;
+}
+
+/*
+ * Search is the most-used control on these pages, so it stays visible rather
+ * than living behind the filter button.
+ */
+.rect-toolbar__search {
+  align-items: center;
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-pill-radius);
+  display: flex;
+  gap: var(--rect-space-2);
+  block-size: var(--rect-control-compact);
+  inline-size: var(--rect-field-width-search);
+  max-inline-size: 100%;
+  padding-inline: var(--rect-space-3);
+  transition:
+    inline-size var(--rect-duration-search) var(--rect-ease-out),
+    border-color var(--rect-motion-spring);
+}
+
+/* Widens while in use, so a long term stays readable without a wider row. */
+.rect-toolbar__search:focus-within {
+  border-color: var(--rect-border-active);
+  inline-size: var(--rect-field-width-search-focus);
+}
+
+.rect-toolbar__search-icon {
+  color: var(--rect-text-secondary);
+  flex-shrink: 0;
+}
+
+.rect-toolbar__search-input {
+  background: none;
+  border: 0;
+  color: var(--rect-text-primary);
+  flex: 1 1 auto;
+  font: inherit;
+  font-size: var(--rect-text-table);
+  min-inline-size: 0;
+  outline: none;
+  padding: 0;
+}
+
+.rect-toolbar__search-clear {
+  flex-shrink: 0;
+}
+
+.rect-toolbar__filter-button {
+  gap: var(--rect-space-2);
+}
+
+/* Reads as a quantity attached to the button, not a separate badge. */
+.rect-toolbar__filter-count {
+  align-items: center;
+  background: var(--rect-orb-bg);
+  border-radius: var(--rect-pill-radius);
+  color: var(--rect-orb-text);
+  display: inline-flex;
+  font-size: var(--rect-text-micro);
+  font-weight: var(--rect-weight-bold);
+  justify-content: center;
+  min-inline-size: var(--rect-space-4);
+  padding-inline: var(--rect-space-1);
+}
+
+/* ── Applied filters ── */
+
+.rect-toolbar__applied {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+}
+
+/*
+ * Each chip removes its own filter. The whole thing is the target rather than
+ * a small cross inside it, which is a needlessly precise thing to hit.
+ */
+.rect-toolbar__chip {
+  align-items: center;
+  background: var(--rect-surface-bg-hover);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-pill-radius);
+  color: var(--rect-text-primary);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: var(--rect-text-label);
+  gap: var(--rect-space-2);
+  min-block-size: var(--rect-control-xs);
+  padding-inline: var(--rect-space-3);
+  transition: border-color var(--rect-motion-nav), background var(--rect-motion-nav);
+}
+
+.rect-toolbar__chip:hover,
+.rect-toolbar__chip:focus-visible {
+  background: var(--rect-card-bg);
+  border-color: var(--rect-border-active);
+}
+
+/* ── Filter window ── */
+
+.rect-toolbar__filter-form {
+  display: grid;
+  gap: var(--rect-space-4);
+}
+
+.rect-toolbar__filter-field {
+  display: grid;
+  gap: var(--rect-space-2);
+}
+
+.rect-toolbar__filter-label {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-medium);
+}
+
+/*
+ * Full width inside the window: there is one control per row here, so the
+ * width hints used in a crowded toolbar would only look arbitrary.
+ */
+.rect-toolbar__filter-select {
+  background: var(--rect-color-paper);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  block-size: var(--rect-control-standard);
+  color: var(--rect-text-primary);
+  font: inherit;
+  font-size: var(--rect-text-body);
+  inline-size: 100%;
+  padding-inline: var(--rect-space-3);
+}
+
+.rect-toolbar__filter-select:focus-visible {
+  border-color: var(--rect-border-active);
+}
+
+@media (max-width: 48rem) {
+  /* Search takes the row to itself rather than squeezing everything else. */
+  .rect-toolbar__search {
+    inline-size: 100%;
+  }
+
+  .rect-toolbar__search:focus-within {
+    inline-size: 100%;
+  }
+}

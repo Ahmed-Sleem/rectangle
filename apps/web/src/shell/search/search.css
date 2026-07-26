@@ -10,20 +10,28 @@
  * `type="search"` paints the browser's own clear control, which is unstyled,
  * differs between engines, and cannot be made to match the product.
  */
+/*
+ * No box of its own. The window is already a container, so a bordered field
+ * inside it drew a second rectangle a few pixels in — the frame within a frame
+ * that made the palette look boxed off from itself. A single rule beneath the
+ * input separates it from the results without repeating the window's edge.
+ */
 .rect-search-palette__field {
   align-items: center;
-  background: var(--rect-surface-bg-hover);
-  border: 1px solid var(--rect-card-border);
-  border-radius: var(--rect-pill-radius);
+  border-block-end: 1px solid var(--rect-surface-divider);
   display: flex;
-  gap: var(--rect-space-2);
-  block-size: var(--rect-control-standard);
-  padding-inline: var(--rect-space-3);
+  gap: var(--rect-space-3);
+  block-size: var(--rect-control-touch);
+  padding-block-end: var(--rect-space-2);
   transition: border-color var(--rect-motion-spring);
 }
 
 .rect-search-palette__field:focus-within {
-  border-color: var(--rect-border-active);
+  border-block-end-color: var(--rect-border-active);
+}
+
+.rect-search-palette__input::placeholder {
+  color: var(--rect-text-secondary);
 }
 
 .rect-search-palette__icon {
@@ -36,6 +44,8 @@
   border: 0;
   color: var(--rect-text-primary);
   font: inherit;
+  /* Larger than a form field: this is the whole purpose of the window. */
+  font-size: var(--rect-text-section);
   flex: 1 1 auto;
   min-inline-size: 0;
   outline: none;

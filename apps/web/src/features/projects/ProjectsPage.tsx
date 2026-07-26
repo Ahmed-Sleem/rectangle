@@ -8,9 +8,8 @@ import { Link } from "react-router-dom";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import {
-  Badge, Button, CardGrid, DataTable, EmptyState, ErrorState, Field, FilterBar,
-  FilterBarSpacer, FilterSelect, FormDialog, Input, SearchField, Select,
-  ProgressBar, StatCard, StatRow, Textarea, ViewToggle,
+  Badge, Button, CardGrid, DataTable, EmptyState, ErrorState, Field, FormDialog,
+  Input, PageToolbar, ProgressBar, Select, StatCard, StatRow, Textarea,
 } from "@/shared/ui";
 import { LayoutGrid, Rows3 } from "lucide-react";
 import { useOptionalAuth } from "@/shared/auth";
@@ -151,50 +150,58 @@ export default function ProjectsPage() {
 
   return (
     <section className="rect-projects-page" aria-label={t("projects.workspaceLabel")}>
-      <FilterBar>
-        <SearchField
-          label={t("projects.searchLabel")}
-          placeholder={t("projects.searchPlaceholder")}
-          value={search}
-          onChange={setSearch}
-          submitLabel={t("common.search")}
-        />
-        <FilterSelect
-          label={t("projects.filterStatus")}
-          width="sm"
-          value={status}
-          onChange={(event) => setStatus(event.target.value as ProjectStatus | "")}
-        >
-          <option value="">{t("projects.allStatuses")}</option>
-          {STATUS_VALUES.map((value) => (
-            <option key={value} value={value}>{t(`enums.projectStatus.${value}`)}</option>
-          ))}
-        </FilterSelect>
-        <FilterSelect
-          label={t("projects.sortLabel")}
-          width="md"
-          value={sortKey}
-          onChange={(event) => setSortKey(event.target.value as SortKey)}
-        >
-          <option value="updatedAt">{t("projects.sortRecent")}</option>
-          <option value="name">{t("projects.sortName")}</option>
-          <option value="code">{t("projects.sortCode")}</option>
-          <option value="status">{t("projects.sortStatus")}</option>
-        </FilterSelect>
-        <FilterBarSpacer />
-        <ViewToggle<ViewMode>
-          label={t("projects.cardView")}
-          value={view}
-          onChange={(next) => { setView(next); storeView(next); }}
-          options={[
+      <PageToolbar<ViewMode>
+        search={{
+          value: search,
+          onChange: setSearch,
+          label: t("projects.searchLabel"),
+          placeholder: t("projects.searchPlaceholder"),
+        }}
+        filters={[
+          {
+            id: "status",
+            type: "select",
+            label: t("projects.filterStatus"),
+            anyLabel: t("projects.allStatuses"),
+            value: status,
+            options: STATUS_VALUES.map((value) => ({
+              value,
+              label: t(`enums.projectStatus.${value}`),
+            })),
+            onChange: (value) => setStatus(value as ProjectStatus | ""),
+          },
+          {
+            id: "sort",
+            type: "select",
+            label: t("projects.sortLabel"),
+            // Sorting always has a value, so "recently updated" is the
+            // default rather than an absence, and never shows as a filter.
+            anyLabel: t("projects.sortRecent"),
+            value: sortKey === "updatedAt" ? "" : sortKey,
+            options: [
+              { value: "name", label: t("projects.sortName") },
+              { value: "code", label: t("projects.sortCode") },
+              { value: "status", label: t("projects.sortStatus") },
+            ],
+            onChange: (value) => setSortKey((value || "updatedAt") as SortKey),
+          },
+        ]}
+        onClearFilters={() => { setSearch(""); setStatus(""); setSortKey("updatedAt"); }}
+        actions={
+          canManage ? (
+            <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("projects.create")}</Button>
+          ) : null
+        }
+        view={{
+          value: view,
+          label: t("projects.cardView"),
+          onChange: (next) => { setView(next); storeView(next); },
+          options: [
             { value: "cards", label: t("projects.cardView"), icon: <LayoutGrid size={16} strokeWidth={2} aria-hidden /> },
             { value: "table", label: t("projects.tableView"), icon: <Rows3 size={16} strokeWidth={2} aria-hidden /> },
-          ]}
-        />
-        {canManage ? (
-          <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("projects.create")}</Button>
-        ) : null}
-      </FilterBar>
+          ],
+        }}
+      />
 
       {all.length > 0 ? (
         <StatRow label={t("projects.register")}>

@@ -1014,160 +1014,16 @@
   }
 }
 
-/* ── Search and filter toolbar ──────────────────────────────────────────────
-   Controls keep widths that hint at the input they expect. Stretching a status
-   dropdown across the page makes a two-word value look like a long answer. */
-
-.rect-filter-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--rect-space-2);
-  width: 100%;
-  min-width: 0;
-}
-
-.rect-filter-bar__spacer {
-  flex: 1 1 auto;
-}
-
-.rect-search {
-  display: flex;
-  align-items: center;
-  gap: var(--rect-space-2);
-  min-width: 0;
-  /* The form is the toolbar's flex item, so its own basis is what the row
-     reserves. Animating a nested child instead leaves this fixed at its old
-     content width and nothing moves. */
-  flex: 0 1 auto;
-  flex-basis: var(--rect-search-width, var(--rect-field-width-search));
-  max-width: 100%;
-  transition: flex-basis var(--rect-duration-search) var(--rect-ease-out);
-}
-
-/* Focus-within so the field stays open while the clear control is reached. */
-.rect-search:focus-within {
-  --rect-search-width: var(--rect-field-width-search-focus);
-}
-
-/* The magnifier sits inside the field, which is where users look for it. */
-/* Fills whatever width the form has been given, so the animation lives in one
-   place rather than two competing ones. */
-.rect-search__field {
-  position: relative;
-  display: flex;
-  align-items: center;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.rect-search__icon {
-  position: absolute;
-  inset-inline-start: var(--rect-space-3);
-  color: var(--rect-text-secondary);
-  pointer-events: none;
-}
-
-.rect-search__input {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--rect-control-compact);
-  /* Room for the icon at the start and the clear control at the end. */
-  padding-inline: var(--rect-space-8) var(--rect-space-8);
-  background: var(--rect-card-bg);
-  border: 1px solid var(--rect-card-border);
-  border-radius: var(--rect-radius-md);
-  color: var(--rect-text-primary);
-  font-family: var(--rect-font);
-  font-size: var(--rect-text-body);
-  outline: none;
-  transition:
-    background var(--rect-motion-nav),
-    border-color var(--rect-motion-nav),
-    box-shadow var(--rect-motion-nav);
-}
-
-.rect-search__input::placeholder {
-  color: var(--rect-text-muted);
-}
-
-.rect-search__input:focus {
-  background: var(--rect-surface-bg-hover);
-  border-color: var(--rect-toggle-border-hover);
-  box-shadow: var(--rect-shadow-toggle);
-}
-
-/* The native clear affordance is inconsistent across browsers, so the field
-   supplies its own and hides the built-in one. */
-.rect-search__input::-webkit-search-cancel-button,
-.rect-search__input::-webkit-search-decoration {
-  appearance: none;
-}
-
-.rect-search__clear {
-  position: absolute;
-  inset-inline-end: var(--rect-space-1);
-}
-
-.rect-filter-select {
-  flex: 0 0 auto;
-  min-height: var(--rect-control-compact);
-  padding-inline: var(--rect-space-3);
-  background: var(--rect-card-bg);
-  border: 1px solid var(--rect-card-border);
-  border-radius: var(--rect-radius-md);
-  color: var(--rect-text-primary);
-  font-family: var(--rect-font);
-  font-size: var(--rect-text-body);
-  outline: none;
-  transition:
-    background var(--rect-motion-nav),
-    border-color var(--rect-motion-nav),
-    box-shadow var(--rect-motion-nav);
-}
-
-.rect-filter-select:focus {
-  background: var(--rect-surface-bg-hover);
-  border-color: var(--rect-toggle-border-hover);
-  box-shadow: var(--rect-shadow-toggle);
-}
-
-.rect-filter-select--sm { width: var(--rect-field-width-sm); }
-.rect-filter-select--md { width: var(--rect-field-width-md); }
-.rect-filter-select--lg { width: var(--rect-field-width-lg); }
-
+/* A coarse pointer needs a larger target than a dense desktop row provides. */
 @media (pointer: coarse) {
-  .rect-search__input,
-  .rect-filter-select {
-    min-height: var(--rect-control-touch);
-  }
-}
-
-/* On narrow screens the row becomes a stack; controls may fill because there is
-   no longer a width cue to lose. */
-@media (max-width: 640px) {
-  .rect-search,
-  .rect-search:focus-within {
-    /* Already full width when stacked, so there is nothing to expand into. */
-    flex: 1 1 100%;
-    flex-basis: 100%;
-    width: 100%;
-  }
-
-  .rect-filter-select {
-    flex: 1 1 140px;
-    width: auto;
-  }
-
-  .rect-filter-bar__spacer {
-    display: none;
+  .rect-toolbar__search,
+  .rect-toolbar__filter-select {
+    min-block-size: var(--rect-control-touch);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rect-search,
-  .rect-search__input,
-  .rect-filter-select {
+  .rect-toolbar__search {
     transition: none !important;
   }
 }

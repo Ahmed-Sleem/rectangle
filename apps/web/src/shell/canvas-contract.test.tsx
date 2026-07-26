@@ -23,6 +23,8 @@ import projectsSource from "@/features/projects/ProjectsPage.tsx?raw";
 import globalCss from "@/shared/styles/global.css?raw";
 import teamSource from "@/features/team/TeamPage.tsx?raw";
 import settingsSource from "@/features/settings/SettingsPage.tsx?raw";
+import toolbarCss from "@/shared/ui/page-toolbar.css?raw";
+import searchCss from "@/shell/search/search.css?raw";
 import resourcesSource from "@/shared/i18n/resources.ts?raw";
 
 describe("canvas empty state", () => {
@@ -298,17 +300,22 @@ describe("layout containment", () => {
     expect(stackedText, "stacked rows must reset the row flex-basis").toContain("flex: 0 0 auto");
   });
 
-  it("caps filter controls instead of letting them fill the row", () => {
-    const bar = uiCss.slice(uiCss.indexOf(".rect-filter-bar {"), uiCss.indexOf(".rect-search {"));
-    expect(bar).toContain("flex-wrap: wrap");
-
-    const select = uiCss.slice(
-      uiCss.indexOf(".rect-filter-select {"),
-      uiCss.indexOf(".rect-filter-select:focus"),
+  it("wraps the toolbar row rather than letting it overflow the canvas", () => {
+    const row = toolbarCss.slice(
+      toolbarCss.indexOf(".rect-toolbar__row {"),
+      toolbarCss.indexOf(".rect-toolbar__spacer"),
     );
-    // A width that matches the expected input is a usability cue; stretching
-    // every control across the row throws that cue away.
-    expect(select).toContain("flex: 0 0 auto");
+    // Controls fall to a second line instead of pushing past the edge.
+    expect(row).toContain("flex-wrap: wrap");
+  });
+
+  it("keeps the view toggle against the trailing edge", () => {
+    const spacer = toolbarCss.slice(
+      toolbarCss.indexOf(".rect-toolbar__spacer {"),
+      toolbarCss.indexOf(".rect-toolbar__search {"),
+    );
+    // The spacer is what pins the toggle to the edge on every page at once.
+    expect(spacer).toContain("flex: 1 1 auto");
   });
 });
 
@@ -331,5 +338,43 @@ describe("focus indicators", () => {
   it("never uses an outward ring on a control's resting shadow", () => {
     const toggle = tokensCss.match(/--rect-shadow-toggle:[^;]+;/)?.[0] ?? "";
     expect(toggle).toContain("inset 0 0 0 1px");
+  });
+
+  it("collapses the header search to its icon until it is wanted", () => {
+    const collapsed = shellCss.slice(
+      shellCss.indexOf(".rect-panel__search {"),
+      shellCss.indexOf(".rect-panel__search:hover"),
+    );
+    // Anything permanent in the header has to earn its width.
+    expect(collapsed).toContain("inline-size: var(--rect-control-compact)");
+
+    const expanded = shellCss.slice(
+      shellCss.indexOf(".rect-panel__search:hover"),
+      shellCss.indexOf(".rect-panel__search-text {"),
+    );
+    expect(expanded).toContain("inline-size: var(--rect-field-width-search-collapsed)");
+  });
+
+  it("keeps the header search labelled for assistive technology while collapsed", () => {
+    const label = shellCss.slice(
+      shellCss.indexOf(".rect-panel__search-text {"),
+      shellCss.indexOf(".rect-panel__search:hover .rect-panel__search-text"),
+    );
+    // `display: none` would strip it from the accessible name and the button
+    // would announce as unlabelled.
+    expect(label).toContain("max-inline-size: 0");
+    // Matches a declaration, not the comment that explains avoiding one.
+    expect(label).not.toMatch(/^\s*display:\s*none/mu);
+  });
+
+  it("does not draw a second box inside the search window", () => {
+    const field = searchCss.slice(
+      searchCss.indexOf(".rect-search-palette__field {"),
+      searchCss.indexOf(".rect-search-palette__field:focus-within"),
+    );
+    // The window is already a container; a bordered field inside it drew a
+    // frame within a frame a few pixels in.
+    expect(field).not.toMatch(/^\s*border:/mu);
+    expect(field).toContain("border-block-end");
   });
 });

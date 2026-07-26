@@ -17,9 +17,9 @@ import { ApiClientError } from "@/shared/api/client";
 import { useOptionalAuth } from "@/shared/auth";
 import { getCurrentLanguage } from "@/shared/i18n";
 import {
-  Badge, BreakdownBar, Button, buttonClassName, Checkbox, ConfirmDialog, DataTable,
-  EmptyState, ErrorState, Field, FilterBar, FilterBarSpacer, FilterSelect, FormDialog,
-  InsightBanner, Input, LoadingState, Select, SidePanel, StatCard, StatRow, Textarea,
+  Badge, BreakdownBar, Button, buttonClassName, ConfirmDialog, DataTable,
+  EmptyState, ErrorState, Field, FormDialog, InsightBanner, Input, LoadingState,
+  PageToolbar, Select, SidePanel, StatCard, StatRow, Textarea,
 } from "@/shared/ui";
 import { listProjectMembers, listProjects } from "@/features/projects/project-api";
 import { listTasks } from "@/features/tasks/task-api";
@@ -261,72 +261,64 @@ export default function RisksPage() {
 
   return (
     <section className="rect-risks-page" aria-label={t("risks.pageLabel")}>
-      <FilterBar>
-        <FilterSelect
-          label={t("risks.filterProject")}
-          width="md"
-          value={projectFilter}
-          onChange={(event) => {
-            const next = event.target.value;
-            setProjectFilter(next);
-            setSearchParams(next ? { projectId: next } : {}, { replace: true });
-          }}
-        >
-          <option value="">{t("risks.allProjects")}</option>
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>{project.name}</option>
-          ))}
-        </FilterSelect>
-        <FilterSelect
-          label={t("risks.filterKind")}
-          width="sm"
-          value={kindFilter}
-          onChange={(event) => setKindFilter(event.target.value as RiskKind | "")}
-        >
-          <option value="">{t("risks.allKinds")}</option>
-          {KINDS.map((value) => (
-            <option key={value} value={value}>{t(`enums.riskKind.${value}`)}</option>
-          ))}
-        </FilterSelect>
-        <FilterSelect
-          label={t("risks.filterStatus")}
-          width="sm"
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as RiskStatus | "")}
-        >
-          <option value="">{t("risks.allStatuses")}</option>
-          {STATUSES.map((value) => (
-            <option key={value} value={value}>{t(`enums.riskStatus.${value}`)}</option>
-          ))}
-        </FilterSelect>
-        <FilterSelect
-          label={t("risks.filterCategory")}
-          width="md"
-          value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value as RiskCategory | "")}
-        >
-          <option value="">{t("risks.allCategories")}</option>
-          {CATEGORIES.map((value) => (
-            <option key={value} value={value}>{t(`enums.riskCategory.${value}`)}</option>
-          ))}
-        </FilterSelect>
-
-        <Checkbox label={t("risks.onlyMine")} checked={mineOnly} onChange={(event) => setMineOnly(event.target.checked)} />
-        <Checkbox label={t("risks.openOnly")} checked={openOnly} onChange={(event) => setOpenOnly(event.target.checked)} />
-
-        <FilterBarSpacer />
-
-        {canManage ? (
-          <Button
-            variant="primary"
-            onClick={() => { form.reset(); setCreateOpen(true); }}
-            disabled={projects.length === 0}
-            {...(projects.length === 0 ? { title: t("risks.noProjectsMessage") } : {})}
-          >
-            {t("risks.create")}
-          </Button>
-        ) : null}
-      </FilterBar>
+      <PageToolbar
+        filters={[
+          {
+            id: "project",
+            type: "select",
+            label: t("risks.filterProject"),
+            anyLabel: t("risks.allProjects"),
+            value: projectFilter,
+            options: projects.map((project) => ({ value: project.id, label: project.name })),
+            onChange: (value) => {
+              setProjectFilter(value);
+              setSearchParams(value ? { projectId: value } : {}, { replace: true });
+            },
+          },
+          {
+            id: "kind",
+            type: "select",
+            label: t("risks.filterKind"),
+            anyLabel: t("risks.allKinds"),
+            value: kindFilter,
+            options: KINDS.map((value) => ({ value, label: t(`enums.riskKind.${value}`) })),
+            onChange: (value) => setKindFilter(value as RiskKind | ""),
+          },
+          {
+            id: "status",
+            type: "select",
+            label: t("risks.filterStatus"),
+            anyLabel: t("risks.allStatuses"),
+            value: statusFilter,
+            options: STATUSES.map((value) => ({ value, label: t(`enums.riskStatus.${value}`) })),
+            onChange: (value) => setStatusFilter(value as RiskStatus | ""),
+          },
+          {
+            id: "category",
+            type: "select",
+            label: t("risks.filterCategory"),
+            anyLabel: t("risks.allCategories"),
+            value: categoryFilter,
+            options: CATEGORIES.map((value) => ({ value, label: t(`enums.riskCategory.${value}`) })),
+            onChange: (value) => setCategoryFilter(value as RiskCategory | ""),
+          },
+          { id: "mine", type: "toggle", label: t("risks.onlyMine"), value: mineOnly, onChange: setMineOnly },
+          { id: "open", type: "toggle", label: t("risks.openOnly"), value: openOnly, onChange: setOpenOnly },
+        ]}
+        onClearFilters={clearFilters}
+        actions={
+          canManage ? (
+            <Button
+              variant="primary"
+              onClick={() => { form.reset(); setCreateOpen(true); }}
+              disabled={projects.length === 0}
+              {...(projects.length === 0 ? { title: t("risks.noProjectsMessage") } : {})}
+            >
+              {t("risks.create")}
+            </Button>
+          ) : null
+        }
+      />
 
       {/* No model is connected yet, so the banner explains itself rather than
           asserting a finding. The state becomes `ready` with citations the

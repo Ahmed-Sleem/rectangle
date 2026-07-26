@@ -86,16 +86,18 @@ export {
   type SettingsSectionProps,
 } from "./settings-blocks";
 
-/** Search and filter toolbar blocks. */
+/** The shared page toolbar: search, filters, actions, view toggle. */
 export {
-  FilterBar,
-  FilterBarSpacer,
-  FilterSelect,
-  SearchField,
-  type FilterBarProps,
-  type FilterSelectProps,
-  type SearchFieldProps,
-} from "./search-field";
+  PageToolbar,
+  type PageToolbarProps,
+  type SelectFilter,
+  type SelectFilterOption,
+  type ToggleFilter,
+  type ToolbarFilter,
+  type ToolbarSearch,
+  type ToolbarView,
+} from "./page-toolbar";
+
 
 /** Page composition blocks: summary figures, card grid, side panel. */
 export {

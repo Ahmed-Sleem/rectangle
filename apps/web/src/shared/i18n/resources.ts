@@ -47,6 +47,14 @@ export const resources = {
         logout: "Logout",
         unknown: "Not found",
       },
+      toolbar: {
+        filters: "Filters",
+        filtersDescription: "Narrow what this page shows. Changes apply as you make them.",
+        appliedFilters: "Applied filters",
+        removeFilter: "Remove filter: {{filter}}",
+        clearAll: "Clear all",
+        done: "Done",
+      },
       insight: {
         label: "AI insight",
         unavailableHeadline: "AI recommendations are not switched on",
@@ -234,6 +242,14 @@ export const resources = {
         profile: "الملف الشخصي",
         logout: "تسجيل الخروج",
         unknown: "غير موجود",
+      },
+      toolbar: {
+        filters: "التصفية",
+        filtersDescription: "حدّد ما تعرضه هذه الصفحة. تُطبَّق التغييرات فور اختيارها.",
+        appliedFilters: "عوامل التصفية المطبَّقة",
+        removeFilter: "إزالة التصفية: {{filter}}",
+        clearAll: "مسح الكل",
+        done: "تم",
       },
       insight: {
         label: "رؤية الذكاء الاصطناعي",

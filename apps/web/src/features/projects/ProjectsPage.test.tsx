@@ -117,7 +117,12 @@ describe("ProjectsPage", () => {
     await screen.findByRole("button", { name: "Create project" });
 
     await user.type(screen.getByLabelText("Search projects"), "metro");
-    await user.selectOptions(screen.getByLabelText("Filter by status"), "active");
+
+    // Status now lives in the filter window; search stays on the bar because
+    // it is the control people reach for most.
+    await user.click(screen.getByRole("button", { name: /Filters/u }));
+    const dialog = await screen.findByRole("dialog", { name: "Filters" });
+    await user.selectOptions(within(dialog).getByLabelText("Filter by status"), "active");
 
     // The backend already supports these filters; the UI must use them so
     // results stay correct beyond the first page of records.

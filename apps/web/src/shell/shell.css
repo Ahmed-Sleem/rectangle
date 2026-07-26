@@ -1157,9 +1157,12 @@
 }
 
 /*
- * Reads as a search field rather than an icon button, because a bare
- * magnifying glass is routinely missed. Collapses to the icon alone where the
- * label would crowd the title.
+ * Collapsed to its icon until wanted.
+ *
+ * The header is the product's most persistent surface, so anything permanent
+ * there has to earn its width. The label appears on hover or focus, which is
+ * the moment somebody is deciding whether to press it — before that the
+ * magnifier is enough, and it is the one icon nobody has to learn.
  */
 .rect-panel__search {
   align-items: center;
@@ -1171,27 +1174,69 @@
   display: inline-flex;
   font: inherit;
   font-size: var(--rect-text-label);
-  gap: var(--rect-space-2);
+  gap: 0;
   block-size: var(--rect-control-compact);
-  padding-inline: var(--rect-space-3);
-  transition: border-color var(--rect-motion-spring), color var(--rect-motion-spring);
+  inline-size: var(--rect-control-compact);
+  justify-content: center;
+  overflow: hidden;
+  padding-inline: 0;
+  transition:
+    inline-size var(--rect-duration-search) var(--rect-ease-out),
+    gap var(--rect-duration-search) var(--rect-ease-out),
+    padding-inline var(--rect-duration-search) var(--rect-ease-out),
+    border-color var(--rect-motion-spring),
+    color var(--rect-motion-spring);
 }
 
 .rect-panel__search:hover,
 .rect-panel__search:focus-visible {
   border-color: var(--rect-border-active);
   color: var(--rect-text-primary);
+  gap: var(--rect-space-2);
+  inline-size: var(--rect-field-width-search-collapsed);
+  padding-inline: var(--rect-space-3);
 }
 
-@media (max-width: 40rem) {
-  .rect-panel__search-text {
-    display: none;
+.rect-panel__search-text {
+  /*
+   * Present for assistive technology at every size, but taking no room until
+   * the control opens. `display: none` would remove it from the accessible
+   * name as well, and the button would announce as unlabelled.
+   */
+  max-inline-size: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-inline-size var(--rect-duration-search) var(--rect-ease-out),
+    opacity var(--rect-duration-search) var(--rect-ease-out);
+  white-space: nowrap;
+}
+
+.rect-panel__search:hover .rect-panel__search-text,
+.rect-panel__search:focus-visible .rect-panel__search-text {
+  max-inline-size: var(--rect-field-width-md);
+  opacity: 1;
+}
+
+/* Expanding on hover is a pointer affordance; without one it never expands,
+   so the label is simply always there. */
+@media (hover: none) {
+  .rect-panel__search {
+    gap: var(--rect-space-2);
+    inline-size: auto;
+    padding-inline: var(--rect-space-3);
   }
 
-  .rect-panel__search {
-    inline-size: var(--rect-control-compact);
-    justify-content: center;
-    padding-inline: 0;
+  .rect-panel__search-text {
+    max-inline-size: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-panel__search,
+  .rect-panel__search-text {
+    transition: none;
   }
 }
 

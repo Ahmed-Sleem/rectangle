@@ -18,9 +18,8 @@ import { ApiClientError } from "@/shared/api/client";
 import { useOptionalAuth } from "@/shared/auth";
 import { getCurrentLanguage } from "@/shared/i18n";
 import {
-  Badge, Button, buttonClassName, Checkbox, ConfirmDialog, DataTable, EmptyState, ErrorState,
-  Field, FilterBar, FilterBarSpacer, FilterSelect, FormDialog, Input, LoadingState,
-  SearchField, Select, StatCard, StatRow, Textarea, ViewToggle,
+  Badge, Button, buttonClassName, ConfirmDialog, DataTable, EmptyState, ErrorState,
+  Field, FormDialog, Input, LoadingState, PageToolbar, Select, StatCard, StatRow, Textarea,
 } from "@/shared/ui";
 import { listProjectMembers, listProjects } from "@/features/projects/project-api";
 import {
@@ -223,6 +222,12 @@ export default function TasksPage() {
   const messageFor = (error: unknown, fallback: string) =>
     error instanceof ApiClientError ? error.message : error ? fallback : null;
 
+  function clearFilters() {
+    setSearch(""); setProjectFilter(""); setPriorityFilter("");
+    setMineOnly(false); setOpenOnly(false);
+    setSearchParams({}, { replace: true });
+  }
+
   const rows = useMemo(() => tasksQuery.data?.tasks ?? [], [tasksQuery.data]);
   const isFiltered = Boolean(search.trim() || projectFilter || priorityFilter || mineOnly || openOnly);
 
@@ -284,76 +289,65 @@ export default function TasksPage() {
 
   return (
     <section className="rect-tasks-page" aria-label={t("tasks.pageLabel")}>
-      <FilterBar>
-        <SearchField
-          label={t("tasks.searchLabel")}
-          placeholder={t("tasks.searchPlaceholder")}
-          value={search}
-          onChange={setSearch}
-          submitLabel={t("common.search")}
-        />
-        <FilterSelect
-          label={t("tasks.filterProject")}
-          width="md"
-          value={projectFilter}
-          onChange={(event) => {
-            const next = event.target.value;
-            setProjectFilter(next);
-            // Keep the address bar honest so the view can be shared or reloaded.
-            setSearchParams(next ? { projectId: next } : {}, { replace: true });
-          }}
-        >
-          <option value="">{t("tasks.allProjects")}</option>
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>{project.name}</option>
-          ))}
-        </FilterSelect>
-        <FilterSelect
-          label={t("tasks.filterPriority")}
-          width="sm"
-          value={priorityFilter}
-          onChange={(event) => setPriorityFilter(event.target.value as TaskPriority | "")}
-        >
-          <option value="">{t("tasks.allPriorities")}</option>
-          {PRIORITIES.map((value) => (
-            <option key={value} value={value}>{t(`enums.taskPriority.${value}`)}</option>
-          ))}
-        </FilterSelect>
-
-        <Checkbox
-          label={t("tasks.onlyMine")}
-          checked={mineOnly}
-          onChange={(event) => setMineOnly(event.target.checked)}
-        />
-        <Checkbox
-          label={t("tasks.openOnly")}
-          checked={openOnly}
-          onChange={(event) => setOpenOnly(event.target.checked)}
-        />
-
-        <FilterBarSpacer />
-
-        <ViewToggle<ViewMode>
-          label={t("tasks.boardView")}
-          value={view}
-          onChange={(next) => { setView(next); storeView(next); }}
-          options={[
+      <PageToolbar<ViewMode>
+        search={{
+          value: search,
+          onChange: setSearch,
+          label: t("tasks.searchLabel"),
+          placeholder: t("tasks.searchPlaceholder"),
+        }}
+        filters={[
+          {
+            id: "project",
+            type: "select",
+            label: t("tasks.filterProject"),
+            anyLabel: t("tasks.allProjects"),
+            value: projectFilter,
+            options: projects.map((project) => ({ value: project.id, label: project.name })),
+            onChange: (value) => {
+              setProjectFilter(value);
+              // Keeps the address honest so the view can be shared or reloaded.
+              setSearchParams(value ? { projectId: value } : {}, { replace: true });
+            },
+          },
+          {
+            id: "priority",
+            type: "select",
+            label: t("tasks.filterPriority"),
+            anyLabel: t("tasks.allPriorities"),
+            value: priorityFilter,
+            options: PRIORITIES.map((value) => ({
+              value,
+              label: t(`enums.taskPriority.${value}`),
+            })),
+            onChange: (value) => setPriorityFilter(value as TaskPriority | ""),
+          },
+          { id: "mine", type: "toggle", label: t("tasks.onlyMine"), value: mineOnly, onChange: setMineOnly },
+          { id: "open", type: "toggle", label: t("tasks.openOnly"), value: openOnly, onChange: setOpenOnly },
+        ]}
+        onClearFilters={clearFilters}
+        actions={
+          canManage ? (
+            <Button
+              variant="primary"
+              onClick={() => { form.reset(); setCreateOpen(true); }}
+              disabled={projects.length === 0}
+              {...(projects.length === 0 ? { title: t("tasks.noProjectsMessage") } : {})}
+            >
+              {t("tasks.create")}
+            </Button>
+          ) : null
+        }
+        view={{
+          value: view,
+          label: t("tasks.boardView"),
+          onChange: (next) => { setView(next); storeView(next); },
+          options: [
             { value: "board", label: t("tasks.boardView"), icon: <Columns3 size={16} strokeWidth={2} aria-hidden /> },
             { value: "list", label: t("tasks.tableView"), icon: <Rows3 size={16} strokeWidth={2} aria-hidden /> },
-          ]}
-        />
-
-        {canManage ? (
-          <Button
-            variant="primary"
-            onClick={() => { form.reset(); setCreateOpen(true); }}
-            disabled={projects.length === 0}
-            {...(projects.length === 0 ? { title: t("tasks.noProjectsMessage") } : {})}
-          >
-            {t("tasks.create")}
-          </Button>
-        ) : null}
-      </FilterBar>
+          ],
+        }}
+      />
 
       {rows.length > 0 ? (
         <StatRow label={t("tasks.pageLabel")}>
@@ -375,14 +369,7 @@ export default function TasksPage() {
           title={t("tasks.noMatchTitle")}
           message={t("tasks.noMatchMessage")}
           action={
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setSearch(""); setProjectFilter(""); setPriorityFilter("");
-                setMineOnly(false); setOpenOnly(false);
-                setSearchParams({}, { replace: true });
-              }}
-            >
+            <Button variant="secondary" onClick={clearFilters}>
               {t("tasks.clearFilters")}
             </Button>
           }

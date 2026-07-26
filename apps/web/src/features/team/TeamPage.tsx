@@ -18,9 +18,9 @@ import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import { useOptionalAuth } from "@/shared/auth";
 import {
-  Avatar, Badge, Button, CardGrid, Checkbox, ConfirmDialog, DataTable, EmptyState, ErrorState,
-  Field, FilterBar, FilterBarSpacer, FilterSelect, FormDialog, Input, LoadingState,
-  SearchField, StatCard, StatRow, ViewToggle,
+  Avatar, Badge, Button, CardGrid, Checkbox, ConfirmDialog, DataTable, EmptyState,
+  ErrorState, Field, FormDialog, Input, LoadingState, PageToolbar, StatCard, StatRow,
+  ViewToggle,
 } from "@/shared/ui";
 import { adminApi, type AdminUserRecord, type UserTypeRecord } from "./admin-api";
 import "./TeamPage.css";
@@ -234,80 +234,81 @@ export default function TeamPage() {
 
   return (
     <section className="rect-team-page" aria-label={t("team.pageLabel")}>
-      <FilterBar>
-        {showingUsers ? (
-          <>
-            <SearchField
-              label={t("team.searchLabel")}
-              placeholder={t("team.searchPlaceholder")}
-              value={search}
-              onChange={setSearch}
-              submitLabel={t("common.search")}
-            />
-            <FilterSelect
-              label={t("team.filterType")}
-              width="md"
-              value={typeFilter}
-              onChange={(event) => setTypeFilter(event.target.value)}
-            >
-              <option value="">{t("team.allTypes")}</option>
-              {typeRows.map((type) => (
-                <option key={type.id} value={type.id}>{roleName(type, t)}</option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
-              label={t("team.filterStatus")}
-              width="sm"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="">{t("team.allStatuses")}</option>
-              <option value="active">{t("enums.userStatus.active")}</option>
-              <option value="disabled">{t("enums.userStatus.disabled")}</option>
-            </FilterSelect>
-          </>
-        ) : null}
-
-        <FilterBarSpacer />
-
-        <ViewToggle<Segment>
-          label={t("team.segmentLabel")}
-          value={segment}
-          onChange={setSegment}
-          showLabels
-          options={[
-            { value: "users", label: t("team.segmentUsers"), icon: <Users size={16} strokeWidth={2} aria-hidden /> },
-            { value: "types", label: t("team.segmentTypes"), icon: <ShieldCheck size={16} strokeWidth={2} aria-hidden /> },
-          ]}
-        />
-
-        {showingUsers ? (
-          <ViewToggle<ViewMode>
-            label={t("team.cardView")}
-            value={view}
-            onChange={(next) => { setView(next); storeView(next); }}
+      <PageToolbar<ViewMode>
+        /* The register picker selects a dataset rather than narrowing one, so
+           it leads the row instead of joining the filters. */
+        leading={
+          <ViewToggle<Segment>
+            label={t("team.segmentLabel")}
+            value={segment}
+            onChange={setSegment}
+            showLabels
             options={[
-              { value: "cards", label: t("team.cardView"), icon: <LayoutGrid size={16} strokeWidth={2} aria-hidden /> },
-              { value: "table", label: t("team.tableView"), icon: <Rows3 size={16} strokeWidth={2} aria-hidden /> },
+              { value: "users", label: t("team.segmentUsers"), icon: <Users size={16} strokeWidth={2} aria-hidden /> },
+              { value: "types", label: t("team.segmentTypes"), icon: <ShieldCheck size={16} strokeWidth={2} aria-hidden /> },
             ]}
           />
-        ) : null}
-
-        {(showingUsers ? canManage : canManageRoles) ? (
-          showingUsers ? (
-            <Button
-              variant="primary"
-              onClick={() => setUserOpen(true)}
-              disabled={typeRows.length === 0}
-              {...(typeRows.length === 0 ? { title: t("team.needTypeFirst") } : {})}
-            >
-              {t("team.createUser")}
-            </Button>
-          ) : (
-            <Button variant="primary" onClick={() => setTypeOpen(true)}>{t("team.createUserType")}</Button>
-          )
-        ) : null}
-      </FilterBar>
+        }
+        {...(showingUsers
+          ? {
+              search: {
+                value: search,
+                onChange: setSearch,
+                label: t("team.searchLabel"),
+                placeholder: t("team.searchPlaceholder"),
+              },
+              filters: [
+                {
+                  id: "type",
+                  type: "select" as const,
+                  label: t("team.filterType"),
+                  anyLabel: t("team.allTypes"),
+                  value: typeFilter,
+                  options: typeRows.map((type) => ({ value: type.id, label: roleName(type, t) })),
+                  onChange: setTypeFilter,
+                },
+                {
+                  id: "status",
+                  type: "select" as const,
+                  label: t("team.filterStatus"),
+                  anyLabel: t("team.allStatuses"),
+                  value: statusFilter,
+                  options: [
+                    { value: "active", label: t("enums.userStatus.active") },
+                    { value: "disabled", label: t("enums.userStatus.disabled") },
+                  ],
+                  onChange: setStatusFilter,
+                },
+              ],
+              onClearFilters: () => { setSearch(""); setTypeFilter(""); setStatusFilter(""); },
+              view: {
+                value: view,
+                label: t("team.cardView"),
+                onChange: (next: ViewMode) => { setView(next); storeView(next); },
+                options: [
+                  { value: "cards" as const, label: t("team.cardView"), icon: <LayoutGrid size={16} strokeWidth={2} aria-hidden /> },
+                  { value: "table" as const, label: t("team.tableView"), icon: <Rows3 size={16} strokeWidth={2} aria-hidden /> },
+                ],
+              },
+            }
+          : {})}
+        actions={
+          (showingUsers ? canManage : canManageRoles) ? (
+            showingUsers ? (
+              <Button
+                variant="primary"
+                onClick={() => setUserOpen(true)}
+                disabled={typeRows.length === 0}
+                {...(typeRows.length === 0 ? { title: t("team.needTypeFirst") } : {})}
+              >
+                {t("team.createUser")}
+              </Button>
+            ) : (
+              <Button variant="primary" onClick={() => setTypeOpen(true)}>{t("team.createUserType")}</Button>
+            )
+          ) : null
+        }
+      />
 
       {allUsers.length > 0 ? (
         <StatRow label={t("team.pageLabel")}>
