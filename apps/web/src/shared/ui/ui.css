@@ -545,6 +545,19 @@
   padding: var(--rect-space-4);
 }
 
+/*
+ * The body is focusable only so a window that opens with no control inside it
+ * still seats the caret somewhere sensible. It is not something the user
+ * operates, so it must not advertise focus: the global inset ring drew a
+ * rectangle just within the window edge every time one opened.
+ *
+ * Scoped to this element rather than relaxed globally, because a real control
+ * losing its indicator is a far worse fault than a stray outline.
+ */
+.rect-overlay__body:focus-visible {
+  box-shadow: none;
+}
+
 /* Actions live outside the scroll area so they can never be clipped. */
 .rect-overlay__footer {
   display: flex;
@@ -1352,6 +1365,16 @@
 .rect-side-panel__body {
   display: grid;
   gap: var(--rect-space-3);
+  /* Grid stretches children to the column width, which turns a button into a
+     wide, short bar. Content decides its own width; bars opt back in below. */
+  justify-items: start;
+}
+
+/* Anything that genuinely spans the panel says so. */
+.rect-side-panel__body > .rect-breakdown,
+.rect-side-panel__body > ul,
+.rect-side-panel__body > p {
+  inline-size: 100%;
 }
 
 /* Breakdown bar */
@@ -1539,3 +1562,110 @@
 .rect-avatar[data-tint="5"] { --rect-avatar-bg: var(--rect-avatar-5); }
 .rect-avatar[data-tint="6"] { --rect-avatar-bg: var(--rect-avatar-6); }
 .rect-avatar[data-tint="7"] { --rect-avatar-bg: var(--rect-avatar-7); }
+
+/*
+ * AI insight banner. Distinct from a card without shouting: this is advice,
+ * and advice that dominates the page it comments on gets dismissed unread.
+ */
+.rect-insight {
+  align-items: flex-start;
+  background: var(--rect-insight-bg);
+  border: 1px solid var(--rect-insight-border);
+  border-radius: var(--rect-radius-lg);
+  display: flex;
+  gap: var(--rect-space-3);
+  padding: var(--rect-space-3) var(--rect-space-4);
+}
+
+.rect-insight__icon {
+  color: var(--rect-insight-accent);
+  display: inline-flex;
+  flex-shrink: 0;
+  /* Optically aligned with the first line rather than the box. */
+  padding-block-start: 1px;
+}
+
+.rect-insight__body {
+  display: grid;
+  flex: 1 1 auto;
+  gap: var(--rect-space-2);
+  min-inline-size: 0;
+}
+
+.rect-insight__headline {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  line-height: var(--rect-leading-snug);
+  margin: 0;
+}
+
+.rect-insight__detail {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  line-height: var(--rect-leading-body);
+  margin: 0;
+}
+
+.rect-insight__sources {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+  margin: 0;
+}
+
+.rect-insight__sources-label {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-micro);
+}
+
+.rect-insight__source {
+  background: var(--rect-color-paper);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-xs);
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-micro);
+  padding: 0 var(--rect-space-2);
+  text-decoration: none;
+}
+
+.rect-insight__source:hover {
+  border-color: var(--rect-border-active);
+}
+
+.rect-insight__dismiss {
+  background: none;
+  border: 0;
+  border-radius: var(--rect-radius-xs);
+  color: var(--rect-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: var(--rect-space-1);
+  transition: background var(--rect-motion-nav), color var(--rect-motion-nav);
+}
+
+.rect-insight__dismiss:hover,
+.rect-insight__dismiss:focus-visible {
+  background: var(--rect-surface-bg-hover);
+  color: var(--rect-text-primary);
+}
+
+/*
+ * Only a grounded recommendation is tinted. The states that carry no claim
+ * stay neutral, so colour never implies a finding that does not exist.
+ */
+.rect-insight--ready {
+  --rect-insight-bg: var(--rect-color-accent-soft);
+  --rect-insight-border: color-mix(in srgb, var(--rect-color-accent) 28%, var(--rect-color-paper));
+  --rect-insight-accent: var(--rect-color-accent);
+}
+
+.rect-insight--unavailable,
+.rect-insight--pending,
+.rect-insight--empty {
+  --rect-insight-bg: var(--rect-card-bg);
+  --rect-insight-border: var(--rect-card-border);
+  --rect-insight-accent: var(--rect-text-secondary);
+}

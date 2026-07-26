@@ -55,6 +55,9 @@ const en = {
   matrixCell: "{{probability}} probability, {{impact}} impact: {{count}} entries",
   matrixClear: "Show all",
   matrixEmpty: "No live entries to plot yet.",
+  severityTitle: "By severity",
+  categoryTitle: "By category",
+  breakdownEmpty: "Nothing live to break down.",
 
   columnTitle: "Entry",
   columnProject: "Project",
@@ -141,6 +144,9 @@ const ar: LocaleBundle<typeof en> = {
   matrixCell: "احتمالية {{probability}} وأثر {{impact}}: {{count}} مدخلات",
   matrixClear: "عرض الكل",
   matrixEmpty: "لا توجد مدخلات نشطة لعرضها بعد.",
+  severityTitle: "حسب الخطورة",
+  categoryTitle: "حسب الفئة",
+  breakdownEmpty: "لا توجد مدخلات نشطة للتفصيل.",
 
   columnTitle: "المدخل",
   columnProject: "المشروع",

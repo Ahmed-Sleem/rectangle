@@ -60,6 +60,14 @@ const summary = {
       { probability: 5, impact: 5, count: 2 },
       { probability: 2, impact: 2, count: 1 },
     ],
+    bySeverity: [
+      { severity: "critical", count: 2 },
+      { severity: "low", count: 1 },
+    ],
+    byCategory: [
+      { category: "schedule", count: 2 },
+      { category: "safety", count: 1 },
+    ],
   },
 };
 
@@ -102,9 +110,11 @@ describe("RisksPage", () => {
     renderRisks();
 
     expect(await screen.findByText("Rebar delivery may slip")).toBeInTheDocument();
-    expect(screen.getByText("Critical")).toBeInTheDocument();
+    // Scoped to the table: the severity breakdown names the same bands.
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("Critical")).toBeInTheDocument();
     // The score is shown against its ceiling, so 25 is legible as the maximum.
-    expect(screen.getByText("25 of 25")).toBeInTheDocument();
+    expect(within(table).getByText("25 of 25")).toBeInTheDocument();
   });
 
   it("distinguishes an issue from a risk", async () => {
@@ -201,6 +211,32 @@ describe("RisksPage", () => {
 
     expect(await screen.findByText("Rebar delivery may slip")).toBeInTheDocument();
     expect(screen.getByText("مصفوفة التعرّض")).toBeInTheDocument();
-    expect(screen.getByText("حرجة")).toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getByText("حرجة")).toBeInTheDocument();
+  });
+
+  it("fills the column beside the matrix with real breakdowns", async () => {
+    mockReads();
+    renderRisks();
+
+    await screen.findByText("Rebar delivery may slip");
+    // The row the matrix left empty now carries figures from the same
+    // aggregate, rather than being stretched to fill it.
+    const severity = screen.getByRole("complementary", { name: "By severity" });
+    expect(within(severity).getByRole("meter", { name: "Critical" })).toBeInTheDocument();
+
+    const category = screen.getByRole("complementary", { name: "By category" });
+    expect(within(category).getByRole("meter", { name: "Schedule" })).toBeInTheDocument();
+  });
+
+  it("says plainly that no model is connected rather than inventing advice", async () => {
+    mockReads();
+    renderRisks();
+
+    const banner = await screen.findByRole("complementary", { name: "AI insight" });
+    expect(
+      within(banner).getByText("AI recommendations are not switched on"),
+    ).toBeInTheDocument();
+    // Nothing that reads as a finding.
+    expect(within(banner).queryByText(/recommends/u)).not.toBeInTheDocument();
   });
 });

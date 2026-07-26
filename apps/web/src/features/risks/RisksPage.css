@@ -7,26 +7,29 @@
   min-width: 0;
 }
 
-.rect-matrix {
-  background: var(--rect-card-bg);
-  border: 1px solid var(--rect-card-border);
-  border-radius: var(--rect-radius-lg);
+/*
+ * Register beside its breakdowns, the same two-column shape as Today so a
+ * person who has learned one page has learned the other. Full width, the
+ * matrix left most of a row empty; here the register gets the space it needs.
+ */
+.rect-risks__columns {
   display: grid;
-  gap: var(--rect-space-3);
-  justify-items: start;
-  padding: var(--rect-space-4);
+  gap: var(--rect-grid-gap);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 }
 
-.rect-matrix__head {
-  display: grid;
-  gap: var(--rect-space-1);
+@media (max-width: 60rem) {
+  .rect-risks__columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-.rect-matrix__title {
-  color: var(--rect-text-primary);
-  font-size: var(--rect-text-subsection);
-  font-weight: var(--rect-weight-bold);
-  margin: 0;
+.rect-risks__main,
+.rect-risks__aside {
+  display: grid;
+  align-content: start;
+  gap: var(--rect-grid-gap);
+  min-width: 0;
 }
 
 .rect-matrix__hint {

@@ -42,6 +42,14 @@ export { buttonClassName, type ButtonSize, type ButtonVariant } from "./button-c
 
 export { avatarTint, initialsOf, AVATAR_TINT_COUNT } from "./initials";
 
+/** Grounded AI advice. Sources are required, so an uncited claim cannot render. */
+export {
+  InsightBanner,
+  type InsightBannerProps,
+  type InsightSource,
+  type InsightState,
+} from "./insight-banner";
+
 /** Centralised notifications. One provider at the root; `useToast` anywhere. */
 export {
   ToastProvider,

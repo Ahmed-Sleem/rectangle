@@ -140,7 +140,7 @@ class MemoryRiskRepository implements RiskRepository {
   }
 
   async summarise(): Promise<RiskSummary> {
-    return { total: 0, criticalOrHigh: 0, underReview: 0, closed: 0, occurred: 0, matrix: [] };
+    return { total: 0, criticalOrHigh: 0, underReview: 0, closed: 0, occurred: 0, matrix: [], bySeverity: [], byCategory: [] };
   }
 
   async isProjectMember(_tenantId: string, _projectId: string, userId: string): Promise<boolean> {

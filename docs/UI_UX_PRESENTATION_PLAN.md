@@ -525,3 +525,53 @@ Recommended sequence remains:
 14. Advanced AI and integrations.
 
 The UI can show only the parts that are truly backed by production data and actions at that point.
+
+---
+
+## 7. Connecting the AI insight banner
+
+`InsightBanner` (`shared/ui/insight-banner.tsx`) is built and placed on Today
+and Risks. It renders four states: `unavailable`, `pending`, `empty`, and
+`ready`. Only `ready` makes a claim, and its type requires `sources`, so a
+recommendation with nothing behind it cannot be rendered — that is a compile
+error, not a review comment.
+
+Today every placement is hardcoded to `unavailable`, which reports honestly
+that no model is connected and describes what will happen when one is.
+
+### What connecting a model requires
+
+1. **An insight service** (`application/insight-service.ts`), read-only,
+   permission-scoped exactly like `OverviewService`: each surface's advice is
+   drawn only from records the caller can already reach. A recommendation that
+   cites a project someone cannot open is a data leak wearing a helpful face.
+
+2. **A model adapter port**, so the provider is swappable and testable without
+   a network call. The service depends on the port, never on a vendor SDK.
+
+3. **Evidence assembly before generation, not after.** The service selects the
+   records first — overdue tasks, unowned critical risks, projects past their
+   planned finish — and passes them to the model as the only material it may
+   reason over. Asking a model for findings and then hunting for evidence to
+   attach produces citations that do not support the claim.
+
+4. **Rejection of ungrounded output.** Any recommendation referencing an id
+   that was not in the supplied evidence is discarded rather than shown. The
+   model is treated as a summariser of records, not a source of facts.
+
+5. **Caching with invalidation on write**, since regenerating advice on every
+   page view is both slow and expensive. Audit events already record every
+   mutation and are the natural trigger.
+
+6. **A per-tenant switch** in Settings beside the email configuration, because
+   a company must be able to decline this entirely.
+
+7. **Cost and rate limits per tenant**, enforced in the service.
+
+### Surfaces, in order
+- **Today** — a daily brief across the portfolio.
+- **Risks** — which entries deserve attention and why.
+- **Tasks** — overdue work and where it is blocked.
+- **Projects** — a workspace summary on the project page.
+
+Nothing else until those four are proven useful.

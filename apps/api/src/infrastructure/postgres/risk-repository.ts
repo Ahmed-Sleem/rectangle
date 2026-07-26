@@ -315,6 +315,33 @@ export class PostgresRiskRepository implements RiskRepository {
       values,
     );
 
+    // Grouped by the same bands the domain derives, so a breakdown can never
+    // disagree with the severity shown on a row.
+    const bands = await this.pool.query<{ severity: string; count: string }>(
+      `select case
+                when r.score >= 15 then 'critical'
+                when r.score >= 10 then 'high'
+                when r.score >= 5 then 'medium'
+                else 'low'
+              end as severity,
+              count(*)::text as count
+         from risks r
+        where r.tenant_id = $1
+          and r.status not in ('closed','accepted')${scopeFilter}
+        group by 1`,
+      values,
+    );
+
+    const categories = await this.pool.query<{ category: string; count: string }>(
+      `select r.category, count(*)::text as count
+         from risks r
+        where r.tenant_id = $1
+          and r.status not in ('closed','accepted')${scopeFilter}
+        group by r.category
+        order by count(*) desc`,
+      values,
+    );
+
     const grid = await this.pool.query<{ probability: number; impact: number; count: string }>(
       `select r.probability, r.impact, count(*)::text as count
          from risks r
@@ -335,6 +362,14 @@ export class PostgresRiskRepository implements RiskRepository {
         probability: cell.probability,
         impact: cell.impact,
         count: Number(cell.count),
+      })),
+      bySeverity: bands.rows.map((band) => ({
+        severity: band.severity as RiskSummary["bySeverity"][number]["severity"],
+        count: Number(band.count),
+      })),
+      byCategory: categories.rows.map((entry) => ({
+        category: entry.category as RiskSummary["byCategory"][number]["category"],
+        count: Number(entry.count),
       })),
     };
   }

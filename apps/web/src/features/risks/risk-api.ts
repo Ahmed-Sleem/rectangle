@@ -49,6 +49,8 @@ export interface RiskSummary {
   closed: number;
   occurred: number;
   matrix: RiskMatrixCell[];
+  bySeverity: Array<{ severity: RiskSeverity; count: number }>;
+  byCategory: Array<{ category: RiskCategory; count: number }>;
 }
 
 export interface RiskFilters {

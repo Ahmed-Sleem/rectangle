@@ -17,9 +17,9 @@ import { ApiClientError } from "@/shared/api/client";
 import { useOptionalAuth } from "@/shared/auth";
 import { getCurrentLanguage } from "@/shared/i18n";
 import {
-  Badge, Button, buttonClassName, Checkbox, ConfirmDialog, DataTable, EmptyState, ErrorState,
-  Field, FilterBar, FilterBarSpacer, FilterSelect, FormDialog, Input, LoadingState,
-  Select, StatCard, StatRow, Textarea,
+  Badge, BreakdownBar, Button, buttonClassName, Checkbox, ConfirmDialog, DataTable,
+  EmptyState, ErrorState, Field, FilterBar, FilterBarSpacer, FilterSelect, FormDialog,
+  InsightBanner, Input, LoadingState, Select, SidePanel, StatCard, StatRow, Textarea,
 } from "@/shared/ui";
 import { listProjectMembers, listProjects } from "@/features/projects/project-api";
 import { listTasks } from "@/features/tasks/task-api";
@@ -68,6 +68,11 @@ function statusTone(status: RiskStatus): "success" | "warning" | "danger" | "inf
   if (status === "mitigating") return "warning";
   if (status === "assessing") return "info";
   return "neutral";
+}
+
+/** BreakdownBar tones, matching the badge colours a severity already uses. */
+function breakdownTone(severity: RiskSeverity): "danger" | "warning" | "info" | "neutral" {
+  return severityTone(severity);
 }
 
 /** Band for a matrix cell, from the same thresholds the domain applies. */
@@ -229,6 +234,9 @@ export default function RisksPage() {
     return counts;
   }, [summary?.matrix]);
 
+  // Denominator for both breakdowns: the bars describe live exposure, so a
+  // settled entry must not shrink every bar beside it.
+  const liveCount = (summary?.total ?? 0) - (summary?.closed ?? 0);
   const dateFormatter = new Intl.DateTimeFormat(language, { dateStyle: "medium" });
 
   function clearFilters() {
@@ -320,6 +328,11 @@ export default function RisksPage() {
         ) : null}
       </FilterBar>
 
+      {/* No model is connected yet, so the banner explains itself rather than
+          asserting a finding. The state becomes `ready` with citations the
+          moment one is. */}
+      <InsightBanner surface="risks" state={{ status: "unavailable" }} />
+
       {summary && summary.total > 0 ? (
         <StatRow label={t("risks.registerLabel")}>
           <StatCard label={t("risks.kpiTotal")} value={summary.total} />
@@ -341,144 +354,184 @@ export default function RisksPage() {
         />
       ) : (
         <>
-          {summary && summary.matrix.length > 0 ? (
-            <section className="rect-matrix" aria-label={t("risks.matrixTitle")}>
-              <header className="rect-matrix__head">
-                <h2 className="rect-matrix__title">{t("risks.matrixTitle")}</h2>
-                <p className="rect-matrix__hint">{t("risks.matrixHint")}</p>
-              </header>
-
-              <div className="rect-matrix__layout">
-                <span className="rect-matrix__axis rect-matrix__axis--y">{t("risks.matrixProbability")}</span>
-                <div className="rect-matrix__grid" role="group" aria-label={t("risks.matrixTitle")}>
-                  {/* Highest probability at the top, which is how a risk
-                      matrix is always drawn. */}
-                  {[...SCALE].reverse().map((probability) => (
-                    SCALE.map((impact) => {
-                      const count = matrixCounts.get(`${probability}:${impact}`) ?? 0;
-                      const selected = cell?.probability === probability && cell?.impact === impact;
-                      return (
-                        <button
-                          key={`${probability}-${impact}`}
-                          type="button"
-                          className="rect-matrix__cell"
-                          data-severity={cellSeverity(probability * impact)}
-                          data-empty={count === 0 ? "true" : "false"}
-                          aria-pressed={selected}
-                          aria-label={t("risks.matrixCell", {
-                            probability: t(`enums.riskScale.${probability}`),
-                            impact: t(`enums.impactScale.${impact}`),
-                            count,
-                          })}
-                          onClick={() =>
-                            setCell(selected ? null : { probability, impact })
-                          }
-                        >
-                          {count > 0 ? count : ""}
-                        </button>
-                      );
-                    })
-                  ))}
-                </div>
-                <span className="rect-matrix__axis rect-matrix__axis--x">{t("risks.matrixImpact")}</span>
-              </div>
-
-              {cell ? (
-                <Button size="sm" variant="secondary" onClick={() => setCell(null)}>
-                  {t("risks.matrixClear")}
-                </Button>
-              ) : null}
-            </section>
-          ) : null}
-
-          {rows.length === 0 && isFiltered ? (
-            <EmptyState
-              title={t("risks.noMatchTitle")}
-              message={t("risks.noMatchMessage")}
-              action={<Button variant="secondary" onClick={clearFilters}>{t("risks.clearFilters")}</Button>}
-            />
-          ) : rows.length === 0 ? (
-            <EmptyState
-              title={t("risks.emptyTitle")}
-              message={canManage ? t("risks.emptyManage") : t("risks.emptyRead")}
-              {...(canManage
-                ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("risks.create")}</Button> }
-                : {})}
-            />
-          ) : (
-            <DataTable
-              caption={t("risks.registerLabel")}
-              rows={rows}
-              getRowKey={(risk) => risk.id}
-              columns={[
-                {
-                  id: "title",
-                  header: t("risks.columnTitle"),
-                  accessor: (risk) => (
-                    <span className="rect-risk__title">
-                      <Badge tone={risk.kind === "issue" ? "danger" : "neutral"}>
-                        {t(`enums.riskKind.${risk.kind}`)}
-                      </Badge>
-                      {canManage ? (
-                        <button type="button" className="rect-risk__link" onClick={() => setEditing(risk)}>
-                          {risk.title}
-                        </button>
-                      ) : (
-                        <span>{risk.title}</span>
-                      )}
-                    </span>
-                  ),
-                },
-                { id: "project", header: t("risks.columnProject"), accessor: (risk) => risk.projectCode },
-                {
-                  id: "severity",
-                  header: t("risks.columnSeverity"),
-                  accessor: (risk) => (
-                    <Badge tone={severityTone(risk.severity)}>{t(`enums.riskSeverity.${risk.severity}`)}</Badge>
-                  ),
-                },
-                {
-                  id: "score",
-                  header: t("risks.columnScore"),
-                  accessor: (risk) => (
-                    <span className="rect-risk__score">
-                      {t("risks.scoreLabel", { score: risk.score })}
-                      {risk.residualScore !== undefined ? (
-                        <span className="rect-risk__residual">
-                          {t("risks.residualLabel", { score: risk.residualScore })}
+          <div className="rect-risks__columns">
+            <div className="rect-risks__main">
+              {rows.length === 0 && isFiltered ? (
+                <EmptyState
+                  title={t("risks.noMatchTitle")}
+                  message={t("risks.noMatchMessage")}
+                  action={<Button variant="secondary" onClick={clearFilters}>{t("risks.clearFilters")}</Button>}
+                />
+              ) : rows.length === 0 ? (
+                <EmptyState
+                  title={t("risks.emptyTitle")}
+                  message={canManage ? t("risks.emptyManage") : t("risks.emptyRead")}
+                  {...(canManage
+                    ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("risks.create")}</Button> }
+                    : {})}
+                />
+              ) : (
+                <DataTable
+                  caption={t("risks.registerLabel")}
+                  rows={rows}
+                  getRowKey={(risk) => risk.id}
+                  columns={[
+                    {
+                      id: "title",
+                      header: t("risks.columnTitle"),
+                      accessor: (risk) => (
+                        <span className="rect-risk__title">
+                          <Badge tone={risk.kind === "issue" ? "danger" : "neutral"}>
+                            {t(`enums.riskKind.${risk.kind}`)}
+                          </Badge>
+                          {canManage ? (
+                            <button type="button" className="rect-risk__link" onClick={() => setEditing(risk)}>
+                              {risk.title}
+                            </button>
+                          ) : (
+                            <span>{risk.title}</span>
+                          )}
                         </span>
-                      ) : null}
-                    </span>
-                  ),
-                },
-                { id: "owner", header: t("risks.columnOwner"), accessor: (risk) => risk.ownerName ?? t("risks.unassigned") },
-                {
-                  id: "status",
-                  header: t("risks.columnStatus"),
-                  accessor: (risk) => <Badge tone={statusTone(risk.status)}>{t(`enums.riskStatus.${risk.status}`)}</Badge>,
-                },
-                {
-                  id: "due",
-                  header: t("risks.columnDue"),
-                  accessor: (risk) =>
-                    risk.dueDate
-                      ? dateFormatter.format(new Date(`${risk.dueDate}T00:00:00`))
-                      : t("common.notAvailable"),
-                },
-                ...(canManage
-                  ? [{
-                      id: "actions",
-                      header: t("common.actions"),
-                      accessor: (risk: RiskRecord) => (
-                        <Button size="sm" variant="secondary" onClick={() => setPendingDelete(risk)}>
-                          {t("risks.delete")}
-                        </Button>
                       ),
-                    }]
-                  : []),
-              ]}
-            />
-          )}
+                    },
+                    { id: "project", header: t("risks.columnProject"), accessor: (risk) => risk.projectCode },
+                    {
+                      id: "severity",
+                      header: t("risks.columnSeverity"),
+                      accessor: (risk) => (
+                        <Badge tone={severityTone(risk.severity)}>{t(`enums.riskSeverity.${risk.severity}`)}</Badge>
+                      ),
+                    },
+                    {
+                      id: "score",
+                      header: t("risks.columnScore"),
+                      accessor: (risk) => (
+                        <span className="rect-risk__score">
+                          {t("risks.scoreLabel", { score: risk.score })}
+                          {risk.residualScore !== undefined ? (
+                            <span className="rect-risk__residual">
+                              {t("risks.residualLabel", { score: risk.residualScore })}
+                            </span>
+                          ) : null}
+                        </span>
+                      ),
+                    },
+                    { id: "owner", header: t("risks.columnOwner"), accessor: (risk) => risk.ownerName ?? t("risks.unassigned") },
+                    {
+                      id: "status",
+                      header: t("risks.columnStatus"),
+                      accessor: (risk) => <Badge tone={statusTone(risk.status)}>{t(`enums.riskStatus.${risk.status}`)}</Badge>,
+                    },
+                    {
+                      id: "due",
+                      header: t("risks.columnDue"),
+                      accessor: (risk) =>
+                        risk.dueDate
+                          ? dateFormatter.format(new Date(`${risk.dueDate}T00:00:00`))
+                          : t("common.notAvailable"),
+                    },
+                    ...(canManage
+                      ? [{
+                          id: "actions",
+                          header: t("common.actions"),
+                          accessor: (risk: RiskRecord) => (
+                            <Button size="sm" variant="secondary" onClick={() => setPendingDelete(risk)}>
+                              {t("risks.delete")}
+                            </Button>
+                          ),
+                        }]
+                      : []),
+                  ]}
+                />
+              )}
+            </div>
+
+            {/*
+              The matrix is the page's breakdown, so it belongs in the side
+              panel the skeleton reserves for exactly that. Full width it left
+              most of a row empty; here it keeps its natural size and the
+              column beside it carries the register people work in.
+            */}
+            <div className="rect-risks__aside">
+              <SidePanel title={t("risks.matrixTitle")}>
+                {summary && summary.matrix.length > 0 ? (
+                  <>
+                    <p className="rect-matrix__hint">{t("risks.matrixHint")}</p>
+                    <div className="rect-matrix__layout">
+                      <span className="rect-matrix__axis rect-matrix__axis--y">{t("risks.matrixProbability")}</span>
+                      <div className="rect-matrix__grid" role="group" aria-label={t("risks.matrixTitle")}>
+                        {/* Highest probability at the top, as a risk matrix is
+                            always drawn. */}
+                        {[...SCALE].reverse().map((probability) => (
+                          SCALE.map((impact) => {
+                            const count = matrixCounts.get(`${probability}:${impact}`) ?? 0;
+                            const selected = cell?.probability === probability && cell?.impact === impact;
+                            return (
+                              <button
+                                key={`${probability}-${impact}`}
+                                type="button"
+                                className="rect-matrix__cell"
+                                data-severity={cellSeverity(probability * impact)}
+                                data-empty={count === 0 ? "true" : "false"}
+                                aria-pressed={selected}
+                                aria-label={t("risks.matrixCell", {
+                                  probability: t(`enums.riskScale.${probability}`),
+                                  impact: t(`enums.impactScale.${impact}`),
+                                  count,
+                                })}
+                                onClick={() => setCell(selected ? null : { probability, impact })}
+                              >
+                                {count > 0 ? count : ""}
+                              </button>
+                            );
+                          })
+                        ))}
+                      </div>
+                      <span className="rect-matrix__axis rect-matrix__axis--x">{t("risks.matrixImpact")}</span>
+                    </div>
+                    {cell ? (
+                      <Button size="sm" variant="secondary" onClick={() => setCell(null)}>
+                        {t("risks.matrixClear")}
+                      </Button>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="rect-matrix__hint">{t("risks.matrixEmpty")}</p>
+                )}
+              </SidePanel>
+
+              <SidePanel title={t("risks.severityTitle")}>
+                {(summary?.bySeverity.length ?? 0) === 0 ? (
+                  <p className="rect-matrix__hint">{t("risks.breakdownEmpty")}</p>
+                ) : (
+                  summary?.bySeverity.map((band) => (
+                    <BreakdownBar
+                      key={band.severity}
+                      label={t(`enums.riskSeverity.${band.severity}`)}
+                      value={band.count}
+                      total={liveCount}
+                      tone={breakdownTone(band.severity)}
+                    />
+                  ))
+                )}
+              </SidePanel>
+
+              <SidePanel title={t("risks.categoryTitle")}>
+                {(summary?.byCategory.length ?? 0) === 0 ? (
+                  <p className="rect-matrix__hint">{t("risks.breakdownEmpty")}</p>
+                ) : (
+                  summary?.byCategory.map((entry) => (
+                    <BreakdownBar
+                      key={entry.category}
+                      label={t(`enums.riskCategory.${entry.category}`)}
+                      value={entry.count}
+                      total={liveCount}
+                    />
+                  ))
+                )}
+              </SidePanel>
+            </div>
+          </div>
         </>
       )}
 

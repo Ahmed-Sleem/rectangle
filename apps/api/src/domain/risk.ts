@@ -242,6 +242,10 @@ export interface RiskSummary {
   closed: number;
   occurred: number;
   matrix: RiskMatrixCell[];
+  /** Live entries per severity band, for the breakdown beside the matrix. */
+  bySeverity: Array<{ severity: RiskSeverity; count: number }>;
+  /** Live entries per category, highest first. */
+  byCategory: Array<{ category: RiskCategory; count: number }>;
 }
 
 function parse<T>(schema: z.ZodType<T>, input: unknown, message: string): T {

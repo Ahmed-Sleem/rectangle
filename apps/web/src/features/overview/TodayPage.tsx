@@ -21,6 +21,7 @@ import {
   Card,
   EmptyState,
   ErrorState,
+  InsightBanner,
   LoadingState,
   SidePanel,
   StatCard,
@@ -132,6 +133,10 @@ export default function TodayPage() {
 
   return (
     <section className="rect-today" aria-label={t("overview.pageLabel")}>
+      {/* The daily brief the plan calls for. Until a model is connected it
+          says so; it never fills the space with a guess. */}
+      <InsightBanner surface="today" state={{ status: "unavailable" }} />
+
       <StatRow label={t("overview.summaryLabel")}>
         <StatCard label={t("overview.kpiProjects")} value={summary.totalProjects} />
         <StatCard label={t("overview.kpiActive")} value={activeCount} />
@@ -239,7 +244,7 @@ export default function TodayPage() {
                     <span className="rect-today__figure-value">{summary.tasks.assignedToMe}</span>
                   </li>
                 </ul>
-                <Link className={buttonClassName("secondary", "sm")} to="/tasks">
+                <Link className={buttonClassName("secondary")} to="/tasks">
                   {t("overview.viewAllTasks")}
                 </Link>
               </>

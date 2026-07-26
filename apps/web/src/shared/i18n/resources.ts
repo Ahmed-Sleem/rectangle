@@ -47,6 +47,18 @@ export const resources = {
         logout: "Logout",
         unknown: "Not found",
       },
+      insight: {
+        label: "AI insight",
+        unavailableHeadline: "AI recommendations are not switched on",
+        unavailableDetail:
+          "Once a model is connected, Rectangle will read your own projects, tasks, and risks and raise what needs attention — always citing the records behind it.",
+        pendingHeadline: "Looking at your records",
+        pendingDetail: "This will only take a moment.",
+        emptyHeadline: "Nothing needs raising right now",
+        emptyDetail: "Rectangle reviewed your records and found nothing that warrants attention.",
+        basedOn: "Based on",
+        dismiss: "Dismiss this insight",
+      },
       profile: {
         pageLabel: "Your profile",
         identityTitle: "Identity",
@@ -222,6 +234,18 @@ export const resources = {
         profile: "الملف الشخصي",
         logout: "تسجيل الخروج",
         unknown: "غير موجود",
+      },
+      insight: {
+        label: "رؤية الذكاء الاصطناعي",
+        unavailableHeadline: "توصيات الذكاء الاصطناعي غير مفعّلة",
+        unavailableDetail:
+          "بمجرد ربط نموذج، سيقرأ Rectangle مشاريعك ومهامك ومخاطرك ويبرز ما يستحق الانتباه، مع ذكر السجلات التي استند إليها دائمًا.",
+        pendingHeadline: "جارٍ مراجعة سجلاتك",
+        pendingDetail: "لن يستغرق هذا سوى لحظة.",
+        emptyHeadline: "لا يوجد ما يستدعي الانتباه الآن",
+        emptyDetail: "راجع Rectangle سجلاتك ولم يجد ما يستحق الإبراز.",
+        basedOn: "استنادًا إلى",
+        dismiss: "إخفاء هذه الرؤية",
       },
       profile: {
         pageLabel: "ملفك الشخصي",
