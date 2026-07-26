@@ -1,37 +1,52 @@
 /**
  * PostgreSQL global search.
  *
- * Prefix and substring matching with `ilike`, which is adequate for a palette
- * over a company's own records. Full-text ranking is a later concern; adding
- * it now would mean a search index to keep in step with three tables for no
- * benefit at this size.
+ * Matching runs against the `search_document` columns maintained by the
+ * database on write, so a record is findable the moment it exists and there is
+ * no separate index to fall out of step. The previous `ilike '%term%'` could
+ * not use an index at all — a leading wildcard forces a sequential scan of
+ * every row on every keystroke.
+ *
+ * Results are ranked rather than returned in table order, because the first
+ * row is the one a palette user is about to press Enter on.
  */
 import type pg from "pg";
 import type { SearchRepository, SearchResult } from "../../application/search-service.js";
 
 /**
- * Escapes a user's term so `%` and `_` are matched literally.
+ * Builds a prefix query from free text.
  *
- * Without this, typing `%` matches every record and the palette looks broken;
- * the value is still bound as a parameter, so this is about correctness rather
- * than injection.
+ * `to_tsquery` rejects punctuation and bare operators, so the term is reduced
+ * to word characters and rejoined with AND. Each word gets `:*` so the last
+ * one still matches while it is being typed.
  */
-function likeTerm(term: string): string {
-  return `%${term.replace(/([\\%_])/gu, "\\$1")}%`;
+function prefixQuery(term: string): string {
+  const words = term
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean)
+    .map((word) => `${word}:*`);
+  return words.join(" & ");
 }
 
 export class PostgresSearchRepository implements SearchRepository {
   constructor(private readonly pool: pg.Pool) {}
 
   async searchProjects(tenantId: string, term: string, limit: number): Promise<SearchResult[]> {
+    const query = prefixQuery(term);
+    // A term of only punctuation produces no query, which `to_tsquery` would
+    // reject outright rather than treat as "match nothing".
+    if (!query) return [];
+
     const result = await this.pool.query<{ id: string; name: string; code: string }>(
       `select id, name, code
          from projects
-        where tenant_id = $1 and (name ilike $2 or code ilike $2 or location_name ilike $2)
-        order by name asc
+        where tenant_id = $1
+          and search_document @@ to_tsquery('simple', $2)
+        order by ts_rank_cd(search_document, to_tsquery('simple', $2)) desc, name asc
         limit $3`,
-      [tenantId, likeTerm(term), limit],
+      [tenantId, query, limit],
     );
+
     return result.rows.map((row) => ({
       kind: "project" as const,
       id: row.id,
@@ -48,15 +63,28 @@ export class PostgresSearchRepository implements SearchRepository {
     limit: number,
     scope: "all" | "member",
   ): Promise<SearchResult[]> {
-    // Membership scoping happens in the query for the same reason the task
-    // list does it there: filtering afterwards still reveals what exists.
-    const membershipFilter =
-      scope === "member"
-        ? `and exists (
+    const query = prefixQuery(term);
+    if (!query) return [];
+
+    // Values and placeholders are built together. Assembling the clause
+    // separately from the array is how the two previously fell out of step:
+    // an empty filter left `$4` unused while a fourth value was still bound,
+    // and Postgres rejected every such query.
+    const values: unknown[] = [tenantId, query];
+    let membershipFilter = "";
+
+    if (scope === "member") {
+      values.push(userId);
+      membershipFilter = `and exists (
              select 1 from project_members m
-              where m.tenant_id = t.tenant_id and m.project_id = t.project_id and m.user_id = $4
-           )`
-        : "";
+              where m.tenant_id = t.tenant_id
+                and m.project_id = t.project_id
+                and m.user_id = $${values.length}
+           )`;
+    }
+
+    values.push(limit);
+    const limitPlaceholder = `$${values.length}`;
 
     const result = await this.pool.query<{
       id: string;
@@ -68,11 +96,12 @@ export class PostgresSearchRepository implements SearchRepository {
          from tasks t
          join projects p on p.id = t.project_id and p.tenant_id = t.tenant_id
         where t.tenant_id = $1
-          and t.title ilike $2
+          and t.search_document @@ to_tsquery('simple', $2)
           ${membershipFilter}
-        order by t.updated_at desc
-        limit $3`,
-      [tenantId, likeTerm(term), limit, userId],
+        order by ts_rank_cd(t.search_document, to_tsquery('simple', $2)) desc,
+                 t.updated_at desc
+        limit ${limitPlaceholder}`,
+      values,
     );
 
     return result.rows.map((row) => ({
@@ -85,14 +114,19 @@ export class PostgresSearchRepository implements SearchRepository {
   }
 
   async searchPeople(tenantId: string, term: string, limit: number): Promise<SearchResult[]> {
+    const query = prefixQuery(term);
+    if (!query) return [];
+
     const result = await this.pool.query<{ id: string; display_name: string; email: string }>(
       `select id, display_name, email
          from users
-        where tenant_id = $1 and (display_name ilike $2 or email ilike $2)
-        order by display_name asc
+        where tenant_id = $1
+          and search_document @@ to_tsquery('simple', $2)
+        order by ts_rank_cd(search_document, to_tsquery('simple', $2)) desc, display_name asc
         limit $3`,
-      [tenantId, likeTerm(term), limit],
+      [tenantId, query, limit],
     );
+
     return result.rows.map((row) => ({
       kind: "person" as const,
       id: row.id,
@@ -102,3 +136,6 @@ export class PostgresSearchRepository implements SearchRepository {
     }));
   }
 }
+
+/** Exported for the test that proves queries bind exactly what they reference. */
+export const searchInternals = { prefixQuery };

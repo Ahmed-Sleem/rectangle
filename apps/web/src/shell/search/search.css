@@ -5,20 +5,62 @@
   gap: var(--rect-space-3);
 }
 
-.rect-search-palette__input {
+/*
+ * The field is the container; the input inside it is bare. A native
+ * `type="search"` paints the browser's own clear control, which is unstyled,
+ * differs between engines, and cannot be made to match the product.
+ */
+.rect-search-palette__field {
+  align-items: center;
   background: var(--rect-surface-bg-hover);
   border: 1px solid var(--rect-card-border);
-  border-radius: var(--rect-radius-md);
+  border-radius: var(--rect-pill-radius);
+  display: flex;
+  gap: var(--rect-space-2);
   block-size: var(--rect-control-standard);
-  color: var(--rect-text-primary);
-  font: inherit;
-  inline-size: 100%;
   padding-inline: var(--rect-space-3);
+  transition: border-color var(--rect-motion-spring);
 }
 
-.rect-search-palette__input:focus-visible {
+.rect-search-palette__field:focus-within {
   border-color: var(--rect-border-active);
+}
+
+.rect-search-palette__icon {
+  color: var(--rect-text-secondary);
+  flex-shrink: 0;
+}
+
+.rect-search-palette__input {
+  background: none;
+  border: 0;
+  color: var(--rect-text-primary);
+  font: inherit;
+  flex: 1 1 auto;
+  min-inline-size: 0;
   outline: none;
+  padding: 0;
+}
+
+.rect-search-palette__clear {
+  align-items: center;
+  background: var(--rect-card-bg);
+  border: 0;
+  border-radius: var(--rect-pill-radius);
+  color: var(--rect-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  justify-content: center;
+  block-size: var(--rect-control-xs);
+  inline-size: var(--rect-control-xs);
+  transition: background var(--rect-motion-nav), color var(--rect-motion-nav);
+}
+
+.rect-search-palette__clear:hover,
+.rect-search-palette__clear:focus-visible {
+  background: var(--rect-orb-bg);
+  color: var(--rect-orb-text);
 }
 
 .rect-search-palette__note {

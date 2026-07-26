@@ -1379,7 +1379,9 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Shares the progress track's language: same height, same drawn edge. */
 .rect-breakdown__track {
+  box-shadow: inset 0 0 0 1px var(--rect-progress-track-border);
   block-size: 6px;
   border-radius: var(--rect-pill-radius);
   background: var(--rect-surface-bg);
@@ -1431,38 +1433,64 @@
   color: var(--rect-text-primary);
   font-size: var(--rect-text-label);
   font-weight: var(--rect-weight-bold);
+  /* Digits are a quantity, so they keep their order in Arabic. */
+  font-variant-numeric: tabular-nums;
 }
 
 .rect-progress__counts {
   color: var(--rect-text-secondary);
   font-size: var(--rect-text-micro);
+  font-variant-numeric: tabular-nums;
   /* A ratio is a quantity and must not reverse in Arabic. */
   unicode-bidi: plaintext;
 }
 
+/*
+ * The track is a drawn container, not an absence.
+ *
+ * A pale fill alone disappeared against the card and read as a gap in the
+ * layout rather than an empty bar, which made nought per cent look like a
+ * rendering fault. An inset hairline gives it an edge at every value,
+ * including none.
+ */
 .rect-progress__track {
-  background: var(--rect-surface-bg-hover);
+  background: var(--rect-progress-track);
   border-radius: var(--rect-pill-radius);
-  block-size: var(--rect-space-2);
+  block-size: var(--rect-progress-height);
+  box-shadow: inset 0 0 0 1px var(--rect-progress-track-border);
   inline-size: 100%;
   overflow: hidden;
+  position: relative;
 }
 
-/*
- * Accent while work is under way, success once it is finished. Near-black read
- * as "filled" rather than "progressing", and gave a complete project no more
- * standing than one barely started.
- */
 .rect-progress__fill {
   background: var(--rect-color-accent);
   border-radius: var(--rect-pill-radius);
   display: block;
   block-size: 100%;
-  transition: inline-size var(--rect-motion-spring), background var(--rect-motion-nav);
+  transition:
+    inline-size var(--rect-motion-spring),
+    background var(--rect-motion-nav);
+}
+
+/*
+ * A sliver of colour still reads as progress. Without a floor, one task of
+ * fifty draws a bar too thin to see, which is indistinguishable from none.
+ * The component decides when this applies, because only it knows whether the
+ * value is genuinely zero.
+ */
+.rect-progress__fill--started {
+  min-inline-size: var(--rect-progress-height);
 }
 
 .rect-progress__fill--complete {
   background: var(--rect-color-success);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-progress__fill {
+    transition: none;
+  }
 }
 
 /* A single person's initials. Shared by the shell, Team, and Profile. */
@@ -1478,8 +1506,18 @@
   font-weight: var(--rect-weight-bold);
   inline-size: var(--rect-control-compact);
   justify-content: center;
+  /*
+   * Flex centres the line box, not the glyphs. With the inherited `normal`
+   * line height Inter leaves more room above the cap than below the baseline,
+   * so the initials sat visibly low. Collapsing the line box to the glyph box
+   * makes the two the same thing.
+   */
+  line-height: 1;
   /* Initials are letters, not a phrase to be reordered by paragraph direction. */
   unicode-bidi: isolate;
+  /* Tabular-style spacing keeps two initials optically centred as a pair. */
+  letter-spacing: 0;
+  text-indent: 0;
 }
 
 .rect-avatar--sm {

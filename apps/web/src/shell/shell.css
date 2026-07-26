@@ -1165,7 +1165,7 @@
   align-items: center;
   background: var(--rect-card-bg);
   border: 1px solid var(--rect-card-border);
-  border-radius: var(--rect-radius-md);
+  border-radius: var(--rect-pill-radius);
   color: var(--rect-text-secondary);
   cursor: pointer;
   display: inline-flex;
@@ -1200,27 +1200,40 @@
   position: relative;
 }
 
+/*
+ * A container in its own right rather than bare text, so it reads as a pair
+ * with the search control beside it. The avatar sits flush inside the
+ * rounded end, which is what stops it looking pasted on.
+ */
 .rect-user-menu__trigger {
   align-items: center;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--rect-radius-md);
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-pill-radius);
   color: var(--rect-text-primary);
   cursor: pointer;
   display: inline-flex;
   font: inherit;
   font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-medium);
   gap: var(--rect-space-2);
   block-size: var(--rect-control-compact);
-  padding-inline: var(--rect-space-2);
-  transition: border-color var(--rect-motion-spring), background var(--rect-motion-spring);
+  /* Tight against the avatar, roomier past the name, so the pill looks
+     balanced rather than padded on one side only. */
+  padding-inline: var(--rect-space-1) var(--rect-space-3);
+  transition:
+    border-color var(--rect-motion-spring),
+    background var(--rect-motion-spring),
+    box-shadow var(--rect-motion-spring);
 }
 
 .rect-user-menu__trigger:hover,
 .rect-user-menu__trigger[aria-expanded="true"] {
-  background: var(--rect-card-bg);
+  background: var(--rect-surface-bg-hover);
   border-color: var(--rect-border-active);
 }
+
+
 
 .rect-user-menu__name {
   max-inline-size: var(--rect-field-width-md);
@@ -1355,5 +1368,11 @@ html[dir="rtl"] .rect-user-menu__panel {
 @media (max-width: 48rem) {
   .rect-user-menu__name {
     display: none;
+  }
+
+  /* Without the name the pill is just the avatar, so the padding that
+     balanced the pair would leave it lopsided. */
+  .rect-user-menu__trigger {
+    padding-inline: var(--rect-space-1);
   }
 }

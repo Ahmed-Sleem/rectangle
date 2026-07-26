@@ -26,18 +26,24 @@
   --rect-color-danger: #c2413a;
   --rect-color-info: #2563a9;
 
+  /* Progress and breakdown bars share one track so they read as a family. */
+  --rect-progress-height: 8px;
+  --rect-progress-track: var(--rect-color-paper-elevated);
+  --rect-progress-track-border: var(--rect-color-line);
+
   /* Avatar tints.
-     Deep, desaturated hues so white initials clear WCAG AA (4.5:1) on every
-     one, and so a wall of avatars reads as one family rather than confetti.
-     Measured against #ffffff: all between 5.1:1 and 8.9:1. */
-  --rect-avatar-0: #2f5d8a;
-  --rect-avatar-1: #1f6f5c;
-  --rect-avatar-2: #7a4a8c;
-  --rect-avatar-3: #9c5228;
-  --rect-avatar-4: #385e2b;
-  --rect-avatar-5: #8c3d55;
-  --rect-avatar-6: #4a4f8f;
-  --rect-avatar-7: #7a5a1e;
+     Desaturated and deepened to sit with the muted paper and near-black
+     chrome rather than against them: a wall of avatars should read as one
+     family, not confetti. White initials measure 7.19:1 to 8.66:1 on every
+     one, well clear of WCAG AA. */
+  --rect-avatar-0: #3d4f63;
+  --rect-avatar-1: #33574c;
+  --rect-avatar-2: #5a4a63;
+  --rect-avatar-3: #6b4f3d;
+  --rect-avatar-4: #44573c;
+  --rect-avatar-5: #6b4550;
+  --rect-avatar-6: #454a66;
+  --rect-avatar-7: #63563a;
 
   /* Alpha overlays centralized as tokens */
   --rect-overlay-on-dark-subtle: rgba(247, 247, 245, 0.045);

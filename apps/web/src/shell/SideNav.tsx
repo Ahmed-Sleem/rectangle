@@ -15,7 +15,6 @@ export function SideNav({
 }) {
   const { t } = useTranslation();
   const primary = getNavFeatures("primary");
-  const footer = getNavFeatures("footer");
 
   return (
     <aside className="rect-nav" id={navId} aria-label={t("shell.nav.main")}>
@@ -38,19 +37,12 @@ export function SideNav({
         </ul>
       </nav>
 
+      {/*
+        Account items are reached from the profile control in the header, so
+        listing them here as well would offer the same two destinations twice.
+        They stay registered and routable — the menu links straight to them.
+      */}
       <div className="rect-nav__spacer" aria-hidden />
-
-      <nav className="rect-nav__footer" aria-label={t("shell.nav.account")}>
-        <ul className="rect-nav__list">
-          {footer.map((feature) => (
-            <SideNavItem
-              key={feature.id}
-              feature={feature}
-              collapsed={collapsed}
-            />
-          ))}
-        </ul>
-      </nav>
     </aside>
   );
 }

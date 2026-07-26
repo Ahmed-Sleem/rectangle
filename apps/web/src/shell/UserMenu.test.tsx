@@ -114,4 +114,14 @@ describe("UserMenu", () => {
     expect(new Set(tints).size).toBe(1);
     expect(tints[0]).toMatch(/^[0-7]$/u);
   });
+
+  it("presents the person as a single control rather than loose text", async () => {
+    renderMenu();
+    const trigger = screen.getByRole("button", { name: "Ahmed Sleem" });
+
+    // Avatar and name belong to one container, so they read as a pair with
+    // the search control beside them.
+    expect(trigger.querySelector(".rect-avatar")).not.toBeNull();
+    expect(trigger.querySelector(".rect-user-menu__name")).not.toBeNull();
+  });
 });

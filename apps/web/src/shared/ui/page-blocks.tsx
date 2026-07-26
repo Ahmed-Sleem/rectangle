@@ -239,7 +239,13 @@ export function ProgressBar({ done, total, label, showCounts = true, className }
         aria-valuetext={`${percent}%`}
       >
         <span
-          className={cn("rect-progress__fill", percent === 100 && "rect-progress__fill--complete")}
+          className={cn(
+            "rect-progress__fill",
+            // Any real progress keeps a visible sliver; genuine zero draws
+            // nothing, so the two states stay distinguishable.
+            done > 0 && "rect-progress__fill--started",
+            percent === 100 && "rect-progress__fill--complete",
+          )}
           style={{ inlineSize: `${percent}%` }}
         />
       </div>
