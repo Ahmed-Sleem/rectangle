@@ -59,6 +59,9 @@ const SERVICES = [
   // Self-service: the actor is the subject, so there is no permission to
   // check. The invariant that replaces it is stronger and verified below.
   { id: "profile", file: "application/profile-service.ts", selfService: true },
+  // Token-authorised rather than session-authorised: the caller has no session
+  // yet, so the token is the credential and the service verifies it.
+  { id: "auth-lifecycle", file: "application/auth-lifecycle-service.ts", tokenAuthorised: true },
   { id: "search", file: "application/search-service.ts", readOnly: true },
   { id: "task", file: "application/task-service.ts" },
   { id: "admin", file: "application/admin-service.ts" },
@@ -130,7 +133,25 @@ for (const service of SERVICES) {
     continue;
   }
   check("service", service.id, "validates input", /\bparse[A-Z]\w*\(|safeParse/.test(source));
-  if (service.selfService) {
+  if (service.tokenAuthorised) {
+    // The whole point of these flows is that a token stands in for a session.
+    // What must hold is that the token is never trusted as presented: it is
+    // resolved, its purpose checked, and it is spent exactly once.
+    check(
+      "service",
+      service.id,
+      "resolves tokens rather than trusting them",
+      /this\.resolve\(/.test(source) && /record\.purpose !== purpose/.test(source),
+      "a presented token must be looked up and matched to its purpose",
+    );
+    check(
+      "service",
+      service.id,
+      "spends a token exactly once",
+      /tokens\.consume\(/.test(source),
+      "the action must run inside the same transaction that marks the token used",
+    );
+  } else if (service.selfService) {
     // The subject must always be the caller. A self-service method that reads
     // a user id from its input is an admin endpoint under the wrong name, and
     // would let anyone edit anyone by changing one field in the request.

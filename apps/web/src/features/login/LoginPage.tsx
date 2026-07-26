@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/shared/auth";
 import { apiRequest, ApiClientError } from "@/shared/api/client";
-import { Button, Card, Field, Input, Toolbar } from "@/shared/ui";
+import { Button, buttonClassName, Card, Field, Input, Toolbar } from "@/shared/ui";
+import { Link } from "react-router-dom";
 import { loginWithPasskey } from "./passkey-api";
 import "../setup/setup-page.css";
 
@@ -44,6 +45,9 @@ export default function LoginPage() {
           <Button variant="primary" type="submit" disabled={login.isPending}>{login.isPending ? "Signing in…" : "Sign in"}</Button>
           <Button variant="secondary" type="button" disabled={passkeyLogin.isPending || !form.watch("email")} onClick={() => passkeyLogin.mutate()}>{passkeyLogin.isPending ? "Checking…" : "Use passkey"}</Button>
         </Toolbar>
+        <Link className={buttonClassName("ghost", "sm")} to="/reset">
+          Forgot your password?
+        </Link>
       </form>
     </Card>
   );

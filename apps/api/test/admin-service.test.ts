@@ -47,9 +47,12 @@ class MemoryAdminRepository implements AdminRepository {
   }
   async listUsers(): Promise<AdminUserRecord[]> { return this.users; }
   async findUserByEmail(_tenantId: string, email: string): Promise<AdminUserRecord | null> { return this.users.find((user) => user.email === email) ?? null; }
-  async createUser(inputTenantId: string, input: Omit<CreateUserInput, "password"> & { passwordHash: string }): Promise<AdminUserRecord> {
+  async createUser(
+    inputTenantId: string,
+    input: Omit<CreateUserInput, "password"> & { passwordHash: string | null; status: "active" | "invited" },
+  ): Promise<AdminUserRecord> {
     const types = this.userTypes.filter((type) => input.userTypeIds.includes(type.id));
-    const user: AdminUserRecord = { id: crypto.randomUUID(), tenantId: inputTenantId, email: input.email, displayName: input.displayName, status: "active", userTypes: types.map((type) => ({ id: type.id, name: type.name, key: type.key })), projectCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const user: AdminUserRecord = { id: crypto.randomUUID(), tenantId: inputTenantId, email: input.email, displayName: input.displayName, status: input.status, userTypes: types.map((type) => ({ id: type.id, name: type.name, key: type.key })), projectCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     this.users.push(user);
     return user;
   }
@@ -71,11 +74,27 @@ class MemorySessionRevoker {
   }
 }
 
+class MemoryInvitationSender {
+  readonly invited: Array<{ userId: string; email: string }> = [];
+  failing = false;
+  async sendInvitation(_actor: unknown, userId: string, email: string): Promise<void> {
+    if (this.failing) throw new Error("smtp down");
+    this.invited.push({ userId, email });
+  }
+}
+
 function createService() {
   const repo = new MemoryAdminRepository();
   const audit = new MemoryAuditRepository();
   const sessions = new MemorySessionRevoker();
-  return { service: new AdminService(repo, new TestPasswordHasher(), audit, sessions), repo, audit, sessions };
+  const invitations = new MemoryInvitationSender();
+  return {
+    service: new AdminService(repo, new TestPasswordHasher(), audit, sessions, invitations),
+    repo,
+    audit,
+    sessions,
+    invitations,
+  };
 }
 
 describe("AdminService", () => {
@@ -145,5 +164,55 @@ describe("AdminService", () => {
     await expect(service.updateUser(admin, admin.userId, { status: "disabled" })).rejects.toMatchObject({
       code: "VALIDATION_FAILED",
     });
+  });
+
+  it("invites a person when no password is set, instead of inventing one", async () => {
+    const { service, repo, invitations } = createService();
+    await repo.ensureSystemUserTypes();
+
+    const { user } = await service.createUser(admin, {
+      displayName: "New Person",
+      email: "new@example.com",
+      userTypeIds: [repo.userTypes[0]!.id],
+    });
+
+    // A password chosen by an administrator is known to two people from the
+    // moment it exists, so the invited path leaves the account without one.
+    expect(user.status).toBe("invited");
+    expect(invitations.invited).toEqual([{ userId: user.id, email: "new@example.com" }]);
+  });
+
+  it("still allows a temporary password where email is not available", async () => {
+    const { service, repo, invitations } = createService();
+    await repo.ensureSystemUserTypes();
+
+    const { user } = await service.createUser(admin, {
+      displayName: "Offline Person",
+      email: "offline@example.com",
+      password: "VeryStrongPassword123",
+      userTypeIds: [repo.userTypes[0]!.id],
+    });
+
+    expect(user.status).toBe("active");
+    expect(invitations.invited).toHaveLength(0);
+  });
+
+  it("records the account before the invitation is sent", async () => {
+    const { service, repo, audit, invitations } = createService();
+    await repo.ensureSystemUserTypes();
+    invitations.failing = true;
+
+    await expect(
+      service.createUser(admin, {
+        displayName: "New Person",
+        email: "new@example.com",
+        userTypeIds: [repo.userTypes[0]!.id],
+      }),
+    ).rejects.toThrow();
+
+    // The account exists and can be invited again; the audit entry explains
+    // why it is sitting unactivated.
+    expect(audit.events.some((event) => event.action === "user.create")).toBe(true);
+    expect(repo.users).toHaveLength(1);
   });
 });

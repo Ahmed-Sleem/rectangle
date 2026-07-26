@@ -88,6 +88,7 @@ const adminService = new AdminService(
   passwordHasher,
   auditRepository,
   authRepository,
+  authLifecycleService,
 );
 const setupService = new SetupService(
   new PostgresSetupRepository(pool),

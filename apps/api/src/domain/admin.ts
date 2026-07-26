@@ -21,7 +21,15 @@ export const updateUserTypeSchema = z.object({
 export const createUserSchema = z.object({
   displayName: z.string().trim().min(2).max(160),
   email: z.email().trim().toLowerCase().max(254),
-  password: z.string().min(12).max(256).regex(/[a-z]/u).regex(/[A-Z]/u).regex(/[0-9]/u),
+  /**
+   * Omitted when the person is being invited to choose their own.
+   *
+   * A password set by an administrator is known to two people from the moment
+   * it exists, so inviting is the better path wherever email works. It stays
+   * available because a company without SMTP configured still has to be able
+   * to add somebody.
+   */
+  password: z.string().min(12).max(256).regex(/[a-z]/u).regex(/[A-Z]/u).regex(/[0-9]/u).optional(),
   userTypeIds: z.array(z.uuid()).min(1).max(10),
 });
 

@@ -58,6 +58,7 @@ const en = {
   },
   userStatus: {
     active: "Active",
+    invited: "Invited",
     disabled: "Disabled",
   },
   /** Seeded user types. Custom types created by a company keep their own name. */
@@ -160,6 +161,7 @@ const ar: LocaleBundle<typeof en> = {
   },
   userStatus: {
     active: "نشط",
+    invited: "مدعو",
     disabled: "معطّل",
   },
   systemUserType: {

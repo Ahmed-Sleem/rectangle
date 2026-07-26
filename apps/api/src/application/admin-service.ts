@@ -35,6 +35,21 @@ export interface AdminUserRecord {
  * Withdrawing access has to reach live sessions, not just future logins.
  * Kept as a narrow port so the admin service does not depend on all of auth.
  */
+/**
+ * Sends an invitation once the account exists.
+ *
+ * A narrow port rather than the whole lifecycle service, so administration
+ * does not depend on password resets and email changes to add a person.
+ */
+export interface InvitationSender {
+  sendInvitation(
+    actor: UserPrincipal,
+    userId: string,
+    email: string,
+    displayName: string,
+  ): Promise<void>;
+}
+
 export interface SessionRevoker {
   revokeAllSessionsForUser(tenantId: string, userId: string): Promise<void>;
 }
@@ -53,7 +68,10 @@ export interface AdminRepository {
   updateUserType(tenantId: string, id: string, input: UpdateUserTypeInput): Promise<UserTypeRecord | null>;
   listUsers(tenantId: string): Promise<AdminUserRecord[]>;
   findUserByEmail(tenantId: string, email: string): Promise<AdminUserRecord | null>;
-  createUser(tenantId: string, input: Omit<CreateUserInput, "password"> & { passwordHash: string }): Promise<AdminUserRecord>;
+  createUser(
+    tenantId: string,
+    input: Omit<CreateUserInput, "password"> & { passwordHash: string | null; status: "active" | "invited" },
+  ): Promise<AdminUserRecord>;
   updateUser(tenantId: string, userId: string, input: Omit<UpdateUserInput, "password"> & { passwordHash?: string }): Promise<AdminUserRecord | null>;
 }
 
@@ -63,6 +81,8 @@ export class AdminService {
     private readonly passwordHasher: PasswordHasher,
     private readonly audit: AuditRepository,
     private readonly sessions?: SessionRevoker,
+    /** Absent in deployments that add people without email. */
+    private readonly invitations?: InvitationSender,
   ) {}
 
   listPermissions(actor: UserPrincipal) {
@@ -110,9 +130,31 @@ export class AdminService {
     if (existing) throw new DomainError("CONFLICT", "A user with this email already exists.");
     const userTypes = await this.repository.findUserTypesByIds(actor.tenantId, input.userTypeIds);
     if (userTypes.length !== input.userTypeIds.length) throw new DomainError("VALIDATION_FAILED", "One or more user types are invalid.");
-    const passwordHash = await this.passwordHasher.hash(input.password);
-    const user = await this.repository.createUser(actor.tenantId, { ...input, passwordHash });
-    await this.audit.append({ tenantId: actor.tenantId, actorUserId: actor.userId, action: "user.create", entityType: "user", entityId: user.id, result: "success", metadata: { email: user.email, userTypeIds: input.userTypeIds } });
+    // No password means the person is being invited to choose one. They stay
+    // `invited` until they do, and login already refuses anyone not active.
+    const invited = !input.password;
+    const passwordHash = input.password ? await this.passwordHasher.hash(input.password) : null;
+    const user = await this.repository.createUser(actor.tenantId, {
+      ...input,
+      passwordHash,
+      status: invited ? "invited" : "active",
+    });
+
+    await this.audit.append({ tenantId: actor.tenantId, actorUserId: actor.userId, action: "user.create", entityType: "user", entityId: user.id, result: "success", metadata: { email: user.email, userTypeIds: input.userTypeIds, invited } });
+
+    if (invited) {
+      if (!this.invitations) {
+        throw new DomainError(
+          "CONFIGURATION_REQUIRED",
+          "Invitations are unavailable. Set a temporary password instead.",
+        );
+      }
+      // Deliberately after the audit entry: if delivery fails the account
+      // still exists and can be invited again, and the record shows why it is
+      // sitting unactivated.
+      await this.invitations.sendInvitation(actor, user.id, user.email, user.displayName);
+    }
+
     return { user };
   }
 

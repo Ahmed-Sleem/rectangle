@@ -1,6 +1,6 @@
 /** Tests the self-service profile: identity, renaming, and password change. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/shared/auth";
@@ -110,10 +110,11 @@ describe("ProfilePage", () => {
     const user = userEvent.setup();
     renderProfile();
 
-    await user.click(await screen.findByRole("button", { name: /Password/u }));
-    await user.type(screen.getByLabelText(/Current password/u), "CurrentPassword123");
-    await user.type(screen.getByLabelText(/^New password/u), "BrandNewPassword123");
-    await user.type(screen.getByLabelText(/Confirm new password/u), "DifferentPassword123");
+    await user.click(await screen.findByRole("button", { name: /^Password/u }));
+    const form = screen.getByRole("button", { name: "Change password" }).closest("form")!;
+    await user.type(within(form).getByLabelText(/Current password/u), "CurrentPassword123");
+    await user.type(within(form).getByLabelText(/^New password/u), "BrandNewPassword123");
+    await user.type(within(form).getByLabelText(/Confirm new password/u), "DifferentPassword123");
     await user.click(screen.getByRole("button", { name: "Change password" }));
 
     expect(await screen.findByText("Both new passwords must match.")).toBeInTheDocument();
@@ -129,10 +130,11 @@ describe("ProfilePage", () => {
     const user = userEvent.setup();
     renderProfile();
 
-    await user.click(await screen.findByRole("button", { name: /Password/u }));
-    await user.type(screen.getByLabelText(/Current password/u), "CurrentPassword123");
-    await user.type(screen.getByLabelText(/^New password/u), "BrandNewPassword123");
-    await user.type(screen.getByLabelText(/Confirm new password/u), "BrandNewPassword123");
+    await user.click(await screen.findByRole("button", { name: /^Password/u }));
+    const form = screen.getByRole("button", { name: "Change password" }).closest("form")!;
+    await user.type(within(form).getByLabelText(/Current password/u), "CurrentPassword123");
+    await user.type(within(form).getByLabelText(/^New password/u), "BrandNewPassword123");
+    await user.type(within(form).getByLabelText(/Confirm new password/u), "BrandNewPassword123");
     await user.click(screen.getByRole("button", { name: "Change password" }));
 
     expect(
@@ -155,5 +157,26 @@ describe("ProfilePage", () => {
     renderProfile();
 
     expect(await screen.findByText("الهوية")).toBeInTheDocument();
+  });
+
+  it("offers a way to move the account to a different address", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      if (String(input).includes("/v1/profile/email")) return jsonResponse({ requested: true });
+      return jsonResponse(profile);
+    });
+    const user = userEvent.setup();
+    renderProfile();
+
+    await user.click(await screen.findByRole("button", { name: /Sign-in email/u }));
+    const form = screen.getByRole("button", { name: "Send confirmation" }).closest("form")!;
+    await user.type(within(form).getByLabelText(/New email address/u), "ahmed.new@rectangle.test");
+    await user.type(within(form).getByLabelText(/Current password/u), "CurrentPassword123");
+    await user.click(screen.getByRole("button", { name: "Send confirmation" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/v1/profile/email", expect.objectContaining({ method: "POST" })),
+    );
+    // Nothing has changed yet: the address moves only once the link is used.
+    expect(await screen.findByText("Confirmation sent.")).toBeInTheDocument();
   });
 });

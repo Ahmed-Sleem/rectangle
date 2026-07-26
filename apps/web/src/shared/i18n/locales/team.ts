@@ -32,6 +32,11 @@ const en = {
   fieldPermissions: "Permissions",
   fieldEmail: "Email",
   fieldTemporaryPassword: "Temporary password",
+  inviteLabel: "How they get access",
+  inviteOption: "Email them an invitation",
+  inviteHint: "They choose their own password. Requires email to be configured in Settings.",
+  passwordRule: "At least 12 characters, with an uppercase letter, a lowercase letter, and a digit.",
+  passwordWeak: "That password is too weak.",
 
   loadingTitle: "Loading team",
   loadingMessage: "Fetching your company's people and roles…",
@@ -125,6 +130,11 @@ const ar: LocaleBundle<typeof en> = {
   fieldPermissions: "الصلاحيات",
   fieldEmail: "البريد الإلكتروني",
   fieldTemporaryPassword: "كلمة مرور مؤقتة",
+  inviteLabel: "طريقة الحصول على الصلاحية",
+  inviteOption: "إرسال دعوة بالبريد الإلكتروني",
+  inviteHint: "سيختار كلمة المرور بنفسه. يتطلب إعداد البريد الإلكتروني في الإعدادات.",
+  passwordRule: "١٢ حرفًا على الأقل، مع حرف كبير وحرف صغير ورقم.",
+  passwordWeak: "كلمة المرور ضعيفة جدًا.",
 
   loadingTitle: "جارٍ تحميل الفريق",
   loadingMessage: "جارٍ جلب أفراد شركتك وأدوارهم…",

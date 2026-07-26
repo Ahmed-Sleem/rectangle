@@ -19,6 +19,7 @@ import {
   Avatar, Badge, Button, ErrorState, Field, Input, LoadingState,
   SettingRow, SettingsSection, SettingsStack, useToast,
 } from "@/shared/ui";
+import { requestEmailChange } from "@/features/auth-lifecycle/lifecycle-api";
 import { changePassword, getProfile, updateProfile } from "./profile-api";
 import "./ProfilePage.css";
 
@@ -49,7 +50,14 @@ const passwordSchema = z
 type IdentityForm = z.infer<typeof identitySchema>;
 type PasswordForm = z.infer<typeof passwordSchema>;
 
-type SectionId = "identity" | "password" | "access";
+type SectionId = "identity" | "email" | "password" | "access";
+
+const emailSchema = z.object({
+  newEmail: z.email().max(254),
+  currentPassword: z.string().min(1),
+});
+
+type EmailForm = z.infer<typeof emailSchema>;
 
 export default function ProfilePage() {
   const { t } = useTranslation();
@@ -66,6 +74,10 @@ export default function ProfilePage() {
   const identityForm = useForm<IdentityForm>({
     resolver: zodResolver(identitySchema),
     defaultValues: { displayName: "" },
+  });
+  const emailForm = useForm<EmailForm>({
+    resolver: zodResolver(emailSchema),
+    defaultValues: { newEmail: "", currentPassword: "" },
   });
   const passwordForm = useForm<PasswordForm>({
     resolver: zodResolver(passwordSchema),
@@ -88,6 +100,14 @@ export default function ProfilePage() {
         queryClient.invalidateQueries({ queryKey: ["me"] }),
       ]);
       await auth?.refresh();
+    },
+  });
+
+  const changeEmail = useMutation({
+    mutationFn: (values: EmailForm) => requestEmailChange(values),
+    onSuccess: () => {
+      toast.success(t("profile.emailPending"), { description: t("profile.emailPendingDetail") });
+      emailForm.reset();
     },
   });
 
@@ -158,9 +178,9 @@ export default function ProfilePage() {
             >
               <Input {...identityForm.register("displayName")} />
             </Field>
-            {/* Email is the sign-in identity: changing it needs a verification
-                flow that does not exist yet, so it is shown but not editable. */}
-            <Field label={t("profile.email")} hint={t("profile.emailLocked")}>
+            {/* Shown here for context; changing it lives in its own section
+                because it needs the current password and a confirmation step. */}
+            <Field label={t("profile.email")} hint={t("profile.emailSectionHint")}>
               <Input value={record.email} readOnly disabled />
             </Field>
             {messageFor(saveIdentity.error, t("profile.saveFailed")) ? (
@@ -170,6 +190,42 @@ export default function ProfilePage() {
             ) : null}
             <Button type="submit" variant="primary" disabled={saveIdentity.isPending}>
               {t("profile.save")}
+            </Button>
+          </form>
+        </SettingsSection>
+
+        <SettingsSection
+          title={t("profile.emailTitle")}
+          description={t("profile.emailDescription")}
+          open={openSection === "email"}
+          onToggle={() => toggle("email")}
+        >
+          <form
+            className="rect-profile__form"
+            onSubmit={emailForm.handleSubmit((values) => changeEmail.mutate(values))}
+          >
+            <Field
+              label={t("profile.newEmail")}
+              hint={t("profile.newEmailHint")}
+              error={emailForm.formState.errors.newEmail?.message}
+              required
+            >
+              <Input type="email" autoComplete="email" {...emailForm.register("newEmail")} />
+            </Field>
+            <Field
+              label={t("profile.currentPassword")}
+              error={emailForm.formState.errors.currentPassword?.message}
+              required
+            >
+              <Input type="password" autoComplete="current-password" {...emailForm.register("currentPassword")} />
+            </Field>
+            {messageFor(changeEmail.error, t("profile.emailFailed")) ? (
+              <p className="rect-profile__error" role="alert">
+                {messageFor(changeEmail.error, t("profile.emailFailed"))}
+              </p>
+            ) : null}
+            <Button type="submit" variant="primary" disabled={changeEmail.isPending}>
+              {t("profile.emailSubmit")}
             </Button>
           </form>
         </SettingsSection>

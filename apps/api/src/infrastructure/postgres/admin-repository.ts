@@ -143,14 +143,17 @@ export class PostgresAdminRepository implements AdminRepository {
     return users.find((user) => user.email.toLowerCase() === email.toLowerCase()) ?? null;
   }
 
-  async createUser(tenantId: string, input: Omit<CreateUserInput, "password"> & { passwordHash: string }): Promise<AdminUserRecord> {
+  async createUser(
+    tenantId: string,
+    input: Omit<CreateUserInput, "password"> & { passwordHash: string | null; status: "active" | "invited" },
+  ): Promise<AdminUserRecord> {
     const client = await this.pool.connect();
     try {
       await client.query("begin");
       const userResult = await client.query(
         `insert into users (tenant_id, email, display_name, password_hash, status)
-         values ($1,$2,$3,$4,'active') returning id`,
-        [tenantId, input.email, input.displayName, input.passwordHash],
+         values ($1,$2,$3,$4,$5) returning id`,
+        [tenantId, input.email, input.displayName, input.passwordHash, input.status],
       );
       const userId = String(userResult.rows[0].id);
       await client.query("insert into tenant_user_roles (tenant_id, user_id, role) values ($1,$2,'viewer')", [tenantId, userId]);

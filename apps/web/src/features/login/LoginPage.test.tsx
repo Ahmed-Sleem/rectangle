@@ -4,11 +4,21 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "@/shared/auth";
+import { MemoryRouter } from "react-router-dom";
 import LoginPage from "./LoginPage";
 
 function renderLogin() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  return render(<QueryClientProvider client={queryClient}><AuthProvider><LoginPage /></AuthProvider></QueryClientProvider>);
+  // The page links to password reset, so it needs a router to render.
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <AuthProvider>
+          <LoginPage />
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
 }
 
 describe("LoginPage", () => {
@@ -32,5 +42,11 @@ describe("LoginPage", () => {
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/v1/auth/login", expect.objectContaining({ method: "POST" })));
+  });
+
+  it("offers a way to recover a forgotten password", () => {
+    renderLogin();
+    // Without this the reset flow exists but nobody can reach it.
+    expect(screen.getByRole("link", { name: "Forgot your password?" })).toHaveAttribute("href", "/reset");
   });
 });

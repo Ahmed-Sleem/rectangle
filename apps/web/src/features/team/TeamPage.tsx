@@ -35,15 +35,39 @@ const userTypeSchema = z.object({
 /** Editing a role cannot change its key: assignments and audit entries reference it. */
 const editUserTypeSchema = userTypeSchema.omit({ key: true });
 
-const userSchema = z.object({
+const userFields = z.object({
   displayName: z.string().trim().min(2).max(160),
   email: z.email().max(254),
-  password: z.string().min(12).max(256).regex(/[a-z]/u).regex(/[A-Z]/u).regex(/[0-9]/u),
+  /**
+   * Absent when the person is invited to choose their own, which is the better
+   * path: a password an administrator picks is known to two people from the
+   * moment it exists. Setting one stays available for companies without email.
+   */
+  password: z.string().max(256).optional(),
+  invite: z.boolean(),
   userTypeIds: z.array(z.string()).min(1),
 });
 
-/** Email is the sign-in identity and a password is not reset by editing a profile. */
-const editUserSchema = userSchema.omit({ email: true, password: true });
+/**
+ * The password rule applies only when a password is actually being collected.
+ * It lives on a separate schema because a refined object cannot be narrowed,
+ * and the edit form needs to narrow this one.
+ */
+const userSchema = userFields.superRefine((value, context) => {
+  if (value.invite) return;
+  const password = value.password ?? "";
+  const strong =
+    password.length >= 12 &&
+    /[a-z]/u.test(password) &&
+    /[A-Z]/u.test(password) &&
+    /[0-9]/u.test(password);
+  if (!strong) {
+    context.addIssue({ code: "custom", path: ["password"], message: "weak" });
+  }
+});
+
+/** Email is the sign-in identity; a password is not reset by editing a profile. */
+const editUserSchema = userFields.omit({ email: true, password: true, invite: true });
 
 type UserTypeForm = z.infer<typeof userTypeSchema>;
 type EditUserTypeForm = z.infer<typeof editUserTypeSchema>;
@@ -107,7 +131,10 @@ export default function TeamPage() {
   const users = useQuery({ queryKey: ["admin", "users"], queryFn: adminApi.users });
 
   const typeForm = useForm<UserTypeForm>({ resolver: zodResolver(userTypeSchema), defaultValues: { name: "", key: "", description: "", permissions: [] } });
-  const userForm = useForm<UserForm>({ resolver: zodResolver(userSchema), defaultValues: { displayName: "", email: "", password: "", userTypeIds: [] } });
+  const userForm = useForm<UserForm>({
+    resolver: zodResolver(userSchema),
+    defaultValues: { displayName: "", email: "", password: "", invite: true, userTypeIds: [] },
+  });
   const editUserForm = useForm<EditUserForm>({ resolver: zodResolver(editUserSchema), defaultValues: { displayName: "", userTypeIds: [] } });
   const editTypeForm = useForm<EditUserTypeForm>({ resolver: zodResolver(editUserTypeSchema), defaultValues: { name: "", description: "", permissions: [] } });
 
@@ -139,7 +166,13 @@ export default function TeamPage() {
     onSuccess: async () => { await invalidate("user-types"); typeForm.reset(); setTypeOpen(false); },
   });
   const createUser = useMutation({
-    mutationFn: adminApi.createUser,
+    mutationFn: (values: UserForm) =>
+      adminApi.createUser({
+        displayName: values.displayName,
+        email: values.email,
+        userTypeIds: values.userTypeIds,
+        ...(values.invite ? {} : { password: values.password ?? "" }),
+      }),
     onSuccess: async () => { await invalidate("users"); userForm.reset(); setUserOpen(false); },
   });
   const saveUser = useMutation({
@@ -503,7 +536,19 @@ export default function TeamPage() {
       >
         <Field label={t("team.fieldName")} error={userForm.formState.errors.displayName?.message} required><Input data-autofocus="true" {...userForm.register("displayName")} /></Field>
         <Field label={t("team.fieldEmail")} error={userForm.formState.errors.email?.message} required><Input type="email" {...userForm.register("email")} /></Field>
-        <Field label={t("team.fieldTemporaryPassword")} error={userForm.formState.errors.password?.message} required><Input type="password" {...userForm.register("password")} /></Field>
+        <Field label={t("team.inviteLabel")} hint={t("team.inviteHint")}>
+          <Checkbox label={t("team.inviteOption")} {...userForm.register("invite")} />
+        </Field>
+        {!userForm.watch("invite") ? (
+          <Field
+            label={t("team.fieldTemporaryPassword")}
+            hint={t("team.passwordRule")}
+            error={userForm.formState.errors.password ? t("team.passwordWeak") : undefined}
+            required
+          >
+            <Input type="password" autoComplete="new-password" {...userForm.register("password")} />
+          </Field>
+        ) : null}
         <Field label={t("team.userTypes")} error={userForm.formState.errors.userTypeIds?.message} required>
           <div className="rect-team-permissions">
             {typeRows.map((type) => (
