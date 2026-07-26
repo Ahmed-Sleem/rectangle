@@ -8,6 +8,7 @@
  */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { LayoutGrid, Rows3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -17,7 +18,7 @@ import { ApiClientError } from "@/shared/api/client";
 import { useOptionalAuth } from "@/shared/auth";
 import { getCurrentLanguage } from "@/shared/i18n";
 import {
-  Badge, BreakdownBar, Button, buttonClassName, ConfirmDialog, DataTable,
+  Badge, BreakdownBar, Button, buttonClassName, CardGrid, ConfirmDialog, DataTable,
   EmptyState, ErrorState, Field, FormDialog, InsightBanner, Input, LoadingState,
   PageToolbar, Select, SidePanel, StatCard, StatRow, Textarea,
 } from "@/shared/ui";
@@ -36,6 +37,29 @@ const CATEGORIES: readonly RiskCategory[] = [
   "procurement", "environmental", "regulatory", "other",
 ];
 const SCALE = [1, 2, 3, 4, 5] as const;
+
+type ViewMode = "cards" | "table";
+
+const VIEW_STORAGE_KEY = "rectangle.risks.view";
+
+/** The chosen layout is a preference, so it survives navigation and reloads. */
+function readStoredView(): ViewMode {
+  if (typeof window === "undefined") return "table";
+  try {
+    return window.localStorage.getItem(VIEW_STORAGE_KEY) === "cards" ? "cards" : "table";
+  } catch {
+    return "table";
+  }
+}
+
+function storeView(value: ViewMode): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(VIEW_STORAGE_KEY, value);
+  } catch {
+    /* Private browsing must not break the toggle. */
+  }
+}
 
 const riskSchema = z.object({
   projectId: z.string().min(1),
@@ -91,6 +115,8 @@ export default function RisksPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Arriving from a project workspace or from search pre-selects that project.
+  const [search, setSearch] = useState("");
+  const [view, setView] = useState<ViewMode>(() => readStoredView());
   const [projectFilter, setProjectFilter] = useState(() => searchParams.get("projectId") ?? "");
   const [kindFilter, setKindFilter] = useState<RiskKind | "">("");
   const [statusFilter, setStatusFilter] = useState<RiskStatus | "">("");
@@ -108,6 +134,7 @@ export default function RisksPage() {
     ) || auth?.user?.permissions.includes("projects.manage") || false;
 
   const filters = {
+    ...(search.trim() ? { search: search.trim() } : {}),
     ...(projectFilter ? { projectId: projectFilter } : {}),
     ...(kindFilter ? { kind: kindFilter } : {}),
     ...(statusFilter ? { status: statusFilter } : {}),
@@ -222,7 +249,8 @@ export default function RisksPage() {
   const rows = useMemo(() => risksQuery.data?.risks ?? [], [risksQuery.data]);
   const summary = summaryQuery.data?.summary;
   const isFiltered = Boolean(
-    projectFilter || kindFilter || statusFilter || categoryFilter || mineOnly || openOnly || cell,
+    search.trim() || projectFilter || kindFilter || statusFilter || categoryFilter ||
+    mineOnly || openOnly || cell,
   );
 
   // Indexed for constant-time lookup while drawing twenty-five cells.
@@ -240,6 +268,7 @@ export default function RisksPage() {
   const dateFormatter = new Intl.DateTimeFormat(language, { dateStyle: "medium" });
 
   function clearFilters() {
+    setSearch("");
     setProjectFilter(""); setKindFilter(""); setStatusFilter("");
     setCategoryFilter(""); setMineOnly(false); setOpenOnly(false); setCell(null);
     setSearchParams({}, { replace: true });
@@ -261,7 +290,22 @@ export default function RisksPage() {
 
   return (
     <section className="rect-risks-page" aria-label={t("risks.pageLabel")}>
-      <PageToolbar
+      <PageToolbar<ViewMode>
+        search={{
+          value: search,
+          onChange: setSearch,
+          label: t("risks.searchLabel"),
+          placeholder: t("risks.searchPlaceholder"),
+        }}
+        view={{
+          value: view,
+          label: t("risks.cardView"),
+          onChange: (next) => { setView(next); storeView(next); },
+          options: [
+            { value: "cards", label: t("risks.cardView"), icon: <LayoutGrid size={16} strokeWidth={2} aria-hidden /> },
+            { value: "table", label: t("risks.tableView"), icon: <Rows3 size={16} strokeWidth={2} aria-hidden /> },
+          ],
+        }}
         filters={[
           {
             id: "project",
@@ -362,6 +406,55 @@ export default function RisksPage() {
                     ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("risks.create")}</Button> }
                     : {})}
                 />
+              ) : view === "cards" ? (
+                <CardGrid label={t("risks.registerLabel")}>
+                  {rows.map((risk) => (
+                    <article key={risk.id} className="rect-risk-card" role="listitem">
+                      <header className="rect-risk-card__head">
+                        <Badge tone={severityTone(risk.severity)}>
+                          {t(`enums.riskSeverity.${risk.severity}`)}
+                        </Badge>
+                        <Badge tone={risk.kind === "issue" ? "danger" : "neutral"}>
+                          {t(`enums.riskKind.${risk.kind}`)}
+                        </Badge>
+                        <span className="rect-risk-card__score">
+                          {t("risks.scoreLabel", { score: risk.score })}
+                        </span>
+                      </header>
+
+                      {canManage ? (
+                        <button type="button" className="rect-risk__link" onClick={() => setEditing(risk)}>
+                          {risk.title}
+                        </button>
+                      ) : (
+                        <span className="rect-risk-card__title">{risk.title}</span>
+                      )}
+
+                      <dl className="rect-risk-card__facts">
+                        <div>
+                          <dt>{t("risks.columnProject")}</dt>
+                          <dd>{risk.projectCode}</dd>
+                        </div>
+                        <div>
+                          <dt>{t("risks.columnOwner")}</dt>
+                          <dd>{risk.ownerName ?? t("risks.unassigned")}</dd>
+                        </div>
+                        <div>
+                          <dt>{t("risks.columnStatus")}</dt>
+                          <dd>{t(`enums.riskStatus.${risk.status}`)}</dd>
+                        </div>
+                        <div>
+                          <dt>{t("risks.columnDue")}</dt>
+                          <dd>
+                            {risk.dueDate
+                              ? dateFormatter.format(new Date(`${risk.dueDate}T00:00:00`))
+                              : t("common.notAvailable")}
+                          </dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))}
+                </CardGrid>
               ) : (
                 <DataTable
                   caption={t("risks.registerLabel")}
@@ -448,7 +541,7 @@ export default function RisksPage() {
               <SidePanel title={t("risks.matrixTitle")}>
                 {summary && summary.matrix.length > 0 ? (
                   <>
-                    <p className="rect-matrix__hint">{t("risks.matrixHint")}</p>
+                    <p className="rect-panel-note">{t("risks.matrixHint")}</p>
                     <div className="rect-matrix__layout">
                       <span className="rect-matrix__axis rect-matrix__axis--y">{t("risks.matrixProbability")}</span>
                       <div className="rect-matrix__grid" role="group" aria-label={t("risks.matrixTitle")}>
@@ -488,13 +581,13 @@ export default function RisksPage() {
                     ) : null}
                   </>
                 ) : (
-                  <p className="rect-matrix__hint">{t("risks.matrixEmpty")}</p>
+                  <p className="rect-panel-note">{t("risks.matrixEmpty")}</p>
                 )}
               </SidePanel>
 
               <SidePanel title={t("risks.severityTitle")}>
                 {(summary?.bySeverity.length ?? 0) === 0 ? (
-                  <p className="rect-matrix__hint">{t("risks.breakdownEmpty")}</p>
+                  <p className="rect-panel-note">{t("risks.breakdownEmpty")}</p>
                 ) : (
                   summary?.bySeverity.map((band) => (
                     <BreakdownBar
@@ -510,7 +603,7 @@ export default function RisksPage() {
 
               <SidePanel title={t("risks.categoryTitle")}>
                 {(summary?.byCategory.length ?? 0) === 0 ? (
-                  <p className="rect-matrix__hint">{t("risks.breakdownEmpty")}</p>
+                  <p className="rect-panel-note">{t("risks.breakdownEmpty")}</p>
                 ) : (
                   summary?.byCategory.map((entry) => (
                     <BreakdownBar

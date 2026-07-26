@@ -32,7 +32,7 @@
   min-width: 0;
 }
 
-.rect-matrix__hint {
+.rect-panel-note {
   color: var(--rect-text-secondary);
   font-size: var(--rect-text-label);
   margin: 0;
@@ -42,6 +42,11 @@
  * Axis labels sit outside the grid rather than inside a cell, so the grid
  * stays a clean 5x5 and the labels can be read at any size.
  */
+/*
+ * Centred in its panel. The panel body sets `justify-items: start` so buttons
+ * do not stretch, which pinned the grid to one edge and left the space beside
+ * it looking accidental rather than deliberate.
+ */
 .rect-matrix__layout {
   display: grid;
   gap: var(--rect-space-2);
@@ -50,6 +55,7 @@
     ".      axis-x";
   grid-template-columns: auto auto;
   align-items: center;
+  justify-self: center;
 }
 
 .rect-matrix__grid {
@@ -175,4 +181,63 @@
   display: grid;
   gap: var(--rect-space-3);
   grid-template-columns: 1fr 1fr;
+}
+
+/* ── Risk card ── */
+
+.rect-risk-card {
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  display: grid;
+  gap: var(--rect-space-3);
+  min-inline-size: 0;
+  padding: var(--rect-space-4);
+  transition: border-color var(--rect-motion-spring);
+}
+
+.rect-risk-card:hover {
+  border-color: var(--rect-border-active);
+}
+
+.rect-risk-card__head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+}
+
+.rect-risk-card__score {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-variant-numeric: tabular-nums;
+  margin-inline-start: auto;
+}
+
+.rect-risk-card__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-risk-card__facts {
+  display: grid;
+  gap: var(--rect-space-2);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.rect-risk-card__facts dt {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-micro);
+  margin-block-end: var(--rect-space-1);
+}
+
+.rect-risk-card__facts dd {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-label);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

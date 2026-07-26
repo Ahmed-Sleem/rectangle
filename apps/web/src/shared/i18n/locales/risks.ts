@@ -5,6 +5,11 @@ const en = {
   pageLabel: "Risks and issues",
   registerLabel: "Risk register",
 
+  searchLabel: "Search risks",
+  searchPlaceholder: "Title or description",
+  cardView: "Card view",
+  tableView: "Table view",
+
   filterProject: "Filter by project",
   allProjects: "All projects",
   filterKind: "Filter by type",
@@ -93,6 +98,11 @@ const en = {
 const ar: LocaleBundle<typeof en> = {
   pageLabel: "المخاطر والمشاكل",
   registerLabel: "سجل المخاطر",
+
+  searchLabel: "البحث في المخاطر",
+  searchPlaceholder: "العنوان أو الوصف",
+  cardView: "عرض البطاقات",
+  tableView: "عرض الجدول",
 
   filterProject: "تصفية حسب المشروع",
   allProjects: "كل المشاريع",

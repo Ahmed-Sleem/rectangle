@@ -54,6 +54,7 @@ export interface RiskSummary {
 }
 
 export interface RiskFilters {
+  search?: string;
   projectId?: string;
   kind?: RiskKind;
   status?: RiskStatus;
@@ -95,6 +96,7 @@ export type UpdateRiskPayload = Partial<{
 
 function toQuery(filters: RiskFilters): string {
   const params = new URLSearchParams();
+  if (filters.search) params.set("search", filters.search);
   if (filters.projectId) params.set("projectId", filters.projectId);
   if (filters.kind) params.set("kind", filters.kind);
   if (filters.status) params.set("status", filters.status);

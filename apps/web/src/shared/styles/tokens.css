@@ -271,6 +271,10 @@
   /* Slightly longer than a hover so the width change reads as deliberate
      rather than twitchy, in both directions. */
   --rect-duration-search: 220ms;
+  /* The header search unfolding from its icon: a larger, more noticeable
+     movement than a field widening, so it is given room to be seen. */
+  --rect-duration-reveal: 380ms;
+  --rect-ease-reveal: cubic-bezier(0.32, 0.72, 0, 1);
   --rect-duration-overlay: 140ms;
   --rect-duration-overlay-scrim: 110ms;
   /* Exit is quicker than entry. An element that lingers on the way out reads as

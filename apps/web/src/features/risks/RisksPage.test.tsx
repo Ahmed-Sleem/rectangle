@@ -239,4 +239,38 @@ describe("RisksPage", () => {
     // Nothing that reads as a finding.
     expect(within(banner).queryByText(/recommends/u)).not.toBeInTheDocument();
   });
+
+  it("searches the register through the backend", async () => {
+    const fetchMock = mockReads();
+    const user = userEvent.setup();
+    renderRisks();
+
+    await screen.findByText("Rebar delivery may slip");
+    await user.type(screen.getByLabelText("Search risks"), "rebar");
+
+    // The API has supported this since the register was built; the page
+    // simply never sent it.
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("search=rebar"),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it("offers the register as cards as well as rows", async () => {
+    mockReads();
+    const user = userEvent.setup();
+    renderRisks();
+
+    await screen.findByText("Rebar delivery may slip");
+    await user.click(screen.getByRole("radio", { name: "Card view" }));
+
+    // A card shows severity, owner and due date at a glance; a dense row
+    // makes those a scan across columns.
+    const grid = await screen.findByRole("list", { name: "Risk register" });
+    expect(within(grid).getByText("Rebar delivery may slip")).toBeInTheDocument();
+    expect(within(grid).getByText("Ahmed Sleem")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
 });

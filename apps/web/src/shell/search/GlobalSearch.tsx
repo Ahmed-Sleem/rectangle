@@ -9,11 +9,11 @@
  * ever show records the person could already reach by navigating.
  */
 import { useQuery } from "@tanstack/react-query";
-import { FolderOpen, ListChecks, Search, User, X } from "lucide-react";
+import { FolderOpen, ListChecks, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Overlay } from "@/shared/ui";
+import { Overlay, SearchInput } from "@/shared/ui";
 import { search, type SearchResult, type SearchResultKind } from "./search-api";
 import "./search.css";
 
@@ -91,32 +91,17 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
   return (
     <Overlay open={open} title={t("shell.search.title")} size="md" onClose={onClose}>
       <div className="rect-search-palette" onKeyDown={onKeyDown}>
-        <div className="rect-search-palette__field">
-          <Search size={16} strokeWidth={2} aria-hidden className="rect-search-palette__icon" />
-          <input
-            type="text"
-            className="rect-search-palette__input"
-            data-autofocus="true"
-            value={term}
-            aria-label={t("shell.search.placeholder")}
-            placeholder={t("shell.search.placeholder")}
-            onChange={(event) => setTerm(event.target.value)}
-            /* The list is owned by this input for assistive technology. */
-            aria-controls="rect-search-results"
-            aria-expanded={rows.length > 0}
-            role="combobox"
-          />
-          {term ? (
-            <button
-              type="button"
-              className="rect-search-palette__clear"
-              onClick={() => setTerm("")}
-              aria-label={t("shell.search.clear")}
-            >
-              <X size={14} strokeWidth={2.2} aria-hidden />
-            </button>
-          ) : null}
-        </div>
+        <SearchInput
+          variant="panel"
+          value={term}
+          onChange={setTerm}
+          label={t("shell.search.placeholder")}
+          data-autofocus="true"
+          /* The result list belongs to this field for assistive technology. */
+          aria-controls="rect-search-results"
+          aria-expanded={rows.length > 0}
+          role="combobox"
+        />
 
         {!ready ? (
           /* Nothing is wrong yet, so nothing is said: the placeholder already

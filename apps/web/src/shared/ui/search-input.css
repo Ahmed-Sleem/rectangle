@@ -1,0 +1,107 @@
+/*
+ * The shared search control.
+ *
+ * The wrapper owns the focus ring. Focus rings are drawn inset in this product
+ * so scroll containers cannot clip them, which means a bare input inside a
+ * bordered container would paint a second rectangle just within the first —
+ * the "border inside a border" that appeared on every search field.
+ */
+.rect-search-input {
+  align-items: center;
+  display: flex;
+  gap: var(--rect-space-2);
+  min-inline-size: 0;
+  transition: border-color var(--rect-motion-spring), inline-size var(--rect-duration-search) var(--rect-ease-out);
+}
+
+.rect-search-input__field {
+  background: none;
+  border: 0;
+  color: var(--rect-text-primary);
+  flex: 1 1 auto;
+  font: inherit;
+  min-inline-size: 0;
+  padding: 0;
+}
+
+/* The container shows focus on this field's behalf. */
+.rect-search-input__field:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+.rect-search-input__field::placeholder {
+  color: var(--rect-text-secondary);
+}
+
+.rect-search-input__icon {
+  color: var(--rect-text-secondary);
+  flex-shrink: 0;
+}
+
+.rect-search-input__clear {
+  flex-shrink: 0;
+}
+
+/* ── In a page toolbar ── */
+
+.rect-search-input--bar {
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-pill-radius);
+  block-size: var(--rect-control-compact);
+  inline-size: var(--rect-field-width-search);
+  max-inline-size: 100%;
+  padding-inline: var(--rect-space-3);
+}
+
+.rect-search-input--bar .rect-search-input__field {
+  font-size: var(--rect-text-table);
+}
+
+/* Widens while in use so a long term stays readable without a wider row. */
+.rect-search-input--bar:focus-within {
+  border-color: var(--rect-border-active);
+  inline-size: var(--rect-field-width-search-focus);
+}
+
+/* ── In the global palette ── */
+
+.rect-search-input--panel {
+  /*
+   * No box of its own. The window is already a container, so a bordered field
+   * inside it repeats that edge a few pixels in. A single rule beneath
+   * separates the field from the results without drawing a second frame.
+   */
+  border-block-end: 1px solid var(--rect-surface-divider);
+  block-size: var(--rect-control-touch);
+  gap: var(--rect-space-3);
+  padding-block-end: var(--rect-space-2);
+}
+
+.rect-search-input--panel:focus-within {
+  border-block-end-color: var(--rect-border-active);
+}
+
+.rect-search-input--panel .rect-search-input__field {
+  font-size: var(--rect-text-section);
+}
+
+@media (pointer: coarse) {
+  .rect-search-input--bar {
+    min-block-size: var(--rect-control-touch);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-search-input {
+    transition: none;
+  }
+}
+
+@media (max-width: 48rem) {
+  .rect-search-input--bar,
+  .rect-search-input--bar:focus-within {
+    inline-size: 100%;
+  }
+}

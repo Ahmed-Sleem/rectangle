@@ -16,53 +16,6 @@
   flex: 1 1 auto;
 }
 
-/*
- * Search is the most-used control on these pages, so it stays visible rather
- * than living behind the filter button.
- */
-.rect-toolbar__search {
-  align-items: center;
-  background: var(--rect-card-bg);
-  border: 1px solid var(--rect-card-border);
-  border-radius: var(--rect-pill-radius);
-  display: flex;
-  gap: var(--rect-space-2);
-  block-size: var(--rect-control-compact);
-  inline-size: var(--rect-field-width-search);
-  max-inline-size: 100%;
-  padding-inline: var(--rect-space-3);
-  transition:
-    inline-size var(--rect-duration-search) var(--rect-ease-out),
-    border-color var(--rect-motion-spring);
-}
-
-/* Widens while in use, so a long term stays readable without a wider row. */
-.rect-toolbar__search:focus-within {
-  border-color: var(--rect-border-active);
-  inline-size: var(--rect-field-width-search-focus);
-}
-
-.rect-toolbar__search-icon {
-  color: var(--rect-text-secondary);
-  flex-shrink: 0;
-}
-
-.rect-toolbar__search-input {
-  background: none;
-  border: 0;
-  color: var(--rect-text-primary);
-  flex: 1 1 auto;
-  font: inherit;
-  font-size: var(--rect-text-table);
-  min-inline-size: 0;
-  outline: none;
-  padding: 0;
-}
-
-.rect-toolbar__search-clear {
-  flex-shrink: 0;
-}
-
 .rect-toolbar__filter-button {
   gap: var(--rect-space-2);
 }
@@ -152,15 +105,4 @@
 
 .rect-toolbar__filter-select:focus-visible {
   border-color: var(--rect-border-active);
-}
-
-@media (max-width: 48rem) {
-  /* Search takes the row to itself rather than squeezing everything else. */
-  .rect-toolbar__search {
-    inline-size: 100%;
-  }
-
-  .rect-toolbar__search:focus-within {
-    inline-size: 100%;
-  }
 }

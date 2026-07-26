@@ -10,11 +10,12 @@
  * this component put them in a window, summarise them as badges, count them,
  * and clear them — none of which is possible when they arrive as opaque JSX.
  */
-import { Filter, Search, X } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { Filter, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/cn";
-import { Badge, Button, Checkbox, IconButton } from "./primitives";
+import { Badge, Button, Checkbox } from "./primitives";
+import { SearchInput } from "./search-input";
 import { Overlay } from "./overlay";
 import { ViewToggle, type ViewToggleOption } from "./page-blocks";
 import "./page-toolbar.css";
@@ -104,7 +105,6 @@ export function PageToolbar<T extends string>({
 }: PageToolbarProps<T>) {
   const { t } = useTranslation();
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const searchId = useId();
 
   const active = filters.filter(isActive);
 
@@ -118,29 +118,12 @@ export function PageToolbar<T extends string>({
            * No submit button: the list filters as you type, so a button would
            * either do nothing or imply that typing alone was not enough.
            */
-          <div className="rect-toolbar__search" role="search">
-            <Search className="rect-toolbar__search-icon" size={16} strokeWidth={2} aria-hidden />
-            <input
-              id={searchId}
-              className="rect-toolbar__search-input"
-              type="text"
-              aria-label={search.label}
-              placeholder={search.placeholder ?? search.label}
-              value={search.value}
-              onChange={(event) => search.onChange(event.target.value)}
-            />
-            {search.value ? (
-              <IconButton
-                label={t("common.clearSearch")}
-                size="sm"
-                variant="plain"
-                className="rect-toolbar__search-clear"
-                onClick={() => search.onChange("")}
-              >
-                <X size={14} strokeWidth={2.2} aria-hidden />
-              </IconButton>
-            ) : null}
-          </div>
+          <SearchInput
+            value={search.value}
+            onChange={search.onChange}
+            label={search.label}
+            {...(search.placeholder ? { placeholder: search.placeholder } : {})}
+          />
         ) : null}
 
         {filters.length > 0 ? (

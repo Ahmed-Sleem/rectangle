@@ -1181,9 +1181,9 @@
   overflow: hidden;
   padding-inline: 0;
   transition:
-    inline-size var(--rect-duration-search) var(--rect-ease-out),
-    gap var(--rect-duration-search) var(--rect-ease-out),
-    padding-inline var(--rect-duration-search) var(--rect-ease-out),
+    inline-size var(--rect-duration-reveal) var(--rect-ease-reveal),
+    gap var(--rect-duration-reveal) var(--rect-ease-reveal),
+    padding-inline var(--rect-duration-reveal) var(--rect-ease-reveal),
     border-color var(--rect-motion-spring),
     color var(--rect-motion-spring);
 }
@@ -1207,8 +1207,11 @@
   opacity: 0;
   overflow: hidden;
   transition:
-    max-inline-size var(--rect-duration-search) var(--rect-ease-out),
-    opacity var(--rect-duration-search) var(--rect-ease-out);
+    max-inline-size var(--rect-duration-reveal) var(--rect-ease-reveal),
+    /* Slightly behind the width, so the label arrives into space that already
+       exists rather than racing the edge outwards. */
+    opacity calc(var(--rect-duration-reveal) * 0.7) var(--rect-ease-reveal)
+      calc(var(--rect-duration-reveal) * 0.3);
   white-space: nowrap;
 }
 

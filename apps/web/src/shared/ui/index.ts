@@ -42,6 +42,9 @@ export { buttonClassName, type ButtonSize, type ButtonVariant } from "./button-c
 
 export { avatarTint, initialsOf, AVATAR_TINT_COUNT } from "./initials";
 
+/** The one search control, shared by the page toolbar and the global palette. */
+export { SearchInput, type SearchInputProps } from "./search-input";
+
 /** Grounded AI advice. Sources are required, so an uncited claim cannot render. */
 export {
   InsightBanner,

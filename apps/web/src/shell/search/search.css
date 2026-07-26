@@ -10,68 +10,6 @@
  * `type="search"` paints the browser's own clear control, which is unstyled,
  * differs between engines, and cannot be made to match the product.
  */
-/*
- * No box of its own. The window is already a container, so a bordered field
- * inside it drew a second rectangle a few pixels in — the frame within a frame
- * that made the palette look boxed off from itself. A single rule beneath the
- * input separates it from the results without repeating the window's edge.
- */
-.rect-search-palette__field {
-  align-items: center;
-  border-block-end: 1px solid var(--rect-surface-divider);
-  display: flex;
-  gap: var(--rect-space-3);
-  block-size: var(--rect-control-touch);
-  padding-block-end: var(--rect-space-2);
-  transition: border-color var(--rect-motion-spring);
-}
-
-.rect-search-palette__field:focus-within {
-  border-block-end-color: var(--rect-border-active);
-}
-
-.rect-search-palette__input::placeholder {
-  color: var(--rect-text-secondary);
-}
-
-.rect-search-palette__icon {
-  color: var(--rect-text-secondary);
-  flex-shrink: 0;
-}
-
-.rect-search-palette__input {
-  background: none;
-  border: 0;
-  color: var(--rect-text-primary);
-  font: inherit;
-  /* Larger than a form field: this is the whole purpose of the window. */
-  font-size: var(--rect-text-section);
-  flex: 1 1 auto;
-  min-inline-size: 0;
-  outline: none;
-  padding: 0;
-}
-
-.rect-search-palette__clear {
-  align-items: center;
-  background: var(--rect-card-bg);
-  border: 0;
-  border-radius: var(--rect-pill-radius);
-  color: var(--rect-text-secondary);
-  cursor: pointer;
-  display: inline-flex;
-  flex-shrink: 0;
-  justify-content: center;
-  block-size: var(--rect-control-xs);
-  inline-size: var(--rect-control-xs);
-  transition: background var(--rect-motion-nav), color var(--rect-motion-nav);
-}
-
-.rect-search-palette__clear:hover,
-.rect-search-palette__clear:focus-visible {
-  background: var(--rect-orb-bg);
-  color: var(--rect-orb-text);
-}
 
 .rect-search-palette__note {
   color: var(--rect-text-secondary);

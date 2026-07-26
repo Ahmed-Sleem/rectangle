@@ -24,7 +24,7 @@ import globalCss from "@/shared/styles/global.css?raw";
 import teamSource from "@/features/team/TeamPage.tsx?raw";
 import settingsSource from "@/features/settings/SettingsPage.tsx?raw";
 import toolbarCss from "@/shared/ui/page-toolbar.css?raw";
-import searchCss from "@/shell/search/search.css?raw";
+import searchInputCss from "@/shared/ui/search-input.css?raw";
 import resourcesSource from "@/shared/i18n/resources.ts?raw";
 
 describe("canvas empty state", () => {
@@ -367,14 +367,31 @@ describe("focus indicators", () => {
     expect(label).not.toMatch(/^\s*display:\s*none/mu);
   });
 
-  it("does not draw a second box inside the search window", () => {
-    const field = searchCss.slice(
-      searchCss.indexOf(".rect-search-palette__field {"),
-      searchCss.indexOf(".rect-search-palette__field:focus-within"),
+  it("hands the focus ring to the container, so no box appears inside a box", () => {
+    const field = searchInputCss.slice(
+      searchInputCss.indexOf(".rect-search-input__field:focus-visible {"),
+      searchInputCss.indexOf(".rect-search-input__field::placeholder"),
     );
-    // The window is already a container; a bordered field inside it drew a
-    // frame within a frame a few pixels in.
-    expect(field).not.toMatch(/^\s*border:/mu);
-    expect(field).toContain("border-block-end");
+    // Focus rings are drawn inset here so scroll containers cannot clip them,
+    // which means a bare input inside a bordered control paints a second
+    // rectangle within the first. The container shows focus on its behalf.
+    expect(field).toContain("box-shadow: none");
+
+    const bar = searchInputCss.slice(
+      searchInputCss.indexOf(".rect-search-input--bar:focus-within {"),
+      searchInputCss.indexOf(".rect-search-input--panel {"),
+    );
+    expect(bar).toContain("border-color: var(--rect-border-active)");
+  });
+
+  it("does not draw a second box inside the search window", () => {
+    const panel = searchInputCss.slice(
+      searchInputCss.indexOf(".rect-search-input--panel {"),
+      searchInputCss.indexOf(".rect-search-input--panel:focus-within"),
+    );
+    // The window is already a container; a bordered field inside it repeats
+    // that edge a few pixels in.
+    expect(panel).not.toMatch(/^\s*border:/mu);
+    expect(panel).toContain("border-block-end");
   });
 });
