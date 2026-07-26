@@ -146,6 +146,16 @@ export default function TodayPage() {
           emphasis={summary.attention.length > 0}
           {...(overdueCount > 0 ? { hint: t("overview.kpiAttentionHint", { count: overdueCount }) } : {})}
         />
+        {/* Outstanding work belongs in the headline row, not only in the side
+            panel: "what is due" is the question the page is opened to answer. */}
+        <StatCard
+          label={t("overview.kpiDueSoon", { count: summary.horizonDays })}
+          value={summary.tasks.dueSoon}
+          emphasis={summary.tasks.overdue > 0}
+          {...(summary.tasks.overdue > 0
+            ? { hint: t("overview.kpiDueSoonHint", { count: summary.tasks.overdue }) }
+            : {})}
+        />
         <StatCard
           label={t("overview.kpiRisks")}
           value={summary.risks.open}

@@ -125,6 +125,14 @@ export interface ProjectRecord {
    */
   doneTasks?: number;
   totalTasks?: number;
+  /**
+   * A sample of member names for the register's avatars, with the true total
+   * beside it. The sample is capped in SQL because a card shows a handful of
+   * faces; `memberCount` is counted separately so "+7" is the real remainder
+   * rather than a number derived from how many rows were fetched.
+   */
+  memberNames?: string[];
+  memberCount?: number;
   id: string;
   tenantId: string;
   name: string;

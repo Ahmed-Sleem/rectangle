@@ -29,6 +29,10 @@ function mapProject(row: Record<string, unknown>): ProjectRecord {
     project.totalTasks = Number(row.total_tasks);
     project.doneTasks = Number(row.done_tasks ?? 0);
   }
+  if (Array.isArray(row.member_names)) {
+    project.memberNames = row.member_names.map((name) => String(name));
+    project.memberCount = Number(row.member_count ?? project.memberNames.length);
+  }
   return project;
 }
 
@@ -111,7 +115,8 @@ export class PostgresProjectsRepository implements ProjectsRepository {
     // work is excluded from both figures: it was decided against, so it is
     // neither an achievement nor an outstanding obligation.
     const result = await this.pool.query(
-      `select p.*, counts.total_tasks, counts.done_tasks
+      `select p.*, counts.total_tasks, counts.done_tasks,
+              team.member_names, team.member_count
          from projects p
          cross join lateral (
            select count(*) filter (where t.status <> 'cancelled')::int as total_tasks,
@@ -119,6 +124,22 @@ export class PostgresProjectsRepository implements ProjectsRepository {
              from tasks t
             where t.tenant_id = p.tenant_id and t.project_id = p.id
          ) as counts
+         cross join lateral (
+           -- Names for the avatars, plus the true total so the card can say
+           -- "+3" honestly rather than counting only the ones it fetched.
+           select coalesce(array_agg(named.display_name order by named.display_name), '{}') as member_names,
+                  (select count(*)::int
+                     from project_members allm
+                    where allm.tenant_id = p.tenant_id and allm.project_id = p.id) as member_count
+             from (
+               select u.display_name
+                 from project_members m
+                 join users u on u.tenant_id = m.tenant_id and u.id = m.user_id
+                where m.tenant_id = p.tenant_id and m.project_id = p.id
+                order by u.display_name
+                limit 5
+             ) as named
+         ) as team
         where ${where.join(" and ")}
         order by p.id asc
         limit $${values.length}`,

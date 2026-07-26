@@ -35,6 +35,26 @@ export async function errorHandler(error: FastifyError | Error, _request: Fastif
     });
   }
 
+  /*
+   * Faults the framework rejected before any handler ran — a body over the
+   * limit, malformed JSON, an unsupported content type — arrive here carrying
+   * their own 4xx status. Collapsing them into 500 told the caller the server
+   * had broken when the request had, and buried genuine client errors in the
+   * server-error rate that alerting watches.
+   *
+   * Only the status and the machine code are echoed. Fastify's message can
+   * describe internals, so a fixed sentence is sent instead.
+   */
+  const frameworkStatus = (error as FastifyError).statusCode;
+  if (typeof frameworkStatus === "number" && frameworkStatus >= 400 && frameworkStatus < 500) {
+    return reply.status(frameworkStatus).send({
+      error: {
+        code: (error as FastifyError).code ?? "BAD_REQUEST",
+        message: "The request could not be accepted.",
+      },
+    });
+  }
+
   return reply.status(500).send({
     error: {
       code: "INTERNAL_SERVER_ERROR",

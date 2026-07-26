@@ -8,8 +8,8 @@ import { Link } from "react-router";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import {
-  Badge, Button, CardGrid, DataTable, EmptyState, ErrorState, Field, FormDialog,
-  Input, PageToolbar, ProgressBar, Select, StatCard, StatRow, Textarea,
+  AvatarGroup, Badge, Button, CardGrid, DataTable, EmptyState, ErrorState, Field,
+  FormDialog, Input, PageToolbar, ProgressBar, Select, StatCard, StatRow, Textarea,
 } from "@/shared/ui";
 import { LayoutGrid, Rows3 } from "lucide-react";
 import { useOptionalAuth } from "@/shared/auth";
@@ -274,6 +274,13 @@ export default function ProjectsPage() {
                     : t("projects.notSet")}
                 </span>
               </span>
+              {/* Who is on this, from real membership rows rather than a count. */}
+              <AvatarGroup
+                names={project.memberNames ?? []}
+                {...(project.memberCount !== undefined ? { total: project.memberCount } : {})}
+                label={t("projects.teamLabel", { name: project.name })}
+                emptyLabel={t("projects.noMembersYet")}
+              />
             </Link>
           ))}
         </CardGrid>

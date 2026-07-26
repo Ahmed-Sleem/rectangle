@@ -4,6 +4,7 @@
  */
 import cors from "@fastify/cors";
 import fastify from "fastify";
+import helmet from "@fastify/helmet";
 import staticFiles from "@fastify/static";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -74,9 +75,21 @@ function isPublicRoute(url: string): boolean {
   );
 }
 
+/**
+ * A request body larger than this is refused before it is parsed.
+ *
+ * Fastify's default is 1MB, which is already sensible, but it is stated here
+ * because the ceiling is a deliberate product decision rather than a framework
+ * default: nothing this API accepts today is a file. When document upload
+ * arrives it will stream to object storage rather than raise this number, so
+ * the JSON ceiling stays where it is.
+ */
+const MAX_JSON_BODY_BYTES = 256 * 1024;
+
 export async function createServer(dependencies: ServerDependencies) {
   const app = fastify({
     logger: dependencies.logger ?? true,
+    bodyLimit: MAX_JSON_BODY_BYTES,
     ajv: {
       customOptions: {
         removeAdditional: false,
@@ -87,6 +100,46 @@ export async function createServer(dependencies: ServerDependencies) {
   });
 
   app.setErrorHandler(errorHandler);
+
+  /*
+   * Security response headers. The app had none: no CSP, no nosniff, no
+   * frame protection, no HSTS — verified against the deployed environment
+   * rather than assumed.
+   *
+   * The CSP is written for this app specifically rather than left at helmet's
+   * defaults. Vite emits a small inline bootstrap and the app sets styles from
+   * design tokens at runtime, so `style-src` allows inline while `script-src`
+   * does not — an inline-script allowance is the one that turns a content
+   * injection into code execution, so it is the one worth refusing.
+   */
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: {
+        "default-src": ["'self'"],
+        "base-uri": ["'self'"],
+        "font-src": ["'self'", "data:"],
+        "form-action": ["'self'"],
+        "frame-ancestors": ["'none'"],
+        "img-src": ["'self'", "data:", "blob:"],
+        "object-src": ["'none'"],
+        "script-src": ["'self'"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "connect-src": ["'self'"],
+        "manifest-src": ["'self'"],
+        "upgrade-insecure-requests": [],
+      },
+    },
+    // Only meaningful over HTTPS, and asserting it from a local HTTP run would
+    // pin a developer's browser to a scheme the dev server does not speak.
+    strictTransportSecurity:
+      process.env.NODE_ENV === "production"
+        ? { maxAge: 31536000, includeSubDomains: true }
+        : false,
+    crossOriginEmbedderPolicy: false,
+    referrerPolicy: { policy: "no-referrer" },
+  });
+
   if (dependencies.corsOrigin) {
     await app.register(cors, { origin: dependencies.corsOrigin, credentials: true });
   }

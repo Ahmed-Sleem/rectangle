@@ -18,6 +18,9 @@ export interface ProjectRecord {
   /** Absent when the project has no countable work — not zero. */
   doneTasks?: number;
   totalTasks?: number;
+  /** A capped sample of member names, with the real total beside it. */
+  memberNames?: string[];
+  memberCount?: number;
   createdAt: string;
   updatedAt: string;
 }

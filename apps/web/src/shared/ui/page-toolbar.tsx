@@ -73,6 +73,15 @@ export interface PageToolbarProps<T extends string> {
   actions?: ReactNode;
   /** Rendered before search, for controls that pick a dataset rather than narrow one. */
   leading?: ReactNode;
+  /**
+   * A register picker, rendered beside the view toggle at the end of the row.
+   *
+   * Both controls answer "how am I looking at this page", so they belong
+   * together; search and filters answer "which records", which is a different
+   * question and keeps the other end of the row. Placed here in the DOM rather
+   * than reordered with CSS, so the keyboard path matches what the eye sees.
+   */
+  register?: ReactNode;
   view?: ToolbarView<T>;
   className?: string;
 }
@@ -100,6 +109,7 @@ export function PageToolbar<T extends string>({
   onClearFilters,
   actions,
   leading,
+  register,
   view,
   className,
 }: PageToolbarProps<T>) {
@@ -145,8 +155,10 @@ export function PageToolbar<T extends string>({
 
         {actions}
 
-        {/* Pushes the view toggle against the canvas edge. */}
+        {/* Pushes the register and view controls against the canvas edge. */}
         <span className="rect-toolbar__spacer" aria-hidden />
+
+        {register}
 
         {view ? (
           <ViewToggle<T>

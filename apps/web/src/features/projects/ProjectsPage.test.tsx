@@ -234,4 +234,41 @@ describe("ProjectsPage", () => {
     expect(screen.queryByText("0%")).not.toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
+
+  it("shows who is on a project, with an honest overflow count", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      jsonResponse({
+        projects: [
+          {
+            id: "p3", tenantId: "1", name: "Giza Bridge", code: "GZB-02", status: "active",
+            createdAt: "", updatedAt: "",
+            memberNames: ["Mona Adel", "Sara Nabil", "Youssef Amin", "Hana Fouad", "Omar Zaki"],
+            memberCount: 9,
+          },
+        ],
+      }),
+    );
+    renderProjectsPage();
+
+    await screen.findByText("Giza Bridge");
+    const team = screen.getByLabelText("Team on Giza Bridge");
+    // Four faces are drawn; the remainder is counted from the real total, not
+    // from the five names the query happened to fetch.
+    expect(within(team).getByText("+5")).toBeInTheDocument();
+    expect(within(team).getByText(/Mona Adel/u)).toBeInTheDocument();
+  });
+
+  it("says a project has no members rather than drawing an empty row", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      jsonResponse({
+        projects: [
+          { id: "p4", tenantId: "1", name: "Luxor Terminal", code: "LXT-01", status: "planned", createdAt: "", updatedAt: "", memberNames: [], memberCount: 0 },
+        ],
+      }),
+    );
+    renderProjectsPage();
+
+    await screen.findByText("Luxor Terminal");
+    expect(screen.getByText("No members")).toBeInTheDocument();
+  });
 });

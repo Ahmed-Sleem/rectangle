@@ -169,15 +169,23 @@ export interface AvatarGroupProps {
   max?: number;
   label: string;
   emptyLabel: string;
+  /**
+   * How many people there actually are, when `names` is a sample.
+   *
+   * List queries cap the names they fetch, so deriving the overflow from the
+   * array would report "+1" for a project with twenty members. Defaults to the
+   * array length for callers that pass everyone.
+   */
+  total?: number;
 }
 
-export function AvatarGroup({ names, max = 4, label, emptyLabel }: AvatarGroupProps) {
+export function AvatarGroup({ names, max = 4, label, emptyLabel, total }: AvatarGroupProps) {
   if (names.length === 0) {
     return <span className="rect-avatars__empty">{emptyLabel}</span>;
   }
 
   const shown = names.slice(0, max);
-  const overflow = names.length - shown.length;
+  const overflow = Math.max(total ?? names.length, names.length) - shown.length;
 
   return (
     <span className="rect-avatars" aria-label={label}>

@@ -119,6 +119,13 @@ export default function TeamPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  /**
+   * Roles keep their own search and filter, rather than sharing the people
+   * ones. Sharing would carry a name typed against people over to a register
+   * it means nothing in, and silently narrow it.
+   */
+  const [roleSearch, setRoleSearch] = useState("");
+  const [roleOriginFilter, setRoleOriginFilter] = useState("");
   const [typeOpen, setTypeOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUserRecord | null>(null);
@@ -207,6 +214,25 @@ export default function TeamPage() {
     });
   }, [allUsers, search, statusFilter, typeFilter]);
 
+  /**
+   * Roles are searched in the browser rather than through the API. The whole
+   * set is already loaded and a company has a handful of them, so a round trip
+   * would add latency and an endpoint to maintain for no gain.
+   */
+  const filteredTypes = useMemo(() => {
+    const term = roleSearch.trim().toLocaleLowerCase();
+    return typeRows.filter((type) => {
+      if (roleOriginFilter === "system" && !type.systemType) return false;
+      if (roleOriginFilter === "custom" && type.systemType) return false;
+      if (!term) return true;
+      return (
+        roleName(type, t).toLocaleLowerCase().includes(term) ||
+        type.key.toLocaleLowerCase().includes(term) ||
+        (type.description ?? "").toLocaleLowerCase().includes(term)
+      );
+    });
+  }, [typeRows, roleSearch, roleOriginFilter, t]);
+
   const activeCount = allUsers.filter((user) => user.status === "active").length;
   const disabledCount = allUsers.filter((user) => user.status === "disabled").length;
   const withoutRole = allUsers.filter((user) => user.userTypes.length === 0).length;
@@ -235,9 +261,17 @@ export default function TeamPage() {
   return (
     <section className="rect-team-page" aria-label={t("team.pageLabel")}>
       <PageToolbar<ViewMode>
-        /* The register picker selects a dataset rather than narrowing one, so
-           it leads the row instead of joining the filters. */
-        leading={
+        /*
+         * The register picker sits beside the view toggle rather than leading
+         * the row. Both answer "how am I looking at this page"; search and
+         * filters answer "which records", which is a different question.
+         *
+         * The toolbar keeps the same shape on both registers. Withdrawing the
+         * search and the view toggle on Roles rebuilt the row on every switch,
+         * and left people's filters applied but invisible — a list narrowed by
+         * a control the user can no longer see reads as missing data.
+         */
+        register={
           <ViewToggle<Segment>
             label={t("team.segmentLabel")}
             value={segment}
@@ -249,15 +283,24 @@ export default function TeamPage() {
             ]}
           />
         }
-        {...(showingUsers
-          ? {
-              search: {
+        search={
+          showingUsers
+            ? {
                 value: search,
                 onChange: setSearch,
                 label: t("team.searchLabel"),
                 placeholder: t("team.searchPlaceholder"),
-              },
-              filters: [
+              }
+            : {
+                value: roleSearch,
+                onChange: setRoleSearch,
+                label: t("team.searchRolesLabel"),
+                placeholder: t("team.searchRolesPlaceholder"),
+              }
+        }
+        filters={
+          showingUsers
+            ? [
                 {
                   id: "type",
                   type: "select" as const,
@@ -279,19 +322,36 @@ export default function TeamPage() {
                   ],
                   onChange: setStatusFilter,
                 },
-              ],
-              onClearFilters: () => { setSearch(""); setTypeFilter(""); setStatusFilter(""); },
-              view: {
-                value: view,
-                label: t("team.cardView"),
-                onChange: (next: ViewMode) => { setView(next); storeView(next); },
-                options: [
-                  { value: "cards" as const, label: t("team.cardView"), icon: <LayoutGrid size={16} strokeWidth={2} aria-hidden /> },
-                  { value: "table" as const, label: t("team.tableView"), icon: <Rows3 size={16} strokeWidth={2} aria-hidden /> },
-                ],
-              },
-            }
-          : {})}
+              ]
+            : [
+                {
+                  id: "origin",
+                  type: "select" as const,
+                  label: t("team.filterOrigin"),
+                  anyLabel: t("team.allOrigins"),
+                  value: roleOriginFilter,
+                  options: [
+                    { value: "system", label: t("team.originSystem") },
+                    { value: "custom", label: t("team.originCustom") },
+                  ],
+                  onChange: setRoleOriginFilter,
+                },
+              ]
+        }
+        onClearFilters={
+          showingUsers
+            ? () => { setSearch(""); setTypeFilter(""); setStatusFilter(""); }
+            : () => { setRoleSearch(""); setRoleOriginFilter(""); }
+        }
+        view={{
+          value: view,
+          label: t("team.cardView"),
+          onChange: (next: ViewMode) => { setView(next); storeView(next); },
+          options: [
+            { value: "cards" as const, label: t("team.cardView"), icon: <LayoutGrid size={16} strokeWidth={2} aria-hidden /> },
+            { value: "table" as const, label: t("team.tableView"), icon: <Rows3 size={16} strokeWidth={2} aria-hidden /> },
+          ],
+        }}
         actions={
           (showingUsers ? canManage : canManageRoles) ? (
             showingUsers ? (
@@ -452,9 +512,54 @@ export default function TeamPage() {
             ? { action: <Button variant="primary" onClick={() => setTypeOpen(true)}>{t("team.createUserType")}</Button> }
             : {})}
         />
+      ) : filteredTypes.length === 0 ? (
+        <EmptyState
+          title={t("team.noRoleMatchTitle")}
+          message={t("team.noRoleMatchMessage")}
+          action={
+            <Button variant="secondary" onClick={() => { setRoleSearch(""); setRoleOriginFilter(""); }}>
+              {t("team.clearFilters")}
+            </Button>
+          }
+        />
+      ) : view === "table" ? (
+        <DataTable
+          caption={t("team.userTypesTitle")}
+          rows={filteredTypes}
+          getRowKey={(row) => row.id}
+          columns={[
+            { id: "name", header: t("team.userTypeName"), accessor: (row) => roleName(row, t) },
+            { id: "key", header: t("team.userTypeKey"), accessor: (row) => row.key },
+            {
+              id: "permissions",
+              header: t("team.userTypePermissions"),
+              accessor: (row) =>
+                row.permissions
+                  .map((permission) => permissionOptions.find((option) => option.key === permission)?.label ?? permission)
+                  .join(t("common.listSeparator")),
+            },
+            {
+              id: "origin",
+              header: t("team.filterOrigin"),
+              accessor: (row) => (
+                <Badge tone="neutral">{row.systemType ? t("team.originSystem") : t("team.originCustom")}</Badge>
+              ),
+            },
+            ...(canManageRoles
+              ? [{
+                  id: "action",
+                  header: t("team.userAction"),
+                  accessor: (row: UserTypeRecord) => (
+                    <Button size="sm" variant="secondary" onClick={() => setEditingType(row)}>{t("team.edit")}</Button>
+                  ),
+                }]
+              : []),
+          ]}
+          emptyMessage={t("team.noUserTypes")}
+        />
       ) : (
         <CardGrid label={t("team.userTypesTitle")}>
-          {typeRows.map((type) => (
+          {filteredTypes.map((type) => (
             <article key={type.id} className="rect-role" role="listitem">
               <header className="rect-role__head">
                 <span className="rect-role__name">{roleName(type, t)}</span>

@@ -200,4 +200,28 @@ describe("TodayPage", () => {
     const panel = await screen.findByRole("complementary", { name: "Work in progress" });
     expect(within(panel).getByText("No open work on your projects.")).toBeInTheDocument();
   });
+
+  it("leads with what is due, and names the overdue count beside it", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse(populated));
+    renderToday();
+
+    const summary = await screen.findByRole("group", { name: "Portfolio at a glance" });
+    // "What is due" is the question the page is opened to answer, so it belongs
+    // in the headline row rather than only in the side panel.
+    const due = within(summary).getByText("Due within 14 days");
+    expect(due.closest("div")).toHaveTextContent("4");
+    expect(within(summary).getByText("2 already overdue")).toBeInTheDocument();
+  });
+
+  it("does not claim overdue work when there is none", async () => {
+    const onTrack = {
+      overview: { ...populated.overview, tasks: { open: 9, overdue: 0, dueSoon: 4, assignedToMe: 3 } },
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => jsonResponse(onTrack));
+    renderToday();
+
+    const summary = await screen.findByRole("group", { name: "Portfolio at a glance" });
+    expect(within(summary).getByText("Due within 14 days")).toBeInTheDocument();
+    expect(within(summary).queryByText(/already overdue/u)).not.toBeInTheDocument();
+  });
 });

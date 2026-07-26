@@ -253,6 +253,101 @@ describe("TeamPage", () => {
     expect(segments.querySelectorAll("svg").length).toBe(2);
   });
 
+  it("keeps the toolbar intact when the register changes", async () => {
+    const user = userEvent.setup();
+    mockReads();
+    renderTeam();
+
+    await screen.findByText("Mona Adel");
+    expect(screen.getByRole("textbox", { name: "Search people" })).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "Card view" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: /Roles/u }));
+
+    // Withdrawing these on Roles rebuilt the row on every switch, and is the
+    // fault this test exists to prevent coming back.
+    expect(screen.getByRole("textbox", { name: "Search roles" })).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: "Card view" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Filters/u })).toBeInTheDocument();
+  });
+
+  it("puts the register picker after search so the keyboard path matches the layout", async () => {
+    mockReads();
+    renderTeam();
+
+    await screen.findByText("Mona Adel");
+    const search = screen.getByRole("textbox", { name: "Search people" });
+    const register = screen.getByRole("radiogroup", { name: "Team register" });
+
+    // DOCUMENT_POSITION_FOLLOWING: the register comes after the search field.
+    expect(search.compareDocumentPosition(register) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("searches roles by name, key and description", async () => {
+    const user = userEvent.setup();
+    mockReads();
+    renderTeam();
+
+    await screen.findByText("Mona Adel");
+    await user.click(screen.getByRole("radio", { name: /Roles/u }));
+    expect(screen.getByText("Site Viewer")).toBeInTheDocument();
+
+    await user.type(screen.getByRole("textbox", { name: "Search roles" }), "site_viewer");
+    expect(screen.getByText("Site Viewer")).toBeInTheDocument();
+    expect(screen.queryByText("Owner")).not.toBeInTheDocument();
+
+    await user.clear(screen.getByRole("textbox", { name: "Search roles" }));
+    await user.type(screen.getByRole("textbox", { name: "Search roles" }), "Read-only");
+    expect(screen.getByText("Site Viewer")).toBeInTheDocument();
+  });
+
+  it("keeps people and role searches apart", async () => {
+    const user = userEvent.setup();
+    mockReads();
+    renderTeam();
+
+    await screen.findByText("Mona Adel");
+    await user.type(screen.getByRole("textbox", { name: "Search people" }), "Mona");
+
+    await user.click(screen.getByRole("radio", { name: /Roles/u }));
+    // A term typed against people must not silently narrow a register it means
+    // nothing in.
+    expect(screen.getByRole("textbox", { name: "Search roles" })).toHaveValue("");
+    expect(screen.getByText("Site Viewer")).toBeInTheDocument();
+    expect(screen.getByText("Owner")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: /People/u }));
+    expect(screen.getByRole("textbox", { name: "Search people" })).toHaveValue("Mona");
+  });
+
+  it("shows roles as a table when the table view is chosen", async () => {
+    const user = userEvent.setup();
+    mockReads();
+    renderTeam();
+
+    await screen.findByText("Mona Adel");
+    await user.click(screen.getByRole("radio", { name: /Roles/u }));
+    await user.click(screen.getByRole("radio", { name: "Table view" }));
+
+    const table = screen.getByRole("table", { name: /User types/u });
+    expect(within(table).getByText("site_viewer")).toBeInTheDocument();
+    expect(within(table).getByText("Created here")).toBeInTheDocument();
+  });
+
+  it("offers a way out when no role matches", async () => {
+    const user = userEvent.setup();
+    mockReads();
+    renderTeam();
+
+    await screen.findByText("Mona Adel");
+    await user.click(screen.getByRole("radio", { name: /Roles/u }));
+    await user.type(screen.getByRole("textbox", { name: "Search roles" }), "zzzz");
+
+    expect(screen.getByText("No matching roles")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByText("Site Viewer")).toBeInTheDocument();
+  });
+
   it("hides role actions from someone who may manage people but not roles", async () => {
     const user = userEvent.setup();
     mockReads();
