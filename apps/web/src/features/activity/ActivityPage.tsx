@@ -11,20 +11,42 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { CircleUser, Users, Building2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Link, useSearchParams } from "react-router";
 import { useOptionalAuth } from "@/shared/auth";
 import {
-  Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, PageToolbar, ViewToggle,
+  Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, PageToolbar,
+  StatCard, StatRow, ViewToggle,
 } from "@/shared/ui";
 import {
   listActivity, listActivityActions,
-  type ActivityEntry, type ActivityScope,
+  type ActivityEntry, type ActivityPreset, type ActivityScope,
 } from "./activity-api";
 import "./ActivityPage.css";
 
 /** Failures are the entries a reader is scanning for, so they carry a tone. */
 function resultTone(entry: ActivityEntry): "danger" | "neutral" {
   return entry.result === "failure" ? "danger" : "neutral";
+}
+
+/**
+ * "Today" and "Yesterday" rather than a date, where they apply.
+ *
+ * A reader scanning a trail is looking for how recent something is, and a
+ * relative word answers that before the eye has parsed a date. The absolute
+ * date stays beside it, because "Yesterday" alone is useless in a screenshot.
+ */
+function relativeDayLabel(day: string, t: TFunction): string | null {
+  const today = new Date();
+  const asDay = (date: Date): string => date.toISOString().slice(0, 10);
+
+  if (day === asDay(today)) return t("activity.today");
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (day === asDay(yesterday)) return t("activity.yesterday");
+
+  return null;
 }
 
 /** Groups entries under the day they happened, preserving server order. */
@@ -59,6 +81,7 @@ export default function ActivityPage() {
   const [searchParams] = useSearchParams();
   const [projectId, setProjectId] = useState(() => searchParams.get("projectId") ?? "");
 
+  const [preset, setPreset] = useState<ActivityPreset>("month");
   const [scope, setScope] = useState<ActivityScope>("self");
   const [action, setAction] = useState("");
   const [result, setResult] = useState("");
@@ -66,11 +89,12 @@ export default function ActivityPage() {
   const actions = useQuery({ queryKey: ["activity", "actions"], queryFn: listActivityActions });
 
   const feed = useInfiniteQuery({
-    queryKey: ["activity", scope, action, result, projectId],
+    queryKey: ["activity", scope, preset, action, result, projectId],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       listActivity({
         scope,
+        preset,
         ...(action ? { action } : {}),
         ...(result ? { result: result as "success" | "failure" } : {}),
         ...(projectId ? { projectId } : {}),
@@ -85,6 +109,9 @@ export default function ActivityPage() {
 
   // Offered by the server, so a person is never shown a scope that refuses them.
   const availableScopes = pages[0]?.availableScopes ?? ["self"];
+  // Describes the whole range, computed server-side; deriving it from the
+  // fetched pages would report the pages instead.
+  const summary = pages[0]?.summary;
 
   const dayFormatter = useMemo(
     () => new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
@@ -122,6 +149,24 @@ export default function ActivityPage() {
   return (
     <section className="rect-activity-page" aria-label={t("activity.pageLabel")}>
       <PageToolbar<ActivityScope>
+        /*
+         * Dates lead the row rather than sitting inside the filter window.
+         * Narrowing by time is the first thing anybody does with a trail, and
+         * burying it costs two clicks on every visit.
+         */
+        leading={
+          <ViewToggle<ActivityPreset>
+            label={t("activity.rangeLabel")}
+            value={preset}
+            onChange={setPreset}
+            showLabels
+            options={[
+              { value: "today", label: t("activity.rangeToday") },
+              { value: "week", label: t("activity.rangeWeek") },
+              { value: "month", label: t("activity.rangeMonth") },
+            ]}
+          />
+        }
         filters={[
           {
             id: "action",
@@ -173,6 +218,25 @@ export default function ActivityPage() {
           : {})}
       />
 
+      {summary && summary.total > 0 ? (
+        <StatRow label={t("activity.summaryLabel")}>
+          <StatCard label={t("activity.statTotal")} value={summary.total} />
+          <StatCard
+            label={t("activity.statFailures")}
+            value={summary.failures}
+            emphasis={summary.failures > 0}
+          />
+          <StatCard label={t("activity.statPeople")} value={summary.people} />
+          {summary.busiestDay ? (
+            <StatCard
+              label={t("activity.statBusiest")}
+              value={dayFormatter.format(new Date(summary.busiestDay))}
+              hint={t("activity.statBusiestHint", { count: summary.busiestDayCount ?? 0 })}
+            />
+          ) : null}
+        </StatRow>
+      ) : null}
+
       {entries.length === 0 ? (
         <EmptyState
           title={filtered ? t("activity.noMatchTitle") : t("activity.emptyTitle")}
@@ -191,7 +255,21 @@ export default function ActivityPage() {
         <>
           {grouped.map((group) => (
             <section key={group.day} className="rect-activity-day" aria-label={dayFormatter.format(new Date(group.day))}>
-              <h2 className="rect-activity-day__heading">{dayFormatter.format(new Date(group.day))}</h2>
+              <h2 className="rect-activity-day__heading">
+                <span className="rect-activity-day__badge">
+                  <span className="rect-activity-day__dot" aria-hidden />
+                  {/* Relative first: it answers "how recent" before the eye
+                      parses a date. The date stays, because a relative word
+                      alone is useless out of context. */}
+                  {relativeDayLabel(group.day, t) ? (
+                    <span className="rect-activity-day__relative">{relativeDayLabel(group.day, t)}</span>
+                  ) : null}
+                  <span className="rect-activity-day__date">{dayFormatter.format(new Date(group.day))}</span>
+                </span>
+                <span className="rect-activity-day__count">
+                  {t("activity.dayCount", { count: group.entries.length })}
+                </span>
+              </h2>
 
               <ul className="rect-activity-list">
                 {group.entries.map((entry) => (

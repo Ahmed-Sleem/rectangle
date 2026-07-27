@@ -18,6 +18,7 @@ import {
   type ActivityQuery,
   type ActivityScope,
   type ActivitySensitivity,
+  type ActivitySummary,
 } from "../../domain/activity.js";
 
 interface Row {
@@ -59,19 +60,24 @@ export interface ActivityReadOptions {
   query: ActivityQuery;
 }
 
-export class PostgresActivityRepository {
-  constructor(private readonly pool: pg.Pool) {}
+/**
+ * The WHERE clause both the list and its summary run against.
+ *
+ * Built once and shared deliberately. A summary computed over a different
+ * predicate than the rows beneath it reports a number nobody can reconcile with
+ * what they are looking at, and the two would drift the first time a filter was
+ * added to one and not the other.
+ */
+function buildPredicate(options: ActivityReadOptions): { where: string; values: unknown[] } {
+  const { tenantId, userId, scope, query } = options;
 
-  async list(options: ActivityReadOptions): Promise<Omit<ActivityPage, "availableScopes">> {
-    const { tenantId, userId, scope, query } = options;
+  const values: unknown[] = [tenantId];
+  const where: string[] = ["a.tenant_id = $1"];
 
-    const values: unknown[] = [tenantId];
-    const where: string[] = ["a.tenant_id = $1"];
-
-    const bind = (value: unknown): string => {
-      values.push(value);
-      return `$${values.length}`;
-    };
+  const bind = (value: unknown): string => {
+    values.push(value);
+    return `$${values.length}`;
+  };
 
     switch (scope) {
       case "self":
@@ -132,9 +138,26 @@ export class PostgresActivityRepository {
     // Inclusive of the end day: a person filtering "to the 5th" means through it.
     if (query.to) where.push(`a.created_at < (${bind(query.to)}::date + interval '1 day')`);
 
+  return { where: where.join(" and "), values };
+}
+
+export class PostgresActivityRepository {
+  constructor(private readonly pool: pg.Pool) {}
+
+  async list(options: ActivityReadOptions): Promise<Omit<ActivityPage, "availableScopes" | "summary">> {
+    const { query } = options;
+    const base = buildPredicate(options);
+    const values = [...base.values];
+    let where = base.where;
+
+    const bind = (value: unknown): string => {
+      values.push(value);
+      return `$${values.length}`;
+    };
+
     if (query.cursor) {
       const { createdAt, id } = decodeCursor(query.cursor);
-      where.push(`(a.created_at, a.id) < (${bind(createdAt)}::timestamptz, ${bind(id)}::uuid)`);
+      where += ` and (a.created_at, a.id) < (${bind(createdAt)}::timestamptz, ${bind(id)}::uuid)`;
     }
 
     // One more than asked for, so "is there another page" is answered without
@@ -151,7 +174,7 @@ export class PostgresActivityRepository {
            on u.id = a.actor_user_id and u.tenant_id = a.tenant_id
          left join projects p
            on p.id = a.project_id and p.tenant_id = a.tenant_id
-        where ${where.join(" and ")}
+        where ${where}
         order by a.created_at desc, a.id desc
         limit ${limitPlusOne}`,
       values,
@@ -165,6 +188,53 @@ export class PostgresActivityRepository {
       entries,
       ...(result.rows.length > query.limit && last
         ? { nextCursor: encodeCursor(last.created_at.toISOString(), last.id) }
+        : {}),
+    };
+  }
+
+  /**
+   * The four figures above the list, over the same predicate as the list.
+   *
+   * Computed in SQL rather than from the fetched page: a page holds thirty rows
+   * and the range may hold thousands, so counting what was fetched would report
+   * the page and call it the range. Invisible until a company is busy, then
+   * permanently wrong.
+   */
+  async summarise(options: ActivityReadOptions): Promise<ActivitySummary> {
+    const { where, values } = buildPredicate(options);
+
+    const result = await this.pool.query<{
+      total: string;
+      failures: string;
+      people: string;
+      busiest_day: string | null;
+      busiest_count: string | null;
+    }>(
+      `with scoped as (
+         select a.actor_user_id, a.result, a.created_at
+           from audit_events a
+          where ${where}
+       ),
+       days as (
+         select date_trunc('day', created_at) as day, count(*)::text as day_count
+           from scoped group by 1 order by count(*) desc, 1 desc limit 1
+       )
+       select
+         (select count(*)::text from scoped) as total,
+         (select count(*)::text from scoped where result = 'failure') as failures,
+         (select count(distinct actor_user_id)::text from scoped where actor_user_id is not null) as people,
+         (select to_char(day, 'YYYY-MM-DD') from days) as busiest_day,
+         (select day_count from days) as busiest_count`,
+      values,
+    );
+
+    const row = result.rows[0];
+    return {
+      total: Number(row?.total ?? 0),
+      failures: Number(row?.failures ?? 0),
+      people: Number(row?.people ?? 0),
+      ...(row?.busiest_day
+        ? { busiestDay: row.busiest_day, busiestDayCount: Number(row.busiest_count ?? 0) }
         : {}),
     };
   }

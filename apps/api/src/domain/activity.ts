@@ -100,7 +100,19 @@ export function redactMetadata(
 
 const MAX_LIMIT = 100;
 
+/**
+ * Quick ranges, resolved on the server.
+ *
+ * "This week" has to mean the same thing to the list and to the summary above
+ * it, and a browser in another timezone computing its own boundaries would make
+ * the two disagree by a day. The client sends the name; the server decides what
+ * it means.
+ */
+export const activityPresetSchema = z.enum(["today", "week", "month", "custom"]);
+export type ActivityPreset = z.infer<typeof activityPresetSchema>;
+
 export const activityQuerySchema = z.object({
+  preset: activityPresetSchema.default("month"),
   scope: activityScopeSchema.default("self"),
   limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(30),
   /**
@@ -119,6 +131,38 @@ export const activityQuerySchema = z.object({
 
 export type ActivityQuery = z.infer<typeof activityQuerySchema>;
 
+/**
+ * The inclusive day range a preset covers, in the server's own calendar.
+ * `custom` defers to whatever `from`/`to` the caller supplied.
+ */
+export function resolvePresetRange(
+  preset: ActivityPreset,
+  now = new Date(),
+): { from?: string; to?: string } {
+  const day = (date: Date): string => date.toISOString().slice(0, 10);
+  const today = day(now);
+
+  switch (preset) {
+    case "today":
+      return { from: today, to: today };
+    case "week": {
+      const start = new Date(now);
+      // Monday-based: a construction week is planned from Monday, and Sunday
+      // reading as the start of a new week surprises everybody who uses it.
+      const weekday = (start.getUTCDay() + 6) % 7;
+      start.setUTCDate(start.getUTCDate() - weekday);
+      return { from: day(start), to: today };
+    }
+    case "month": {
+      const start = new Date(now);
+      start.setUTCDate(start.getUTCDate() - 29);
+      return { from: day(start), to: today };
+    }
+    case "custom":
+      return {};
+  }
+}
+
 export function parseActivityQuery(raw: unknown): ActivityQuery {
   const parsed = activityQuerySchema.safeParse(raw ?? {});
   if (!parsed.success) {
@@ -127,11 +171,20 @@ export function parseActivityQuery(raw: unknown): ActivityQuery {
     });
   }
 
-  if (parsed.data.from && parsed.data.to && parsed.data.from > parsed.data.to) {
+  /*
+   * The preset wins over any dates that came with it, except for `custom`
+   * which is the only one that means "use what I sent". Resolving here rather
+   * than at each call site is what keeps the list and the summary describing
+   * the same window.
+   */
+  const range = resolvePresetRange(parsed.data.preset);
+  const query: ActivityQuery = { ...parsed.data, ...range };
+
+  if (query.from && query.to && query.from > query.to) {
     throw new DomainError("VALIDATION_FAILED", "The start date cannot be after the end date.");
   }
 
-  return parsed.data;
+  return query;
 }
 
 export interface ActivityEntry {
@@ -149,12 +202,24 @@ export interface ActivityEntry {
   createdAt: string;
 }
 
+/** The figures above the list, describing the same range the list covers. */
+export interface ActivitySummary {
+  total: number;
+  failures: number;
+  /** Distinct people who did something. Excludes entries with no actor. */
+  people: number;
+  /** Absent when the range holds nothing, rather than reported as a zero day. */
+  busiestDay?: string;
+  busiestDayCount?: number;
+}
+
 export interface ActivityPage {
   entries: ActivityEntry[];
   /** Absent when there is nothing further to fetch. */
   nextCursor?: string;
   /** Which scopes this caller may ask for, so the page offers only real choices. */
   availableScopes: ActivityScope[];
+  summary: ActivitySummary;
 }
 
 /** Opaque to the client, and ordered exactly as the query orders rows. */

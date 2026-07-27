@@ -11,6 +11,7 @@ import {
   redactMetadata,
   type ActivityPage,
   type ActivityScope,
+  type ActivitySummary,
 } from "../domain/activity.js";
 import { DomainError } from "../domain/errors.js";
 import type { UserPrincipal } from "../domain/auth.js";
@@ -22,7 +23,13 @@ export interface ActivityRepository {
     userId: string;
     scope: ActivityScope;
     query: ReturnType<typeof parseActivityQuery>;
-  }): Promise<Omit<ActivityPage, "availableScopes">>;
+  }): Promise<Omit<ActivityPage, "availableScopes" | "summary">>;
+  summarise(options: {
+    tenantId: string;
+    userId: string;
+    scope: ActivityScope;
+    query: ReturnType<typeof parseActivityQuery>;
+  }): Promise<ActivitySummary>;
   listActions(tenantId: string): Promise<string[]>;
 }
 
@@ -51,12 +58,23 @@ export class ActivityService {
       throw new DomainError("FORBIDDEN", "You do not have permission to view that activity.");
     }
 
-    const page = await this.repository.list({
-      tenantId: actor.tenantId,
-      userId: actor.userId,
-      scope: query.scope,
-      query,
-    });
+    /*
+     * Filtering by another person is meaningless when you can only see your
+     * own actions, and offering it would produce an empty list rather than a
+     * refusal — which reads as broken. Refused here so the contract is the
+     * same whether the caller is the page or something else.
+     */
+    if (query.actorUserId && query.actorUserId !== actor.userId && query.scope === "self") {
+      throw new DomainError("FORBIDDEN", "You can only filter your own activity.");
+    }
+
+    const read = { tenantId: actor.tenantId, userId: actor.userId, scope: query.scope, query };
+
+    // Together, so the figures describe the rows rather than trailing them.
+    const [page, summary] = await Promise.all([
+      this.repository.list(read),
+      this.repository.summarise(read),
+    ]);
 
     const canReadAll = hasPermission(actor, "activity.read_all");
 
@@ -72,6 +90,7 @@ export class ActivityService {
         metadata: redactMetadata(entry.metadata, canReadAll),
       })),
       availableScopes: allowed,
+      summary,
     };
   }
 

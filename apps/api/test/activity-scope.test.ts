@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { ActivityService, availableScopes } from "../src/application/activity-service.js";
 import { classifyActivity, redactMetadata } from "../src/domain/activity.js";
 import { PostgresActivityRepository } from "../src/infrastructure/postgres/activity-repository.js";
-import { parseActivityQuery } from "../src/domain/activity.js";
+import { parseActivityQuery, resolvePresetRange } from "../src/domain/activity.js";
 import type { UserPrincipal } from "../src/domain/auth.js";
 
 const tenantId = "11111111-1111-4111-8111-111111111111";
@@ -228,6 +228,86 @@ describe("the project workspace feed", () => {
     // colleague's sign-in or account history.
     expect(sql).toContain("a.sensitivity = 'operational'");
     expect(sql).toContain("a.tenant_id = $1");
+  });
+});
+
+describe("activity date presets", () => {
+  it("resolves each preset on the server, not in the browser", () => {
+    const now = new Date("2026-02-11T10:00:00.000Z"); // a Wednesday
+
+    expect(resolvePresetRange("today", now)).toEqual({ from: "2026-02-11", to: "2026-02-11" });
+    // Monday-based: a construction week is planned from Monday, and Sunday
+    // reading as the start surprises everybody who uses it.
+    expect(resolvePresetRange("week", now)).toEqual({ from: "2026-02-09", to: "2026-02-11" });
+    expect(resolvePresetRange("month", now)).toEqual({ from: "2026-01-13", to: "2026-02-11" });
+  });
+
+  it("leaves custom alone so supplied dates survive", () => {
+    expect(resolvePresetRange("custom", new Date("2026-02-11T10:00:00.000Z"))).toEqual({});
+  });
+
+  it("lets the preset override dates that came with it", () => {
+    const query = parseActivityQuery({ preset: "today", from: "2020-01-01", to: "2020-01-02" });
+    // Otherwise a stale date left in a URL would silently contradict the
+    // range control the reader is looking at.
+    expect(query.from).not.toBe("2020-01-01");
+    expect(query.from).toBe(query.to);
+  });
+
+  it("honours explicit dates when the preset is custom", () => {
+    const query = parseActivityQuery({ preset: "custom", from: "2026-01-01", to: "2026-01-31" });
+    expect(query.from).toBe("2026-01-01");
+    expect(query.to).toBe("2026-01-31");
+  });
+});
+
+describe("activity summary", () => {
+  it("counts over the same predicate as the list", async () => {
+    const listCaptured: Captured[] = [];
+    const summaryCaptured: Captured[] = [];
+    const query = parseActivityQuery({ result: "failure" });
+
+    await new PostgresActivityRepository(fakePool(listCaptured))
+      .list({ tenantId, userId, scope: "self", query });
+    await new PostgresActivityRepository(fakePool(summaryCaptured))
+      .summarise({ tenantId, userId, scope: "self", query });
+
+    /*
+     * The figures must describe the rows beneath them. Sharing the predicate is
+     * what makes that true; two independently built clauses would drift the
+     * first time a filter was added to one and not the other.
+     */
+    const listWhere = listCaptured[0]!.sql.slice(listCaptured[0]!.sql.indexOf("where"));
+    expect(summaryCaptured[0]!.sql).toContain("a.result =");
+    expect(listWhere).toContain("a.result =");
+    expect(summaryCaptured[0]!.sql).toContain("project_members");
+  });
+
+  it("binds exactly the parameters the summary references", async () => {
+    const captured: Captured[] = [];
+    await new PostgresActivityRepository(fakePool(captured)).summarise({
+      tenantId,
+      userId,
+      scope: "self",
+      query: parseActivityQuery({ result: "success", action: "task.create" }),
+    });
+
+    const { sql, values } = captured[0]!;
+    expect(placeholderCount(sql)).toBe(values.length);
+  });
+
+  it("reports no busiest day when the range holds nothing", async () => {
+    const repository = new PostgresActivityRepository(
+      fakePool([], [{ total: "0", failures: "0", people: "0", busiest_day: null, busiest_count: null }]),
+    );
+
+    const summary = await repository.summarise({
+      tenantId, userId, scope: "all", query: parseActivityQuery({}),
+    });
+
+    // Absent rather than a zero day, which would be a claim about a date.
+    expect(summary.busiestDay).toBeUndefined();
+    expect(summary.total).toBe(0);
   });
 });
 

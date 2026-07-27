@@ -12,18 +12,58 @@
 
 /*
  * The day heading sticks while its entries scroll, so a reader who has paged
- * deep into the trail still knows which day they are looking at.
+ * deep into the trail still knows which day they are looking at. It sits below
+ * the page toolbar, which is also sticky and must stay on top.
  */
 .rect-activity-day__heading {
+  align-items: center;
   background: var(--rect-canvas-bg);
-  color: var(--rect-text-secondary);
-  font-size: var(--rect-text-label);
-  font-weight: var(--rect-weight-semibold);
+  display: flex;
+  gap: var(--rect-space-3);
+  justify-content: space-between;
   margin: 0;
   padding-block: var(--rect-space-2);
   position: sticky;
-  inset-block-start: 0;
+  /* Clears the toolbar rather than sliding underneath it. */
+  inset-block-start: var(--rect-control-standard);
   z-index: 1;
+}
+
+/* A deliberate element rather than a bare line of text. */
+.rect-activity-day__badge {
+  align-items: baseline;
+  background: var(--rect-surface-bg-hover);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-pill-radius);
+  display: inline-flex;
+  gap: var(--rect-space-2);
+  padding: var(--rect-space-1) var(--rect-space-3);
+}
+
+.rect-activity-day__dot {
+  align-self: center;
+  background: var(--rect-text-secondary);
+  block-size: var(--rect-space-2);
+  border-radius: var(--rect-pill-radius);
+  inline-size: var(--rect-space-2);
+}
+
+.rect-activity-day__relative {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-activity-day__date {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-regular);
+}
+
+.rect-activity-day__count {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-micro);
+  font-weight: var(--rect-weight-regular);
 }
 
 .rect-activity-list {
