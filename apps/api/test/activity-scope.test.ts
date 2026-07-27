@@ -283,6 +283,38 @@ describe("activity summary", () => {
     expect(summaryCaptured[0]!.sql).toContain("project_members");
   });
 
+  it("computes every breakdown over the caller's own predicate", async () => {
+    const captured: Captured[] = [];
+    await new PostgresActivityRepository(fakePool(captured)).summarise({
+      tenantId, userId, scope: "self", query: parseActivityQuery({}),
+    });
+
+    /*
+     * The panels rank what the caller can already reach, never the company. A
+     * member must not learn who the busiest people are, or which projects are
+     * active, by reading a leaderboard computed over rows they cannot open.
+     */
+    const { sql } = captured[0]!;
+    const scoped = sql.slice(sql.indexOf("with scoped"), sql.indexOf("days as"));
+    expect(scoped).toContain("project_members");
+    expect(scoped).toContain("m.role in ('project_admin', 'project_manager')");
+    // Every tally reads from `scoped`, not from audit_events directly.
+    const tallies = sql.slice(sql.indexOf("actors as"));
+    expect(tallies).not.toContain("from audit_events");
+  });
+
+  it("searches the actor, the action and the project", async () => {
+    const captured: Captured[] = [];
+    await new PostgresActivityRepository(fakePool(captured)).list({
+      tenantId, userId, scope: "all", query: parseActivityQuery({ search: "metro" }),
+    });
+
+    const { sql } = captured[0]!;
+    expect(sql).toContain("u.display_name ilike");
+    expect(sql).toContain("a.action ilike");
+    expect(sql).toContain("p.name ilike");
+  });
+
   it("binds exactly the parameters the summary references", async () => {
     const captured: Captured[] = [];
     await new PostgresActivityRepository(fakePool(captured)).summarise({

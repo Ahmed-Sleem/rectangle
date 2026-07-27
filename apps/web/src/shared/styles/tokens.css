@@ -70,11 +70,9 @@
   --rect-logo: var(--rect-color-paper-elevated);
 
   --rect-surface-bg: var(--rect-color-paper);
-  /* The scrolling canvas behind feature pages. Sticky chrome sits on this, so
-     it needs an opaque value and a translucent partner for the glass state. */
+  /* The scrolling canvas behind feature pages. Sticky chrome paints this so
+     content genuinely disappears beneath it rather than reading through. */
   --rect-canvas-bg: var(--rect-color-paper);
-  --rect-canvas-bg-glass: color-mix(in srgb, var(--rect-color-paper) 72%, transparent);
-  --rect-canvas-blur: 12px;
   --rect-surface-bg-hover: var(--rect-color-paper-elevated);
   --rect-surface-border: var(--rect-color-ink);
   --rect-surface-divider: var(--rect-color-line);

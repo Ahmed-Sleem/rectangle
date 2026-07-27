@@ -406,20 +406,27 @@ describe("focus indicators", () => {
       expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*inset-block-start:\s*0/u);
     });
 
-    it("becomes readable glass once content scrolls under it", () => {
+    it("keeps a solid background at all times, not only once scrolled", () => {
       /*
-       * Transparent at rest — there is nothing behind the bar at the top of a
-       * page, so a panel there would be a box drawn around nothing. Once the
-       * page moves, the bar has to be readable over whatever passes beneath.
+       * Not blur. The minifier emitted only the -webkit- prefixed
+       * backdrop-filter and dropped the standard property, so the glass was
+       * plain translucency wherever the unprefixed name was needed — text over
+       * text. Solid and always present is the version that cannot half-work.
        */
-      expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*background-color:\s*transparent/u);
-      expect(toolbarCss).toMatch(/data-scroll-top="false"\]\s*\.rect-toolbar/u);
-      expect(toolbarCss).toContain("backdrop-filter: blur(var(--rect-canvas-blur))");
+      expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*background:\s*var\(--rect-canvas-bg\)/u);
+      expect(toolbarCss).not.toContain("backdrop-filter:");
+      expect(toolbarCss).not.toMatch(/background-color:\s*transparent/u);
     });
 
-    it("falls back to an opaque bar where blur is unsupported", () => {
-      // Translucency without blur leaves text sitting on text.
-      expect(toolbarCss).toMatch(/@supports not \(\(backdrop-filter/u);
+    it("joins the header above rather than floating as a strap", () => {
+      // A negative leading margin closes the body's own padding, so the header
+      // divider and the toolbar read as one surface with no canvas between.
+      expect(toolbarCss).toMatch(/margin-block-start:\s*calc\(var\(--rect-space-1\) \* -1\)/u);
+    });
+
+    it("adds a hairline only when something is hidden above the fold", () => {
+      expect(toolbarCss).toMatch(/data-scroll-top="false"\]\s*\.rect-toolbar/u);
+      expect(toolbarCss).toMatch(/box-shadow:\s*0 1px 0 0/u);
     });
 
     it("defines every canvas token it uses", () => {
@@ -429,8 +436,6 @@ describe("focus indicators", () => {
        * and content scrolled straight through them.
        */
       expect(tokensCss).toMatch(/--rect-canvas-bg:/u);
-      expect(tokensCss).toMatch(/--rect-canvas-bg-glass:/u);
-      expect(tokensCss).toMatch(/--rect-canvas-blur:/u);
     });
 
     it("does not mask the scroll container", () => {

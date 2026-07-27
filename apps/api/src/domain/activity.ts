@@ -120,6 +120,9 @@ export const activityQuerySchema = z.object({
    * offset would silently repeat or skip rows between one page and the next.
    */
   cursor: z.string().max(200).optional(),
+  /** Matches the actor's name, the action, or the project. Same shape as the
+   *  search on every other register, so it behaves the way people expect. */
+  search: z.string().trim().min(1).max(120).optional(),
   action: z.string().trim().min(1).max(120).optional(),
   entityType: z.string().trim().min(1).max(80).optional(),
   actorUserId: z.uuid().optional(),
@@ -202,6 +205,14 @@ export interface ActivityEntry {
   createdAt: string;
 }
 
+/** One row of a side-panel breakdown, with its own filter value. */
+export interface ActivityTally {
+  /** The value to filter by — a user id, an action name, or a project id. */
+  key: string;
+  label: string;
+  count: number;
+}
+
 /** The figures above the list, describing the same range the list covers. */
 export interface ActivitySummary {
   total: number;
@@ -211,6 +222,16 @@ export interface ActivitySummary {
   /** Absent when the range holds nothing, rather than reported as a zero day. */
   busiestDay?: string;
   busiestDayCount?: number;
+  /**
+   * Side-panel breakdowns. Every one is computed over the caller's own
+   * predicate, so a member sees a ranking of what they can already see rather
+   * than a leaderboard of the company.
+   */
+  topActors: ActivityTally[];
+  topActions: ActivityTally[];
+  topProjects: ActivityTally[];
+  /** Entries worth noticing: refusals, permission changes, deletions. */
+  attention: ActivityTally[];
 }
 
 export interface ActivityPage {

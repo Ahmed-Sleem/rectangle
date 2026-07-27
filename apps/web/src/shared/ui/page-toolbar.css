@@ -8,6 +8,15 @@
  * panel rather than the viewport (UI_RULES §16). Sticky also needed the scroll
  * container's mask removed — a mask fades its own sticky children — which is
  * why the fades in shell.css are overlay layers now.
+ *
+ * The background is solid and always present, not a blur that appears on
+ * scroll. Two reasons, both learned the hard way. The minifier emitted only
+ * the `-webkit-` prefixed `backdrop-filter` and dropped the standard property,
+ * so the "glass" was plain translucency in every browser that needed the
+ * unprefixed name — text over text. And a bar that gains a panel only once you
+ * scroll reads as a strap laid over the page rather than part of the chrome
+ * above it. Solid, always, in the canvas colour makes the header and the
+ * toolbar one continuous surface.
  */
 .rect-toolbar {
   display: grid;
@@ -16,49 +25,26 @@
   inset-block-start: 0;
   /* Above the scroll-edge fades, which sit at 1. */
   z-index: 2;
+  background: var(--rect-canvas-bg);
   /*
-   * Transparent at rest, glass once the page moves under it.
-   *
-   * At the top there is nothing behind the bar, so a panel would be a border
-   * drawn around nothing. The moment content scrolls beneath it the bar has to
-   * become readable, which is what `data-scroll-top="false"` on the scroll
-   * container signals. `background-color` is animated rather than `background`
-   * so the transition interpolates instead of snapping.
+   * Pulled up over the body's leading padding and given it back as its own,
+   * so there is no sliver of canvas between the header's divider and the bar.
+   * Without this the two read as separate strips with a gap between them.
    */
-  background-color: transparent;
-  transition:
-    background-color var(--rect-motion-nav),
-    backdrop-filter var(--rect-motion-nav),
-    box-shadow var(--rect-motion-nav);
-  /* Content would otherwise touch the controls at the moment it slides under. */
-  padding-block: var(--rect-space-2);
+  margin-block-start: calc(var(--rect-space-1) * -1);
+  padding-block: var(--rect-space-3) var(--rect-space-2);
   /* Cancels the panel gutter so the bar spans the full content width. */
   margin-inline: calc(var(--rect-space-05) * -1);
   padding-inline: var(--rect-space-05);
 }
 
 /*
- * The glass state. Driven by the scroll container's own attribute, so it
- * appears exactly when something is hidden above the fold and never when the
- * page fits.
+ * A hairline once content is hidden above the fold, and only then. The bar is
+ * already opaque; this says "there is more above" without drawing a border at
+ * the top of every page that fits on screen.
  */
 .rect-panel__body[data-scroll-top="false"] .rect-toolbar {
-  background-color: var(--rect-canvas-bg-glass);
-  backdrop-filter: blur(var(--rect-canvas-blur));
-  -webkit-backdrop-filter: blur(var(--rect-canvas-blur));
-  /* A hairline instead of a border: it separates the bar from the content
-     sliding under it without drawing a box at the top of every page. */
   box-shadow: 0 1px 0 0 var(--rect-card-border);
-}
-
-/*
- * Where the browser cannot blur, translucency alone would leave text sitting
- * on top of text. Those browsers get an opaque bar instead.
- */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .rect-panel__body[data-scroll-top="false"] .rect-toolbar {
-    background-color: var(--rect-canvas-bg);
-  }
 }
 
 .rect-toolbar__row {

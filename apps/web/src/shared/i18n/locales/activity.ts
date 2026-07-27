@@ -9,6 +9,18 @@ const en = {
   scope_team: "My teams",
   scope_all: "Everyone",
 
+  searchLabel: "Search activity",
+  searchPlaceholder: "Person, action, or project",
+
+  panelPeople: "Most active",
+  panelPeopleEmpty: "Nobody has done anything in this range.",
+  panelActions: "Most common",
+  panelActionsEmpty: "Nothing has happened in this range.",
+  panelProjects: "Busiest projects",
+  panelProjectsEmpty: "No project work in this range.",
+  panelAttention: "Worth a look",
+  panelAttentionEmpty: "Nothing unusual in this range.",
+
   rangeLabel: "Date range",
   rangeToday: "Today",
   rangeWeek: "This week",
@@ -58,6 +70,18 @@ const ar: LocaleBundle<typeof en> = {
   scope_self: "نشاطي",
   scope_team: "فِرقي",
   scope_all: "الجميع",
+
+  searchLabel: "البحث في النشاط",
+  searchPlaceholder: "شخص أو إجراء أو مشروع",
+
+  panelPeople: "الأكثر نشاطًا",
+  panelPeopleEmpty: "لم يقم أحد بأي شيء في هذا النطاق.",
+  panelActions: "الأكثر تكرارًا",
+  panelActionsEmpty: "لم يحدث شيء في هذا النطاق.",
+  panelProjects: "المشاريع الأكثر نشاطًا",
+  panelProjectsEmpty: "لا يوجد عمل على المشاريع في هذا النطاق.",
+  panelAttention: "يستحق الانتباه",
+  panelAttentionEmpty: "لا شيء غير معتاد في هذا النطاق.",
 
   rangeLabel: "النطاق الزمني",
   rangeToday: "اليوم",

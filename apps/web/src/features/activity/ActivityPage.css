@@ -137,3 +137,87 @@
   justify-content: center;
   padding-block-start: var(--rect-space-3);
 }
+
+/* ── Two columns: the trail, and what it is made of ── */
+
+.rect-activity-layout {
+  display: grid;
+  gap: var(--rect-grid-gap);
+  /* One column until there is room for a second; the trail is the page, and a
+     squeezed panel beside a squeezed list serves neither. */
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1080px) {
+  .rect-activity-layout {
+    grid-template-columns: minmax(0, 1fr) var(--rect-side-panel-width, 280px);
+    align-items: start;
+  }
+}
+
+.rect-activity-timeline {
+  display: grid;
+  gap: var(--rect-space-5);
+  min-inline-size: 0;
+}
+
+.rect-activity-aside {
+  display: grid;
+  gap: var(--rect-grid-gap);
+  /* Follows the trail rather than scrolling away from it. */
+  position: sticky;
+  inset-block-start: calc(var(--rect-control-standard) * 2);
+}
+
+/* ── Breakdown rows. Each one filters the list beside it. ── */
+
+.rect-tally {
+  display: grid;
+  gap: var(--rect-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-tally__row {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--rect-radius-md);
+  color: var(--rect-text-primary);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: var(--rect-text-label);
+  gap: var(--rect-space-2);
+  inline-size: 100%;
+  justify-content: space-between;
+  padding: var(--rect-space-1) var(--rect-space-2);
+  text-align: start;
+  transition: background var(--rect-motion-nav), border-color var(--rect-motion-nav);
+}
+
+.rect-tally__row:hover {
+  background: var(--rect-surface-bg-hover);
+}
+
+/* The row is a filter, so its pressed state has to be unmistakable — this is
+   the difference between "these are the numbers" and "this is why the list
+   below is short". */
+.rect-tally__row[aria-pressed="true"] {
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-border-active);
+}
+
+.rect-tally__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rect-tally__count {
+  color: var(--rect-text-secondary);
+  flex: none;
+  font-size: var(--rect-text-micro);
+  font-variant-numeric: tabular-nums;
+}

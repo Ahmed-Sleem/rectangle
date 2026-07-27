@@ -19,6 +19,7 @@ import {
   type ActivityScope,
   type ActivitySensitivity,
   type ActivitySummary,
+  type ActivityTally,
 } from "../../domain/activity.js";
 
 interface Row {
@@ -129,7 +130,16 @@ function buildPredicate(options: ActivityReadOptions): { where: string; values: 
         break;
     }
 
-    if (query.action) where.push(`a.action = ${bind(query.action)}`);
+    if (query.search) {
+    /*
+     * Actor, action and project — the three things visible on a row. Matching
+     * the raw action key as well as the display name means a search for
+     * "login_failed" works even though the row renders it as prose.
+     */
+    const term = bind(`%${query.search}%`);
+    where.push(`(u.display_name ilike ${term} or a.action ilike ${term} or p.name ilike ${term})`);
+  }
+  if (query.action) where.push(`a.action = ${bind(query.action)}`);
     if (query.entityType) where.push(`a.entity_type = ${bind(query.entityType)}`);
     if (query.actorUserId) where.push(`a.actor_user_id = ${bind(query.actorUserId)}`);
     if (query.projectId) where.push(`a.project_id = ${bind(query.projectId)}`);
@@ -209,22 +219,63 @@ export class PostgresActivityRepository {
       people: string;
       busiest_day: string | null;
       busiest_count: string | null;
+      top_actors: ActivityTally[];
+      top_actions: ActivityTally[];
+      top_projects: ActivityTally[];
+      attention: ActivityTally[];
     }>(
       `with scoped as (
-         select a.actor_user_id, a.result, a.created_at
+         select a.actor_user_id, u.display_name as actor_name,
+                a.action, a.result, a.created_at,
+                a.project_id, p.name as project_name, a.sensitivity
            from audit_events a
+           left join users u on u.id = a.actor_user_id and u.tenant_id = a.tenant_id
+           left join projects p on p.id = a.project_id and p.tenant_id = a.tenant_id
           where ${where}
        ),
        days as (
          select date_trunc('day', created_at) as day, count(*)::text as day_count
            from scoped group by 1 order by count(*) desc, 1 desc limit 1
+       ),
+       actors as (
+         select actor_user_id::text as key,
+                coalesce(actor_name, 'Someone') as label,
+                count(*)::int as count
+           from scoped where actor_user_id is not null
+          group by 1, 2 order by count(*) desc, 2 asc limit 5
+       ),
+       actions as (
+         select action as key, action as label, count(*)::int as count
+           from scoped group by 1 order by count(*) desc, 1 asc limit 5
+       ),
+       project_tally as (
+         select project_id::text as key,
+                coalesce(project_name, '') as label,
+                count(*)::int as count
+           from scoped where project_id is not null
+          group by 1, 2 order by count(*) desc, 2 asc limit 5
+       ),
+       attention as (
+         -- Refusals, and the changes that alter who can do what. These are the
+         -- entries somebody scanning a trail is actually hunting for.
+         select action as key, action as label, count(*)::int as count
+           from scoped
+          where result = 'failure'
+             or sensitivity = 'administrative'
+             or action like '%.delete'
+             or action like '%.remove'
+          group by 1 order by count(*) desc, 1 asc limit 5
        )
        select
          (select count(*)::text from scoped) as total,
          (select count(*)::text from scoped where result = 'failure') as failures,
          (select count(distinct actor_user_id)::text from scoped where actor_user_id is not null) as people,
          (select to_char(day, 'YYYY-MM-DD') from days) as busiest_day,
-         (select day_count from days) as busiest_count`,
+         (select day_count from days) as busiest_count,
+         (select coalesce(json_agg(actors), '[]') from actors) as top_actors,
+         (select coalesce(json_agg(actions), '[]') from actions) as top_actions,
+         (select coalesce(json_agg(project_tally), '[]') from project_tally) as top_projects,
+         (select coalesce(json_agg(attention), '[]') from attention) as attention`,
       values,
     );
 
@@ -236,6 +287,10 @@ export class PostgresActivityRepository {
       ...(row?.busiest_day
         ? { busiestDay: row.busiest_day, busiestDayCount: Number(row.busiest_count ?? 0) }
         : {}),
+      topActors: row?.top_actors ?? [],
+      topActions: row?.top_actions ?? [],
+      topProjects: row?.top_projects ?? [],
+      attention: row?.attention ?? [],
     };
   }
 

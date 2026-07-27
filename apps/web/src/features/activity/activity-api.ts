@@ -22,12 +22,23 @@ export interface ActivityEntry {
 export type ActivityPreset = "today" | "week" | "month" | "custom";
 
 /** Figures describing the whole range, not the page that was fetched. */
+export interface ActivityTally {
+  /** Filter value: a user id, an action name, or a project id. */
+  key: string;
+  label: string;
+  count: number;
+}
+
 export interface ActivitySummary {
   total: number;
   failures: number;
   people: number;
   busiestDay?: string;
   busiestDayCount?: number;
+  topActors: ActivityTally[];
+  topActions: ActivityTally[];
+  topProjects: ActivityTally[];
+  attention: ActivityTally[];
 }
 
 export interface ActivityPage {
@@ -42,6 +53,7 @@ export interface ActivityFilters {
   scope: ActivityScope;
   preset?: ActivityPreset;
   actorUserId?: string;
+  search?: string;
   projectId?: string;
   action?: string;
   result?: "success" | "failure";
@@ -53,6 +65,7 @@ export interface ActivityFilters {
 export function listActivity(filters: ActivityFilters): Promise<ActivityPage> {
   const params = new URLSearchParams({ scope: filters.scope });
   if (filters.preset) params.set("preset", filters.preset);
+  if (filters.search) params.set("search", filters.search);
   if (filters.actorUserId) params.set("actorUserId", filters.actorUserId);
   if (filters.projectId) params.set("projectId", filters.projectId);
   if (filters.action) params.set("action", filters.action);

@@ -57,7 +57,7 @@ const entry = {
 };
 
 /** Routes the two endpoints the page calls. */
-const emptySummary = { total: 0, failures: 0, people: 0 };
+const emptySummary = { total: 0, failures: 0, people: 0, topActors: [], topActions: [], topProjects: [], attention: [] };
 
 function mockApi(page: Record<string, unknown>, actions: string[] = ["project.update"]) {
   vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
@@ -75,7 +75,7 @@ describe("ActivityPage", () => {
   });
 
   it("shows what happened, grouped under the day it happened", async () => {
-    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1 } });
+    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1, topActors: [], topActions: [], topProjects: [], attention: [] } });
     renderActivity();
 
     expect(await screen.findByText("Mona Adel")).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe("ActivityPage", () => {
   });
 
   it("offers no scope control to someone who may only see their own", async () => {
-    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1 } });
+    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1, topActors: [], topActions: [], topProjects: [], attention: [] } });
     renderActivity();
 
     await screen.findByText("Mona Adel");
@@ -95,7 +95,7 @@ describe("ActivityPage", () => {
   });
 
   it("offers every scope the server says the viewer may ask for", async () => {
-    mockApi({ entries: [entry], availableScopes: ["self", "team", "all"], summary: { total: 1, failures: 0, people: 1 } });
+    mockApi({ entries: [entry], availableScopes: ["self", "team", "all"], summary: { total: 1, failures: 0, people: 1, topActors: [], topActions: [], topProjects: [], attention: [] } });
     renderActivity(adminAuth);
 
     await screen.findByText("Mona Adel");
@@ -108,7 +108,7 @@ describe("ActivityPage", () => {
     mockApi({
       entries: [{ ...entry, action: "auth.login_failed", result: "failure", sensitivity: "security" }],
       availableScopes: ["self"],
-      summary: { total: 1, failures: 1, people: 1 },
+      summary: { total: 1, failures: 1, people: 1, topActors: [], topActions: [], topProjects: [], attention: [] },
     });
     renderActivity();
 
@@ -145,7 +145,7 @@ describe("ActivityPage", () => {
   });
 
   it("offers more only when the server says another page exists", async () => {
-    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1 } });
+    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1, topActors: [], topActions: [], topProjects: [], attention: [] } });
     renderActivity();
 
     await screen.findByText("Mona Adel");
@@ -163,7 +163,7 @@ describe("ActivityPage", () => {
 
   it("renders in Arabic when Arabic is active", async () => {
     await setRectangleLanguage("ar");
-    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1 } });
+    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1, topActors: [], topActions: [], topProjects: [], attention: [] } });
     renderActivity();
 
     expect(await screen.findByText("Mona Adel")).toBeInTheDocument();
@@ -171,7 +171,7 @@ describe("ActivityPage", () => {
   });
 
   it("leads with a date range, because that is what people narrow first", async () => {
-    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1 } });
+    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1, topActors: [], topActions: [], topProjects: [], attention: [] } });
     renderActivity();
 
     await screen.findByText("Mona Adel");
@@ -187,7 +187,7 @@ describe("ActivityPage", () => {
       const url = String(input);
       urls.push(url);
       if (url.includes("/v1/activity/actions")) return jsonResponse({ actions: [] });
-      return jsonResponse({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1 } });
+      return jsonResponse({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1, topActors: [], topActions: [], topProjects: [], attention: [] } });
     });
     renderActivity();
 
@@ -203,7 +203,7 @@ describe("ActivityPage", () => {
     mockApi({
       entries: [entry],
       availableScopes: ["self"],
-      summary: { total: 412, failures: 7, people: 9, busiestDay: "2026-02-01", busiestDayCount: 88 },
+      summary: { total: 412, failures: 7, people: 9, busiestDay: "2026-02-01", busiestDayCount: 88, topActors: [], topActions: [], topProjects: [], attention: [] },
     });
     renderActivity();
 
@@ -230,7 +230,7 @@ describe("ActivityPage", () => {
     mockApi({
       entries: [{ ...entry, createdAt: today }],
       availableScopes: ["self"],
-      summary: { total: 1, failures: 0, people: 1 },
+      summary: { total: 1, failures: 0, people: 1, topActors: [], topActions: [], topProjects: [], attention: [] },
     });
     renderActivity();
 
@@ -242,11 +242,104 @@ describe("ActivityPage", () => {
   });
 
   it("uses the plain date for a day that is neither today nor yesterday", async () => {
-    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1 } });
+    mockApi({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1, topActors: [], topActions: [], topProjects: [], attention: [] } });
     renderActivity();
 
     await screen.findByText("Mona Adel");
     expect(screen.queryByText("Today", { selector: ".rect-activity-day__relative" })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: /February/u })).toBeInTheDocument();
+  });
+
+  it("searches the server rather than the rows already on screen", async () => {
+    const user = userEvent.setup();
+    const urls: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes("/v1/activity/actions")) return jsonResponse({ actions: [] });
+      return jsonResponse({ entries: [entry], availableScopes: ["self"], summary: { total: 1, failures: 0, people: 1, topActors: [], topActions: [], topProjects: [], attention: [] } });
+    });
+    renderActivity();
+
+    await screen.findByRole("textbox", { name: "Search activity" });
+    await user.type(screen.getByRole("textbox", { name: "Search activity" }), "Mona");
+
+    // Filtering the fetched page would silently miss matches further back in
+    // the range, which is the same fault the summary avoids.
+    /*
+     * The final keystroke is what matters: React re-queries per character, so
+     * asserting on the complete term proves the whole value reached the server
+     * rather than only that some search happened.
+     */
+    /*
+     * The query key includes the term, so the client re-fetches as it settles.
+     * Waiting for the complete word proves the whole value reached the server
+     * rather than only the first keystroke that happened to be in flight.
+     */
+    /*
+     * The whole term must reach the server. This caught a real fault: changing
+     * the search changed the query key, `isLoading` went true, the page was
+     * replaced by a spinner, and the field being typed into was unmounted —
+     * so only the first character ever survived.
+     */
+    await waitFor(() => expect(urls.some((url) => url.includes("search=Mona"))).toBe(true));
+    expect(screen.getByRole("textbox", { name: "Search activity" })).toHaveValue("Mona");
+  });
+
+  it("shows what the range is made of, beside the trail", async () => {
+    mockApi({
+      entries: [entry],
+      availableScopes: ["self"],
+      summary: {
+        total: 3, failures: 1, people: 1,
+        topActors: [{ key: "u1", label: "Mona Adel", count: 3 }],
+        topActions: [{ key: "project.update", label: "project.update", count: 2 }],
+        topProjects: [{ key: "p1", label: "Cairo Metro", count: 2 }],
+        attention: [{ key: "auth.login_failed", label: "auth.login_failed", count: 1 }],
+      },
+    });
+    renderActivity();
+
+    const people = await screen.findByRole("complementary", { name: "Most active" });
+    expect(within(people).getByText("Mona Adel")).toBeInTheDocument();
+    expect(within(screen.getByRole("complementary", { name: "Busiest projects" })).getByText("Cairo Metro")).toBeInTheDocument();
+    // Action keys are rendered as prose, not raw keys.
+    expect(within(screen.getByRole("complementary", { name: "Worth a look" })).getByText("Failed sign-in attempt")).toBeInTheDocument();
+  });
+
+  it("filters the list from a breakdown row rather than just reporting it", async () => {
+    const user = userEvent.setup();
+    const urls: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes("/v1/activity/actions")) return jsonResponse({ actions: [] });
+      return jsonResponse({
+        entries: [entry], availableScopes: ["self"],
+        summary: {
+          total: 3, failures: 0, people: 1,
+          topActors: [{ key: "u1", label: "Mona Adel", count: 3 }],
+          topActions: [], topProjects: [], attention: [],
+        },
+      });
+    });
+    renderActivity();
+
+    const panel = await screen.findByRole("complementary", { name: "Most active" });
+    await user.click(within(panel).getByRole("button", { name: /Mona Adel/u }));
+
+    // A panel of numbers you cannot act on is decoration.
+    await waitFor(() => expect(urls.some((url) => url.includes("actorUserId=u1"))).toBe(true));
+  });
+
+  it("shows the breakdowns the server sent and invents none", async () => {
+    // Scoping lives on the server: a member gets a ranking of what they can
+    // already reach. The page must not compute its own from the fetched page,
+    // which would leak nothing but would disagree with the range.
+    mockApi({ entries: [entry], availableScopes: ["self"], summary: emptySummary });
+    renderActivity();
+
+    const panel = await screen.findByRole("complementary", { name: "Most active" });
+    expect(within(panel).getByText("Nobody has done anything in this range.")).toBeInTheDocument();
   });
 });

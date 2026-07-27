@@ -16,11 +16,11 @@ import { Link, useSearchParams } from "react-router";
 import { useOptionalAuth } from "@/shared/auth";
 import {
   Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, PageToolbar,
-  StatCard, StatRow, ViewToggle,
+  SidePanel, StatCard, StatRow, ViewToggle,
 } from "@/shared/ui";
 import {
   listActivity, listActivityActions,
-  type ActivityEntry, type ActivityPreset, type ActivityScope,
+  type ActivityEntry, type ActivityPreset, type ActivityScope, type ActivityTally,
 } from "./activity-api";
 import "./ActivityPage.css";
 
@@ -47,6 +47,47 @@ function relativeDayLabel(day: string, t: TFunction): string | null {
   if (day === asDay(yesterday)) return t("activity.yesterday");
 
   return null;
+}
+
+/**
+ * One side-panel breakdown.
+ *
+ * Every row is a control, not a statistic: clicking it narrows the list beside
+ * it. A panel of numbers you cannot act on is decoration, and decoration in a
+ * dense tool is something people learn to ignore.
+ */
+function TallyList({
+  rows,
+  activeKey,
+  onPick,
+  emptyLabel,
+  format,
+}: {
+  rows: ActivityTally[];
+  activeKey: string;
+  onPick: (key: string) => void;
+  emptyLabel: string;
+  format?: (row: ActivityTally) => string;
+}) {
+  if (rows.length === 0) return <p className="rect-panel-note">{emptyLabel}</p>;
+
+  return (
+    <ul className="rect-tally">
+      {rows.map((row) => (
+        <li key={row.key}>
+          <button
+            type="button"
+            className="rect-tally__row"
+            aria-pressed={activeKey === row.key}
+            onClick={() => onPick(activeKey === row.key ? "" : row.key)}
+          >
+            <span className="rect-tally__label">{format ? format(row) : row.label}</span>
+            <span className="rect-tally__count">{row.count}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 /** Groups entries under the day they happened, preserving server order. */
@@ -81,6 +122,8 @@ export default function ActivityPage() {
   const [searchParams] = useSearchParams();
   const [projectId, setProjectId] = useState(() => searchParams.get("projectId") ?? "");
 
+  const [search, setSearch] = useState("");
+  const [actorUserId, setActorUserId] = useState("");
   const [preset, setPreset] = useState<ActivityPreset>("month");
   const [scope, setScope] = useState<ActivityScope>("self");
   const [action, setAction] = useState("");
@@ -89,7 +132,7 @@ export default function ActivityPage() {
   const actions = useQuery({ queryKey: ["activity", "actions"], queryFn: listActivityActions });
 
   const feed = useInfiniteQuery({
-    queryKey: ["activity", scope, preset, action, result, projectId],
+    queryKey: ["activity", scope, preset, search, actorUserId, action, result, projectId],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       listActivity({
@@ -97,6 +140,8 @@ export default function ActivityPage() {
         preset,
         ...(action ? { action } : {}),
         ...(result ? { result: result as "success" | "failure" } : {}),
+        ...(search ? { search } : {}),
+        ...(actorUserId ? { actorUserId } : {}),
         ...(projectId ? { projectId } : {}),
         ...(pageParam ? { cursor: pageParam } : {}),
       }),
@@ -112,6 +157,7 @@ export default function ActivityPage() {
   // Describes the whole range, computed server-side; deriving it from the
   // fetched pages would report the pages instead.
   const summary = pages[0]?.summary;
+  const filtered = action !== "" || result !== "" || projectId !== "" || actorUserId !== "" || search !== "";
 
   const dayFormatter = useMemo(
     () => new Intl.DateTimeFormat(i18n.language, { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
@@ -126,7 +172,14 @@ export default function ActivityPage() {
     return <LoadingState title={t("activity.loadingTitle")} message={t("activity.loadingMessage")} />;
   }
 
-  if (feed.isLoading) {
+  /*
+   * Only the very first load replaces the page. Changing a filter changes the
+   * query key, so `isLoading` becomes true again on every keystroke — and
+   * swapping the whole page for a spinner unmounts the search field the person
+   * is typing into, which loses focus and every character after the first.
+   * Later loads keep the page and let the list update underneath.
+   */
+  if (feed.isLoading && pages.length === 0 && !filtered) {
     return <LoadingState title={t("activity.loadingTitle")} message={t("activity.loadingMessage")} />;
   }
 
@@ -144,7 +197,6 @@ export default function ActivityPage() {
     );
   }
 
-  const filtered = action !== "" || result !== "" || projectId !== "";
 
   return (
     <section className="rect-activity-page" aria-label={t("activity.pageLabel")}>
@@ -167,6 +219,12 @@ export default function ActivityPage() {
             ]}
           />
         }
+        search={{
+          value: search,
+          onChange: setSearch,
+          label: t("activity.searchLabel"),
+          placeholder: t("activity.searchPlaceholder"),
+        }}
         filters={[
           {
             id: "action",
@@ -193,7 +251,7 @@ export default function ActivityPage() {
             onChange: setResult,
           },
         ]}
-        onClearFilters={() => { setAction(""); setResult(""); setProjectId(""); }}
+        onClearFilters={() => { setAction(""); setResult(""); setProjectId(""); setActorUserId(""); setSearch(""); }}
         /*
          * Scope answers "whose activity", which is a different question from
          * the filters' "which entries", so it sits with the view controls at
@@ -244,7 +302,7 @@ export default function ActivityPage() {
           {...(filtered
             ? {
                 action: (
-                  <Button variant="secondary" onClick={() => { setAction(""); setResult(""); setProjectId(""); }}>
+                  <Button variant="secondary" onClick={() => { setAction(""); setResult(""); setProjectId(""); setActorUserId(""); setSearch(""); }}>
                     {t("activity.clearFilters")}
                   </Button>
                 ),
@@ -252,7 +310,8 @@ export default function ActivityPage() {
             : {})}
         />
       ) : (
-        <>
+        <div className="rect-activity-layout">
+          <div className="rect-activity-timeline">
           {grouped.map((group) => (
             <section key={group.day} className="rect-activity-day" aria-label={dayFormatter.format(new Date(group.day))}>
               <h2 className="rect-activity-day__heading">
@@ -319,7 +378,54 @@ export default function ActivityPage() {
               </Button>
             </div>
           ) : null}
-        </>
+          </div>
+
+          {/*
+            Beside the trail rather than above it, and every row filters the
+            list. All four are computed over the caller's own predicate, so a
+            member sees a ranking of what they can already reach — never a
+            leaderboard of the company.
+          */}
+          <div className="rect-activity-aside">
+            <SidePanel title={t("activity.panelPeople")}>
+              <TallyList
+                rows={summary?.topActors ?? []}
+                activeKey={actorUserId}
+                onPick={setActorUserId}
+                emptyLabel={t("activity.panelPeopleEmpty")}
+              />
+            </SidePanel>
+
+            <SidePanel title={t("activity.panelActions")}>
+              <TallyList
+                rows={summary?.topActions ?? []}
+                activeKey={action}
+                onPick={setAction}
+                emptyLabel={t("activity.panelActionsEmpty")}
+                format={(row) => t(`enums.activity.${row.key}`, { defaultValue: row.label })}
+              />
+            </SidePanel>
+
+            <SidePanel title={t("activity.panelProjects")}>
+              <TallyList
+                rows={summary?.topProjects ?? []}
+                activeKey={projectId}
+                onPick={setProjectId}
+                emptyLabel={t("activity.panelProjectsEmpty")}
+              />
+            </SidePanel>
+
+            <SidePanel title={t("activity.panelAttention")}>
+              <TallyList
+                rows={summary?.attention ?? []}
+                activeKey={action}
+                onPick={setAction}
+                emptyLabel={t("activity.panelAttentionEmpty")}
+                format={(row) => t(`enums.activity.${row.key}`, { defaultValue: row.label })}
+              />
+            </SidePanel>
+          </div>
+        </div>
       )}
     </section>
   );
