@@ -19,21 +19,42 @@
 -- This migration replaces the set with a single **standing** per person, so the
 -- contradiction becomes impossible in the schema rather than discouraged in the
 -- interface. Project roles stay where they belong: on the project.
+--
+-- Statement order matters and is the reason this file failed once already. The
+-- constraint permitting the new values must be in place *before* any statement
+-- writes one. The first version mapped the old names to the new ones and only
+-- then swapped the constraint, so the very first UPDATE was rejected by the
+-- constraint it was about to replace. The whole file runs inside one
+-- transaction opened by the migration runner, so either all of this applies or
+-- none of it does.
 
--- Order matters when collapsing several rows into one: keep the most capable.
+-- Step 1: widen the constraint first, so both the old and the new vocabulary
+-- are legal while the data is being moved between them. Nothing is relaxed
+-- permanently — step 5 narrows it to the final set once no old value remains.
+alter table tenant_user_roles drop constraint if exists tenant_user_roles_role_check;
+
+alter table tenant_user_roles
+  add constraint tenant_user_roles_role_check
+  check (role in (
+    'owner', 'admin', 'member', 'guest',
+    'tenant_owner', 'tenant_admin', 'project_admin', 'project_manager',
+    'controls_manager', 'viewer', 'external_collaborator'
+  ));
+
+-- Step 2: collapse each person to their most capable role before the primary
+-- key stops allowing more than one.
 create or replace function rectangle_standing_rank(role_name text) returns int as $$
   select case role_name
     when 'tenant_owner' then 4
+    when 'owner' then 4
     when 'tenant_admin' then 3
+    when 'admin' then 3
     when 'external_collaborator' then 1
+    when 'guest' then 1
     else 2
   end;
 $$ language sql immutable;
 
--- Collapse to the highest standing each person currently holds. Everything that
--- is not owner or admin becomes a member, because the project-scoped roles
--- granted only projects.read / projects.manage, and a user type can carry those
--- explicitly. External collaborators become guests.
 delete from tenant_user_roles a
  using tenant_user_roles b
  where a.tenant_id = b.tenant_id
@@ -43,6 +64,10 @@ delete from tenant_user_roles a
      or (rectangle_standing_rank(a.role) = rectangle_standing_rank(b.role) and a.role > b.role)
    );
 
+-- Step 3: move to the new vocabulary. Everything that is not owner or admin
+-- becomes a member: the project-scoped roles granted only projects.read and
+-- projects.manage, which a user type can carry explicitly. External
+-- collaborators become guests.
 update tenant_user_roles
    set role = case
      when role = 'tenant_owner' then 'owner'
@@ -50,23 +75,12 @@ update tenant_user_roles
      when role = 'external_collaborator' then 'guest'
      else 'member'
    end
- where role in (
-   'tenant_owner', 'tenant_admin', 'project_admin', 'project_manager',
-   'controls_manager', 'viewer', 'external_collaborator'
- );
+ where role not in ('owner', 'admin', 'member', 'guest');
 
 drop function if exists rectangle_standing_rank(text);
 
--- The old check constraint names the retired values, so it has to go before the
--- new one can be added.
-alter table tenant_user_roles drop constraint if exists tenant_user_roles_role_check;
-
-alter table tenant_user_roles
-  add constraint tenant_user_roles_role_check
-  check (role in ('owner', 'admin', 'member', 'guest'));
-
--- One row per person. This is the line that makes "viewer and owner at once"
--- unrepresentable rather than merely discouraged.
+-- Step 4: one row per person. This is the line that makes "viewer and owner at
+-- once" unrepresentable rather than merely discouraged.
 do $$
 begin
   if exists (
@@ -113,3 +127,14 @@ update tenant_user_roles r
    set role = 'owner'
   from candidate c
  where r.tenant_id = c.tenant_id and r.user_id = c.user_id;
+
+-- Step 5: narrow the constraint to the final set, now that no legacy value
+-- survives. Verified rather than assumed: if anything unexpected remains the
+-- constraint will refuse to validate and the whole transaction rolls back,
+-- which is the correct outcome — a half-migrated authorization table is worse
+-- than a failed deploy.
+alter table tenant_user_roles drop constraint if exists tenant_user_roles_role_check;
+
+alter table tenant_user_roles
+  add constraint tenant_user_roles_role_check
+  check (role in ('owner', 'admin', 'member', 'guest'));

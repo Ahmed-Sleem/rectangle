@@ -318,4 +318,57 @@ describe("AdminService", () => {
 
     expect(user.standing).toBe("admin");
   });
+
+  it("refuses to create a person with no role", async () => {
+    const { service, repo } = createService();
+    await repo.ensureSystemUserTypes();
+
+    // Nobody may exist without a role: with none, their access is undefined
+    // rather than empty, and every screen has to guess what to do with them.
+    await expect(
+      service.createUser(admin, {
+        displayName: "Roleless",
+        email: "roleless@example.com",
+        userTypeIds: [],
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("refuses to strip somebody's last role", async () => {
+    const { service, repo } = createService();
+    await repo.ensureSystemUserTypes();
+    const { user } = await service.createUser(admin, {
+      displayName: "Has A Role",
+      email: "hasrole@example.com",
+      userTypeIds: [repo.userTypes[0]!.id],
+    });
+
+    await expect(service.updateUser(admin, user.id, { userTypeIds: [] })).rejects.toThrow();
+  });
+
+  it("requires users.manage to create a person", async () => {
+    const { service, repo } = createService();
+    await repo.ensureSystemUserTypes();
+
+    // A member holds nothing by standing, so creating people is refused.
+    await expect(
+      service.createUser(viewer, {
+        displayName: "Someone",
+        email: "someone@example.com",
+        userTypeIds: [repo.userTypes[0]!.id],
+      }),
+    ).rejects.toThrow(/permission/iu);
+  });
+
+  it("requires user_types.manage to create a role", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.createUserType(viewer, {
+        name: "Invented",
+        key: "invented",
+        permissions: ["projects.read"],
+      }),
+    ).rejects.toThrow(/permission/iu);
+  });
 });
