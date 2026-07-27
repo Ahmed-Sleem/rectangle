@@ -49,6 +49,14 @@ export interface AuthRepository {
   }): Promise<AuthSessionRecord>;
   findActiveSession(sessionId: string, tenantId: string, userId: string): Promise<AuthSessionRecord | null>;
   revokeSession(sessionId: string, tenantId: string, userId: string): Promise<void>;
+  /**
+   * The tenant behind a slug, regardless of whether the email matched anyone.
+   *
+   * Needed so a failed sign-in against an address that does not exist can still
+   * be recorded. That is the attempt most worth recording, and it was
+   * previously the only one silently discarded.
+   */
+  findTenantIdBySlug?(tenantSlug: string): Promise<string | null>;
 }
 
 export interface LoginContext {
@@ -217,14 +225,37 @@ export class AuthService {
     };
   }
 
-  private async auditFailure(tenantId: string | undefined, userId: string | undefined, tenantSlug: string, reason: string): Promise<void> {
-    if (!tenantId || !userId) return;
+  /**
+   * Records a refused sign-in.
+   *
+   * This previously began `if (!tenantId || !userId) return`, so an attempt
+   * against an address that does not exist left no trace at all — which is
+   * precisely the pattern worth recording, because it is what credential
+   * spraying looks like. The tenant is resolved from the slug when the email
+   * matches nobody, and the entry is written with no actor rather than not
+   * written. `audit_events.actor_user_id` is nullable for exactly this case;
+   * `tenant_id` is not, so an attempt against an unknown company genuinely
+   * cannot be attributed and is the one case still skipped.
+   */
+  private async auditFailure(
+    tenantId: string | undefined,
+    userId: string | undefined,
+    tenantSlug: string,
+    reason: string,
+  ): Promise<void> {
+    const resolvedTenantId =
+      tenantId ?? (tenantSlug ? await this.authRepository.findTenantIdBySlug?.(tenantSlug) : null);
+
+    if (!resolvedTenantId) return;
+
     await this.audit.append({
-      tenantId,
-      actorUserId: userId,
+      tenantId: resolvedTenantId,
+      // Null rather than a fabricated id: nobody performed this action.
+      actorUserId: userId ?? null,
       action: "auth.login_failed",
       entityType: "user",
-      entityId: userId,
+      // The subject when known; otherwise the tenant, since the row needs one.
+      entityId: userId ?? resolvedTenantId,
       result: "failure",
       metadata: { tenantSlug, reason },
     });

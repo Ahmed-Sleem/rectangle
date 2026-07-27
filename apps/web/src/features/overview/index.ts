@@ -13,5 +13,6 @@ export const overviewFeature: FeatureModule = {
   navGroup: "primary",
   routePath: "/",
   enabled: true,
+  requiredPermission: "projects.read",
   load: () => import("./TodayPage"),
 };

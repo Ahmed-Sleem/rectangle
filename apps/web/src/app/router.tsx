@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import { ProtectedShellRoute, LoginRoute, SetupRoute } from "./AuthRoutes";
+import { FeatureGuard } from "./FeatureGuard";
 import { RouteError } from "./RouteError";
 import { getEnabledFeatures } from "@/shell/registry";
 import NotFound from "./NotFound";
@@ -21,7 +22,14 @@ function buildChildren() {
         index: true as const,
         lazy: async () => {
           const mod = await feature.load();
-          return { Component: mod.default };
+          const Page = mod.default;
+          return {
+            Component: () => (
+              <FeatureGuard requiredPermission={feature.requiredPermission}>
+                <Page />
+              </FeatureGuard>
+            ),
+          };
         },
         errorElement: <RouteError />,
       };
@@ -33,7 +41,14 @@ function buildChildren() {
       path,
       lazy: async () => {
         const mod = await feature.load();
-        return { Component: mod.default };
+        const Page = mod.default;
+        return {
+          Component: () => (
+            <FeatureGuard requiredPermission={feature.requiredPermission}>
+              <Page />
+            </FeatureGuard>
+          ),
+        };
       },
       errorElement: <RouteError />,
     };

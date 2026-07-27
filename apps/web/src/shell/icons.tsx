@@ -1,15 +1,4 @@
-import {
-  BarChart3,
-  Folder,
-  LayoutGrid,
-  LogOut,
-  ListChecks,
-  ShieldAlert,
-  Settings,
-  User,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+import { BarChart3, Folder, History, LayoutGrid, ListChecks, LogOut, Settings, ShieldAlert, User, Users, type LucideIcon } from "lucide-react";
 import type { FeatureIconName } from "./feature-types";
 
 const ICON_MAP: Record<FeatureIconName, LucideIcon> = {
@@ -17,6 +6,7 @@ const ICON_MAP: Record<FeatureIconName, LucideIcon> = {
   projects: Folder,
   tasks: ListChecks,
   risks: ShieldAlert,
+  activity: History,
   analytics: BarChart3,
   team: Users,
   settings: Settings,

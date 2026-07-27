@@ -25,6 +25,7 @@ import {
   inactiveRiskService,
   inactiveSearchService,
   inactiveTaskService,
+  inactiveActivityService,
 } from "./support/inactive-services.js";
 
 const jwtSecret = "rectangle-test-secret-must-be-at-least-32-chars";
@@ -59,6 +60,7 @@ const notUsed = (): never => { throw new Error("not used"); };
 async function createTestServer() {
   const audit = new MemoryAuditRepository();
   return createServer({
+    activityService: inactiveActivityService,
     overviewService: inactiveOverviewService,
     taskService: inactiveTaskService,
     searchService: inactiveSearchService,

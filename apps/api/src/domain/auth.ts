@@ -65,7 +65,11 @@ export function rolePermissions(roles: TenantRole[]): Permission[] {
   return [...permissions];
 }
 
-function hasPermission(principal: UserPrincipal, permission: Permission): boolean {
+/**
+ * Exported because surfaces that mix registers need to ask rather than require:
+ * a caller who cannot read one block should lose that block, not the page.
+ */
+export function hasPermission(principal: UserPrincipal, permission: Permission): boolean {
   return principal.permissions.includes(permission) || rolePermissions(principal.roles).includes(permission);
 }
 

@@ -24,7 +24,12 @@ export const rectangleFeatureConfig = [
   { id: "projects", enabled: true, order: 20, title: "Projects", titleAr: "المشاريع" },
   { id: "tasks", enabled: true, order: 30, title: "Tasks", titleAr: "المهام" },
   { id: "risks", enabled: true, order: 34, title: "Risks", titleAr: "المخاطر" },
-  { id: "analytics", enabled: true, order: 35, title: "Analytics", titleAr: "التحليلات" },
+  { id: "activity", enabled: true, order: 36, title: "Activity", titleAr: "النشاط" },
+  /*
+   * Analytics is hidden until it has a backend. Offering a menu item that opens
+   * an empty page is a promise the product does not keep.
+   */
+  { id: "analytics", enabled: false, order: 37, title: "Analytics", titleAr: "التحليلات" },
   { id: "team", enabled: true, order: 40, title: "Team", titleAr: "الفريق" },
   { id: "settings", enabled: true, order: 50, title: "Settings", titleAr: "الإعدادات" },
   { id: "profile", enabled: true, order: 900, title: "Profile", titleAr: "الملف الشخصي" },

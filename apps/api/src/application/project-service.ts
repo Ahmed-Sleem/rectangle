@@ -18,7 +18,8 @@ import {
 
 export interface AuditEventInput {
   tenantId: string;
-  actorUserId: string;
+  /** Null when nobody could be identified, e.g. a sign-in against an unknown address. */
+  actorUserId: string | null;
   action: string;
   entityType: string;
   entityId: string;

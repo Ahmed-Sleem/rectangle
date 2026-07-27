@@ -8,6 +8,7 @@ import helmet from "@fastify/helmet";
 import staticFiles from "@fastify/static";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import type { ActivityService } from "../application/activity-service.js";
 import type { AdminService } from "../application/admin-service.js";
 import type { AuthService } from "../application/auth-service.js";
 import type { OverviewService } from "../application/overview-service.js";
@@ -22,6 +23,7 @@ import type { TaskService } from "../application/task-service.js";
 import type { PasskeyService } from "../application/passkey-service.js";
 import type { EmailSettingsService } from "../application/email-settings-service.js";
 import { createAuthenticationHook } from "./auth.js";
+import { registerActivityRoutes } from "./activity-routes.js";
 import { registerAdminRoutes } from "./admin-routes.js";
 import { registerAuthRoutes } from "./auth-routes.js";
 import { errorHandler } from "./errors.js";
@@ -37,6 +39,7 @@ import { registerSettingsRoutes } from "./settings-routes.js";
 import { registerPasskeyRoutes } from "./passkey-routes.js";
 
 export interface ServerDependencies {
+  activityService: Pick<ActivityService, "list" | "listActions">;
   overviewService: Pick<OverviewService, "getSummary">;
   authLifecycleService: AuthLifecycleService;
   profileService: Pick<ProfileService, "getProfile" | "updateProfile" | "changePassword">;
@@ -168,6 +171,7 @@ export async function createServer(dependencies: ServerDependencies) {
   });
 
   await registerOverviewRoutes(app, dependencies.overviewService);
+  await registerActivityRoutes(app, dependencies.activityService);
   await registerProjectRoutes(app, dependencies.projectService, dependencies.projectTeamService);
   await registerProfileRoutes(app, dependencies.profileService);
   await registerProfileEmailRoutes(app, dependencies.authLifecycleService);

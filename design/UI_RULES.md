@@ -412,7 +412,22 @@ Four states are mandatory for every data surface:
 | Loading | Spinner or skeleton matching the final layout's dimensions. Never a layout jump. |
 | Empty | User-facing sentence + the primary action if the user is allowed to take it. |
 | Error | What failed in plain language + a retry affordance. Never a raw error code or stack. |
-| No permission | A clean explanation, or hide the surface entirely. Never a broken/disabled shell. |
+| No permission | `NoPermissionState`, or hide the surface entirely. Never a broken/disabled shell. |
+
+**A refusal is not a fault.** A page the viewer may not open must never render
+`ErrorState`. Nothing has gone wrong, and saying so sends people to support over
+a working system while hiding the one useful instruction — who to ask. Two ways
+to satisfy this, and no third:
+
+1. **Declare `requiredPermission` on the feature.** The router refuses the page
+   before it mounts, and the navigation stops offering it at all. This is the
+   default: a menu item that opens a refusal teaches people to distrust the menu.
+2. **Render `NoPermissionState` inside the page**, for a surface that is partly
+   open and partly gated — Settings, where language and passkeys are the
+   caller's own but company email is not.
+
+Self-service pages are exempt, because the caller is the subject and there is no
+permission to hold. `feature-checklist` enforces exactly these three outcomes.
 
 ---
 
@@ -528,7 +543,7 @@ vocabulary. This is what keeps a page built next year looking like one built tod
 | `Card` · `Toolbar` · `PageGrid` · `PageHeader` | Page composition |
 | `DataTable` | Every tabular surface |
 | `Badge` | Status and counts |
-| `EmptyState` · `LoadingState` · `ErrorState` · `SuccessState` · `WarningState` | The four required data states |
+| `EmptyState` · `LoadingState` · `ErrorState` · `NoPermissionState` · `SuccessState` · `WarningState` | The required data states (§4.11) |
 | **`Overlay`** · **`FormDialog`** · **`ConfirmDialog`** | **Every window** (§12) |
 | **`SettingsSection`** · **`SettingRow`** · **`ChoiceGroup`** · **`SettingsStack`** | **Every configuration surface** (§13) |
 | `Drawer` · `Toast` | Side panels and transient messages |

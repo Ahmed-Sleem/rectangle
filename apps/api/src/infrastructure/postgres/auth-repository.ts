@@ -25,6 +25,16 @@ function mapSession(row: Record<string, unknown>): AuthSessionRecord {
 export class PostgresAuthRepository implements AuthRepository {
   constructor(private readonly pool: pg.Pool) {}
 
+  /** Resolves a tenant even when no user matched, so refusals stay auditable. */
+  async findTenantIdBySlug(tenantSlug: string): Promise<string | null> {
+    if (!tenantSlug) return null;
+    const result = await this.pool.query<{ id: string }>(
+      `select id from tenants where slug = $1 limit 1`,
+      [tenantSlug],
+    );
+    return result.rows[0]?.id ?? null;
+  }
+
   async findCredentialUser(tenantSlug: string, email: string): Promise<CredentialUserRecord | null> {
     const result = await this.pool.query(
       `select

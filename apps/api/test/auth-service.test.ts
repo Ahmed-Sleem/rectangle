@@ -39,6 +39,11 @@ class MemoryAuthRepository implements AuthRepository {
   }
 
   async revokeSession(): Promise<void> {}
+
+  /** Resolves the company even when the address matches nobody. */
+  async findTenantIdBySlug(tenantSlug: string): Promise<string | null> {
+    return tenantSlug === "rectangle-eg" ? tenantId : null;
+  }
 }
 
 async function createService() {
@@ -151,5 +156,46 @@ describe("AuthService", () => {
     }
 
     expect(audit.events.some((event) => event.metadata?.reason === "rate_limited")).toBe(true);
+  });
+
+  it("records a sign-in attempt against an address that does not exist", async () => {
+    const { service, audit } = await createService();
+
+    await expect(
+      service.login(
+        { tenantSlug: "rectangle-eg", email: "nobody@rectangle.test", password: "NotTheRightPassword1" },
+        {},
+      ),
+    ).rejects.toThrow();
+
+    /*
+     * This previously left no trace at all: `auditFailure` began
+     * `if (!tenantId || !userId) return`, so the one pattern most worth
+     * recording — somebody spraying addresses that do not exist — was the only
+     * one silently discarded.
+     */
+    expect(audit.events).toHaveLength(1);
+    expect(audit.events[0]).toMatchObject({
+      action: "auth.login_failed",
+      result: "failure",
+      tenantId,
+      // Nobody performed it, so no actor is fabricated.
+      actorUserId: null,
+    });
+  });
+
+  it("does not invent a company for an attempt against an unknown one", async () => {
+    const { service, audit } = await createService();
+
+    await expect(
+      service.login(
+        { tenantSlug: "not-a-company", email: "nobody@rectangle.test", password: "NotTheRightPassword1" },
+        {},
+      ),
+    ).rejects.toThrow();
+
+    // `audit_events.tenant_id` is not nullable, so an attempt that cannot be
+    // attributed to a tenant is the one case still skipped rather than guessed.
+    expect(audit.events).toHaveLength(0);
   });
 });

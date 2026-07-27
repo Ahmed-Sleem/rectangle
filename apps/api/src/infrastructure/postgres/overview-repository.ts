@@ -129,7 +129,43 @@ export class PostgresOverviewRepository implements OverviewRepository {
     }));
   }
 
-  async listRecentActivity(tenantId: string, limit: number): Promise<OverviewActivityEntry[]> {
+  /**
+   * Recent activity the caller may actually see.
+   *
+   * The previous version filtered on tenant alone, so every user read the
+   * company's whole audit trail: new hires and their email addresses, failed
+   * sign-ins, disabled accounts, the mail server, and work on projects they had
+   * deliberately been excluded from. Membership is checked in the query rather
+   * than after it, because a filter applied to fetched rows is one somebody
+   * eventually forgets to apply.
+   */
+  async listRecentActivity(
+    tenantId: string,
+    userId: string,
+    limit: number,
+    canReadAll: boolean,
+  ): Promise<OverviewActivityEntry[]> {
+    /*
+     * An administrator sees everything. Everyone else sees their own actions
+     * plus operational work on projects they belong to — never a colleague's
+     * account or security history, and never a project they cannot open.
+     */
+    const scope = canReadAll
+      ? "true"
+      : `(
+          a.actor_user_id = $2
+          or (
+            a.sensitivity = 'operational'
+            and a.project_id is not null
+            and exists (
+              select 1 from project_members m
+               where m.tenant_id = a.tenant_id
+                 and m.project_id = a.project_id
+                 and m.user_id = $2
+            )
+          )
+        )`;
+
     const result = await this.pool.query<{
       id: string;
       action: string;
@@ -146,9 +182,10 @@ export class PostgresOverviewRepository implements OverviewRepository {
          from audit_events a
          left join users u on u.id = a.actor_user_id and u.tenant_id = a.tenant_id
         where a.tenant_id = $1
+          and ${scope}
         order by a.created_at desc, a.id desc
-        limit $2`,
-      [tenantId, limit],
+        limit $3`,
+      [tenantId, userId, limit],
     );
 
     return result.rows.map((row) => ({
@@ -159,7 +196,14 @@ export class PostgresOverviewRepository implements OverviewRepository {
       result: row.result,
       ...(row.actor_user_id ? { actorUserId: row.actor_user_id } : {}),
       ...(row.actor_name ? { actorName: row.actor_name } : {}),
-      metadata: row.metadata ?? {},
+      /*
+       * Metadata is dropped entirely for anyone without the full-activity
+       * permission. This panel is a glance, not the activity page, and the
+       * fields that matter here — what happened, to what, by whom — are already
+       * columns. Everything left in metadata is either an internal id or the
+       * kind of detail that caused the leak.
+       */
+      metadata: canReadAll ? (row.metadata ?? {}) : {},
       createdAt: row.created_at.toISOString(),
     }));
   }

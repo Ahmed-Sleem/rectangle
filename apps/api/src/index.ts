@@ -6,6 +6,8 @@ import { AdminService } from "./application/admin-service.js";
 import { EmailSettingsService } from "./application/email-settings-service.js";
 import { AuthService } from "./application/auth-service.js";
 import { PasskeyService } from "./application/passkey-service.js";
+import { ActivityService } from "./application/activity-service.js";
+import { RetentionService } from "./application/retention-service.js";
 import { OverviewService } from "./application/overview-service.js";
 import { AuthLifecycleService } from "./application/auth-lifecycle-service.js";
 import { SmtpNotificationSender } from "./application/notification-sender.js";
@@ -27,6 +29,7 @@ import { PostgresAuthRepository } from "./infrastructure/postgres/auth-repositor
 import { assertDatabaseReady, createPostgresPool } from "./infrastructure/postgres/pool.js";
 import { PostgresEmailSettingsRepository } from "./infrastructure/postgres/email-settings-repository.js";
 import { PostgresPasskeyRepository } from "./infrastructure/postgres/passkey-repository.js";
+import { PostgresActivityRepository } from "./infrastructure/postgres/activity-repository.js";
 import { PostgresOverviewRepository } from "./infrastructure/postgres/overview-repository.js";
 import { PostgresAuthTokenRepository } from "./infrastructure/postgres/auth-token-repository.js";
 import { PostgresProfileRepository } from "./infrastructure/postgres/profile-repository.js";
@@ -42,6 +45,8 @@ const pool = createPostgresPool(config.DATABASE_URL);
 const auditRepository = new PostgresAuditRepository(pool);
 const projectsRepository = new PostgresProjectsRepository(pool);
 const overviewService = new OverviewService(new PostgresOverviewRepository(pool));
+const activityRepository = new PostgresActivityRepository(pool);
+const activityService = new ActivityService(activityRepository);
 const projectService = new ProjectService(
   projectsRepository,
   auditRepository,
@@ -116,6 +121,7 @@ const passkeyService = new PasskeyService(
 
 const server = await createServer({
   overviewService,
+  activityService,
   projectService,
   projectTeamService,
   taskService,
@@ -134,7 +140,15 @@ const server = await createServer({
   readinessCheck: () => assertDatabaseReady(pool),
 });
 
+/*
+ * Retention runs in the process rather than as a migration: migrations execute
+ * once, so a purge written there would clear the backlog on its deploy day and
+ * never run again.
+ */
+const stopRetention = new RetentionService(activityRepository, server.log).start();
+
 const shutdown = async () => {
+  stopRetention();
   await server.close();
   await pool.end();
 };

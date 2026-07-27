@@ -14,7 +14,7 @@ import type {
   TextareaHTMLAttributes,
 } from "react";
 import { cloneElement, forwardRef, isValidElement, useId } from "react";
-import { AlertTriangle, CheckCircle2, Info, Loader2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, Loader2, Lock, XCircle } from "lucide-react";
 import { cn } from "@/shared/lib/cn";
 import { buttonClassName } from "./button-class";
 
@@ -279,6 +279,17 @@ export function LoadingState({ title = "Loading", message = "Please wait while t
 
 export function ErrorState(props: StateBlockProps) {
   return <StateBlock {...props}><XCircle size={28} strokeWidth={1.8} /></StateBlock>;
+}
+
+/**
+ * Shown when the page exists but this person may not open it.
+ *
+ * Distinct from `ErrorState` on purpose: nothing has gone wrong. Presenting a
+ * refusal as a fault sends people to support over a working system, and hides
+ * the one useful instruction — who to ask.
+ */
+export function NoPermissionState(props: StateBlockProps) {
+  return <StateBlock {...props}><Lock size={28} strokeWidth={1.8} /></StateBlock>;
 }
 
 export function SuccessState(props: StateBlockProps) {

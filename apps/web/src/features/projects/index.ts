@@ -9,5 +9,6 @@ export const projectsFeature: FeatureModule = {
   navGroup: "primary",
   routePath: "/projects",
   enabled: true,
+  requiredPermission: "projects.read",
   load: () => import("./ProjectsPage"),
 };

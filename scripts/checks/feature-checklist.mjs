@@ -40,8 +40,25 @@ const PAGES = [
     // Always exactly one record — your own — and you are always allowed to
     // manage it. An empty state and a permission gate would both be dead code.
     singleRecord: true,
+    selfService: true,
   },
-  { id: "settings", file: "features/settings/SettingsPage.tsx", tests: ["features/settings/SettingsPage.test.tsx"] },
+  {
+    id: "settings",
+    file: "features/settings/SettingsPage.tsx",
+    tests: ["features/settings/SettingsPage.test.tsx"],
+    // Language and passkeys are the caller's own; only the company email
+    // section is gated, and it hides itself. Gating the whole page would lock
+    // people out of their own account settings.
+    selfService: true,
+  },
+  {
+    id: "activity",
+    file: "features/activity/ActivityPage.tsx",
+    tests: ["features/activity/ActivityPage.test.tsx"],
+    // Everyone may read their own trail, so the page itself is not gated; the
+    // service decides which scopes each caller may ask for.
+    selfService: true,
+  },
 ];
 
 /**
@@ -64,6 +81,7 @@ const SERVICES = [
   // yet, so the token is the credential and the service verifies it.
   { id: "auth-lifecycle", file: "application/auth-lifecycle-service.ts", tokenAuthorised: true },
   { id: "search", file: "application/search-service.ts", readOnly: true },
+  { id: "activity", file: "application/activity-service.ts", readOnly: true },
   { id: "risk", file: "application/risk-service.ts" },
   { id: "task", file: "application/task-service.ts" },
   { id: "admin", file: "application/admin-service.ts" },
@@ -75,6 +93,17 @@ const read = (base, file) => {
 };
 
 const results = [];
+/**
+ * Whether the feature's manifest names a permission, which means the router
+ * refuses the page before this component is ever rendered.
+ */
+function featureDeclaresPermission(pageId) {
+  const featureId = pageId.split(".")[0];
+  const manifest = join(WEB, "features", featureId, "index.ts");
+  if (!existsSync(manifest)) return false;
+  return /requiredPermission:\s*"/.test(readFileSync(manifest, "utf8"));
+}
+
 function check(scope, id, label, passed, detail = "") {
   results.push({ scope, id, label, passed, detail });
 }
@@ -94,11 +123,27 @@ for (const page of PAGES) {
   }
   check("page", page.id, "loading state", /LoadingState|isLoading|isPending/.test(source));
   check("page", page.id, "error state", /ErrorState|role="alert"|isError/.test(source));
+  /*
+   * Question 4: what does someone without permission see?
+   *
+   * The previous version of this check matched the word `permissions` anywhere
+   * in the file, so a page that merely imported an auth hook passed. It could
+   * not fail, and an audit later found that no page in the product had a real
+   * no-permission state. It now requires one of three genuine answers:
+   *
+   *   - the page declares a `requiredPermission`, so the route guard refuses
+   *     it before the component mounts;
+   *   - the page renders `NoPermissionState` itself, for a page that is partly
+   *     open and partly gated;
+   *   - the page is self-service, where the caller is the subject and no
+   *     permission applies.
+   */
+  const guardedByRoute = featureDeclaresPermission(page.id);
   check(
     "page",
     page.id,
     "permission state",
-    /canManage|canRead|permissions|useOptionalAuth|useAuth/.test(source),
+    page.selfService || guardedByRoute || /NoPermissionState/.test(source),
   );
 
   // Question 5: actions must be gated, not shown and then rejected.
@@ -166,7 +211,19 @@ for (const service of SERVICES) {
       "a self-service method must take its subject from the principal",
     );
   } else {
-    check("service", service.id, "checks authorization", /require[A-Z]\w*|canManage|resolveAccess/.test(source));
+    /*
+     * `availableScopes` is the third honest shape, alongside requiring a
+     * permission outright and resolving per-record access: the service works
+     * out which slice the caller may ask for and refuses anything wider. It is
+     * listed explicitly rather than by loosening the pattern, so the check
+     * still fails for a service that authorises nothing.
+     */
+    check(
+      "service",
+      service.id,
+      "checks authorization",
+      /require[A-Z]\w*|canManage|resolveAccess|availableScopes/.test(source),
+    );
   }
   check("service", service.id, "scopes to tenant", /tenantId/.test(source));
 

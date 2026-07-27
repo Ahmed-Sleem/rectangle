@@ -7,6 +7,11 @@
  */
 import type { OverviewService } from "../../src/application/overview-service.js";
 
+export const inactiveActivityService = {
+  list(): never { throw new Error("not used"); },
+  listActions(): never { throw new Error("not used"); },
+};
+
 export const inactiveOverviewService: Pick<OverviewService, "getSummary"> = {
   getSummary(): never {
     throw new Error("not used");

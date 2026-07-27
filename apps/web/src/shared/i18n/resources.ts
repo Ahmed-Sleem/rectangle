@@ -6,6 +6,7 @@
  * That makes an untranslated key a compile error instead of a silent English
  * fallback at runtime, which is how screens drifted back to English before.
  */
+import { activity } from "./locales/activity";
 import { enums } from "./locales/enums";
 import { overview } from "./locales/overview";
 import { projects } from "./locales/projects";
@@ -22,6 +23,8 @@ export const resources = {
       common: {
         loading: "Loading…",
         noRecordsYet: "No records to show here yet.",
+        noPermissionTitle: "You do not have access to this page",
+        noPermissionMessage: "Ask a company owner or administrator if you need it.",
         close: "Close",
         cancel: "Cancel",
         confirm: "Confirm",
@@ -40,6 +43,7 @@ export const resources = {
         projects: "Projects",
         tasks: "Tasks",
         risks: "Risks",
+        activity: "Activity",
         analytics: "Analytics",
         team: "Team",
         settings: "Settings",
@@ -202,6 +206,7 @@ export const resources = {
           send: "Send",
         },
       },
+      activity: activity.en,
       enums: enums.en,
       overview: overview.en,
       projects: projects.en,
@@ -218,6 +223,8 @@ export const resources = {
       common: {
         loading: "جارٍ التحميل…",
         noRecordsYet: "لا توجد سجلات لعرضها هنا بعد.",
+        noPermissionTitle: "ليس لديك صلاحية الوصول إلى هذه الصفحة",
+        noPermissionMessage: "اطلب من مالك الشركة أو المسؤول إن كنت بحاجة إليها.",
         close: "إغلاق",
         cancel: "إلغاء",
         confirm: "تأكيد",
@@ -236,6 +243,7 @@ export const resources = {
         projects: "المشاريع",
         tasks: "المهام",
         risks: "المخاطر",
+        activity: "النشاط",
         analytics: "التحليلات",
         team: "الفريق",
         settings: "الإعدادات",
@@ -410,6 +418,7 @@ export const resources = {
           send: "إرسال",
         },
       },
+      activity: activity.ar,
       enums: enums.ar,
       overview: overview.ar,
       projects: projects.ar,

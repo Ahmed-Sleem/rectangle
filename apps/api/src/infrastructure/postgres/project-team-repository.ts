@@ -6,6 +6,7 @@
  * skipping a use case.
  */
 import type { Pool } from "pg";
+import { redactMetadata } from "../../domain/activity.js";
 import type {
   AddProjectMemberInput,
   CreateStakeholderInput,
@@ -348,9 +349,13 @@ export class PostgresProjectTeamRepository {
          from audit_events a
          left join users u on u.id = a.actor_user_id and u.tenant_id = a.tenant_id
         where a.tenant_id = $1
+          -- Operational only. The caller's access was checked against this
+          -- project, which entitles them to the work done on it and to nothing
+          -- about a colleague's account or sign-in history.
+          and a.sensitivity = 'operational'
           and (
             (a.entity_type = 'project' and a.entity_id = $2)
-            or a.metadata ->> 'projectId' = $2::text
+            or a.project_id = $2::uuid
           )
         order by a.created_at desc, a.id desc
         limit $3`,
@@ -365,7 +370,13 @@ export class PostgresProjectTeamRepository {
       result: row.result,
       ...(row.actor_user_id ? { actorUserId: row.actor_user_id } : {}),
       ...(row.actor_name ? { actorName: row.actor_name } : {}),
-      metadata: row.metadata ?? {},
+      /*
+       * Redacted on the same terms as the activity page. Nothing an
+       * operational entry records today is sensitive, but the metadata column
+       * is free-form and the next action added to it will not come with a
+       * reminder.
+       */
+      metadata: redactMetadata(row.metadata ?? {}, false),
       createdAt: row.created_at.toISOString(),
     }));
   }

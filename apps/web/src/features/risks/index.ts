@@ -9,5 +9,6 @@ export const risksFeature: FeatureModule = {
   navGroup: "primary",
   routePath: "/risks",
   enabled: true,
+  requiredPermission: "projects.read",
   load: () => import("./RisksPage"),
 };

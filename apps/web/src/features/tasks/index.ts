@@ -9,5 +9,6 @@ export const tasksFeature: FeatureModule = {
   navGroup: "primary",
   routePath: "/tasks",
   enabled: true,
+  requiredPermission: "projects.read",
   load: () => import("./TasksPage"),
 };

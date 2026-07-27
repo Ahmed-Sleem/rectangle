@@ -4,9 +4,17 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { AppShellLayout } from "@/app/AppShellLayout";
+import { AuthContext, type AuthContextValue } from "@/shared/auth";
 import { LANGUAGE_STORAGE_KEY, RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import { getEnabledFeatures } from "./registry";
 import NotFound from "@/app/NotFound";
+
+const shellAuth: AuthContextValue = {
+  setupRequired: false,
+  loading: false,
+  refresh: async () => undefined,
+  user: { tenantId: "1", userId: "2", roles: ["tenant_admin"], permissions: [] },
+};
 
 function renderApp(initialPath = "/") {
   const features = getEnabledFeatures();
@@ -50,7 +58,14 @@ function renderApp(initialPath = "/") {
     ...render(
       <QueryClientProvider client={queryClient}>
         <RectangleI18nProvider>
-          <RouterProvider router={router} />
+          {/*
+            The shell only ever renders behind authentication, and the menu now
+            offers only what the signed-in person may open. Rendering it without
+            a principal would test a state the product cannot reach.
+          */}
+          <AuthContext.Provider value={shellAuth}>
+            <RouterProvider router={router} />
+          </AuthContext.Provider>
         </RectangleI18nProvider>
       </QueryClientProvider>,
     ),
@@ -123,10 +138,12 @@ describe("AppShell", () => {
 
     expect(await screen.findByText("No projects yet")).toBeInTheDocument();
     expect(screen.queryByText(/fake data/i)).not.toBeInTheDocument();
-    // This shell harness renders without an AuthProvider, so the page cannot
-    // confirm the viewer may create projects and correctly withholds the action.
-    // Permission-gated creation is covered in ProjectsPage.test.tsx.
-    expect(screen.queryByRole("button", { name: /create project/i })).not.toBeInTheDocument();
+    // The harness now signs in as an administrator, because the menu offers
+    // only what the viewer may open and an unauthenticated shell is a state the
+    // product never reaches. Permission-gated creation itself is covered in
+    // ProjectsPage.test.tsx; here it is enough that the page rendered its own
+    // action rather than the shell swallowing it.
+    expect(screen.getAllByRole("button", { name: /create project/i }).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "Projects" })).toHaveAttribute(
       "aria-current",
       "page",

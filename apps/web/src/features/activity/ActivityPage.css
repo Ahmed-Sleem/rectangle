@@ -1,0 +1,97 @@
+/* Activity timeline. All values from tokens. */
+
+.rect-activity-page {
+  display: grid;
+  gap: var(--rect-space-5);
+}
+
+.rect-activity-day {
+  display: grid;
+  gap: var(--rect-space-3);
+}
+
+/*
+ * The day heading sticks while its entries scroll, so a reader who has paged
+ * deep into the trail still knows which day they are looking at.
+ */
+.rect-activity-day__heading {
+  background: var(--rect-canvas-bg);
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-semibold);
+  margin: 0;
+  padding-block: var(--rect-space-2);
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+}
+
+.rect-activity-list {
+  display: grid;
+  gap: var(--rect-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-activity-item {
+  align-items: center;
+  border-radius: var(--rect-radius-md);
+  display: flex;
+  gap: var(--rect-space-3);
+  padding: var(--rect-space-2) var(--rect-space-3);
+  transition: background var(--rect-motion-nav);
+}
+
+.rect-activity-item:hover {
+  background: var(--rect-surface-bg-hover);
+}
+
+.rect-activity-item__body {
+  display: grid;
+  gap: var(--rect-space-1);
+  min-inline-size: 0;
+}
+
+.rect-activity-item__headline {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+}
+
+.rect-activity-item__actor {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-medium);
+}
+
+.rect-activity-item__action {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+}
+
+.rect-activity-item__meta {
+  align-items: center;
+  color: var(--rect-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--rect-text-label);
+  gap: var(--rect-space-3);
+}
+
+.rect-activity-item__project {
+  color: var(--rect-text-secondary);
+  text-decoration: underline;
+  text-underline-offset: var(--rect-space-1);
+}
+
+.rect-activity-item__project:hover {
+  color: var(--rect-text-primary);
+}
+
+.rect-activity-more {
+  display: flex;
+  justify-content: center;
+  padding-block-start: var(--rect-space-3);
+}

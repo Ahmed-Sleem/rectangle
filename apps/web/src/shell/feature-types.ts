@@ -7,6 +7,7 @@ export type FeatureIconName =
   | "projects"
   | "tasks"
   | "risks"
+  | "activity"
   | "analytics"
   | "team"
   | "settings"
@@ -25,6 +26,14 @@ export interface FeatureModule {
   /** Absolute path from root, e.g. /projects */
   routePath: string;
   enabled: boolean;
+  /**
+   * Permission needed to open this page.
+   *
+   * Absent means everyone may. The navigation hides a feature the viewer
+   * cannot open, because offering a destination that answers with a refusal
+   * teaches people to distrust the menu.
+   */
+  requiredPermission?: string;
   /**
    * Lazy loader for the page component default export.
    * P0: thin empty-state wrappers only.

@@ -67,9 +67,17 @@ class RecordingRepository implements OverviewRepository {
     return this.data.attention ?? [];
   }
 
-  async listRecentActivity(id: string, limit: number): Promise<OverviewActivityEntry[]> {
+  lastActivityCanReadAll?: boolean;
+
+  async listRecentActivity(
+    id: string,
+    _userId: string,
+    limit: number,
+    canReadAll: boolean,
+  ): Promise<OverviewActivityEntry[]> {
     this.tenantIds.push(id);
     this.lastActivityLimit = limit;
+    this.lastActivityCanReadAll = canReadAll;
     return this.data.activity ?? [];
   }
 
@@ -196,5 +204,32 @@ describe("OverviewService", () => {
     await new OverviewService(repository).getSummary(viewer, {});
 
     expect(repository.lastTaskScope).toBe("member");
+  });
+
+  it("does not hand an ordinary user the whole company's audit trail", async () => {
+    const repository = new RecordingRepository({});
+    const service = new OverviewService(repository);
+
+    await service.getSummary(
+      { tenantId, userId, roles: ["viewer"], permissions: ["projects.read"] },
+      {},
+    );
+
+    // The fault this guards: the activity read was scoped to the tenant alone,
+    // so a viewer saw new hires' email addresses, failed sign-ins, and work on
+    // projects they cannot open.
+    expect(repository.lastActivityCanReadAll).toBe(false);
+  });
+
+  it("lets an administrator see the whole trail", async () => {
+    const repository = new RecordingRepository({});
+    const service = new OverviewService(repository);
+
+    await service.getSummary(
+      { tenantId, userId, roles: ["tenant_admin"], permissions: [] },
+      {},
+    );
+
+    expect(repository.lastActivityCanReadAll).toBe(true);
   });
 });

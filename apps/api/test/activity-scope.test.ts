@@ -1,0 +1,271 @@
+/**
+ * Guards who may read the audit trail.
+ *
+ * The trail was previously readable in full by anyone holding `projects.read`,
+ * which is everyone: new hires and their email addresses, failed sign-ins,
+ * disabled accounts, the mail server, and work on projects the reader had been
+ * deliberately excluded from. These tests exercise the real SQL builder against
+ * a fake pool, because the service tests mock the repository and would not have
+ * caught the original fault either.
+ */
+import { describe, expect, it } from "vitest";
+import { ActivityService, availableScopes } from "../src/application/activity-service.js";
+import { classifyActivity, redactMetadata } from "../src/domain/activity.js";
+import { PostgresActivityRepository } from "../src/infrastructure/postgres/activity-repository.js";
+import { parseActivityQuery } from "../src/domain/activity.js";
+import type { UserPrincipal } from "../src/domain/auth.js";
+
+const tenantId = "11111111-1111-4111-8111-111111111111";
+const userId = "22222222-2222-4222-8222-222222222222";
+
+const viewer: UserPrincipal = { tenantId, userId, roles: ["viewer"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId, roles: ["tenant_admin"], permissions: [] };
+
+interface Captured {
+  sql: string;
+  values: unknown[];
+}
+
+function fakePool(captured: Captured[], rows: Array<Record<string, unknown>> = []) {
+  return {
+    async query(sql: string, values: unknown[]) {
+      captured.push({ sql, values });
+      return { rows, rowCount: rows.length };
+    },
+  } as never;
+}
+
+function placeholderCount(sql: string): number {
+  const used = new Set([...sql.matchAll(/\$(\d+)/gu)].map((match) => Number(match[1])));
+  return used.size === 0 ? 0 : Math.max(...used);
+}
+
+describe("activity sensitivity", () => {
+  it("classifies work, account, security and administration apart", () => {
+    expect(classifyActivity("project.update")).toBe("operational");
+    expect(classifyActivity("task.create")).toBe("operational");
+    expect(classifyActivity("risk.delete")).toBe("operational");
+    expect(classifyActivity("auth.login_failed")).toBe("security");
+    expect(classifyActivity("profile.password_change")).toBe("personal");
+    expect(classifyActivity("user.email_changed")).toBe("personal");
+    expect(classifyActivity("user.create")).toBe("administrative");
+    expect(classifyActivity("user_type.update")).toBe("administrative");
+    expect(classifyActivity("email_settings.update")).toBe("administrative");
+  });
+
+  it("treats an unrecognised action as administrative rather than public", () => {
+    // Failing closed is the only safe default for a value that decides who may
+    // read the row. A new action added without a decision must not leak.
+    expect(classifyActivity("something.brand_new")).toBe("administrative");
+  });
+});
+
+describe("activity metadata redaction", () => {
+  it("removes the addresses and hosts that made the trail a directory leak", () => {
+    const metadata = { email: "newhire@example.com", userTypeIds: ["a"], invited: true };
+    expect(redactMetadata(metadata, false)).toEqual({ userTypeIds: ["a"], invited: true });
+    expect(redactMetadata(metadata, true)).toEqual(metadata);
+  });
+
+  it("removes mail server details", () => {
+    const metadata = { host: "smtp.example.com", recipientEmail: "a@b.co", enabled: true };
+    expect(redactMetadata(metadata, false)).toEqual({ enabled: true });
+  });
+});
+
+describe("activity scopes offered", () => {
+  it("offers only self to an ordinary user", () => {
+    expect(availableScopes(viewer)).toEqual(["self"]);
+  });
+
+  it("offers everything to an administrator", () => {
+    expect(availableScopes(admin)).toEqual(["self", "team", "all"]);
+  });
+
+  it("refuses a scope the caller was not offered", async () => {
+    const repository = new PostgresActivityRepository(fakePool([]));
+    const service = new ActivityService(repository);
+
+    await expect(service.list(viewer, { scope: "all" })).rejects.toThrow(/permission/iu);
+  });
+
+  it("lets an administrator read the whole tenant", async () => {
+    const captured: Captured[] = [];
+    const service = new ActivityService(new PostgresActivityRepository(fakePool(captured)));
+
+    await service.list(admin, { scope: "all" });
+
+    const { sql } = captured[0]!;
+    // No membership predicate: an administrator is allowed everything.
+    expect(sql).not.toContain("project_members");
+  });
+});
+
+describe("activity SQL", () => {
+  it("restricts an ordinary user to their own actions and their own projects", async () => {
+    const captured: Captured[] = [];
+    const repository = new PostgresActivityRepository(fakePool(captured));
+
+    await repository.list({
+      tenantId,
+      userId,
+      scope: "self",
+      query: parseActivityQuery({}),
+    });
+
+    const { sql } = captured[0]!;
+    expect(sql).toContain("a.actor_user_id = $2");
+    // Work on projects they belong to — and only operational entries, so a
+    // colleague's password change never appears via a shared project.
+    expect(sql).toContain("project_members");
+    expect(sql).toContain("a.sensitivity = 'operational'");
+    expect(sql).toContain("m.tenant_id = a.tenant_id");
+  });
+
+  it("never lets the team scope reach personal or security entries", async () => {
+    const captured: Captured[] = [];
+    const repository = new PostgresActivityRepository(fakePool(captured));
+
+    await repository.list({
+      tenantId,
+      userId,
+      scope: "team",
+      query: parseActivityQuery({}),
+    });
+
+    const { sql } = captured[0]!;
+    expect(sql).toContain("a.sensitivity = 'operational'");
+  });
+
+  it("binds exactly the parameters it references, for every filter combination", async () => {
+    const combinations = [
+      {},
+      { action: "project.update" },
+      { entityType: "project" },
+      { result: "success" as const },
+      { from: "2026-01-01", to: "2026-02-01" },
+      { projectId: "33333333-3333-4333-8333-333333333333" },
+      { actorUserId: userId },
+      {
+        action: "task.create",
+        entityType: "task",
+        result: "failure" as const,
+        from: "2026-01-01",
+        to: "2026-02-01",
+        projectId: "33333333-3333-4333-8333-333333333333",
+        actorUserId: userId,
+      },
+    ];
+
+    for (const extra of combinations) {
+      const captured: Captured[] = [];
+      const repository = new PostgresActivityRepository(fakePool(captured));
+
+      await repository.list({
+        tenantId,
+        userId,
+        scope: "self",
+        query: parseActivityQuery(extra),
+      });
+
+      const { sql, values } = captured[0]!;
+      expect(placeholderCount(sql)).toBe(values.length);
+    }
+  });
+
+  it("always scopes to the tenant, whatever else is asked for", async () => {
+    const captured: Captured[] = [];
+    const repository = new PostgresActivityRepository(fakePool(captured));
+
+    await repository.list({ tenantId, userId, scope: "all", query: parseActivityQuery({}) });
+
+    expect(captured[0]!.sql).toContain("a.tenant_id = $1");
+    expect(captured[0]!.values[0]).toBe(tenantId);
+  });
+
+  it("includes the whole of the end day when a date range is given", async () => {
+    const captured: Captured[] = [];
+    const repository = new PostgresActivityRepository(fakePool(captured));
+
+    await repository.list({
+      tenantId,
+      userId,
+      scope: "all",
+      query: parseActivityQuery({ to: "2026-02-01" }),
+    });
+
+    // Filtering "to the 1st" must include the 1st, or a person searching a
+    // single day gets nothing.
+    expect(captured[0]!.sql).toContain("interval '1 day'");
+  });
+});
+
+describe("the project workspace feed", () => {
+  it("shows work on the project and nothing about the people doing it", async () => {
+    const captured: Captured[] = [];
+    const { PostgresProjectTeamRepository } = await import(
+      "../src/infrastructure/postgres/project-team-repository.js"
+    );
+    const repository = new PostgresProjectTeamRepository(fakePool(captured));
+
+    await repository.listActivity(tenantId, "33333333-3333-4333-8333-333333333333", 20);
+
+    const { sql } = captured[0]!;
+    // Access to a project entitles the caller to its work, not to a
+    // colleague's sign-in or account history.
+    expect(sql).toContain("a.sensitivity = 'operational'");
+    expect(sql).toContain("a.tenant_id = $1");
+  });
+});
+
+describe("activity paging", () => {
+  const row = {
+    id: "44444444-4444-4444-8444-444444444444",
+    action: "project.update",
+    entity_type: "project",
+    entity_id: "55555555-5555-4555-8555-555555555555",
+    result: "success" as const,
+    sensitivity: "operational" as const,
+    actor_user_id: userId,
+    actor_name: "Mona Adel",
+    project_id: "55555555-5555-4555-8555-555555555555",
+    project_name: "Cairo Metro",
+    metadata: {},
+    created_at: new Date("2026-02-01T10:00:00.000Z"),
+  };
+
+  it("offers a cursor only when there is another page", async () => {
+    const one = new PostgresActivityRepository(fakePool([], [row]));
+    const short = await one.list({ tenantId, userId, scope: "all", query: parseActivityQuery({ limit: 1 }) });
+    expect(short.nextCursor).toBeUndefined();
+
+    // Two rows returned for a limit of one means a further page exists.
+    const two = new PostgresActivityRepository(fakePool([], [row, { ...row, id: "66666666-6666-4666-8666-666666666666" }]));
+    const paged = await two.list({ tenantId, userId, scope: "all", query: parseActivityQuery({ limit: 1 }) });
+    expect(paged.entries).toHaveLength(1);
+    expect(paged.nextCursor).toBeTypeOf("string");
+  });
+
+  it("rejects a malformed page reference instead of ignoring it", () => {
+    expect(() => parseActivityQuery({ cursor: "x".repeat(300) })).toThrow();
+  });
+
+  it("pages by keyset so a busy trail does not repeat or skip rows", async () => {
+    const captured: Captured[] = [];
+    const repository = new PostgresActivityRepository(fakePool(captured, [row, row]));
+    const first = await repository.list({ tenantId, userId, scope: "all", query: parseActivityQuery({ limit: 1 }) });
+
+    const next: Captured[] = [];
+    const second = new PostgresActivityRepository(fakePool(next));
+    await second.list({
+      tenantId,
+      userId,
+      scope: "all",
+      query: parseActivityQuery({ limit: 1, cursor: first.nextCursor }),
+    });
+
+    // A comparison against the last row read, not an offset.
+    expect(next[0]!.sql).toContain("(a.created_at, a.id) <");
+    expect(next[0]!.sql).not.toMatch(/offset/iu);
+  });
+});

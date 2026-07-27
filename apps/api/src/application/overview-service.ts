@@ -12,6 +12,7 @@
 import {
   canManageProjects,
   canReadUsers,
+  hasPermission,
   requireProjectRead,
   type UserPrincipal,
 } from "../domain/auth.js";
@@ -35,7 +36,16 @@ export interface OverviewRepository {
     horizonDays: number,
     limit: number,
   ): Promise<AttentionProject[]>;
-  listRecentActivity(tenantId: string, limit: number): Promise<OverviewActivityEntry[]>;
+  /**
+   * Scoped to the caller. The unscoped version of this read handed every user
+   * the company's full audit trail, including projects they cannot open.
+   */
+  listRecentActivity(
+    tenantId: string,
+    userId: string,
+    limit: number,
+    canReadAll: boolean,
+  ): Promise<OverviewActivityEntry[]>;
   countUsersByStatus(tenantId: string): Promise<TeamSummary>;
   summariseRisks(
     tenantId: string,
@@ -73,7 +83,12 @@ export class OverviewService {
         query.horizonDays,
         query.attentionLimit,
       ),
-      this.repository.listRecentActivity(actor.tenantId, query.activityLimit),
+      this.repository.listRecentActivity(
+        actor.tenantId,
+        actor.userId,
+        query.activityLimit,
+        hasPermission(actor, "activity.read_all"),
+      ),
       this.repository.summariseTasks(actor.tenantId, actor.userId, query.horizonDays, taskScope),
       this.repository.summariseRisks(actor.tenantId, actor.userId, taskScope),
       canReadUsers(actor) ? this.repository.countUsersByStatus(actor.tenantId) : null,
