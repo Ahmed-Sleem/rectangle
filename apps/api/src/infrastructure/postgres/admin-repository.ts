@@ -2,7 +2,7 @@
 import type pg from "pg";
 import type { AdminRepository, AdminUserRecord, UserTypeRecord } from "../../application/admin-service.js";
 import type { CreateUserInput, CreateUserTypeInput, UpdateUserInput, UpdateUserTypeInput } from "../../domain/admin.js";
-import { allPermissions, type Permission } from "../../domain/permissions.js";
+import { allPermissions, type Permission, type SeparationRule } from "../../domain/permissions.js";
 
 function mapUserType(row: Record<string, unknown>): UserTypeRecord {
   return {
@@ -119,6 +119,21 @@ export class PostgresAdminRepository implements AdminRepository {
       values,
     );
     return result.rows[0] ? mapUserType(result.rows[0]) : null;
+  }
+
+  async listSeparationRules(tenantId: string): Promise<SeparationRule[]> {
+    const result = await this.pool.query<{ permission_a: string; permission_b: string; reason: string }>(
+      `select permission_a, permission_b, reason
+         from tenant_separation_rules
+        where tenant_id = $1
+        order by permission_a, permission_b`,
+      [tenantId],
+    );
+    return result.rows.map((row) => ({
+      a: row.permission_a as Permission,
+      b: row.permission_b as Permission,
+      reason: row.reason,
+    }));
   }
 
   async findStanding(tenantId: string, userId: string): Promise<string | null> {

@@ -406,9 +406,31 @@ describe("focus indicators", () => {
       expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*inset-block-start:\s*0/u);
     });
 
-    it("gives the toolbar an opaque background so rows pass behind it", () => {
-      // Without this the list shows through the controls as it scrolls under.
-      expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*background:\s*var\(--rect-canvas-bg\)/u);
+    it("becomes readable glass once content scrolls under it", () => {
+      /*
+       * Transparent at rest — there is nothing behind the bar at the top of a
+       * page, so a panel there would be a box drawn around nothing. Once the
+       * page moves, the bar has to be readable over whatever passes beneath.
+       */
+      expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*background-color:\s*transparent/u);
+      expect(toolbarCss).toMatch(/data-scroll-top="false"\]\s*\.rect-toolbar/u);
+      expect(toolbarCss).toContain("backdrop-filter: blur(var(--rect-canvas-blur))");
+    });
+
+    it("falls back to an opaque bar where blur is unsupported", () => {
+      // Translucency without blur leaves text sitting on text.
+      expect(toolbarCss).toMatch(/@supports not \(\(backdrop-filter/u);
+    });
+
+    it("defines every canvas token it uses", () => {
+      /*
+       * `--rect-canvas-bg` was referenced by the toolbar and the activity day
+       * header but defined nowhere, so both resolved to no background at all
+       * and content scrolled straight through them.
+       */
+      expect(tokensCss).toMatch(/--rect-canvas-bg:/u);
+      expect(tokensCss).toMatch(/--rect-canvas-bg-glass:/u);
+      expect(tokensCss).toMatch(/--rect-canvas-blur:/u);
     });
 
     it("does not mask the scroll container", () => {

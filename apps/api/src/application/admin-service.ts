@@ -1,7 +1,7 @@
 /** Tenant admin service manages user types and users through real permissions. */
 import { parseCreateUser, parseCreateUserType, parseUpdateUser, parseUpdateUserType, type CreateUserInput, type CreateUserTypeInput, type UpdateUserInput, type UpdateUserTypeInput } from "../domain/admin.js";
 import { requirePermission, standingOf, type CompanyStanding, type UserPrincipal } from "../domain/auth.js";
-import { allPermissions, permissionDescriptions, type Permission } from "../domain/permissions.js";
+import { allPermissions, findSeparationConflict, permissionDescriptions, type Permission, type SeparationRule } from "../domain/permissions.js";
 import { DomainError } from "../domain/errors.js";
 import type { PasswordHasher } from "../infrastructure/password.js";
 import type { AuditRepository } from "./project-service.js";
@@ -63,6 +63,8 @@ export interface AdminRepository {
    * Used to refuse the change that would leave nobody able to administer it.
    */
   countOtherActiveAdmins(tenantId: string, excludingUserId: string): Promise<number>;
+  /** Pairs this company has declared must never be held by one person. */
+  listSeparationRules(tenantId: string): Promise<SeparationRule[]>;
   /** Someone's current standing, so a change can be judged against it. */
   findStanding(tenantId: string, userId: string): Promise<string | null>;
   /** Active owners other than this person, guarding the last-owner case. */
@@ -140,6 +142,8 @@ export class AdminService {
     if (input.standing === "owner" && standingOf(actor) !== "owner") {
       throw new DomainError("FORBIDDEN", "Only an owner can create another owner.");
     }
+
+    await this.assertSeparationOfDuties(actor, input.standing, input.userTypeIds);
     // No password means the person is being invited to choose one. They stay
     // `invited` until they do, and login already refuses anyone not active.
     const invited = !input.password;
@@ -166,6 +170,41 @@ export class AdminService {
     }
 
     return { user };
+  }
+
+
+  /**
+   * Refuses a set of user types whose combined permissions break a rule the
+   * company declared.
+   *
+   * Checked against the union rather than each type, because the whole point is
+   * that two individually reasonable roles can be a control failure together —
+   * which is exactly what the effective-permissions panel exists to make
+   * visible before somebody saves.
+   *
+   * Owners and administrators are exempt. They hold every permission by
+   * standing, so enforcing this against them would lock a company out of its
+   * own administration rather than separating anything.
+   */
+  private async assertSeparationOfDuties(
+    actor: UserPrincipal,
+    standing: string,
+    userTypeIds: string[],
+  ): Promise<void> {
+    if (standing === "owner" || standing === "admin") return;
+
+    const rules = await this.repository.listSeparationRules(actor.tenantId);
+    if (rules.length === 0) return;
+
+    const types = await this.repository.findUserTypesByIds(actor.tenantId, userTypeIds);
+    const combined = [...new Set(types.flatMap((type) => type.permissions))] as Permission[];
+
+    const conflict = findSeparationConflict(combined, rules);
+    if (conflict) {
+      throw new DomainError("VALIDATION_FAILED", conflict.reason, {
+        conflict: [conflict.a, conflict.b],
+      });
+    }
   }
 
   async updateUser(actor: UserPrincipal, userId: string, rawInput: unknown): Promise<{ user: AdminUserRecord }> {
@@ -215,6 +254,11 @@ export class AdminService {
     if (input.userTypeIds) {
       const userTypes = await this.repository.findUserTypesByIds(actor.tenantId, input.userTypeIds);
       if (userTypes.length !== input.userTypeIds.length) throw new DomainError("VALIDATION_FAILED", "One or more user types are invalid.");
+
+      // Against the standing the person will have after this change, not the
+      // one they had before it.
+      const standing = input.standing ?? (await this.repository.findStanding(actor.tenantId, userId)) ?? "member";
+      await this.assertSeparationOfDuties(actor, standing, input.userTypeIds);
     }
     const passwordHash = input.password ? await this.passwordHasher.hash(input.password) : undefined;
     const user = await this.repository.updateUser(actor.tenantId, userId, {

@@ -89,6 +89,20 @@ describe("company standing", () => {
     expect(canManageProjects(principal("guest", ["projects.manage"]))).toBe(false);
   });
 
+  it("refuses a guest every company-wide capability, whatever their types say", () => {
+    /*
+     * The gap this closes: the web helper already refused this, but the server
+     * — which is the one that decides — did not. A guest assigned a type
+     * carrying settings.manage could have opened the company's mail
+     * configuration, which is the opposite of what "guest" means.
+     */
+    expect(hasPermission(principal("guest", ["settings.manage"]), "settings.manage")).toBe(false);
+    expect(hasPermission(principal("guest", ["users.manage"]), "users.manage")).toBe(false);
+    expect(hasPermission(principal("guest", ["activity.read_all"]), "activity.read_all")).toBe(false);
+    // A member with the same type keeps it: the refusal is about standing.
+    expect(hasPermission(principal("member", ["settings.manage"]), "settings.manage")).toBe(true);
+  });
+
   it("still lets a user type carry a permission a member needs", () => {
     expect(hasPermission(principal("member", ["users.read"]), "users.read")).toBe(true);
     expect(hasPermission(principal("member", ["users.read"]), "users.manage")).toBe(false);

@@ -17,6 +17,8 @@
  */
 .rect-activity-day__heading {
   align-items: center;
+  /* Opaque: entries scroll under this, and a transparent heading would let
+     them read through it. The token was previously undefined, so it did. */
   background: var(--rect-canvas-bg);
   display: flex;
   gap: var(--rect-space-3);

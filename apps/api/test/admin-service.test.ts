@@ -1,5 +1,6 @@
 /** Tests tenant administration service permissions, user types, and user creation. */
 import { describe, expect, it } from "vitest";
+import type { SeparationRule } from "../src/domain/permissions.js";
 import { AdminService, type AdminRepository, type AdminUserRecord, type UserTypeRecord } from "../src/application/admin-service.js";
 import type { UserPrincipal } from "../src/domain/auth.js";
 import type { AuditEventInput, AuditRepository } from "../src/application/project-service.js";
@@ -25,6 +26,9 @@ class MemoryAdminRepository implements AdminRepository {
   users: AdminUserRecord[] = [];
   /** Overridden per test to describe how much administrative cover remains. */
   otherAdmins = 1;
+  separationRules: SeparationRule[] = [];
+  async listSeparationRules(): Promise<SeparationRule[]> { return this.separationRules; }
+
   async findStanding(_tenantId: string, userId: string): Promise<string | null> {
     return this.users.find((user) => user.id === userId)?.standing ?? null;
   }
@@ -370,5 +374,117 @@ describe("AdminService", () => {
         permissions: ["projects.read"],
       }),
     ).rejects.toThrow(/permission/iu);
+  });
+
+  it("ships with no separation rules, so nothing changes until a company adds one", async () => {
+    const { service, repo } = createService();
+    await repo.ensureSystemUserTypes();
+
+    /*
+     * The obvious candidate pairs are all held together by the full-access
+     * type and by every owner. A rule enabled by default would make
+     * administration itself unassignable, which is how a control nobody asked
+     * for becomes a control everybody switches off.
+     */
+    expect(repo.separationRules).toEqual([]);
+    await expect(
+      service.createUser(admin, {
+        displayName: "Anyone",
+        email: "anyone@example.com",
+        userTypeIds: [repo.userTypes[0]!.id],
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("refuses a combination the company declared incompatible", async () => {
+    const { service, repo } = createService();
+    await repo.ensureSystemUserTypes();
+    repo.separationRules = [{
+      a: "user_types.manage",
+      b: "users.manage",
+      reason: "Inventing a role and assigning it must not be one person's job.",
+    }];
+
+    // The seeded full-access type carries both halves.
+    await expect(
+      service.createUser(admin, {
+        displayName: "Too Powerful",
+        email: "toopowerful@example.com",
+        userTypeIds: [repo.userTypes[0]!.id],
+      }),
+    ).rejects.toThrow(/one person/iu);
+  });
+
+  it("checks the combination rather than each role on its own", async () => {
+    const { service, repo } = createService();
+    await repo.ensureSystemUserTypes();
+    const inventor = await service.createUserType(admin, {
+      name: "Role Author", key: "role_author", permissions: ["user_types.manage"],
+    });
+    const assigner = await service.createUserType(admin, {
+      name: "People Admin", key: "people_admin", permissions: ["users.manage"],
+    });
+    repo.separationRules = [{
+      a: "user_types.manage", b: "users.manage",
+      reason: "Inventing a role and assigning it must not be one person's job.",
+    }];
+
+    // Either alone is fine; the pair is the control failure. That is the whole
+    // point of checking the union.
+    await expect(service.createUser(admin, {
+      displayName: "Author Only", email: "author@example.com",
+      userTypeIds: [inventor.userType.id],
+    })).resolves.toBeDefined();
+
+    await expect(service.createUser(admin, {
+      displayName: "Both", email: "both@example.com",
+      userTypeIds: [inventor.userType.id, assigner.userType.id],
+    })).rejects.toThrow(/one person/iu);
+  });
+
+  it("exempts owners and admins, who hold everything by standing", async () => {
+    const { service, repo } = createService();
+    await repo.ensureSystemUserTypes();
+    repo.separationRules = [{
+      a: "user_types.manage", b: "users.manage",
+      reason: "Inventing a role and assigning it must not be one person's job.",
+    }];
+
+    // Enforcing this against an administrator would lock a company out of its
+    // own administration rather than separating anything.
+    await expect(
+      service.createUser({ ...admin, roles: ["owner"] }, {
+        displayName: "An Admin", email: "anadmin@example.com",
+        standing: "admin", userTypeIds: [repo.userTypes[0]!.id],
+      }),
+    ).resolves.toBeDefined();
+  });
+
+  it("refuses the combination when it is reached by an edit", async () => {
+    const { service, repo } = createService();
+    await repo.ensureSystemUserTypes();
+    const inventor = await service.createUserType(admin, {
+      name: "Role Author", key: "role_author", permissions: ["user_types.manage"],
+    });
+    const assigner = await service.createUserType(admin, {
+      name: "People Admin", key: "people_admin", permissions: ["users.manage"],
+    });
+    const { user } = await service.createUser(admin, {
+      displayName: "Grows Into It", email: "grows@example.com",
+      userTypeIds: [inventor.userType.id],
+    });
+
+    repo.separationRules = [{
+      a: "user_types.manage", b: "users.manage",
+      reason: "Inventing a role and assigning it must not be one person's job.",
+    }];
+
+    // Adding the second role later must be refused as firmly as asking for
+    // both at once.
+    await expect(
+      service.updateUser(admin, user.id, {
+        userTypeIds: [inventor.userType.id, assigner.userType.id],
+      }),
+    ).rejects.toThrow(/one person/iu);
   });
 });

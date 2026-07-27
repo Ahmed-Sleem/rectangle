@@ -85,16 +85,25 @@ export function rolePermissions(roles: CompanyStanding[]): Permission[] {
   return roles.some((role) => fullAccessStandings.has(role)) ? allPermissions : [];
 }
 
-export function hasPermission(principal: UserPrincipal, permission: Permission): boolean {
-  return principal.permissions.includes(permission) || rolePermissions(principal.roles).includes(permission);
-}
-
 /**
  * A guest reaches only the projects they were added to, so no company-wide
  * capability applies to them however their user types are configured.
  */
 export function isGuest(principal: UserPrincipal): boolean {
   return standingOf(principal) === "guest";
+}
+
+export function hasPermission(principal: UserPrincipal, permission: Permission): boolean {
+  /*
+   * A guest holds no company-wide capability, whatever their user types say.
+   * They are external: they reach the projects they were added to and nothing
+   * else. Without this a guest assigned a type carrying `settings.manage` could
+   * open the company's mail configuration, which is the opposite of what
+   * "guest" is for. The web helper already refused this; the server did not,
+   * and the server is the one that decides.
+   */
+  if (isGuest(principal)) return false;
+  return principal.permissions.includes(permission) || rolePermissions(principal.roles).includes(permission);
 }
 
 export function canManageProjects(principal: UserPrincipal): boolean {
