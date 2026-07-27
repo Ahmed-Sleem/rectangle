@@ -6,9 +6,14 @@ import type { UserPrincipal } from "../src/domain/auth.js";
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
 
-const admin: UserPrincipal = { tenantId, userId, roles: ["tenant_admin"], permissions: [] };
-const viewer: UserPrincipal = { tenantId, userId, roles: ["viewer"], permissions: [] };
-const outsider: UserPrincipal = { tenantId, userId, roles: ["external_collaborator"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId, roles: ["admin"], permissions: [] };
+/*
+ * A member who may read the project register. Standing alone grants nothing
+ * now — only owners and admins gain permissions from standing — so the
+ * permission is carried by a user type, which is how a real member gets it.
+ */
+const viewer: UserPrincipal = { tenantId, userId, roles: ["member"], permissions: ["projects.read"] };
+const outsider: UserPrincipal = { tenantId, userId, roles: ["guest"], permissions: [] };
 
 class RecordingRepository implements SearchRepository {
   projectsCalled = false;

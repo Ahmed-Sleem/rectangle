@@ -12,12 +12,12 @@ const viewerAuth: AuthContextValue = {
   setupRequired: false,
   loading: false,
   refresh: async () => undefined,
-  user: { tenantId: "1", userId: "2", roles: ["viewer"], permissions: ["projects.read"] },
+  user: { tenantId: "1", userId: "2", roles: ["member"], permissions: ["projects.read"] },
 };
 
 const adminAuth: AuthContextValue = {
   ...viewerAuth,
-  user: { tenantId: "1", userId: "2", roles: ["tenant_admin"], permissions: [] },
+  user: { tenantId: "1", userId: "2", roles: ["admin"], permissions: [] },
 };
 
 function jsonResponse(body: unknown, status = 200) {

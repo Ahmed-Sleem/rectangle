@@ -20,6 +20,7 @@ import { useOptionalAuth } from "@/shared/auth";
 import {
   Avatar, Badge, Button, CardGrid, Checkbox, ConfirmDialog, DataTable, EmptyState,
   ErrorState, Field, FormDialog, Input, LoadingState, PageToolbar, StatCard, StatRow,
+  Select,
   ViewToggle,
 } from "@/shared/ui";
 import { adminApi, type AdminUserRecord, type UserTypeRecord } from "./admin-api";
@@ -45,6 +46,8 @@ const userFields = z.object({
    */
   password: z.string().max(256).optional(),
   invite: z.boolean(),
+  /** Company standing. One value, never a set. */
+  standing: z.enum(["owner", "admin", "member", "guest"]),
   userTypeIds: z.array(z.string()).min(1),
 });
 
@@ -97,6 +100,38 @@ function storeView(value: ViewMode): void {
   }
 }
 
+/**
+ * The permissions a set of user types would actually grant, together.
+ *
+ * Shown live while the boxes are ticked. Without it an administrator sees the
+ * types they chose but never the combination those types produce, which is how
+ * somebody quietly ends up with `settings.manage` from two innocuous-looking
+ * roles.
+ */
+function effectivePermissions(
+  selectedIds: string[],
+  types: UserTypeRecord[],
+): Array<{ key: string; from: string[] }> {
+  const byPermission = new Map<string, string[]>();
+
+  for (const type of types.filter((candidate) => selectedIds.includes(candidate.id))) {
+    for (const permission of type.permissions) {
+      const sources = byPermission.get(permission) ?? [];
+      sources.push(type.name);
+      byPermission.set(permission, sources);
+    }
+  }
+
+  return [...byPermission.entries()]
+    .map(([key, from]) => ({ key, from }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** Owners and admins hold everything by standing, whatever their types say. */
+function standingGrantsEverything(standing: string): boolean {
+  return standing === "owner" || standing === "admin";
+}
+
 /** A built-in role keeps its translated name; a company's own role keeps its own. */
 function roleName(type: { name: string; key: string; systemType?: boolean }, t: TFunction): string {
   return type.systemType ? t(`enums.systemUserType.${type.key}`, { defaultValue: type.name }) : type.name;
@@ -108,8 +143,9 @@ export default function TeamPage() {
   // The API gates people and roles on different permissions, so the interface
   // must too. Offering a role button to someone holding only `users.manage`
   // would show an action that fails.
+  const isOwner = auth?.user?.roles.includes("owner") ?? false;
   const isTenantAdmin =
-    auth?.user?.roles.some((role) => ["tenant_owner", "tenant_admin"].includes(role)) ?? false;
+    auth?.user?.roles.some((role) => ["owner", "admin"].includes(role)) ?? false;
   const canManage = isTenantAdmin || (auth?.user?.permissions.includes("users.manage") ?? false);
   const canManageRoles =
     isTenantAdmin || (auth?.user?.permissions.includes("user_types.manage") ?? false);
@@ -140,9 +176,9 @@ export default function TeamPage() {
   const typeForm = useForm<UserTypeForm>({ resolver: zodResolver(userTypeSchema), defaultValues: { name: "", key: "", description: "", permissions: [] } });
   const userForm = useForm<UserForm>({
     resolver: zodResolver(userSchema),
-    defaultValues: { displayName: "", email: "", password: "", invite: true, userTypeIds: [] },
+    defaultValues: { displayName: "", email: "", password: "", invite: true, standing: "member", userTypeIds: [] },
   });
-  const editUserForm = useForm<EditUserForm>({ resolver: zodResolver(editUserSchema), defaultValues: { displayName: "", userTypeIds: [] } });
+  const editUserForm = useForm<EditUserForm>({ resolver: zodResolver(editUserSchema), defaultValues: { displayName: "", standing: "member", userTypeIds: [] } });
   const editTypeForm = useForm<EditUserTypeForm>({ resolver: zodResolver(editUserTypeSchema), defaultValues: { name: "", description: "", permissions: [] } });
 
   // The edit forms are filled from the record being edited rather than from the
@@ -151,6 +187,7 @@ export default function TeamPage() {
     if (editingUser) {
       editUserForm.reset({
         displayName: editingUser.displayName,
+        standing: editingUser.standing,
         userTypeIds: editingUser.userTypes.map((type) => type.id),
       });
     }
@@ -178,6 +215,7 @@ export default function TeamPage() {
         displayName: values.displayName,
         email: values.email,
         userTypeIds: values.userTypeIds,
+        standing: values.standing,
         ...(values.invite ? {} : { password: values.password ?? "" }),
       }),
     onSuccess: async () => { await invalidate("users"); userForm.reset(); setUserOpen(false); },
@@ -412,6 +450,13 @@ export default function TeamPage() {
                     <span className="rect-person__name">{user.displayName}</span>
                     <span className="rect-person__email">{user.email}</span>
                   </span>
+                  {/* Standing is a different kind of thing from a user type,
+                      so it reads differently. It was previously invisible. */}
+                  {user.standing !== "member" ? (
+                    <Badge tone={user.standing === "owner" ? "warning" : "info"}>
+                      {t(`team.standing_${user.standing}`)}
+                    </Badge>
+                  ) : null}
                   <Badge tone={user.status === "active" ? "success" : "neutral"}>
                     {t(`enums.userStatus.${user.status}`)}
                   </Badge>
@@ -464,6 +509,11 @@ export default function TeamPage() {
                 ),
               },
               { id: "email", header: t("team.userEmail"), accessor: (row) => row.email },
+              {
+                id: "standing",
+                header: t("team.fieldStanding"),
+                accessor: (row) => t(`team.standing_${row.standing}`),
+              },
               {
                 id: "types",
                 header: t("team.userTypes"),
@@ -655,11 +705,45 @@ export default function TeamPage() {
             <Input type="password" autoComplete="new-password" {...userForm.register("password")} />
           </Field>
         ) : null}
+        <Field
+          label={t("team.fieldStanding")}
+          hint={t("team.standingHint")}
+          error={userForm.formState.errors.standing?.message}
+          required
+        >
+          <Select {...userForm.register("standing")}>
+            {/* Only an owner may mint another owner; the API refuses it too. */}
+            {(isOwner ? ["owner", "admin", "member", "guest"] : ["admin", "member", "guest"]).map((value) => (
+              <option key={value} value={value}>{t(`team.standing_${value}`)}</option>
+            ))}
+          </Select>
+        </Field>
         <Field label={t("team.userTypes")} error={userForm.formState.errors.userTypeIds?.message} required>
           <div className="rect-team-permissions">
             {typeRows.map((type) => (
               <Checkbox key={type.id} label={roleName(type, t)} {...(type.description ? { description: type.description } : {})} value={type.id} {...userForm.register("userTypeIds")} />
             ))}
+          </div>
+        </Field>
+        <Field label={t("team.effectiveTitle")} hint={t("team.effectiveHint")}>
+          <div className="rect-team-effective">
+            {standingGrantsEverything(userForm.watch("standing")) ? (
+              <p className="rect-panel-note">{t("team.effectiveEverything")}</p>
+            ) : effectivePermissions(userForm.watch("userTypeIds") ?? [], typeRows).length === 0 ? (
+              <p className="rect-panel-note">{t("team.effectiveNone")}</p>
+            ) : (
+              <ul className="rect-team-effective__list">
+                {effectivePermissions(userForm.watch("userTypeIds") ?? [], typeRows).map((entry) => (
+                  <li key={entry.key} className="rect-team-effective__item">
+                    <span className="rect-team-effective__name">
+                      {permissionOptions.find((option) => option.key === entry.key)?.label ?? entry.key}
+                    </span>
+                    {/* Naming the source is what makes an unexpected grant traceable. */}
+                    <span className="rect-team-effective__source">{entry.from.join(t("common.listSeparator"))}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </Field>
       </FormDialog>
@@ -677,11 +761,45 @@ export default function TeamPage() {
         error={messageFor(saveUser.error, t("team.updateUserFailed"))}
       >
         <Field label={t("team.fieldName")} error={editUserForm.formState.errors.displayName?.message} required><Input data-autofocus="true" {...editUserForm.register("displayName")} /></Field>
+        <Field
+          label={t("team.fieldStanding")}
+          hint={t("team.standingHint")}
+          error={editUserForm.formState.errors.standing?.message}
+          required
+        >
+          <Select {...editUserForm.register("standing")}>
+            {/* Only an owner may mint another owner; the API refuses it too. */}
+            {(isOwner ? ["owner", "admin", "member", "guest"] : ["admin", "member", "guest"]).map((value) => (
+              <option key={value} value={value}>{t(`team.standing_${value}`)}</option>
+            ))}
+          </Select>
+        </Field>
         <Field label={t("team.userTypes")} error={editUserForm.formState.errors.userTypeIds?.message} required>
           <div className="rect-team-permissions">
             {typeRows.map((type) => (
               <Checkbox key={type.id} label={roleName(type, t)} {...(type.description ? { description: type.description } : {})} value={type.id} {...editUserForm.register("userTypeIds")} />
             ))}
+          </div>
+        </Field>
+        <Field label={t("team.effectiveTitle")} hint={t("team.effectiveHint")}>
+          <div className="rect-team-effective">
+            {standingGrantsEverything(editUserForm.watch("standing")) ? (
+              <p className="rect-panel-note">{t("team.effectiveEverything")}</p>
+            ) : effectivePermissions(editUserForm.watch("userTypeIds") ?? [], typeRows).length === 0 ? (
+              <p className="rect-panel-note">{t("team.effectiveNone")}</p>
+            ) : (
+              <ul className="rect-team-effective__list">
+                {effectivePermissions(editUserForm.watch("userTypeIds") ?? [], typeRows).map((entry) => (
+                  <li key={entry.key} className="rect-team-effective__item">
+                    <span className="rect-team-effective__name">
+                      {permissionOptions.find((option) => option.key === entry.key)?.label ?? entry.key}
+                    </span>
+                    {/* Naming the source is what makes an unexpected grant traceable. */}
+                    <span className="rect-team-effective__source">{entry.from.join(t("common.listSeparator"))}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </Field>
       </FormDialog>

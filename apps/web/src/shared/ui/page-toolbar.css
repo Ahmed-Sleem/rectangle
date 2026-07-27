@@ -1,8 +1,29 @@
 /* The shared page toolbar. All values from tokens. */
 
+/*
+ * The toolbar stays put while the page scrolls under it.
+ *
+ * Sticky rather than fixed: `.rect-panel` animates a transform, which makes it
+ * the containing block for any fixed descendant, so fixed would pin to the
+ * panel rather than the viewport (UI_RULES §16). Sticky also needed the scroll
+ * container's mask removed — a mask fades its own sticky children — which is
+ * why the fades in shell.css are overlay layers now.
+ */
 .rect-toolbar {
   display: grid;
   gap: var(--rect-space-2);
+  position: sticky;
+  inset-block-start: 0;
+  /* Above the scroll-edge fades, which sit at 1. */
+  z-index: 2;
+  /* Opaque, so rows genuinely disappear beneath the toolbar rather than
+     showing through it. */
+  background: var(--rect-canvas-bg);
+  /* Content would otherwise touch the controls at the moment it slides under. */
+  padding-block: var(--rect-space-2);
+  /* Cancels the panel gutter so the bar spans the full content width. */
+  margin-inline: calc(var(--rect-space-05) * -1);
+  padding-inline: var(--rect-space-05);
 }
 
 .rect-toolbar__row {

@@ -21,10 +21,10 @@ describe("SetupPage", () => {
       .mockImplementationOnce((_input, init) => {
         expect(init?.method).toBe("POST");
         expect(JSON.parse(String(init?.body))).toMatchObject({ companySlug: "rectangle-eg", adminEmail: "owner@rectangle.test" });
-        return Promise.resolve(new Response(JSON.stringify({ user: { tenantId: "1", userId: "2", roles: ["tenant_owner"] } }), { status: 201, headers: { "Content-Type": "application/json" } }));
+        return Promise.resolve(new Response(JSON.stringify({ user: { tenantId: "1", userId: "2", roles: ["owner"] } }), { status: 201, headers: { "Content-Type": "application/json" } }));
       })
       .mockImplementationOnce(() => Promise.resolve(new Response(JSON.stringify({ setupRequired: false }), { status: 200, headers: { "Content-Type": "application/json" } })))
-      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ user: { tenantId: "1", userId: "2", roles: ["tenant_owner"] } }), { status: 200, headers: { "Content-Type": "application/json" } })));
+      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ user: { tenantId: "1", userId: "2", roles: ["owner"] } }), { status: 200, headers: { "Content-Type": "application/json" } })));
 
     renderSetup();
     await user.type(screen.getByLabelText(/Company name/i), "Rectangle Egypt");

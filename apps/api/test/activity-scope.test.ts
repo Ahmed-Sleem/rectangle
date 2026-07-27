@@ -18,8 +18,8 @@ import type { UserPrincipal } from "../src/domain/auth.js";
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
 
-const viewer: UserPrincipal = { tenantId, userId, roles: ["viewer"], permissions: [] };
-const admin: UserPrincipal = { tenantId, userId, roles: ["tenant_admin"], permissions: [] };
+const viewer: UserPrincipal = { tenantId, userId, roles: ["member"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId, roles: ["admin"], permissions: [] };
 
 interface Captured {
   sql: string;
@@ -120,6 +120,19 @@ describe("activity SQL", () => {
     expect(sql).toContain("project_members");
     expect(sql).toContain("a.sensitivity = 'operational'");
     expect(sql).toContain("m.tenant_id = a.tenant_id");
+  });
+
+  it("shows a member only their own actions on a project they do not run", async () => {
+    const captured: Captured[] = [];
+    const repository = new PostgresActivityRepository(fakePool(captured));
+
+    await repository.list({ tenantId, userId, scope: "self", query: parseActivityQuery({}) });
+
+    const { sql } = captured[0]!;
+    // Being on a job does not entitle you to a colleague's history there;
+    // running it does. Without this clause a junior saw every action their
+    // colleagues took on every project they were added to.
+    expect(sql).toContain("m.role in ('project_admin', 'project_manager')");
   });
 
   it("never lets the team scope reach personal or security entries", async () => {

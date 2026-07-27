@@ -15,7 +15,7 @@ const auth: AuthContextValue = {
   user: {
     tenantId: "1",
     userId: "2",
-    roles: ["viewer"],
+    roles: ["member"],
     permissions: [],
     displayName: "Ahmed Sleem",
     email: "ahmed@rectangle.test",
@@ -29,7 +29,7 @@ const profile = {
     displayName: "Ahmed Sleem",
     email: "ahmed@rectangle.test",
     status: "active",
-    roles: ["viewer"],
+    roles: ["member"],
     permissions: [],
     userTypes: [{ id: "t1", name: "Viewer", key: "viewer" }],
     passkeyCount: 2,

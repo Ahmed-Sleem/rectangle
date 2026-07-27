@@ -22,6 +22,7 @@ function mapUser(row: Record<string, unknown>): AdminUserRecord {
   return {
     id: String(row.id),
     tenantId: String(row.tenant_id),
+    standing: (row.standing ? String(row.standing) : "member") as AdminUserRecord["standing"],
     email: String(row.email),
     displayName: String(row.display_name),
     status: row.status as AdminUserRecord["status"],
@@ -37,8 +38,15 @@ export class PostgresAdminRepository implements AdminRepository {
 
   async ensureSystemUserTypes(tenantId: string): Promise<void> {
     await this.pool.query(
+      /*
+       * Named "Full access" rather than "Owner". A user *type* called Owner
+       * competing with a company *standing* called owner is the confusion that
+       * let somebody be a viewer and an owner at once: the standing said
+       * viewer, the type granted everything, and the union resolved to full
+       * access. Ownership is a standing; this is a permission bundle.
+       */
       `insert into user_types (tenant_id, name, key, description, permissions, system_type)
-       values ($1, 'Owner', 'owner', 'Full company administration access.', $2, true),
+       values ($1, 'Full access', 'full_access', 'Every permission in the product.', $2, true),
               ($1, 'Project Manager', 'project_manager', 'Manage projects and view users.', $3, true),
               ($1, 'Viewer', 'viewer', 'Read-only project access.', $4, true)
        on conflict (tenant_id, key) do nothing`,
@@ -64,7 +72,7 @@ export class PostgresAdminRepository implements AdminRepository {
           and users.id <> $2
           and users.status = 'active'
           and (
-            r.role in ('tenant_owner', 'tenant_admin')
+            r.role in ('owner', 'admin')
             or 'users.manage' = any(t.permissions)
           )`,
       [tenantId, excludingUserId],
@@ -113,6 +121,27 @@ export class PostgresAdminRepository implements AdminRepository {
     return result.rows[0] ? mapUserType(result.rows[0]) : null;
   }
 
+  async findStanding(tenantId: string, userId: string): Promise<string | null> {
+    const result = await this.pool.query<{ role: string }>(
+      "select role from tenant_user_roles where tenant_id = $1 and user_id = $2 limit 1",
+      [tenantId, userId],
+    );
+    return result.rows[0]?.role ?? null;
+  }
+
+  /** Only active accounts count: a disabled owner cannot rescue a company. */
+  async countOtherOwners(tenantId: string, excludingUserId: string): Promise<number> {
+    const result = await this.pool.query<{ count: string }>(
+      `select count(*)::text as count
+         from tenant_user_roles r
+         join users u on u.tenant_id = r.tenant_id and u.id = r.user_id
+        where r.tenant_id = $1 and r.user_id <> $2
+          and r.role = 'owner' and u.status = 'active'`,
+      [tenantId, excludingUserId],
+    );
+    return Number(result.rows[0]?.count ?? 0);
+  }
+
   async listUsers(tenantId: string): Promise<AdminUserRecord[]> {
     // Project membership is counted in a lateral subquery rather than another
     // join: joining it alongside the user-type join would multiply the rows and
@@ -120,10 +149,15 @@ export class PostgresAdminRepository implements AdminRepository {
     const result = await this.pool.query(
       `select users.*,
               coalesce(json_agg(json_build_object('id', user_types.id, 'name', user_types.name, 'key', user_types.key)) filter (where user_types.id is not null), '[]') as user_types,
-              membership.project_count
+              membership.project_count,
+              -- One row per person since migration 012, so this cannot multiply
+              -- the aggregate the way a second user-type join would.
+              coalesce(standing.role, 'member') as standing
        from users
        left join user_type_assignments on user_type_assignments.tenant_id = users.tenant_id and user_type_assignments.user_id = users.id
        left join user_types on user_types.id = user_type_assignments.user_type_id
+       left join tenant_user_roles standing
+         on standing.tenant_id = users.tenant_id and standing.user_id = users.id
        cross join lateral (
          select count(*)::int as project_count
            from project_members
@@ -131,7 +165,7 @@ export class PostgresAdminRepository implements AdminRepository {
             and project_members.user_id = users.id
        ) as membership
        where users.tenant_id = $1
-       group by users.id, membership.project_count
+       group by users.id, membership.project_count, standing.role
        order by users.display_name asc`,
       [tenantId],
     );
@@ -156,7 +190,15 @@ export class PostgresAdminRepository implements AdminRepository {
         [tenantId, input.email, input.displayName, input.passwordHash, input.status],
       );
       const userId = String(userResult.rows[0].id);
-      await client.query("insert into tenant_user_roles (tenant_id, user_id, role) values ($1,$2,'viewer')", [tenantId, userId]);
+      /*
+       * Standing is chosen by whoever creates the person. It was previously
+       * hardcoded to 'viewer' with no way to change it afterwards, so an owner
+       * could not promote anybody through any screen.
+       */
+      await client.query(
+        "insert into tenant_user_roles (tenant_id, user_id, role) values ($1,$2,$3)",
+        [tenantId, userId, input.standing ?? "member"],
+      );
       for (const typeId of input.userTypeIds) {
         await client.query("insert into user_type_assignments (tenant_id, user_id, user_type_id) values ($1,$2,$3)", [tenantId, userId, typeId]);
       }
@@ -185,6 +227,18 @@ export class PostgresAdminRepository implements AdminRepository {
         values.push(tenantId, userId);
         const updated = await client.query(`update users set ${fields.join(", ")}, updated_at = now() where tenant_id = $${values.length - 1} and id = $${values.length}`, values);
         if (updated.rowCount === 0) { await client.query("rollback"); return null; }
+      }
+      if (input.standing !== undefined) {
+        /*
+         * Upsert rather than delete-then-insert: the row is the person's single
+         * standing since migration 012, and briefly having none would leave a
+         * concurrent authority read seeing a user with no standing at all.
+         */
+        await client.query(
+          `insert into tenant_user_roles (tenant_id, user_id, role) values ($1,$2,$3)
+           on conflict (tenant_id, user_id) do update set role = excluded.role`,
+          [tenantId, userId, input.standing],
+        );
       }
       if (input.userTypeIds !== undefined) {
         await client.query("delete from user_type_assignments where tenant_id = $1 and user_id = $2", [tenantId, userId]);

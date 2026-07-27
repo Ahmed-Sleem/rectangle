@@ -18,7 +18,7 @@ const actor: UserPrincipal = {
   tenantId,
   userId,
   sessionId,
-  roles: ["viewer"],
+  roles: ["member"],
   permissions: [],
 };
 
@@ -52,7 +52,7 @@ class MemoryProfileRepository implements ProfileRepository {
       displayName: this.displayName,
       email: "ahmed@rectangle.test",
       status: "active",
-      roles: ["viewer"],
+      roles: ["member"],
       permissions: [],
       userTypes: [],
       passkeyCount: 1,

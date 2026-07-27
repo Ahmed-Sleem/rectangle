@@ -81,8 +81,13 @@ describe("canvas layout contract", () => {
       shellCss.indexOf(".rect-panel__content {"),
     );
     expect(bodyBlock).toContain("overflow-y: auto");
-    // Hidden scrollbars require a visible overflow affordance instead.
-    expect(bodyBlock).toContain("mask-image");
+    /*
+     * Hidden scrollbars require a visible overflow affordance instead. It used
+     * to be a mask on this element, which also faded anything sticky inside it
+     * — including the pinned toolbar. It is now a pair of overlay layers, so
+     * both can be true at once.
+     */
+    expect(bodyBlock).not.toContain("mask-image");
 
     // The fade must be driven by scroll position, so a page that fits on screen
     // is never dimmed at an edge that has nothing beyond it.
@@ -393,5 +398,42 @@ describe("focus indicators", () => {
     // that edge a few pixels in.
     expect(panel).not.toMatch(/^\s*border:/mu);
     expect(panel).toContain("border-block-end");
+  });
+
+  describe("sticky toolbar", () => {
+    it("pins the toolbar to the top of the scroll area", () => {
+      expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*position:\s*sticky/u);
+      expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*inset-block-start:\s*0/u);
+    });
+
+    it("gives the toolbar an opaque background so rows pass behind it", () => {
+      // Without this the list shows through the controls as it scrolls under.
+      expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*background:\s*var\(--rect-canvas-bg\)/u);
+    });
+
+    it("does not mask the scroll container", () => {
+      /*
+       * A mask applies to the whole element including anything sticky inside
+       * it, so the pinned toolbar faded out at exactly the moment it was doing
+       * its job. The scroll affordance is drawn by overlay layers instead.
+       */
+      expect(shellCss).not.toMatch(/mask-image/u);
+      expect(shellCss).toMatch(/\.rect-panel__body::before/u);
+      expect(shellCss).toMatch(/\.rect-panel__body::after/u);
+    });
+
+    it("keeps the fades beneath the toolbar", () => {
+      // Both are sticky; whichever has the higher z-index wins, and it must be
+      // the toolbar or the fade paints over the controls.
+      const fadeLayer = shellCss.slice(shellCss.indexOf(".rect-panel__body::before"));
+      expect(fadeLayer).toMatch(/z-index:\s*1/u);
+      expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*z-index:\s*2/u);
+    });
+
+    it("still fades only while content is hidden beyond an edge", () => {
+      // A page that fits entirely must never be dimmed.
+      expect(shellCss).toMatch(/--rect-fade-top:\s*0px/u);
+      expect(shellCss).toMatch(/data-scroll-top="false"/u);
+    });
   });
 });

@@ -34,21 +34,21 @@ const reply = {} as FastifyReply;
 describe("live authority", () => {
   it("uses the roles the database reports, not the ones inside the token", async () => {
     // The token claims administrator; the database says the role was removed.
-    const token = await tokenWith({ tenant_id: tenantId, roles: ["tenant_admin"], sid: sessionId });
+    const token = await tokenWith({ tenant_id: tenantId, roles: ["admin"], sid: sessionId });
     const hook = createAuthenticationHook(jwtSecret, async () => ({
-      roles: ["viewer"],
+      roles: ["member"],
       permissions: ["projects.read"],
     }));
 
     const request = requestWith(token);
     await hook(request, reply);
 
-    expect(request.principal.roles).toEqual(["viewer"]);
+    expect(request.principal.roles).toEqual(["member"]);
     expect(request.principal.permissions).toEqual(["projects.read"]);
   });
 
   it("rejects a request whose session has ended", async () => {
-    const token = await tokenWith({ tenant_id: tenantId, roles: ["tenant_admin"], sid: sessionId });
+    const token = await tokenWith({ tenant_id: tenantId, roles: ["admin"], sid: sessionId });
     const hook = createAuthenticationHook(jwtSecret, async () => null);
 
     await expect(hook(requestWith(token), reply)).rejects.toMatchObject({
@@ -58,11 +58,11 @@ describe("live authority", () => {
 
   it("refuses a token carrying no session, rather than skipping the check", async () => {
     // Fail closed: an unverifiable token is not a trusted one.
-    const token = await tokenWith({ tenant_id: tenantId, roles: ["tenant_admin"] });
+    const token = await tokenWith({ tenant_id: tenantId, roles: ["admin"] });
     let consulted = false;
     const hook = createAuthenticationHook(jwtSecret, async () => {
       consulted = true;
-      return { roles: ["tenant_admin"], permissions: [] };
+      return { roles: ["admin"], permissions: [] };
     });
 
     await expect(hook(requestWith(token), reply)).rejects.toMatchObject({
@@ -72,13 +72,13 @@ describe("live authority", () => {
   });
 
   it("still rejects a token that was not signed by this server", async () => {
-    const token = await new SignJWT({ tenant_id: tenantId, roles: ["tenant_admin"], sid: sessionId })
+    const token = await new SignJWT({ tenant_id: tenantId, roles: ["admin"], sid: sessionId })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(userId)
       .setIssuedAt()
       .setExpirationTime("15m")
       .sign(new TextEncoder().encode("a-completely-different-secret-value-32"));
-    const hook = createAuthenticationHook(jwtSecret, async () => ({ roles: ["viewer"], permissions: [] }));
+    const hook = createAuthenticationHook(jwtSecret, async () => ({ roles: ["member"], permissions: [] }));
 
     await expect(hook(requestWith(token), reply)).rejects.toThrow();
   });

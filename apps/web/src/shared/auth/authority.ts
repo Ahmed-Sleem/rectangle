@@ -12,28 +12,27 @@ export interface AuthorityUser {
   permissions: string[];
 }
 
-/** Roles that carry every permission without being granted each one. */
-const FULL_ACCESS_ROLES = new Set(["tenant_owner", "tenant_admin"]);
-
 /**
- * Permissions implied by a role rather than assigned through a user type.
- * Kept in step with `rolePermissions` in the API's auth domain.
+ * Standings that carry every permission without being granted each one.
+ *
+ * Mirrors `rolePermissions` in the API's auth domain. Nothing else grants a
+ * permission by standing: a member's access comes from their user types and a
+ * guest's from the projects they belong to. Company-wide project roles used to
+ * live here too, and holding one silently granted it on every project.
  */
-const ROLE_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
-  project_admin: ["projects.read", "projects.manage"],
-  project_manager: ["projects.read", "projects.manage"],
-  controls_manager: ["projects.read"],
-  viewer: ["projects.read"],
-};
+const FULL_ACCESS_STANDINGS = new Set(["owner", "admin"]);
+
+/** External people reach only the projects they were added to. */
+const GUEST_STANDING = "guest";
 
 export function hasPermission(
   user: AuthorityUser | null | undefined,
   permission: string,
 ): boolean {
   if (!user) return false;
-  if (user.roles.some((role) => FULL_ACCESS_ROLES.has(role))) return true;
-  if (user.permissions.includes(permission)) return true;
-  return user.roles.some((role) => ROLE_PERMISSIONS[role]?.includes(permission) ?? false);
+  if (user.roles.includes(GUEST_STANDING)) return false;
+  if (user.roles.some((role) => FULL_ACCESS_STANDINGS.has(role))) return true;
+  return user.permissions.includes(permission);
 }
 
 /** True when the feature is open to everyone, or the person holds its permission. */

@@ -262,20 +262,43 @@
   border-radius: 0;
   padding-block: var(--rect-space-1) var(--rect-space-2);
 
-  /* Scroll affordance. Scrollbars are hidden globally, so each edge fades only
-     while content is actually hidden beyond it. `--rect-fade-top` /
-     `--rect-fade-bottom` are switched by the data attributes below, so a page
-     that fits entirely is never dimmed. */
+  /* Scroll affordance is drawn by the overlay layers below rather than by a
+     mask on this element.
+
+     A mask applies to the whole element including anything sticky inside it, so
+     a pinned toolbar faded out at exactly the moment it was doing its job. The
+     fades are now siblings painted over the scroll area and under the sticky
+     row, which is the only arrangement where both can be true at once. */
   --rect-fade-top: 0px;
   --rect-fade-bottom: 0px;
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0,
-    #000 var(--rect-fade-top),
-    #000 calc(100% - var(--rect-fade-bottom)),
-    transparent 100%
-  );
-  mask-repeat: no-repeat;
+}
+
+/* The two fades. Positioned over the scrolling area, below anything sticky. */
+.rect-panel__body::before,
+.rect-panel__body::after {
+  content: "";
+  position: sticky;
+  inset-inline: 0;
+  display: block;
+  z-index: 1;
+  pointer-events: none;
+  flex: none;
+}
+
+.rect-panel__body::before {
+  inset-block-start: 0;
+  block-size: var(--rect-fade-top);
+  /* Negative margin so the fade overlays the first row rather than displacing
+     it; without it the content jumps by the fade height when it appears. */
+  margin-block-end: calc(var(--rect-fade-top) * -1);
+  background: linear-gradient(to bottom, var(--rect-canvas-bg), transparent);
+}
+
+.rect-panel__body::after {
+  inset-block-end: 0;
+  block-size: var(--rect-fade-bottom);
+  margin-block-start: calc(var(--rect-fade-bottom) * -1);
+  background: linear-gradient(to top, var(--rect-canvas-bg), transparent);
 }
 
 .rect-panel__body[data-scroll-top="false"] {

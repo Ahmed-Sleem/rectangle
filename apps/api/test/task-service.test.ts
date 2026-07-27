@@ -20,8 +20,8 @@ const memberUserId = "44444444-4444-4444-8444-444444444444";
 const outsiderUserId = "55555555-5555-4555-8555-555555555555";
 const taskId = "66666666-6666-4666-8666-666666666666";
 
-const admin: UserPrincipal = { tenantId, userId: adminUserId, roles: ["tenant_admin"], permissions: [] };
-const member: UserPrincipal = { tenantId, userId: memberUserId, roles: ["viewer"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId: adminUserId, roles: ["admin"], permissions: [] };
+const member: UserPrincipal = { tenantId, userId: memberUserId, roles: ["member"], permissions: [] };
 
 class MemoryAudit implements AuditRepository {
   readonly events: AuditEventInput[] = [];

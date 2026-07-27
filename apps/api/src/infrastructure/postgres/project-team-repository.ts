@@ -332,6 +332,15 @@ export class PostgresProjectTeamRepository {
     tenantId: string,
     projectId: string,
     limit: number,
+    /**
+     * When set, only this person's own actions are returned.
+     *
+     * Managing a project entitles you to its whole history; merely being a
+     * member on it entitles you to your own. Passing the restriction down
+     * rather than filtering afterwards keeps the rule in one place and stops a
+     * page-sized read returning rows the caller may not see.
+     */
+    onlyActorUserId?: string,
   ): Promise<ProjectActivityRecord[]> {
     const result = await this.pool.query<{
       id: string;
@@ -357,9 +366,10 @@ export class PostgresProjectTeamRepository {
             (a.entity_type = 'project' and a.entity_id = $2)
             or a.project_id = $2::uuid
           )
+          ${onlyActorUserId ? "and a.actor_user_id = $4" : ""}
         order by a.created_at desc, a.id desc
         limit $3`,
-      [tenantId, projectId, limit],
+      onlyActorUserId ? [tenantId, projectId, limit, onlyActorUserId] : [tenantId, projectId, limit],
     );
 
     return result.rows.map((row) => ({

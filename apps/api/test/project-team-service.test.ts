@@ -20,13 +20,13 @@ const memberUserId = "44444444-4444-4444-8444-444444444444";
 const outsiderUserId = "55555555-5555-4555-8555-555555555555";
 const foreignUserId = "66666666-6666-4666-8666-666666666666";
 
-const admin: UserPrincipal = { tenantId, userId: adminUserId, roles: ["tenant_admin"], permissions: [] };
-const viewer: UserPrincipal = { tenantId, userId: memberUserId, roles: ["viewer"], permissions: [] };
-const outsider: UserPrincipal = { tenantId, userId: outsiderUserId, roles: ["viewer"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId: adminUserId, roles: ["admin"], permissions: [] };
+const viewer: UserPrincipal = { tenantId, userId: memberUserId, roles: ["member"], permissions: [] };
+const outsider: UserPrincipal = { tenantId, userId: outsiderUserId, roles: ["member"], permissions: [] };
 const foreignAdmin: UserPrincipal = {
   tenantId: otherTenantId,
   userId: foreignUserId,
-  roles: ["tenant_admin"],
+  roles: ["admin"],
   permissions: [],
 };
 

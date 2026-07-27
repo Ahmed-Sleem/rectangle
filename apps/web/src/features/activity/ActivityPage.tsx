@@ -11,7 +11,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { CircleUser, Users, Building2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { useOptionalAuth } from "@/shared/auth";
 import {
   Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, PageToolbar, ViewToggle,
@@ -51,6 +51,14 @@ export default function ActivityPage() {
   const { t, i18n } = useTranslation();
   const auth = useOptionalAuth();
 
+  /*
+   * Arriving from a project workspace preview. Read once as the initial value
+   * rather than tracked, so clearing the filter on this page is not immediately
+   * undone by the URL it was opened with.
+   */
+  const [searchParams] = useSearchParams();
+  const [projectId, setProjectId] = useState(() => searchParams.get("projectId") ?? "");
+
   const [scope, setScope] = useState<ActivityScope>("self");
   const [action, setAction] = useState("");
   const [result, setResult] = useState("");
@@ -58,13 +66,14 @@ export default function ActivityPage() {
   const actions = useQuery({ queryKey: ["activity", "actions"], queryFn: listActivityActions });
 
   const feed = useInfiniteQuery({
-    queryKey: ["activity", scope, action, result],
+    queryKey: ["activity", scope, action, result, projectId],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       listActivity({
         scope,
         ...(action ? { action } : {}),
         ...(result ? { result: result as "success" | "failure" } : {}),
+        ...(projectId ? { projectId } : {}),
         ...(pageParam ? { cursor: pageParam } : {}),
       }),
     getNextPageParam: (last) => last.nextCursor,
@@ -108,7 +117,7 @@ export default function ActivityPage() {
     );
   }
 
-  const filtered = action !== "" || result !== "";
+  const filtered = action !== "" || result !== "" || projectId !== "";
 
   return (
     <section className="rect-activity-page" aria-label={t("activity.pageLabel")}>
@@ -139,7 +148,7 @@ export default function ActivityPage() {
             onChange: setResult,
           },
         ]}
-        onClearFilters={() => { setAction(""); setResult(""); }}
+        onClearFilters={() => { setAction(""); setResult(""); setProjectId(""); }}
         /*
          * Scope answers "whose activity", which is a different question from
          * the filters' "which entries", so it sits with the view controls at
@@ -171,7 +180,7 @@ export default function ActivityPage() {
           {...(filtered
             ? {
                 action: (
-                  <Button variant="secondary" onClick={() => { setAction(""); setResult(""); }}>
+                  <Button variant="secondary" onClick={() => { setAction(""); setResult(""); setProjectId(""); }}>
                     {t("activity.clearFilters")}
                   </Button>
                 ),

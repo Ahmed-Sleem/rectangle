@@ -12,12 +12,12 @@ const managerAuth: AuthContextValue = {
   setupRequired: false,
   loading: false,
   refresh: async () => undefined,
-  user: { tenantId: "1", userId: "2", roles: ["tenant_admin"], permissions: [] },
+  user: { tenantId: "1", userId: "2", roles: ["admin"], permissions: [] },
 };
 
 const viewerAuth = {
   ...managerAuth,
-  user: { tenantId: "1", userId: "3", roles: ["viewer"], permissions: ["projects.read"] },
+  user: { tenantId: "1", userId: "3", roles: ["member"], permissions: ["projects.read"] },
 };
 
 function renderProjectsPage(auth = managerAuth) {

@@ -30,7 +30,7 @@ export interface SetupRepository {
     sessionId: string;
     email: string;
     displayName: string;
-    roles: Array<"tenant_owner" | "tenant_admin">;
+    roles: Array<"owner">;
     permissions: string[];
   }>;
 }
@@ -43,7 +43,7 @@ export interface SetupResult {
     tenantId: string;
     email: string;
     displayName: string;
-    roles: Array<"tenant_owner" | "tenant_admin">;
+    roles: Array<"owner">;
     permissions: string[];
   };
 }

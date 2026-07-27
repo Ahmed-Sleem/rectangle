@@ -85,7 +85,7 @@ async function createTestServer() {
     displayName: "Project Owner",
     passwordHash,
     status: "active",
-    roles: ["tenant_admin"],
+    roles: ["admin"],
     permissions: [],
   };
   const app = await createServer({
@@ -126,7 +126,7 @@ describe("Auth routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().accessToken).toEqual(expect.any(String));
-    expect(response.json().user).toMatchObject({ email: "owner@rectangle.test", tenantId, roles: ["tenant_admin"] });
+    expect(response.json().user).toMatchObject({ email: "owner@rectangle.test", tenantId, roles: ["admin"] });
     expect(audit.events).toHaveLength(1);
     await app.close();
   });

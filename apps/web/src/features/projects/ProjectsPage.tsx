@@ -12,7 +12,7 @@ import {
   FormDialog, Input, PageToolbar, ProgressBar, Select, StatCard, StatRow, Textarea,
 } from "@/shared/ui";
 import { LayoutGrid, Rows3 } from "lucide-react";
-import { useOptionalAuth } from "@/shared/auth";
+import { useOptionalAuth, hasPermission } from "@/shared/auth";
 import { createProject, listProjects, type CreateProjectPayload, type ProjectRecord, type ProjectStatus } from "./project-api";
 import "./ProjectsPage.css";
 
@@ -101,9 +101,7 @@ export default function ProjectsPage() {
 
   // Only offer creation to people whose request would actually succeed.
   const canManage =
-    auth?.user?.roles.some((role) =>
-      ["tenant_owner", "tenant_admin", "project_admin", "project_manager"].includes(role),
-    ) || auth?.user?.permissions.includes("projects.manage") || false;
+    hasPermission(auth?.user, "projects.manage");
 
   const queryClient = useQueryClient();
   const filters = { ...(search.trim() ? { search: search.trim() } : {}), ...(status ? { status } : {}) };

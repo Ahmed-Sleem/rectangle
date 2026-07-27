@@ -1,6 +1,7 @@
 /** Schemas for tenant admin user type and user management. */
 import { z } from "zod";
 import { DomainError } from "./errors.js";
+import { companyStandingSchema } from "./auth.js";
 import { permissionSchema } from "./permissions.js";
 
 const roleKeySchema = z.string().trim().toLowerCase().min(2).max(64).regex(/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/u);
@@ -30,6 +31,12 @@ export const createUserSchema = z.object({
    * to add somebody.
    */
   password: z.string().min(12).max(256).regex(/[a-z]/u).regex(/[A-Z]/u).regex(/[0-9]/u).optional(),
+  /**
+   * Company standing. Defaults to member, which is what almost everyone is.
+   * Previously hardcoded with no way to change it, so an owner could not
+   * promote anybody through any screen.
+   */
+  standing: companyStandingSchema.default("member"),
   userTypeIds: z.array(z.uuid()).min(1).max(10),
 });
 
@@ -37,6 +44,7 @@ export const updateUserSchema = z.object({
   displayName: z.string().trim().min(2).max(160).optional(),
   status: z.enum(["active", "disabled"]).optional(),
   password: z.string().min(12).max(256).regex(/[a-z]/u).regex(/[A-Z]/u).regex(/[0-9]/u).optional(),
+  standing: companyStandingSchema.optional(),
   userTypeIds: z.array(z.uuid()).min(1).max(10).optional(),
 }).refine((value) => Object.keys(value).length > 0, "At least one field is required.");
 

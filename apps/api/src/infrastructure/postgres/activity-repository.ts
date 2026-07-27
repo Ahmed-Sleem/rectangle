@@ -80,9 +80,11 @@ export class PostgresActivityRepository {
          * sign-ins is how you notice somebody else trying to use your account,
          * so withholding them would defeat the purpose of recording them.
          *
-         * Union'd with the work on projects you belong to, which is the feed
-         * the Today page shows: operational only, because being on a project
-         * does not entitle you to a colleague's account history.
+         * Union'd with the projects you *run*, not merely belong to. Being a
+         * member on a job does not entitle you to a colleague's history there;
+         * managing it does. This previously returned everything operational on
+         * any project you were a member of, so a junior saw every action their
+         * colleagues took.
          */
         where.push(`(
           a.actor_user_id = ${bind(userId)}
@@ -94,6 +96,7 @@ export class PostgresActivityRepository {
                where m.tenant_id = a.tenant_id
                  and m.project_id = a.project_id
                  and m.user_id = ${bind(userId)}
+                 and m.role in ('project_admin', 'project_manager')
             )
           )
         )`);

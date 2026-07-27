@@ -20,7 +20,6 @@ import {
   parseOverviewQuery,
   type AttentionProject,
   type BudgetTotal,
-  type OverviewActivityEntry,
   type OverviewSummary,
   type ProjectStatusCount,
   type RiskExposure,
@@ -36,16 +35,6 @@ export interface OverviewRepository {
     horizonDays: number,
     limit: number,
   ): Promise<AttentionProject[]>;
-  /**
-   * Scoped to the caller. The unscoped version of this read handed every user
-   * the company's full audit trail, including projects they cannot open.
-   */
-  listRecentActivity(
-    tenantId: string,
-    userId: string,
-    limit: number,
-    canReadAll: boolean,
-  ): Promise<OverviewActivityEntry[]>;
   countUsersByStatus(tenantId: string): Promise<TeamSummary>;
   summariseRisks(
     tenantId: string,
@@ -75,19 +64,13 @@ export class OverviewService {
     // them from a figure to an empty list.
     const taskScope = canManageProjects(actor) ? "all" : "member";
 
-    const [statusCounts, budgets, attention, activity, tasks, risks, team] = await Promise.all([
+    const [statusCounts, budgets, attention, tasks, risks, team] = await Promise.all([
       this.repository.countProjectsByStatus(actor.tenantId),
       this.repository.sumBudgetsByCurrency(actor.tenantId),
       this.repository.listProjectsNeedingAttention(
         actor.tenantId,
         query.horizonDays,
         query.attentionLimit,
-      ),
-      this.repository.listRecentActivity(
-        actor.tenantId,
-        actor.userId,
-        query.activityLimit,
-        hasPermission(actor, "activity.read_all"),
       ),
       this.repository.summariseTasks(actor.tenantId, actor.userId, query.horizonDays, taskScope),
       this.repository.summariseRisks(actor.tenantId, actor.userId, taskScope),
@@ -102,7 +85,6 @@ export class OverviewService {
       statusCounts,
       budgets,
       attention,
-      activity,
       tasks,
       risks,
       ...(team ? { team } : {}),

@@ -44,8 +44,8 @@ type SectionId = "language" | "email" | "passkeys";
 function canManageCompanySettings(user: ReturnType<typeof useAuth>["user"]): boolean {
   if (!user) return false;
   return (
-    user.roles.includes("tenant_owner") ||
-    user.roles.includes("tenant_admin") ||
+    user.roles.includes("owner") ||
+    user.roles.includes("admin") ||
     user.permissions.includes("settings.manage")
   );
 }

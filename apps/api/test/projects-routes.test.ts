@@ -196,7 +196,7 @@ describe("Projects routes", () => {
 
   it("creates and lists projects for an authorized tenant user", async () => {
     const { app, audit } = await createTestServer();
-    const bearer = await token(["tenant_admin"]);
+    const bearer = await token(["admin"]);
 
     const createResponse = await app.inject({
       method: "POST",
@@ -222,7 +222,7 @@ describe("Projects routes", () => {
 
   it("returns validation errors for invalid create payloads", async () => {
     const { app } = await createTestServer();
-    const bearer = await token(["tenant_admin"]);
+    const bearer = await token(["admin"]);
 
     const response = await app.inject({
       method: "POST",
@@ -238,7 +238,7 @@ describe("Projects routes", () => {
 
   it("exposes project team, stakeholder, and activity endpoints end to end", async () => {
     const { app, team, audit } = await createTestServer();
-    const bearer = await token(["tenant_admin"]);
+    const bearer = await token(["admin"]);
     const teammateId = "44444444-4444-4444-8444-444444444444";
     team.addTenantUser({ id: teammateId, tenantId, displayName: "Mona Adel", email: "mona@example.com" });
 
@@ -311,8 +311,8 @@ describe("Projects routes", () => {
 
   it("refuses team changes from a user without project management rights", async () => {
     const { app, team } = await createTestServer();
-    const adminBearer = await token(["tenant_admin"]);
-    const viewerBearer = await token(["viewer"]);
+    const adminBearer = await token(["admin"]);
+    const viewerBearer = await token(["member"]);
     const teammateId = "44444444-4444-4444-8444-444444444444";
     team.addTenantUser({ id: teammateId, tenantId, displayName: "Mona Adel", email: "mona@example.com" });
     team.addTenantUser({ id: userId, tenantId, displayName: "Viewer", email: "viewer@example.com" });
@@ -346,8 +346,8 @@ describe("Projects routes", () => {
 
   it("does not reveal a project to a user who cannot reach it", async () => {
     const { app } = await createTestServer();
-    const adminBearer = await token(["tenant_admin"]);
-    const viewerBearer = await token(["viewer"]);
+    const adminBearer = await token(["admin"]);
+    const viewerBearer = await token(["member"]);
 
     const created = await app.inject({
       method: "POST",
@@ -369,7 +369,7 @@ describe("Projects routes", () => {
 
   it("deletes a project and records why it disappeared", async () => {
     const { app, audit } = await createTestServer();
-    const bearer = await token(["tenant_admin"]);
+    const bearer = await token(["admin"]);
 
     const created = await app.inject({
       method: "POST",
@@ -402,8 +402,8 @@ describe("Projects routes", () => {
 
   it("refuses deletion from a user who cannot manage projects", async () => {
     const { app } = await createTestServer();
-    const adminBearer = await token(["tenant_admin"]);
-    const viewerBearer = await token(["viewer"]);
+    const adminBearer = await token(["admin"]);
+    const viewerBearer = await token(["member"]);
 
     const created = await app.inject({
       method: "POST",

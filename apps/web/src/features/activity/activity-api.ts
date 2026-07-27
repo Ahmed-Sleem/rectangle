@@ -28,6 +28,7 @@ export interface ActivityPage {
 
 export interface ActivityFilters {
   scope: ActivityScope;
+  projectId?: string;
   action?: string;
   result?: "success" | "failure";
   from?: string;
@@ -37,6 +38,7 @@ export interface ActivityFilters {
 
 export function listActivity(filters: ActivityFilters): Promise<ActivityPage> {
   const params = new URLSearchParams({ scope: filters.scope });
+  if (filters.projectId) params.set("projectId", filters.projectId);
   if (filters.action) params.set("action", filters.action);
   if (filters.result) params.set("result", filters.result);
   if (filters.from) params.set("from", filters.from);

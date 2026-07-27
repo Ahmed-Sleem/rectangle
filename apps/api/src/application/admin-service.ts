@@ -1,6 +1,6 @@
 /** Tenant admin service manages user types and users through real permissions. */
 import { parseCreateUser, parseCreateUserType, parseUpdateUser, parseUpdateUserType, type CreateUserInput, type CreateUserTypeInput, type UpdateUserInput, type UpdateUserTypeInput } from "../domain/admin.js";
-import { requirePermission, type UserPrincipal } from "../domain/auth.js";
+import { requirePermission, standingOf, type CompanyStanding, type UserPrincipal } from "../domain/auth.js";
 import { allPermissions, permissionDescriptions, type Permission } from "../domain/permissions.js";
 import { DomainError } from "../domain/errors.js";
 import type { PasswordHasher } from "../infrastructure/password.js";
@@ -19,6 +19,8 @@ export interface UserTypeRecord {
 }
 
 export interface AdminUserRecord {
+  /** Company standing: exactly one, never a set. */
+  standing: CompanyStanding;
   id: string;
   tenantId: string;
   email: string;
@@ -61,6 +63,10 @@ export interface AdminRepository {
    * Used to refuse the change that would leave nobody able to administer it.
    */
   countOtherActiveAdmins(tenantId: string, excludingUserId: string): Promise<number>;
+  /** Someone's current standing, so a change can be judged against it. */
+  findStanding(tenantId: string, userId: string): Promise<string | null>;
+  /** Active owners other than this person, guarding the last-owner case. */
+  countOtherOwners(tenantId: string, excludingUserId: string): Promise<number>;
   listUserTypes(tenantId: string): Promise<UserTypeRecord[]>;
   findUserTypeByKey(tenantId: string, key: string): Promise<UserTypeRecord | null>;
   findUserTypesByIds(tenantId: string, ids: string[]): Promise<UserTypeRecord[]>;
@@ -130,6 +136,10 @@ export class AdminService {
     if (existing) throw new DomainError("CONFLICT", "A user with this email already exists.");
     const userTypes = await this.repository.findUserTypesByIds(actor.tenantId, input.userTypeIds);
     if (userTypes.length !== input.userTypeIds.length) throw new DomainError("VALIDATION_FAILED", "One or more user types are invalid.");
+
+    if (input.standing === "owner" && standingOf(actor) !== "owner") {
+      throw new DomainError("FORBIDDEN", "Only an owner can create another owner.");
+    }
     // No password means the person is being invited to choose one. They stay
     // `invited` until they do, and login already refuses anyone not active.
     const invited = !input.password;
@@ -179,6 +189,29 @@ export class AdminService {
         );
       }
     }
+    if (input.standing !== undefined) {
+      /*
+       * Only an owner may create or unmake another owner. An admin holds every
+       * permission, so without this an admin could promote themselves and then
+       * remove the owner — `users.manage` would silently be ownership.
+       */
+      if ((input.standing === "owner" || (await this.repository.findStanding(actor.tenantId, userId)) === "owner")
+        && standingOf(actor) !== "owner") {
+        throw new DomainError("FORBIDDEN", "Only an owner can change who owns the company.");
+      }
+
+      // Demoting yourself out of ownership can leave a company nobody owns.
+      if (userId === actor.userId && standingOf(actor) === "owner" && input.standing !== "owner") {
+        const otherOwners = await this.repository.countOtherOwners(actor.tenantId, userId);
+        if (otherOwners === 0) {
+          throw new DomainError(
+            "VALIDATION_FAILED",
+            "You are the last owner. Make someone else an owner first.",
+          );
+        }
+      }
+    }
+
     if (input.userTypeIds) {
       const userTypes = await this.repository.findUserTypesByIds(actor.tenantId, input.userTypeIds);
       if (userTypes.length !== input.userTypeIds.length) throw new DomainError("VALIDATION_FAILED", "One or more user types are invalid.");
@@ -187,6 +220,7 @@ export class AdminService {
     const user = await this.repository.updateUser(actor.tenantId, userId, {
       ...(input.displayName ? { displayName: input.displayName } : {}),
       ...(input.status ? { status: input.status } : {}),
+      ...(input.standing ? { standing: input.standing } : {}),
       ...(input.userTypeIds ? { userTypeIds: input.userTypeIds } : {}),
       ...(passwordHash ? { passwordHash } : {}),
     });

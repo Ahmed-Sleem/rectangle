@@ -252,7 +252,8 @@ export default function ProjectDetailPage() {
 
   const memberRows = members.data?.members ?? [];
   const stakeholderRows = stakeholders.data?.stakeholders ?? [];
-  const activityRows = activity.data?.activity ?? [];
+  // Five is a glance. The page linked below is where the trail is read.
+  const activityRows = (activity.data?.activity ?? []).slice(0, 5);
 
   // Counted from the project's own tasks, so the panel can never disagree with
   // the board it links to.
@@ -511,6 +512,13 @@ export default function ProjectDetailPage() {
             ))}
           </ul>
         )}
+        {/*
+          A preview, not a second implementation. Anything longer belongs on the
+          activity page, which is the one place the full trail is read.
+        */}
+        <Link className={buttonClassName("secondary", "sm")} to={`/activity?projectId=${projectId}`}>
+          {t("projects.viewAllActivity")}
+        </Link>
       </Card>
 
       <FormDialog

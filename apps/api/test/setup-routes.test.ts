@@ -116,7 +116,7 @@ describe("Setup routes", () => {
         tenantId: "11111111-1111-4111-8111-111111111111",
         email: "owner@rectangle.test",
         displayName: "Owner",
-        roles: ["tenant_owner", "tenant_admin"],
+        roles: ["owner"],
         permissions: [],
       },
     });
@@ -135,7 +135,7 @@ describe("Setup routes", () => {
 
     expect(response.statusCode).toBe(201);
     expect(response.headers["set-cookie"]).toContain("rectangle_session=");
-    expect(response.json().user.roles).toContain("tenant_owner");
+    expect(response.json().user.roles).toContain("owner");
     await app.close();
   });
 });

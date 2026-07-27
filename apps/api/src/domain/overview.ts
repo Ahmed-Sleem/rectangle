@@ -21,7 +21,6 @@ export type ProjectStatusKey = z.infer<typeof projectStatusSchema>;
  */
 export const overviewQuerySchema = z.object({
   horizonDays: z.coerce.number().int().min(1).max(90).default(14),
-  activityLimit: z.coerce.number().int().min(1).max(50).default(10),
   attentionLimit: z.coerce.number().int().min(1).max(50).default(8),
 });
 
@@ -114,7 +113,6 @@ export interface OverviewSummary {
   statusCounts: ProjectStatusCount[];
   budgets: BudgetTotal[];
   attention: AttentionProject[];
-  activity: OverviewActivityEntry[];
   tasks: TaskSummary;
   risks: RiskExposure;
   /** Absent when the caller may not read the user register. */

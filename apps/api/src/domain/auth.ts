@@ -6,22 +6,51 @@ import { z } from "zod";
 import { DomainError } from "./errors.js";
 import { allPermissions, permissionSchema, type Permission } from "./permissions.js";
 
-export const tenantRoleSchema = z.enum([
-  "tenant_owner",
-  "tenant_admin",
-  "project_admin",
-  "project_manager",
-  "controls_manager",
-  "viewer",
-  "external_collaborator",
+/**
+ * A person's standing in the company. Exactly one, never a set.
+ *
+ * This replaced a table that allowed several company roles at once, which let
+ * somebody be a viewer and an owner simultaneously and resolved to full access.
+ * The single value is enforced by the primary key in migration 012, so the
+ * contradiction is unrepresentable rather than merely discouraged.
+ *
+ * Project roles — manager, controls manager and so on — are deliberately absent
+ * here. They live on `project_members` and apply to one project. Holding them
+ * company-wide silently granted them on every project, which is exactly the
+ * fault this replaced.
+ */
+export const companyStandingSchema = z.enum([
+  /** Everything, including transferring ownership. At least one always exists. */
+  "owner",
+  /** Everything except transferring ownership. */
+  "admin",
+  /** A normal employee. Access comes from user types and project membership. */
+  "member",
+  /** External. Only the projects they are explicitly added to. */
+  "guest",
 ]);
 
-export type TenantRole = z.infer<typeof tenantRoleSchema>;
+export type CompanyStanding = z.infer<typeof companyStandingSchema>;
+
+/**
+ * Retained as an alias because the principal still carries `roles` as an array
+ * on the wire, and every issued token does too. The array now holds exactly one
+ * standing; widening it again would reintroduce the fault.
+ */
+export const tenantRoleSchema = companyStandingSchema;
+export type TenantRole = CompanyStanding;
+
+/** Standings that administer the company and therefore hold every permission. */
+const fullAccessStandings = new Set<CompanyStanding>(["owner", "admin"]);
 
 export const userPrincipalSchema = z.object({
   tenantId: z.uuid(),
   userId: z.uuid(),
-  roles: z.array(tenantRoleSchema).min(1).max(20),
+  /**
+   * One standing, carried as an array for wire compatibility with tokens
+   * already issued. `max(1)` is the schema refusing to let the old shape back.
+   */
+  roles: z.array(companyStandingSchema).min(1).max(1),
   permissions: z.array(permissionSchema).default([]),
   sessionId: z.uuid().optional(),
   /**
@@ -37,54 +66,70 @@ export const userPrincipalSchema = z.object({
 
 export type UserPrincipal = z.infer<typeof userPrincipalSchema>;
 
-const projectWriteRoles = new Set<TenantRole>([
-  "tenant_owner",
-  "tenant_admin",
-  "project_admin",
-  "project_manager",
-]);
+/** The one standing a principal holds. */
+export function standingOf(principal: UserPrincipal): CompanyStanding {
+  return principal.roles[0] ?? "member";
+}
 
-const projectReadRoles = new Set<TenantRole>([
-  "tenant_owner",
-  "tenant_admin",
-  "project_admin",
-  "project_manager",
-  "controls_manager",
-  "viewer",
-]);
+export function isCompanyAdministrator(principal: UserPrincipal): boolean {
+  return fullAccessStandings.has(standingOf(principal));
+}
 
-export function rolePermissions(roles: TenantRole[]): Permission[] {
-  if (roles.includes("tenant_owner") || roles.includes("tenant_admin")) return allPermissions;
-  const permissions = new Set<Permission>();
-  for (const role of roles) {
-    if (role === "project_admin" || role === "project_manager") {
-      permissions.add("projects.read"); permissions.add("projects.manage");
-    }
-    if (role === "controls_manager" || role === "viewer") permissions.add("projects.read");
-  }
-  return [...permissions];
+export function rolePermissions(roles: CompanyStanding[]): Permission[] {
+  /*
+   * Only owners and admins gain permissions from standing alone. A member's
+   * access comes entirely from their user types, and a guest's from the
+   * projects they belong to — neither is granted anything company-wide by
+   * being a member or a guest.
+   */
+  return roles.some((role) => fullAccessStandings.has(role)) ? allPermissions : [];
+}
+
+export function hasPermission(principal: UserPrincipal, permission: Permission): boolean {
+  return principal.permissions.includes(permission) || rolePermissions(principal.roles).includes(permission);
 }
 
 /**
- * Exported because surfaces that mix registers need to ask rather than require:
- * a caller who cannot read one block should lose that block, not the page.
+ * A guest reaches only the projects they were added to, so no company-wide
+ * capability applies to them however their user types are configured.
  */
-export function hasPermission(principal: UserPrincipal, permission: Permission): boolean {
-  return principal.permissions.includes(permission) || rolePermissions(principal.roles).includes(permission);
+export function isGuest(principal: UserPrincipal): boolean {
+  return standingOf(principal) === "guest";
+}
+
+export function canManageProjects(principal: UserPrincipal): boolean {
+  if (isGuest(principal)) return false;
+  return isCompanyAdministrator(principal) || hasPermission(principal, "projects.manage");
+}
+
+/**
+ * May this person open the company-wide project register?
+ *
+ * Distinct from reaching one project. A guest, and a member with no user type
+ * granting `projects.read`, still reach the projects they belong to — see
+ * `canReachProjects`. Conflating the two would either lock members out of their
+ * own work or hand guests the whole register.
+ */
+export function canReadProjectRegistry(principal: UserPrincipal): boolean {
+  if (isGuest(principal)) return false;
+  return isCompanyAdministrator(principal) || hasPermission(principal, "projects.read");
+}
+
+/**
+ * May this person reach project records at all, subject to membership?
+ *
+ * True for everyone with a standing, because membership is what actually
+ * decides which projects they see. The register check above decides whether
+ * they may browse beyond the ones they belong to.
+ */
+export function canReachProjects(_principal: UserPrincipal): boolean {
+  return true;
 }
 
 export function requirePermission(principal: UserPrincipal, permission: Permission): void {
   if (!hasPermission(principal, permission)) {
     throw new DomainError("FORBIDDEN", "You do not have permission to perform this action.");
   }
-}
-
-export function canManageProjects(principal: UserPrincipal): boolean {
-  return principal.roles.some((role) => projectWriteRoles.has(role)) || hasPermission(principal, "projects.manage");
-}
-
-export function canReadProjectRegistry(principal: UserPrincipal): boolean {
-  return principal.roles.some((role) => projectReadRoles.has(role)) || hasPermission(principal, "projects.read");
 }
 
 /**
@@ -101,6 +146,7 @@ export function requireProjectManagement(principal: UserPrincipal): void {
   }
 }
 
+/** Guards the register. Reaching a single project is `resolveAccess`'s job. */
 export function requireProjectRead(principal: UserPrincipal): void {
   if (!canReadProjectRegistry(principal)) {
     throw new DomainError("FORBIDDEN", "You do not have permission to view projects.");

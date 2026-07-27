@@ -7,8 +7,8 @@ import type { CreateProjectInput, ProjectListQuery, ProjectRecord, UpdateProject
 
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
-const admin: UserPrincipal = { tenantId, userId, roles: ["tenant_admin"], permissions: [] };
-const viewer: UserPrincipal = { tenantId, userId, roles: ["viewer"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId, roles: ["admin"], permissions: [] };
+const viewer: UserPrincipal = { tenantId, userId, roles: ["member"], permissions: [] };
 
 class MemoryProjectsRepository implements ProjectsRepository {
   async deleteForTenant(): Promise<boolean> {

@@ -22,7 +22,7 @@ const actor: UserPrincipal = {
   tenantId,
   userId,
   sessionId: "33333333-3333-4333-8333-333333333333",
-  roles: ["viewer"],
+  roles: ["member"],
   permissions: [],
   displayName: "Ahmed Sleem",
 };

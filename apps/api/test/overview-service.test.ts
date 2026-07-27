@@ -17,12 +17,17 @@ const tenantId = "11111111-1111-4111-8111-111111111111";
 const otherTenantId = "99999999-9999-4999-8999-999999999999";
 const userId = "22222222-2222-4222-8222-222222222222";
 
-const admin: UserPrincipal = { tenantId, userId, roles: ["tenant_admin"], permissions: [] };
-const viewer: UserPrincipal = { tenantId, userId, roles: ["viewer"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId, roles: ["admin"], permissions: [] };
+/*
+ * A member who may read the project register. Standing alone grants nothing
+ * now — only owners and admins gain permissions from standing — so the
+ * permission is carried by a user type, which is how a real member gets it.
+ */
+const viewer: UserPrincipal = { tenantId, userId, roles: ["member"], permissions: ["projects.read"] };
 const outsider: UserPrincipal = {
   tenantId,
   userId,
-  roles: ["external_collaborator"],
+  roles: ["guest"],
   permissions: [],
 };
 
@@ -177,14 +182,22 @@ describe("OverviewService", () => {
     });
   });
 
-  it("bounds the activity and attention lists", async () => {
+  it("returns no activity at all, because the trail has its own page", async () => {
+    const repository = new RecordingRepository();
+    const summary = await new OverviewService(repository).getSummary(admin, {});
+
+    /*
+     * Stronger than scoping it. The panel that used to sit here handed every
+     * user the company's whole audit trail; removing the payload means there is
+     * nothing left to leak from this endpoint, however it is called.
+     */
+    expect(summary).not.toHaveProperty("activity");
+  });
+
+  it("bounds the attention list", async () => {
     const repository = new RecordingRepository();
     await new OverviewService(repository).getSummary(admin, {});
-    expect(repository.lastActivityLimit).toBe(10);
     expect(repository.lastAttentionLimit).toBe(8);
-    await expect(
-      new OverviewService(repository).getSummary(admin, { activityLimit: 5000 }),
-    ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
   });
 
   it("counts the whole portfolio's work for a tenant-wide project reader", async () => {
@@ -206,30 +219,5 @@ describe("OverviewService", () => {
     expect(repository.lastTaskScope).toBe("member");
   });
 
-  it("does not hand an ordinary user the whole company's audit trail", async () => {
-    const repository = new RecordingRepository({});
-    const service = new OverviewService(repository);
 
-    await service.getSummary(
-      { tenantId, userId, roles: ["viewer"], permissions: ["projects.read"] },
-      {},
-    );
-
-    // The fault this guards: the activity read was scoped to the tenant alone,
-    // so a viewer saw new hires' email addresses, failed sign-ins, and work on
-    // projects they cannot open.
-    expect(repository.lastActivityCanReadAll).toBe(false);
-  });
-
-  it("lets an administrator see the whole trail", async () => {
-    const repository = new RecordingRepository({});
-    const service = new OverviewService(repository);
-
-    await service.getSummary(
-      { tenantId, userId, roles: ["tenant_admin"], permissions: [] },
-      {},
-    );
-
-    expect(repository.lastActivityCanReadAll).toBe(true);
-  });
 });

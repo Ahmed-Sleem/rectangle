@@ -146,3 +146,38 @@
   font-size: var(--rect-text-micro);
   padding: var(--rect-space-1) var(--rect-space-2);
 }
+
+/* Effective permissions: what a combination of roles actually grants. */
+
+.rect-team-effective {
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  padding: var(--rect-space-3);
+}
+
+.rect-team-effective__list {
+  display: grid;
+  gap: var(--rect-space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-team-effective__item {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+  justify-content: space-between;
+}
+
+.rect-team-effective__name {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-label);
+}
+
+/* Which role supplied it. The point is traceability, so it stays legible. */
+.rect-team-effective__source {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-micro);
+}

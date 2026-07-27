@@ -63,7 +63,13 @@ export interface ProjectTeamRepository {
     input: UpdateStakeholderInput,
   ): Promise<StakeholderRecord | null>;
   deleteStakeholder(tenantId: string, projectId: string, id: string): Promise<boolean>;
-  listActivity(tenantId: string, projectId: string, limit: number): Promise<ProjectActivityRecord[]>;
+  /** `onlyActorUserId` restricts the feed to one person's own actions. */
+  listActivity(
+    tenantId: string,
+    projectId: string,
+    limit: number,
+    onlyActorUserId?: string,
+  ): Promise<ProjectActivityRecord[]>;
 }
 
 export interface ProjectAccess {
@@ -86,8 +92,12 @@ export class ProjectTeamService {
    * must be a member, and only project admin roles may change the team.
    */
   async resolveAccess(actor: UserPrincipal, projectId: string): Promise<ProjectAccess> {
-    requireProjectRead(actor);
-
+    /*
+     * Deliberately not `requireProjectRead`. That guards the company-wide
+     * register; this resolves one project, where membership is the authority.
+     * Requiring the register here would lock a member out of the very project
+     * they were added to, and a guest out of everything.
+     */
     const project = await this.projects.findByIdForTenant(actor.tenantId, projectId);
     if (!project) {
       throw new DomainError("NOT_FOUND", "Project was not found.");
@@ -342,8 +352,19 @@ export class ProjectTeamService {
     rawQuery: unknown,
   ): Promise<ProjectActivityRecord[]> {
     const projectId = parseProjectId(rawProjectId);
-    await this.resolveAccess(actor, projectId);
+    const access = await this.resolveAccess(actor, projectId);
     const query = parseProjectActivityQuery(rawQuery);
-    return this.team.listActivity(actor.tenantId, projectId, query.limit);
+
+    /*
+     * Whoever runs the project sees its whole history; everyone else on it sees
+     * their own. `canManage` is true for company administrators and for project
+     * admins and managers, which is exactly the set entitled to the full feed.
+     */
+    return this.team.listActivity(
+      actor.tenantId,
+      projectId,
+      query.limit,
+      access.canManage ? undefined : actor.userId,
+    );
   }
 }

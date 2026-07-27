@@ -11,7 +11,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Link } from "react-router";
-import { useOptionalAuth } from "@/shared/auth";
+import { useOptionalAuth, hasPermission } from "@/shared/auth";
 import { getCurrentLanguage } from "@/shared/i18n";
 import {
   Badge,
@@ -66,11 +66,6 @@ function formatMoney(amount: string, currency: string, language: string): string
   }
 }
 
-function formatMoment(value: string, language: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(date);
-}
 
 export default function TodayPage() {
   const { t } = useTranslation();
@@ -78,9 +73,7 @@ export default function TodayPage() {
   const auth = useOptionalAuth();
 
   const canManageProjects =
-    auth?.user?.roles.some((role) =>
-      ["tenant_owner", "tenant_admin", "project_admin", "project_manager"].includes(role),
-    ) || auth?.user?.permissions.includes("projects.manage") || false;
+    hasPermission(auth?.user, "projects.manage");
 
   const overview = useQuery({ queryKey: ["overview"], queryFn: getOverview });
   const summary = overview.data?.overview;
@@ -296,28 +289,6 @@ export default function TodayPage() {
             )}
           </SidePanel>
 
-          <SidePanel title={t("overview.activityTitle")}>
-            {summary.activity.length === 0 ? (
-              <p className="rect-today__note">{t("overview.activityEmpty")}</p>
-            ) : (
-              <ul className="rect-today__activity">
-                {summary.activity.map((entry) => (
-                  <li key={entry.id} className="rect-today__activity-item">
-                    <span className="rect-today__activity-label">
-                      {t(`enums.activity.${entry.action}`, { defaultValue: entry.action })}
-                      {entry.result === "failure" ? (
-                        <Badge tone="danger">{t("overview.activityFailed")}</Badge>
-                      ) : null}
-                    </span>
-                    <span className="rect-today__activity-meta">
-                      {entry.actorName ? `${entry.actorName} · ` : ""}
-                      {formatMoment(entry.createdAt, language)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SidePanel>
         </div>
       </div>
     </section>

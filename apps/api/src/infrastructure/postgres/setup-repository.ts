@@ -46,9 +46,9 @@ export class PostgresSetupRepository implements SetupRepository {
       const userId = String(user.rows[0].id);
 
       await client.query(
-        `insert into tenant_user_roles (tenant_id, user_id, role) values
-         ($1, $2, 'tenant_owner'),
-         ($1, $2, 'tenant_admin')`,
+        // One standing, not a set. This previously inserted both owner and
+        // admin, which is the multi-row shape migration 012 removed.
+        `insert into tenant_user_roles (tenant_id, user_id, role) values ($1, $2, 'owner')`,
         [tenantId, userId],
       );
 
@@ -65,7 +65,7 @@ export class PostgresSetupRepository implements SetupRepository {
         sessionId: String(session.rows[0].id),
         email: String(user.rows[0].email),
         displayName: String(user.rows[0].display_name),
-        roles: ["tenant_owner", "tenant_admin"] as Array<"tenant_owner" | "tenant_admin">,
+        roles: ["owner"] as Array<"owner">,
         permissions: [],
       };
     } catch (error) {

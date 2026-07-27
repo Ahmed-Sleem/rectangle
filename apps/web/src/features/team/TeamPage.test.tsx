@@ -10,12 +10,12 @@ const adminAuth: AuthContextValue = {
   setupRequired: false,
   loading: false,
   refresh: async () => undefined,
-  user: { tenantId: "1", userId: "2", roles: ["tenant_admin"], permissions: [] },
+  user: { tenantId: "1", userId: "2", roles: ["admin"], permissions: [] },
 };
 
 const viewerAuth: AuthContextValue = {
   ...adminAuth,
-  user: { tenantId: "1", userId: "3", roles: ["viewer"], permissions: [] },
+  user: { tenantId: "1", userId: "3", roles: ["member"], permissions: [] },
 };
 
 import TeamPage from "./TeamPage";
@@ -56,6 +56,7 @@ const users = { users: [
     displayName: "Owner",
     email: "owner@rectangle.test",
     status: "active",
+    standing: "owner",
     projectCount: 3,
     userTypes: [{ id: ownerTypeId, name: "Owner", key: "owner" }],
   },
@@ -64,6 +65,7 @@ const users = { users: [
     displayName: "Mona Adel",
     email: "mona@rectangle.test",
     status: "disabled",
+    standing: "member",
     projectCount: 0,
     userTypes: [{ id: viewerTypeId, name: "Site Viewer", key: "site_viewer" }],
   },
@@ -353,7 +355,7 @@ describe("TeamPage", () => {
     mockReads();
     renderTeam({
       ...adminAuth,
-      user: { tenantId: "1", userId: "4", roles: ["viewer"], permissions: ["users.manage"] },
+      user: { tenantId: "1", userId: "4", roles: ["member"], permissions: ["users.manage"] },
     });
 
     await screen.findByText("Mona Adel");

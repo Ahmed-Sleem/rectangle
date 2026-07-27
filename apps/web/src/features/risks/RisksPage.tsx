@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
-import { useOptionalAuth } from "@/shared/auth";
+import { useOptionalAuth, hasPermission } from "@/shared/auth";
 import { getCurrentLanguage } from "@/shared/i18n";
 import {
   Badge, BreakdownBar, Button, buttonClassName, CardGrid, ConfirmDialog, DataTable,
@@ -129,9 +129,7 @@ export default function RisksPage() {
   const [pendingDelete, setPendingDelete] = useState<RiskRecord | null>(null);
 
   const canManage =
-    auth?.user?.roles.some((role) =>
-      ["tenant_owner", "tenant_admin", "project_admin", "project_manager"].includes(role),
-    ) || auth?.user?.permissions.includes("projects.manage") || false;
+    hasPermission(auth?.user, "projects.manage");
 
   const filters = {
     ...(search.trim() ? { search: search.trim() } : {}),

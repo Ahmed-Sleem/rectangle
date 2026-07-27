@@ -18,17 +18,17 @@ const viewer: AuthContextValue = {
   setupRequired: false,
   loading: false,
   refresh: async () => undefined,
-  user: { tenantId: "1", userId: "2", roles: ["viewer"], permissions: ["projects.read"] },
+  user: { tenantId: "1", userId: "2", roles: ["member"], permissions: ["projects.read"] },
 };
 
 const admin: AuthContextValue = {
   ...viewer,
-  user: { tenantId: "1", userId: "3", roles: ["tenant_admin"], permissions: [] },
+  user: { tenantId: "1", userId: "3", roles: ["admin"], permissions: [] },
 };
 
 const outsider: AuthContextValue = {
   ...viewer,
-  user: { tenantId: "1", userId: "4", roles: ["external_collaborator"], permissions: [] },
+  user: { tenantId: "1", userId: "4", roles: ["guest"], permissions: [] },
 };
 
 function renderNav(auth: AuthContextValue) {
