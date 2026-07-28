@@ -255,12 +255,35 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scroll-padding-block: var(--rect-space-4);
+  /*
+   * Only the end edge. A leading scroll-padding makes the browser think a
+   * focused control inside the pinned toolbar is above the usable area and
+   * scroll the container up to "reveal" it, once per keystroke, so typing in
+   * the toolbar's search field walked the page (crbug 1178622). Nothing here
+   * uses anchor links or scrollIntoView, which is what a leading value would
+   * have been for.
+   */
+  scroll-padding-block-end: var(--rect-space-4);
   /* overflow-x clips at the border box, so a control sitting flush against the
      edge loses part of its focus ring. This keeps content off the clip line. */
   padding-inline: var(--rect-space-05);
   border-radius: 0;
-  padding-block: var(--rect-space-1) var(--rect-space-2);
+  /*
+   * No leading padding, and this is load-bearing rather than a taste choice.
+   *
+   * A sticky child's insets are measured from the scrollport, and padding on
+   * the scroll container moves where that child comes to rest (csswg-drafts
+   * issue 3352 — a scroll container's own padding shifts the sticky offset,
+   * unlike padding on an element inside it). With any leading padding here, a
+   * toolbar at inset-block-start: 0 pinned that far below the top of the
+   * visible area once the page scrolled, and rows slid through the strip left
+   * between it and the header. A negative margin on the toolbar could not
+   * close it: margins move where a box is laid out, not where it sticks.
+   *
+   * So the space belongs to whatever sits at the top of the page, not to this
+   * container, and the toolbar pays for its own breathing room in padding.
+   */
+  padding-block: 0 var(--rect-space-2);
 
   /* Scroll affordance is drawn by the overlay layers below rather than by a
      mask on this element.

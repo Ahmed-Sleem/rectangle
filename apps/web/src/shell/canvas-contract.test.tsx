@@ -419,10 +419,53 @@ describe("focus indicators", () => {
       expect(toolbarCss).not.toMatch(/background-color:\s*transparent/u);
     });
 
-    it("joins the header above rather than floating as a strap", () => {
-      // A negative leading margin closes the body's own padding, so the header
-      // divider and the toolbar read as one surface with no canvas between.
-      expect(toolbarCss).toMatch(/margin-block-start:\s*calc\(var\(--rect-space-1\) \* -1\)/u);
+    it("pins flush against the header, with no padding under it to sit on", () => {
+      /*
+       * This is the check that three failed attempts at the gap needed.
+       *
+       * A sticky box takes its insets from the scrollport, and a scroll
+       * container's own padding moves where that box comes to rest
+       * (csswg-drafts 3352). Any leading padding on the body therefore pushes
+       * a toolbar at inset-block-start: 0 that far down the visible area, and
+       * rows scroll through the strip it leaves above. The negative margin
+       * that used to be asserted here could not close it, because a margin
+       * decides where a box is laid out and not where it sticks.
+       *
+       * So: the scroll container must declare no leading block padding, and
+       * the bar must not try to compensate with a negative margin.
+       */
+      const bodyBlock = shellCss.slice(
+        shellCss.indexOf(".rect-panel__body {"),
+        shellCss.indexOf(".rect-panel__content {"),
+      );
+      const paddingBlock = /padding-block:\s*([^;]+);/u.exec(bodyBlock);
+      expect(paddingBlock?.[1]).toBeDefined();
+      expect(String(paddingBlock?.[1]).trim().split(/\s+/u)[0]).toBe("0");
+
+      const toolbarBlock = toolbarCss.slice(
+        toolbarCss.indexOf(".rect-toolbar {"),
+        toolbarCss.indexOf(".rect-toolbar::after"),
+      );
+      expect(toolbarBlock).not.toMatch(/margin-block-start:/u);
+      // It pays for its own breathing room instead.
+      expect(toolbarBlock).toMatch(/padding-block:\s*var\(--rect-space-3\)/u);
+    });
+
+    it("asks the browser for no leading scroll padding, which walks the page", () => {
+      /*
+       * A leading scroll-padding puts a control inside the pinned bar outside
+       * what the browser considers the usable area, so it scrolls the
+       * container up to reveal it — on every keystroke in the toolbar's search
+       * field (crbug 1178622). Nothing here uses anchor links or
+       * scrollIntoView, so only the end edge is asked for.
+       */
+      const bodyBlock = shellCss.slice(
+        shellCss.indexOf(".rect-panel__body {"),
+        shellCss.indexOf(".rect-panel__content {"),
+      );
+      expect(bodyBlock).not.toMatch(/scroll-padding-block:/u);
+      expect(bodyBlock).not.toMatch(/scroll-padding-block-start:/u);
+      expect(bodyBlock).not.toMatch(/scroll-padding-top:/u);
     });
 
     it("fades content into the bar only when something is hidden above the fold", () => {

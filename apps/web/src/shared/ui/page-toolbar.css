@@ -27,11 +27,18 @@
   z-index: 2;
   background: var(--rect-canvas-bg);
   /*
-   * Pulled up over the body's leading padding and given it back as its own,
-   * so there is no sliver of canvas between the header's divider and the bar.
-   * Without this the two read as separate strips with a gap between them.
+   * The bar owns the space above itself instead of receiving it from the
+   * scroll container, and that is the whole reason the gap kept coming back.
+   *
+   * Insets on a sticky box are measured from the scrollport, and a scroll
+   * container's own padding moves where that box pins (csswg-drafts 3352).
+   * While the body carried a leading padding, this bar came to rest that far
+   * down the visible area and content scrolled through the strip above it. A
+   * negative margin here was tried twice and could never fix it: a margin
+   * changes where a box is laid out, not where it sticks. The container's
+   * leading padding is gone now, so the bar pins flush against the header and
+   * the two read as one surface.
    */
-  margin-block-start: calc(var(--rect-space-1) * -1);
   padding-block: var(--rect-space-3) var(--rect-space-2);
   /* Cancels the panel gutter so the bar spans the full content width. */
   margin-inline: calc(var(--rect-space-05) * -1);
