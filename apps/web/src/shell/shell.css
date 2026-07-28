@@ -269,42 +269,35 @@
      a pinned toolbar faded out at exactly the moment it was doing its job. The
      fades are now siblings painted over the scroll area and under the sticky
      row, which is the only arrangement where both can be true at once. */
-  --rect-fade-top: 0px;
   --rect-fade-bottom: 0px;
 }
 
-/* The two fades. Positioned over the scrolling area, below anything sticky. */
-.rect-panel__body::before,
+/*
+ * The bottom scroll fade only.
+ *
+ * There used to be a matching one at the top, and it was the cause of a gap the
+ * owner reported: a sticky flex child placed before the toolbar in the column,
+ * so once the page scrolled it pinned at the top and pushed the toolbar down by
+ * its own height, opening a strip of bare canvas through which content showed.
+ * The toolbar now paints its own fade beneath itself, which is the only place
+ * that can be correct — above the toolbar there is nothing to fade.
+ */
 .rect-panel__body::after {
   content: "";
   position: sticky;
   inset-inline: 0;
+  inset-block-end: 0;
   display: block;
+  block-size: var(--rect-fade-bottom);
+  margin-block-start: calc(var(--rect-fade-bottom) * -1);
+  background: linear-gradient(to top, var(--rect-canvas-bg), transparent);
   z-index: 1;
   pointer-events: none;
   flex: none;
 }
 
-.rect-panel__body::before {
-  inset-block-start: 0;
-  block-size: var(--rect-fade-top);
-  /* Negative margin so the fade overlays the first row rather than displacing
-     it; without it the content jumps by the fade height when it appears. */
-  margin-block-end: calc(var(--rect-fade-top) * -1);
-  background: linear-gradient(to bottom, var(--rect-canvas-bg), transparent);
-}
-
-.rect-panel__body::after {
-  inset-block-end: 0;
-  block-size: var(--rect-fade-bottom);
-  margin-block-start: calc(var(--rect-fade-bottom) * -1);
-  background: linear-gradient(to top, var(--rect-canvas-bg), transparent);
-}
-
-.rect-panel__body[data-scroll-top="false"] {
-  --rect-fade-top: var(--rect-canvas-scroll-fade);
-}
-
+/* Zero height until something is actually hidden below, so a page that fits is
+   never dimmed at an edge with nothing beyond it. */
 .rect-panel__body[data-scroll-bottom="false"] {
   --rect-fade-bottom: var(--rect-canvas-scroll-fade);
 }

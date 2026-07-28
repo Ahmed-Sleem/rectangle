@@ -39,12 +39,32 @@
 }
 
 /*
- * A hairline once content is hidden above the fold, and only then. The bar is
- * already opaque; this says "there is more above" without drawing a border at
- * the top of every page that fits on screen.
+ * A soft fade below the bar once content is hidden above the fold.
+ *
+ * Drawn by the toolbar rather than by the scroll container. The container's own
+ * top fade was a sticky flex child sitting before the toolbar in the column, so
+ * on scroll it pinned at zero and pushed the bar down by its own height —
+ * opening a strip of bare canvas that content showed through. Painting it here,
+ * below the bar, is the only position that can be right: above the bar there is
+ * nothing left to fade.
+ *
+ * A gradient rather than a hairline, matching the soft edges the canvas already
+ * uses elsewhere, so rows dissolve into the bar instead of meeting a hard line.
  */
-.rect-panel__body[data-scroll-top="false"] .rect-toolbar {
-  box-shadow: 0 1px 0 0 var(--rect-card-border);
+.rect-toolbar::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 100%;
+  block-size: var(--rect-canvas-scroll-fade);
+  background: linear-gradient(to bottom, var(--rect-canvas-bg), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--rect-motion-nav);
+}
+
+.rect-panel__body[data-scroll-top="false"] .rect-toolbar::after {
+  opacity: 1;
 }
 
 .rect-toolbar__row {

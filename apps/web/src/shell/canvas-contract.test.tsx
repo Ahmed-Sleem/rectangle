@@ -91,10 +91,11 @@ describe("canvas layout contract", () => {
 
     // The fade must be driven by scroll position, so a page that fits on screen
     // is never dimmed at an edge that has nothing beyond it.
-    expect(bodyBlock).toContain("--rect-fade-top: 0px");
+    // Only the bottom edge fades here now; the toolbar owns the top one, and
+    // the attribute that drives it still has to be published.
     expect(bodyBlock).toContain("--rect-fade-bottom: 0px");
-    expect(bodyBlock).toContain('[data-scroll-top="false"]');
-    expect(bodyBlock).toContain('[data-scroll-bottom="false"]');
+    // The switch lives outside the base block, so it is matched on the sheet.
+    expect(shellCss).toContain('[data-scroll-bottom="false"]');
     expect(mainPanelSource).toContain("data-scroll-top");
     expect(mainPanelSource).toContain("data-scroll-bottom");
   });
@@ -424,9 +425,21 @@ describe("focus indicators", () => {
       expect(toolbarCss).toMatch(/margin-block-start:\s*calc\(var\(--rect-space-1\) \* -1\)/u);
     });
 
-    it("adds a hairline only when something is hidden above the fold", () => {
-      expect(toolbarCss).toMatch(/data-scroll-top="false"\]\s*\.rect-toolbar/u);
-      expect(toolbarCss).toMatch(/box-shadow:\s*0 1px 0 0/u);
+    it("fades content into the bar only when something is hidden above the fold", () => {
+      expect(toolbarCss).toMatch(/data-scroll-top="false"\]\s*\.rect-toolbar::after/u);
+      expect(toolbarCss).toMatch(/\.rect-toolbar::after\s*\{[^}]*opacity:\s*0/u);
+    });
+
+    it("draws no fade above the toolbar, which is what opened the gap", () => {
+      /*
+       * The scroll container's top fade was a sticky flex child placed before
+       * the toolbar in the column, so on scroll it pinned at zero and pushed
+       * the bar down by its own height — opening a strip of bare canvas that
+       * content showed through. Only the bottom fade remains, and the bar
+       * paints its own beneath itself.
+       */
+      expect(shellCss).not.toMatch(/\.rect-panel__body::before/u);
+      expect(shellCss).toMatch(/\.rect-panel__body::after/u);
     });
 
     it("defines every canvas token it uses", () => {
@@ -445,22 +458,21 @@ describe("focus indicators", () => {
        * its job. The scroll affordance is drawn by overlay layers instead.
        */
       expect(shellCss).not.toMatch(/mask-image/u);
-      expect(shellCss).toMatch(/\.rect-panel__body::before/u);
       expect(shellCss).toMatch(/\.rect-panel__body::after/u);
     });
 
     it("keeps the fades beneath the toolbar", () => {
       // Both are sticky; whichever has the higher z-index wins, and it must be
       // the toolbar or the fade paints over the controls.
-      const fadeLayer = shellCss.slice(shellCss.indexOf(".rect-panel__body::before"));
+      const fadeLayer = shellCss.slice(shellCss.indexOf(".rect-panel__body::after"));
       expect(fadeLayer).toMatch(/z-index:\s*1/u);
       expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*z-index:\s*2/u);
     });
 
     it("still fades only while content is hidden beyond an edge", () => {
       // A page that fits entirely must never be dimmed.
-      expect(shellCss).toMatch(/--rect-fade-top:\s*0px/u);
-      expect(shellCss).toMatch(/data-scroll-top="false"/u);
+      expect(shellCss).toMatch(/--rect-fade-bottom:\s*0px/u);
+      expect(toolbarCss).toMatch(/data-scroll-top="false"/u);
     });
   });
 });

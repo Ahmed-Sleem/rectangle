@@ -3,6 +3,9 @@
 .rect-activity-page {
   display: grid;
   gap: var(--rect-space-5);
+  /* Header, toolbar, summary row and the page's own gaps, so the scrolling
+     trail can size itself against what is left of the viewport. */
+  --rect-activity-reserved: 22rem;
 }
 
 .rect-activity-day {
@@ -26,8 +29,8 @@
   margin: 0;
   padding-block: var(--rect-space-2);
   position: sticky;
-  /* Clears the toolbar rather than sliding underneath it. */
-  inset-block-start: var(--rect-control-standard);
+  /* Sticks to the top of the scrolling trail, which is its own container now. */
+  inset-block-start: 0;
   z-index: 1;
 }
 
@@ -150,7 +153,12 @@
 
 @media (min-width: 1080px) {
   .rect-activity-layout {
-    grid-template-columns: minmax(0, 1fr) var(--rect-side-panel-width, 280px);
+    /*
+     * The trail is a list of short lines — actor, action, time — so it does not
+     * earn the whole canvas. Capping it leaves the breakdowns real room instead
+     * of squeezing them into a margin.
+     */
+    grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
     align-items: start;
   }
 }
@@ -159,14 +167,21 @@
   display: grid;
   gap: var(--rect-space-5);
   min-inline-size: 0;
+  /*
+   * The trail scrolls within itself rather than driving the whole page, so the
+   * breakdowns beside it stay in view while a long history is read. Capped
+   * against the viewport so it never grows taller than the screen it is in.
+   */
+  max-block-size: calc(100vh - var(--rect-activity-reserved));
+  overflow-y: auto;
+  /* The day headings stick inside this container now, not the page. */
+  padding-inline-end: var(--rect-space-1);
 }
 
 .rect-activity-aside {
   display: grid;
   gap: var(--rect-grid-gap);
-  /* Follows the trail rather than scrolling away from it. */
-  position: sticky;
-  inset-block-start: calc(var(--rect-control-standard) * 2);
+  align-content: start;
 }
 
 /* ── Breakdown rows. Each one filters the list beside it. ── */
