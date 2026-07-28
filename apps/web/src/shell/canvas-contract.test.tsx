@@ -468,9 +468,26 @@ describe("focus indicators", () => {
       expect(bodyBlock).not.toMatch(/scroll-padding-top:/u);
     });
 
-    it("fades content into the bar only when something is hidden above the fold", () => {
+    it("marks the edge under the bar only when something is hidden above the fold", () => {
       expect(toolbarCss).toMatch(/data-scroll-top="false"\]\s*\.rect-toolbar::after/u);
       expect(toolbarCss).toMatch(/\.rect-toolbar::after\s*\{[^}]*opacity:\s*0/u);
+    });
+
+    it("separates itself from the page with the same divider every other surface uses", () => {
+      /*
+       * This was a 20px gradient and it read as a glow hanging off the bar.
+       * Nothing else in the product dissolves one surface into another — the
+       * page header directly above this bar uses a single divider line, and so
+       * does every stacked surface in the kit. Matching it is what makes the
+       * toolbar look attached rather than laid on top.
+       */
+      const after = toolbarCss.slice(
+        toolbarCss.indexOf(".rect-toolbar::after {"),
+        toolbarCss.indexOf('.rect-panel__body[data-scroll-top="false"]'),
+      );
+      expect(after).not.toContain("linear-gradient");
+      expect(after).toMatch(/block-size:\s*1px/u);
+      expect(after).toMatch(/background:\s*var\(--rect-surface-divider\)/u);
     });
 
     it("draws no fade above the toolbar, which is what opened the gap", () => {
