@@ -12,27 +12,9 @@
  * simulation — so constraints, triggers and generated columns all behave as
  * they do in production. It is a dev dependency and never ships.
  */
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-
-const MIGRATIONS_DIR = fileURLToPath(new URL("../migrations", import.meta.url));
-
-function migrationFiles(): string[] {
-  return readdirSync(MIGRATIONS_DIR).filter((file) => file.endsWith(".sql")).sort();
-}
-
-/**
- * `pgcrypto` is unavailable in PGlite, but the only thing the schema uses it
- * for — `gen_random_uuid` — is built into PostgreSQL 13 and later, which is
- * what PGlite is. Dropping the extension statement changes nothing the
- * migrations depend on.
- */
-function forPglite(sql: string): string {
-  return sql.replace(/create extension[^;]*;/giu, "");
-}
+import { migrateUpTo } from "./support/migrations.js";
 
 /** The shapes production actually contains, seeded before the 012 rewrite. */
 const LEGACY_FIXTURE = `
@@ -55,13 +37,6 @@ const LEGACY_FIXTURE = `
     ('22222222-2222-4222-8222-222222222222','bbbbbbbb-1111-4111-8111-111111111111','tenant_admin');
 `;
 
-async function migrateUpTo(db: PGlite, stopBefore?: string): Promise<void> {
-  for (const file of migrationFiles()) {
-    if (stopBefore && file >= stopBefore) return;
-    await db.exec(forPglite(readFileSync(join(MIGRATIONS_DIR, file), "utf8")));
-  }
-}
-
 describe("migrations execute against PostgreSQL", () => {
   it("applies every migration to an empty database", async () => {
     const db = new PGlite();
@@ -73,27 +48,28 @@ describe("migrations execute against PostgreSQL", () => {
       await db.close();
     }
   }, 60_000);
-
-  it("applies every migration on top of legacy data", async () => {
-    const db = new PGlite();
-    try {
-      await migrateUpTo(db, "012_company_standing.sql");
-      await db.exec(LEGACY_FIXTURE);
-      await expect(migrateUpTo(db)).resolves.toBeUndefined();
-    } finally {
-      await db.close();
-    }
-  }, 60_000);
 });
 
 describe("company standing migration", () => {
   let db: PGlite;
 
+  /*
+   * One database for the whole suite, and it also stands in for what used to be
+   * a separate "applies on top of legacy data" case.
+   *
+   * That case built an identical database and asserted only that migrating did
+   * not throw — which every assertion below already depends on, since none of
+   * them could run if it had. Two instances to prove one thing was the
+   * difference between this file fitting in memory and not: each PGlite is a
+   * whole PostgreSQL compiled to WASM, and the pages are not returned to the
+   * operating system when one is closed, so the cost is cumulative across a
+   * run rather than momentary.
+   */
   beforeAll(async () => {
     db = new PGlite();
     await migrateUpTo(db, "012_company_standing.sql");
     await db.exec(LEGACY_FIXTURE);
-    await migrateUpTo(db);
+    await expect(migrateUpTo(db)).resolves.toBeUndefined();
   }, 60_000);
 
   async function count(sql: string): Promise<number> {
@@ -102,10 +78,13 @@ describe("company standing migration", () => {
   }
 
   /*
-   * Each PGlite instance holds a whole PostgreSQL compiled to WASM in memory.
-   * Two suites left theirs open for the length of the run and a third tipped
-   * the worker over, which surfaced as tests silently not running rather than
-   * as a failure — the worst way for a check to break.
+   * Freed as soon as this suite is done rather than at the end of the file.
+   *
+   * Each instance is a whole PostgreSQL compiled to WASM, and vitest keeps a
+   * describe block's fixtures alive until its own hooks run — so three suites
+   * in one file meant three databases resident at once and a worker that died
+   * part way through. It surfaced as tests silently not running beside a
+   * green-looking summary, which is the worst way for a check to break.
    */
   afterAll(async () => {
     await db.close();
@@ -190,127 +169,5 @@ describe("company standing migration", () => {
       db.exec(`insert into tenant_user_roles (tenant_id, user_id, role) values
                ('11111111-1111-4111-8111-111111111111','aaaaaaaa-1111-4111-8111-111111111111','admin')`),
     ).rejects.toThrow(/duplicate key|unique/iu);
-  });
-});
-
-/**
- * The atomic permission split, run against real PostgreSQL on data shaped the
- * way production actually is.
- *
- * Asserted here rather than in a unit test because the mapping is a single SQL
- * statement doing set arithmetic on arrays, and the failure mode that matters —
- * somebody quietly losing access on upgrade morning — is invisible to anything
- * that does not execute it.
- */
-describe("atomic permission migration", () => {
-  let db: PGlite;
-
-  const TENANT = "33333333-3333-4333-8333-333333333333";
-
-  async function permissionsOf(key: string): Promise<string[]> {
-    const result = await db.query<{ permissions: string[] }>(
-      "select permissions from user_types where tenant_id = $1 and key = $2",
-      [TENANT, key],
-    );
-    return result.rows[0]?.permissions ?? [];
-  }
-
-  beforeAll(async () => {
-    db = new PGlite();
-    await migrateUpTo(db, "014_atomic_permissions.sql");
-    // User types carrying the coarse keys, exactly as a company upgrading from
-    // the previous release would have them.
-    await db.exec(`
-      insert into tenants (id, name, slug) values ('${TENANT}','Split','split');
-      insert into user_types (tenant_id, name, key, description, permissions, system_type) values
-        ('${TENANT}','Full access','full_access','',
-          array['projects.read','projects.manage','users.read','users.manage',
-                'user_types.read','user_types.manage','settings.manage',
-                'activity.read_team','activity.read_all'], true),
-        ('${TENANT}','Project Manager','project_manager','',
-          array['projects.read','projects.manage','users.read','user_types.read'], true),
-        ('${TENANT}','Viewer','viewer','', array['projects.read'], true),
-        ('${TENANT}','Site clerk','site_clerk','', array['projects.read'], false),
-        ('${TENANT}','Auditor','auditor','', array['activity.read_all'], false);
-    `);
-    await migrateUpTo(db);
-  }, 60_000);
-
-  afterAll(async () => {
-    await db.close();
-  });
-
-  it("leaves no retired key anywhere", async () => {
-    const result = await db.query<{ c: number }>(
-      `select count(*)::int as c from user_types
-        where permissions && array['projects.manage','users.manage','user_types.manage']`,
-    );
-    expect(result.rows[0]?.c).toBe(0);
-  });
-
-  it("keeps a full-access type holding everything it held", async () => {
-    const permissions = await permissionsOf("full_access");
-    for (const expected of [
-      "projects.create", "projects.edit", "projects.archive", "projects.delete",
-      "projects.manage_all", "project_team.manage", "tasks.delete", "risks.delete",
-      "users.create", "users.edit", "users.disable",
-      "user_types.create", "user_types.edit", "user_types.delete",
-      "settings.manage", "activity.read_all",
-    ]) {
-      expect(permissions).toContain(expected);
-    }
-  });
-
-  it("takes the power to destroy away from the seeded project office", async () => {
-    // The owner's rule: deleting is for the administrator of that project, not
-    // for whoever runs the project office across the company.
-    const permissions = await permissionsOf("project_manager");
-    expect(permissions).not.toContain("projects.delete");
-    // It keeps everything else it could do, so this is a narrowing of one power
-    // rather than a demotion.
-    expect(permissions).toContain("projects.manage_all");
-    expect(permissions).toContain("projects.edit");
-    expect(permissions).toContain("projects.archive");
-  });
-
-  it("gives a read-only type the reads that used to be implied, and nothing else", async () => {
-    const permissions = await permissionsOf("viewer");
-    expect([...permissions].sort()).toEqual(
-      ["project_team.read", "projects.read", "risks.read", "tasks.read"],
-    );
-  });
-
-  it("renames the two types whose names collided with other vocabulary", async () => {
-    const result = await db.query<{ key: string; name: string }>(
-      "select key, name from user_types where tenant_id = $1 and system_type order by key",
-      [TENANT],
-    );
-    const names = Object.fromEntries(result.rows.map((row) => [row.key, row.name]));
-    expect(names["project_manager"]).toBe("Project office");
-    expect(names["viewer"]).toBe("Read only");
-    // Keys are what assignments point at, so they must survive the rename.
-    expect(names["full_access"]).toBe("Full access");
-  });
-
-  it("treats a company's own types the same as the seeded ones", async () => {
-    // A company-defined read-only type must not be left behind by a migration
-    // that only knew about the seeded names.
-    expect([...(await permissionsOf("site_clerk"))].sort()).toEqual(
-      ["project_team.read", "projects.read", "risks.read", "tasks.read"],
-    );
-  });
-
-  it("leaves a type holding none of the retired keys untouched", async () => {
-    expect(await permissionsOf("auditor")).toEqual(["activity.read_all"]);
-  });
-
-  it("is safe to run twice", async () => {
-    // Migrations are re-run against databases in unknown states often enough
-    // that "applied once" is not a safe assumption to build a mapping on.
-    const before = await permissionsOf("full_access");
-    await db.exec(
-      forPglite(readFileSync(join(MIGRATIONS_DIR, "014_atomic_permissions.sql"), "utf8")),
-    );
-    expect(await permissionsOf("full_access")).toEqual(before);
   });
 });
