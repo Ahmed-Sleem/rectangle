@@ -89,6 +89,55 @@ export const updateUserSchema = z.object({
     );
   });
 
+/**
+ * A pair this company declares one person may never hold at once.
+ *
+ * `reason` is required and has a floor, because the only thing a refused
+ * assignment can offer the person refused is the sentence explaining it. The
+ * bounds match the database constraint exactly — a mismatch would turn a
+ * validation message into a 500 from the check constraint underneath.
+ *
+ * `losing` is which half of the pair existing violators give up. One choice for
+ * the whole rule rather than one per person: per-person choice multiplies the
+ * decision by however many people are affected and produces a policy applied
+ * inconsistently, which is the thing this control exists to prevent.
+ */
+export const createSeparationRuleSchema = z
+  .object({
+    a: permissionSchema,
+    b: permissionSchema,
+    reason: z.string().trim().min(10).max(500),
+    losing: permissionSchema,
+  })
+  .refine((value) => value.a !== value.b, {
+    message: "A rule must name two different permissions.",
+    path: ["b"],
+  })
+  .refine((value) => value.losing === value.a || value.losing === value.b, {
+    message: "The permission to give up must be one of the two in the rule.",
+    path: ["losing"],
+  });
+
+export type CreateSeparationRuleInput = z.infer<typeof createSeparationRuleSchema>;
+
+export function parseCreateSeparationRule(input: unknown): CreateSeparationRuleInput {
+  return parseWithDomainError(createSeparationRuleSchema, input, "Separation rule is invalid.");
+}
+
+/** The same pair without a decision, for asking what a rule would cost. */
+export const previewSeparationRuleSchema = z
+  .object({ a: permissionSchema, b: permissionSchema })
+  .refine((value) => value.a !== value.b, {
+    message: "A rule must name two different permissions.",
+    path: ["b"],
+  });
+
+export type PreviewSeparationRuleInput = z.infer<typeof previewSeparationRuleSchema>;
+
+export function parsePreviewSeparationRule(input: unknown): PreviewSeparationRuleInput {
+  return parseWithDomainError(previewSeparationRuleSchema, input, "Separation rule is invalid.");
+}
+
 export type CreateUserTypeInput = z.infer<typeof createUserTypeSchema>;
 export type UpdateUserTypeInput = z.infer<typeof updateUserTypeSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;

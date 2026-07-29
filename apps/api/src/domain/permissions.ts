@@ -292,10 +292,27 @@ export function withImpliedPermissions(permissions: readonly Permission[]): Perm
  * everybody disables. A company opts in to the pairs that matter to it.
  */
 export interface SeparationRule {
+  /** Absent on the pure value used by the matcher; present on a stored rule. */
+  id?: string;
   a: Permission;
   b: Permission;
   /** Shown when an assignment is refused, so the refusal is arguable. */
   reason: string;
+}
+
+/**
+ * A pair is unordered, so it is stored in one fixed order.
+ *
+ * Without this the same rule could be entered twice, once each way round, and
+ * the second would be enforced as if it were a different control. The database
+ * has a constraint saying the same thing; ordering here is what turns a caller
+ * getting it backwards into a saved rule rather than a failed insert.
+ */
+export function orderSeparationPair(
+  a: Permission,
+  b: Permission,
+): { a: Permission; b: Permission } {
+  return a < b ? { a, b } : { a: b, b: a };
 }
 
 /**

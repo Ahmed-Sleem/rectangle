@@ -27,6 +27,27 @@ export interface AdminUserRecord {
   projectCount: number;
 }
 
+/** A pair this company has declared one person may never hold at once. */
+export interface SeparationRuleRecord {
+  id: string;
+  a: string;
+  b: string;
+  reason: string;
+}
+
+/** Somebody who already holds both halves of a pair being considered. */
+export interface SeparationViolatorRecord {
+  userId: string;
+  displayName: string;
+  email: string;
+  typesGrantingA: Array<{ id: string; name: string }>;
+  typesGrantingB: Array<{ id: string; name: string }>;
+  totalTypes: number;
+  /** Choosing this side would leave them with no user type at all. */
+  losesEverythingIfA: boolean;
+  losesEverythingIfB: boolean;
+}
+
 export const adminApi = {
   permissions: () => apiRequest<{ permissions: PermissionOption[] }>("/v1/admin/permissions"),
   userTypes: () => apiRequest<{ userTypes: UserTypeRecord[] }>("/v1/admin/user-types"),
@@ -39,4 +60,20 @@ export const adminApi = {
     apiRequest<{ user: AdminUserRecord }>(`/v1/admin/users/${userId}`, { method: "PATCH", body: JSON.stringify(payload) }),
   updateUserType: (userTypeId: string, payload: { name?: string; description?: string; permissions?: string[] }) =>
     apiRequest<{ userType: UserTypeRecord }>(`/v1/admin/user-types/${userTypeId}`, { method: "PATCH", body: JSON.stringify(payload) }),
+
+  separationRules: () =>
+    apiRequest<{ rules: SeparationRuleRecord[] }>("/v1/admin/separation-rules"),
+  /* A POST that changes nothing: it asks what a proposed pair would cost. */
+  previewSeparationRule: (payload: { a: string; b: string }) =>
+    apiRequest<{ violators: SeparationViolatorRecord[] }>("/v1/admin/separation-rules/preview", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  createSeparationRule: (payload: { a: string; b: string; reason: string; losing: string }) =>
+    apiRequest<{ rule: SeparationRuleRecord; strippedFrom: number }>("/v1/admin/separation-rules", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  deleteSeparationRule: (ruleId: string) =>
+    apiRequest<void>(`/v1/admin/separation-rules/${ruleId}`, { method: "DELETE" }),
 };

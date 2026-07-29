@@ -49,7 +49,20 @@ export interface ServerDependencies {
   taskService: Pick<TaskService, "createTask" | "listTasks" | "getTask" | "updateTask" | "deleteTask" | "listComments" | "addComment">;
   projectTeamService: ProjectTeamService;
   authService: AuthService;
-  adminService: Pick<AdminService, "listPermissions" | "listUserTypes" | "createUserType" | "updateUserType" | "listUsers" | "createUser" | "updateUser">;
+  adminService: Pick<
+    AdminService,
+    | "listPermissions"
+    | "listUserTypes"
+    | "createUserType"
+    | "updateUserType"
+    | "listUsers"
+    | "createUser"
+    | "updateUser"
+    | "listSeparationRules"
+    | "previewSeparationRule"
+    | "createSeparationRule"
+    | "deleteSeparationRule"
+  >;
   setupService: Pick<SetupService, "getStatus" | "createFirstAdmin">;
   emailSettingsService: Pick<EmailSettingsService, "getSettings" | "saveSettings" | "sendTestEmail">;
   passkeyService: Pick<PasskeyService, "list" | "beginRegistration" | "verifyRegistration" | "beginLogin" | "verifyLogin">;

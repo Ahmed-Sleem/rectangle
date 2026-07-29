@@ -1,6 +1,6 @@
 /** Tests tenant administration service permissions, user types, and user creation. */
 import { describe, expect, it } from "vitest";
-import type { SeparationRule } from "../src/domain/permissions.js";
+import type { Permission, SeparationRule } from "../src/domain/permissions.js";
 import { AdminService, type AdminRepository, type AdminUserRecord, type UserTypeRecord } from "../src/application/admin-service.js";
 import type { UserPrincipal } from "../src/domain/auth.js";
 import type { AuditEventInput, AuditRepository } from "../src/application/project-service.js";
@@ -28,6 +28,61 @@ class MemoryAdminRepository implements AdminRepository {
   otherAdmins = 1;
   separationRules: SeparationRule[] = [];
   async listSeparationRules(): Promise<SeparationRule[]> { return this.separationRules; }
+
+  /*
+   * Implemented against the same state the rest of this double holds rather
+   * than returning something convenient. A stub that reported no violators
+   * would make every test about stripping pass regardless of what the service
+   * did, which is worse than having no test.
+   */
+  async findSeparationViolators(_tenantId: string, a: string, b: string) {
+    const carrying = (user: AdminUserRecord, permission: string) =>
+      user.userTypes
+        .map((assigned) => this.userTypes.find((type) => type.id === assigned.id))
+        .filter((type): type is UserTypeRecord =>
+          Boolean(type?.permissions.includes(permission as Permission)))
+        .map((type) => ({ id: type.id, name: type.name }));
+
+    return this.users
+      .filter((user) => user.standing !== "owner" && user.standing !== "admin")
+      .map((user) => ({
+        userId: user.id,
+        displayName: user.displayName,
+        email: user.email,
+        typesGrantingA: carrying(user, a),
+        typesGrantingB: carrying(user, b),
+        totalTypes: user.userTypes.length,
+      }))
+      .filter((violator) => violator.typesGrantingA.length > 0 && violator.typesGrantingB.length > 0);
+  }
+
+  async createSeparationRule(
+    _tenantId: string,
+    input: { a: string; b: string; reason: string },
+    strip: Array<{ userId: string; userTypeIds: string[] }>,
+  ): Promise<SeparationRule> {
+    const rule: SeparationRule = {
+      id: crypto.randomUUID(),
+      a: input.a as Permission,
+      b: input.b as Permission,
+      reason: input.reason,
+    };
+    this.separationRules.push(rule);
+    // The strip is applied here too, so a test can observe that the service
+    // asked for the right people to lose the right types.
+    for (const person of strip) {
+      const user = this.users.find((candidate) => candidate.id === person.userId);
+      if (!user) continue;
+      user.userTypes = user.userTypes.filter((type) => !person.userTypeIds.includes(type.id));
+    }
+    return rule;
+  }
+
+  async deleteSeparationRule(_tenantId: string, ruleId: string): Promise<boolean> {
+    const before = this.separationRules.length;
+    this.separationRules = this.separationRules.filter((rule) => rule.id !== ruleId);
+    return this.separationRules.length < before;
+  }
 
   async findStanding(_tenantId: string, userId: string): Promise<string | null> {
     return this.users.find((user) => user.id === userId)?.standing ?? null;

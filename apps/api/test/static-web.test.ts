@@ -66,6 +66,10 @@ const inactiveAdminService = {
   updateUserType(): never { throw new Error("not used"); },
   listUsers(): never { throw new Error("not used"); },
   createUser(): never { throw new Error("not used"); },
+  listSeparationRules(): never { throw new Error("not used"); },
+  previewSeparationRule(): never { throw new Error("not used"); },
+  createSeparationRule(): never { throw new Error("not used"); },
+  deleteSeparationRule(): never { throw new Error("not used"); },
   updateUser(): never { throw new Error("not used"); },
 };
 

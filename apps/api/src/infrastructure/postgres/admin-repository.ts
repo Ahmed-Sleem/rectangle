@@ -155,18 +155,162 @@ export class PostgresAdminRepository implements AdminRepository {
   }
 
   async listSeparationRules(tenantId: string): Promise<SeparationRule[]> {
-    const result = await this.pool.query<{ permission_a: string; permission_b: string; reason: string }>(
-      `select permission_a, permission_b, reason
+    const result = await this.pool.query<{ id: string; permission_a: string; permission_b: string; reason: string }>(
+      // `id` is selected because the screen that lists these also removes them,
+      // and a rule identified only by its pair cannot be addressed once the
+      // same pair is legitimately re-added with a different reason.
+      `select id, permission_a, permission_b, reason
          from tenant_separation_rules
         where tenant_id = $1
         order by permission_a, permission_b`,
       [tenantId],
     );
     return result.rows.map((row) => ({
+      id: row.id,
       a: row.permission_a as Permission,
       b: row.permission_b as Permission,
       reason: row.reason,
     }));
+  }
+
+  /**
+   * People who currently hold both halves of a pair, and the types that carry
+   * each half.
+   *
+   * Owners and administrators are excluded here rather than filtered later:
+   * they hold every permission by standing, so every rule would name every
+   * administrator and the list would be noise that hides the real violations.
+   *
+   * The two lateral aggregates are deliberately separate. Joining the same
+   * assignment table twice in one query multiplies the rows against each other
+   * and reports a person as holding a type several times.
+   */
+  async findSeparationViolators(
+    tenantId: string,
+    a: string,
+    b: string,
+  ): Promise<
+    Array<{
+      userId: string;
+      displayName: string;
+      email: string;
+      typesGrantingA: Array<{ id: string; name: string }>;
+      typesGrantingB: Array<{ id: string; name: string }>;
+      totalTypes: number;
+    }>
+  > {
+    const result = await this.pool.query<{
+      user_id: string;
+      display_name: string;
+      email: string;
+      types_a: Array<{ id: string; name: string }>;
+      types_b: Array<{ id: string; name: string }>;
+      total_types: number;
+    }>(
+      `select users.id as user_id,
+              users.display_name,
+              users.email,
+              carries_a.types as types_a,
+              carries_b.types as types_b,
+              held.total_types
+         from users
+         left join tenant_user_roles standing
+           on standing.tenant_id = users.tenant_id and standing.user_id = users.id
+         cross join lateral (
+           select coalesce(json_agg(json_build_object('id', t.id, 'name', t.name)), '[]') as types
+             from user_type_assignments asg
+             join user_types t on t.id = asg.user_type_id
+            where asg.tenant_id = users.tenant_id and asg.user_id = users.id
+              and $2 = any(t.permissions)
+         ) as carries_a
+         cross join lateral (
+           select coalesce(json_agg(json_build_object('id', t.id, 'name', t.name)), '[]') as types
+             from user_type_assignments asg
+             join user_types t on t.id = asg.user_type_id
+            where asg.tenant_id = users.tenant_id and asg.user_id = users.id
+              and $3 = any(t.permissions)
+         ) as carries_b
+         cross join lateral (
+           select count(*)::int as total_types
+             from user_type_assignments asg
+            where asg.tenant_id = users.tenant_id and asg.user_id = users.id
+         ) as held
+        where users.tenant_id = $1
+          and coalesce(standing.role, 'member') not in ('owner', 'admin')
+          and json_array_length(carries_a.types) > 0
+          and json_array_length(carries_b.types) > 0
+        order by users.display_name`,
+      [tenantId, a, b],
+    );
+    return result.rows.map((row) => ({
+      userId: row.user_id,
+      displayName: row.display_name,
+      email: row.email,
+      typesGrantingA: row.types_a,
+      typesGrantingB: row.types_b,
+      totalTypes: row.total_types,
+    }));
+  }
+
+  /**
+   * Saves a rule and removes the losing types from the people who break it, as
+   * one transaction.
+   *
+   * One transaction because the two halves are the same decision. A rule saved
+   * without the strip is a control that reads as enforced and is not; a strip
+   * without the rule is access taken away for no recorded reason.
+   *
+   * Type *assignments* are removed from those people. The type definitions are
+   * never edited — that would change access for everybody holding them,
+   * including people who were never in violation, and it is a different act
+   * with its own screen.
+   */
+  async createSeparationRule(
+    tenantId: string,
+    input: { a: string; b: string; reason: string },
+    strip: Array<{ userId: string; userTypeIds: string[] }>,
+  ): Promise<SeparationRule> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+
+      const inserted = await client.query<{ id: string }>(
+        `insert into tenant_separation_rules (tenant_id, permission_a, permission_b, reason)
+         values ($1, $2, $3, $4)
+         returning id`,
+        [tenantId, input.a, input.b, input.reason],
+      );
+
+      for (const person of strip) {
+        if (person.userTypeIds.length === 0) continue;
+        await client.query(
+          `delete from user_type_assignments
+            where tenant_id = $1 and user_id = $2 and user_type_id = any($3::uuid[])`,
+          [tenantId, person.userId, person.userTypeIds],
+        );
+      }
+
+      await client.query("commit");
+      return {
+        id: String(inserted.rows[0]?.id),
+        a: input.a as Permission,
+        b: input.b as Permission,
+        reason: input.reason,
+      };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async deleteSeparationRule(tenantId: string, ruleId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      "delete from tenant_separation_rules where tenant_id = $1 and id = $2",
+      [tenantId, ruleId],
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async findStanding(tenantId: string, userId: string): Promise<string | null> {

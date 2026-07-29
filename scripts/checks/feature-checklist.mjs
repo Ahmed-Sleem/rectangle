@@ -52,6 +52,17 @@ const PAGES = [
     selfService: true,
   },
   {
+    /*
+     * Its own entry rather than being covered by the Settings page that hosts
+     * it. It reads and writes company policy through its own endpoints and has
+     * its own empty, loading and error states — a section large enough to have
+     * those is large enough for the contract to be measured against it.
+     */
+    id: "settings.separation",
+    file: "features/settings/SeparationRules.tsx",
+    tests: ["features/settings/SeparationRules.test.tsx"],
+  },
+  {
     id: "activity",
     file: "features/activity/ActivityPage.tsx",
     tests: ["features/activity/ActivityPage.test.tsx"],

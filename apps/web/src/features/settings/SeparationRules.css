@@ -1,0 +1,148 @@
+/* Separation-of-duties rules. All values from tokens. */
+
+.rect-separation {
+  display: grid;
+  gap: var(--rect-space-4);
+}
+
+.rect-separation__list {
+  display: grid;
+  gap: var(--rect-space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * Each rule is a bounded surface, the same treatment the permission groups and
+ * person cards use. A run of text rows would not read as a list of separate
+ * declarations, which is what these are.
+ */
+.rect-separation__rule {
+  align-items: center;
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  display: grid;
+  gap: var(--rect-space-2) var(--rect-space-3);
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: var(--rect-space-3);
+}
+
+.rect-separation__pair {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+  min-inline-size: 0;
+}
+
+/* Reads as a sentence: this permission and that one, never together. */
+.rect-separation__conjunction {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+/*
+ * The reason spans both columns. It is the sentence somebody refused an
+ * assignment will be shown, so it belongs with the rule rather than tucked
+ * beside it where a long one would squeeze the button.
+ */
+.rect-separation__reason {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.rect-separation__form {
+  display: grid;
+  gap: var(--rect-space-3);
+}
+
+.rect-separation__pickers {
+  display: grid;
+  gap: var(--rect-space-3);
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 40rem) {
+  .rect-separation__pickers {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rect-separation__actions {
+  display: flex;
+  gap: var(--rect-space-2);
+  justify-content: flex-end;
+}
+
+/*
+ * What the rule would cost, set apart from the form that composed it. The
+ * boundary is doing work: everything above is a draft, everything inside this
+ * has been checked against real people.
+ */
+.rect-separation__outcome {
+  background: var(--rect-surface-bg-hover);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  display: grid;
+  gap: var(--rect-space-3);
+  padding: var(--rect-space-3);
+}
+
+.rect-separation__clear {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-body);
+  margin: 0;
+}
+
+.rect-separation__warning {
+  align-items: center;
+  color: var(--rect-text-primary);
+  display: flex;
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  gap: var(--rect-space-2);
+  margin: 0;
+}
+
+.rect-separation__violators {
+  display: grid;
+  gap: var(--rect-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-separation__violator {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+  justify-content: space-between;
+  padding-block: var(--rect-space-1);
+}
+
+.rect-separation__person {
+  font-size: var(--rect-text-body);
+}
+
+/* What they lose, in the colour the product uses for a destructive outcome. */
+.rect-separation__loses {
+  color: var(--rect-color-danger);
+  font-size: var(--rect-text-label);
+}
+
+.rect-separation__pending {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+.rect-separation__error {
+  color: var(--rect-color-danger);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  margin: 0;
+}

@@ -4,7 +4,20 @@ import type { AdminService } from "../application/admin-service.js";
 
 export async function registerAdminRoutes(
   app: FastifyInstance,
-  adminService: Pick<AdminService, "listPermissions" | "listUserTypes" | "createUserType" | "updateUserType" | "listUsers" | "createUser" | "updateUser">,
+  adminService: Pick<
+    AdminService,
+    | "listPermissions"
+    | "listUserTypes"
+    | "createUserType"
+    | "updateUserType"
+    | "listUsers"
+    | "createUser"
+    | "updateUser"
+    | "listSeparationRules"
+    | "previewSeparationRule"
+    | "createSeparationRule"
+    | "deleteSeparationRule"
+  >,
 ): Promise<void> {
   app.get("/v1/admin/permissions", async (request) => adminService.listPermissions(request.principal));
 
@@ -29,4 +42,27 @@ export async function registerAdminRoutes(
   app.patch<{ Params: { userId: string } }>("/v1/admin/users/:userId", async (request) =>
     adminService.updateUser(request.principal, request.params.userId, request.body),
   );
+
+  app.get("/v1/admin/separation-rules", async (request) =>
+    adminService.listSeparationRules(request.principal),
+  );
+
+  /*
+   * A POST, though it changes nothing. It carries a permission pair in the body
+   * rather than the query string, and asking "what would this cost" is a
+   * question about a proposed rule rather than a fetch of an addressable thing.
+   */
+  app.post("/v1/admin/separation-rules/preview", async (request) =>
+    adminService.previewSeparationRule(request.principal, request.body),
+  );
+
+  app.post("/v1/admin/separation-rules", async (request, reply) => {
+    const result = await adminService.createSeparationRule(request.principal, request.body);
+    return reply.status(201).send(result);
+  });
+
+  app.delete<{ Params: { ruleId: string } }>("/v1/admin/separation-rules/:ruleId", async (request, reply) => {
+    await adminService.deleteSeparationRule(request.principal, request.params.ruleId);
+    return reply.status(204).send();
+  });
 }

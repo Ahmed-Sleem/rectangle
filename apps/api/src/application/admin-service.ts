@@ -1,7 +1,7 @@
 /** Tenant admin service manages user types and users through real permissions. */
-import { parseCreateUser, parseCreateUserType, parseUpdateUser, parseUpdateUserType, type CreateUserInput, type CreateUserTypeInput, type UpdateUserInput, type UpdateUserTypeInput } from "../domain/admin.js";
+import { parseCreateSeparationRule, parsePreviewSeparationRule, parseCreateUser, parseCreateUserType, parseUpdateUser, parseUpdateUserType, type CreateUserInput, type CreateUserTypeInput, type UpdateUserInput, type UpdateUserTypeInput } from "../domain/admin.js";
 import { requirePermission, standingOf, type CompanyStanding, type UserPrincipal } from "../domain/auth.js";
-import { allPermissions, findSeparationConflict, permissionDescriptions, type Permission, type SeparationRule } from "../domain/permissions.js";
+import { allPermissions, findSeparationConflict, orderSeparationPair, permissionDescriptions, type Permission, type SeparationRule } from "../domain/permissions.js";
 import { DomainError } from "../domain/errors.js";
 import type { PasswordHasher } from "../infrastructure/password.js";
 import type { AuditRepository } from "./project-service.js";
@@ -56,6 +56,17 @@ export interface SessionRevoker {
   revokeAllSessionsForUser(tenantId: string, userId: string): Promise<void>;
 }
 
+/** Somebody holding both halves of a proposed rule, and what carries each. */
+export interface SeparationViolator {
+  userId: string;
+  displayName: string;
+  email: string;
+  typesGrantingA: Array<{ id: string; name: string }>;
+  typesGrantingB: Array<{ id: string; name: string }>;
+  /** How many types they hold in total, so a strip that empties them is visible. */
+  totalTypes: number;
+}
+
 export interface AdminRepository {
   ensureSystemUserTypes(tenantId: string): Promise<void>;
   /**
@@ -65,6 +76,19 @@ export interface AdminRepository {
   countOtherActiveAdmins(tenantId: string, excludingUserId: string): Promise<number>;
   /** Pairs this company has declared must never be held by one person. */
   listSeparationRules(tenantId: string): Promise<SeparationRule[]>;
+  /** People holding both halves of a pair, and the types carrying each half. */
+  findSeparationViolators(
+    tenantId: string,
+    a: string,
+    b: string,
+  ): Promise<SeparationViolator[]>;
+  /** Saves a rule and strips the losing types from violators, atomically. */
+  createSeparationRule(
+    tenantId: string,
+    input: { a: string; b: string; reason: string },
+    strip: Array<{ userId: string; userTypeIds: string[] }>,
+  ): Promise<SeparationRule>;
+  deleteSeparationRule(tenantId: string, ruleId: string): Promise<boolean>;
   /** Someone's current standing, so a change can be judged against it. */
   findStanding(tenantId: string, userId: string): Promise<string | null>;
   /** Active owners other than this person, guarding the last-owner case. */
@@ -186,6 +210,156 @@ export class AdminService {
    * standing, so enforcing this against them would lock a company out of its
    * own administration rather than separating anything.
    */
+  /**
+   * The rules this company has declared, for the screen that manages them.
+   *
+   * Gated on `settings.manage` rather than on the user-type permissions: this
+   * is company policy about what roles may combine, not the roles themselves,
+   * and it lives with the rest of company configuration.
+   */
+  async listSeparationRules(actor: UserPrincipal): Promise<{ rules: SeparationRule[] }> {
+    requirePermission(actor, "settings.manage");
+    return { rules: await this.repository.listSeparationRules(actor.tenantId) };
+  }
+
+  /**
+   * What declaring a pair would cost, changing nothing.
+   *
+   * Separate from creating it because the answer decides whether the rule is
+   * worth declaring at all. Applying a control that silently removes access
+   * from people the administrator has not seen is how a safety feature becomes
+   * the thing everybody is frightened of.
+   */
+  async previewSeparationRule(
+    actor: UserPrincipal,
+    rawInput: unknown,
+  ): Promise<{
+    violators: Array<SeparationViolator & { losesEverythingIfA: boolean; losesEverythingIfB: boolean }>;
+  }> {
+    requirePermission(actor, "settings.manage");
+    const input = parsePreviewSeparationRule(rawInput);
+    const { a, b } = orderSeparationPair(input.a, input.b);
+
+    const violators = await this.repository.findSeparationViolators(actor.tenantId, a, b);
+    return {
+      violators: violators.map((violator) => ({
+        ...violator,
+        /*
+         * Flagged per side so the screen can say which choice is impossible
+         * before it is made, rather than refusing after the administrator has
+         * committed to one.
+         */
+        losesEverythingIfA: violator.typesGrantingA.length >= violator.totalTypes,
+        losesEverythingIfB: violator.typesGrantingB.length >= violator.totalTypes,
+      })),
+    };
+  }
+
+  /**
+   * Declares a rule, and removes the losing half from whoever already breaks it.
+   *
+   * A rule that is declared while people already violate it is worse than no
+   * rule, because it reads as enforced and is not. So the two happen together
+   * or not at all.
+   *
+   * Removal is per person. The user types carrying the losing permission come
+   * off the people in violation and off nobody else; the type definitions are
+   * untouched. Editing a definition would change access for everybody holding
+   * it, including people who were never in violation, which is a far larger act
+   * than the one being asked for and has its own screen.
+   */
+  async createSeparationRule(
+    actor: UserPrincipal,
+    rawInput: unknown,
+  ): Promise<{ rule: SeparationRule; strippedFrom: number }> {
+    requirePermission(actor, "settings.manage");
+    const input = parseCreateSeparationRule(rawInput);
+    const { a, b } = orderSeparationPair(input.a, input.b);
+
+    /*
+     * Checked before the insert rather than left to the unique index, which
+     * would surface as a 500. The pair is already ordered, so a rule entered
+     * the other way round is caught here too.
+     */
+    const existing = await this.repository.listSeparationRules(actor.tenantId);
+    if (existing.some((rule) => rule.a === a && rule.b === b)) {
+      throw new DomainError("CONFLICT", "This pair is already separated.");
+    }
+
+    const violators = await this.repository.findSeparationViolators(actor.tenantId, a, b);
+
+    const strip = violators.map((violator) => ({
+      userId: violator.userId,
+      displayName: violator.displayName,
+      // The types carrying whichever half is being given up.
+      userTypeIds: (input.losing === a ? violator.typesGrantingA : violator.typesGrantingB).map(
+        (type) => type.id,
+      ),
+      totalTypes: violator.totalTypes,
+    }));
+
+    /*
+     * Refused rather than half-applied. Somebody stripped of their only user
+     * type can still sign in and can reach nothing — an account that looks
+     * real and is not, created as a side effect of a control being switched
+     * on. The people are named so the administrator can give them another type
+     * first, which is a thing they can actually do.
+     */
+    const emptied = strip.filter((person) => person.userTypeIds.length >= person.totalTypes);
+    if (emptied.length > 0) {
+      throw new DomainError(
+        "VALIDATION_FAILED",
+        "This would leave some people with no access at all. Give them another user type first.",
+        { wouldEmpty: emptied.map((person) => person.displayName) },
+      );
+    }
+
+    const rule = await this.repository.createSeparationRule(
+      actor.tenantId,
+      { a, b, reason: input.reason },
+      strip.map((person) => ({ userId: person.userId, userTypeIds: person.userTypeIds })),
+    );
+
+    await this.audit.append({
+      tenantId: actor.tenantId,
+      actorUserId: actor.userId,
+      action: "separation_rule.create",
+      entityType: "separation_rule",
+      entityId: String(rule.id),
+      result: "success",
+      // Who lost what is the part somebody will need to reconstruct later.
+      metadata: {
+        pair: [a, b],
+        losing: input.losing,
+        strippedFrom: strip.filter((person) => person.userTypeIds.length > 0).map((person) => person.userId),
+      },
+    });
+
+    return { rule, strippedFrom: strip.filter((person) => person.userTypeIds.length > 0).length };
+  }
+
+  /**
+   * Removes a rule.
+   *
+   * Deliberately does not restore what declaring it took away. Access that was
+   * removed for a reason should be granted back deliberately, by somebody
+   * choosing to, rather than reappearing because a policy was retired.
+   */
+  async deleteSeparationRule(actor: UserPrincipal, ruleId: string): Promise<void> {
+    requirePermission(actor, "settings.manage");
+    const removed = await this.repository.deleteSeparationRule(actor.tenantId, ruleId);
+    if (!removed) throw new DomainError("NOT_FOUND", "Separation rule was not found.");
+
+    await this.audit.append({
+      tenantId: actor.tenantId,
+      actorUserId: actor.userId,
+      action: "separation_rule.delete",
+      entityType: "separation_rule",
+      entityId: ruleId,
+      result: "success",
+    });
+  }
+
   private async assertSeparationOfDuties(
     actor: UserPrincipal,
     standing: string,

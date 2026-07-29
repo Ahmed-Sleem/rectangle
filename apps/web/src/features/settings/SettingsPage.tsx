@@ -1,6 +1,6 @@
 /** Settings manages personal preferences and company-wide configuration. */
 import { zodResolver } from "@hookform/resolvers/zod";
-import { KeyRound, Languages, Mail } from "lucide-react";
+import { KeyRound, Languages, Mail, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
@@ -21,6 +21,7 @@ import {
   SettingsStack,
 } from "@/shared/ui";
 import { useRectangleI18n, type RectangleLanguage } from "@/shared/i18n";
+import { SeparationRules } from "./SeparationRules";
 import { settingsApi } from "./settings-api";
 import { listPasskeys, registerPasskey } from "./passkey-api";
 import "./SettingsPage.css";
@@ -39,7 +40,7 @@ const emailSchema = z.object({
 
 type EmailForm = z.infer<typeof emailSchema>;
 
-type SectionId = "language" | "email" | "passkeys";
+type SectionId = "language" | "email" | "separation" | "passkeys";
 
 function canManageCompanySettings(user: ReturnType<typeof useAuth>["user"]): boolean {
   if (!user) return false;
@@ -53,7 +54,7 @@ function canManageCompanySettings(user: ReturnType<typeof useAuth>["user"]): boo
 export default function SettingsPage() {
   const { t } = useTranslation();
   const auth = useAuth();
-  const canManageEmail = canManageCompanySettings(auth.user);
+  const canManageCompany = canManageCompanySettings(auth.user);
   const { language, setLanguage } = useRectangleI18n();
   const queryClient = useQueryClient();
 
@@ -66,7 +67,7 @@ export default function SettingsPage() {
     queryKey: ["settings", "email"],
     queryFn: settingsApi.getEmail,
     retry: false,
-    enabled: canManageEmail,
+    enabled: canManageCompany,
   });
   const passkeys = useQuery({ queryKey: ["auth", "passkeys"], queryFn: listPasskeys, retry: false });
 
@@ -187,7 +188,7 @@ export default function SettingsPage() {
         />
       </SettingsSection>
 
-      {canManageEmail ? (
+      {canManageCompany ? (
         <SettingsSection
           title={t("settings.emailTitle")}
           description={t("settings.emailDescription")}
@@ -351,6 +352,24 @@ export default function SettingsPage() {
               {t("settings.emailTestSent")}
             </p>
           ) : null}
+        </SettingsSection>
+      ) : null}
+
+      {/*
+        Company policy, so it sits with the rest of company configuration
+        rather than on the Team page. Team is people and the roles they hold;
+        this is a constraint on what those roles may combine, and gating it on
+        the same permission as the other company section keeps that consistent.
+      */}
+      {canManageCompany ? (
+        <SettingsSection
+          title={t("settings.separationTitle")}
+          description={t("settings.separationDescription")}
+          icon={<ShieldCheck size={18} strokeWidth={2} />}
+          open={openSection === "separation"}
+          onToggle={() => toggleSection("separation")}
+        >
+          <SeparationRules />
         </SettingsSection>
       ) : null}
 
