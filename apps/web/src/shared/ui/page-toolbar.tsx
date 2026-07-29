@@ -71,8 +71,18 @@ export interface PageToolbarProps<T extends string> {
   onClearFilters?: () => void;
   /** The page's own controls, e.g. a create button. */
   actions?: ReactNode;
-  /** Rendered before search, for controls that pick a dataset rather than narrow one. */
-  leading?: ReactNode;
+  /**
+   * A control that picks which slice of the data the page is showing, rendered
+   * beside the view toggle at the end of the row.
+   *
+   * There used to be a `leading` slot that put such a control *before* search,
+   * used by exactly one page. One page with its own order is not a variation,
+   * it is an inconsistency: somebody who has learned where the search box lives
+   * has to relearn it. Everything that answers "how am I looking at this" now
+   * shares one end of the row and everything that answers "which records"
+   * shares the other, on every page.
+   */
+  scope?: ReactNode;
   /**
    * A register picker, rendered beside the view toggle at the end of the row.
    *
@@ -108,7 +118,7 @@ export function PageToolbar<T extends string>({
   filters = [],
   onClearFilters,
   actions,
-  leading,
+  scope,
   register,
   view,
   className,
@@ -121,8 +131,6 @@ export function PageToolbar<T extends string>({
   return (
     <div className={cn("rect-toolbar", className)}>
       <div className="rect-toolbar__row">
-        {leading}
-
         {search ? (
           /*
            * No submit button: the list filters as you type, so a button would
@@ -157,6 +165,8 @@ export function PageToolbar<T extends string>({
 
         {/* Pushes the register and view controls against the canvas edge. */}
         <span className="rect-toolbar__spacer" aria-hidden />
+
+        {scope}
 
         {register}
 

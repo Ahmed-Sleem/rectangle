@@ -202,11 +202,13 @@ export default function ActivityPage() {
     <section className="rect-activity-page" aria-label={t("activity.pageLabel")}>
       <PageToolbar<ActivityScope>
         /*
-         * Dates lead the row rather than sitting inside the filter window.
-         * Narrowing by time is the first thing anybody does with a trail, and
-         * burying it costs two clicks on every visit.
+         * Dates stay on the row rather than going into the filter window,
+         * because narrowing by time is the first thing anybody does with a
+         * trail and burying it costs two clicks on every visit. They sit with
+         * the view controls at the end of the row, where every page keeps the
+         * controls that decide how you are looking at it.
          */
-        leading={
+        scope={
           <ViewToggle<ActivityPreset>
             label={t("activity.rangeLabel")}
             value={preset}

@@ -79,17 +79,38 @@
   padding: 0;
 }
 
+/*
+ * A transparent border in the resting state rather than none at all, so the
+ * hover below changes its colour instead of adding a box — adding one shifts
+ * every row by a pixel and the whole trail twitches as the pointer moves.
+ */
 .rect-activity-item {
   align-items: center;
+  border: 1px solid transparent;
   border-radius: var(--rect-radius-md);
   display: flex;
   gap: var(--rect-space-3);
   padding: var(--rect-space-2) var(--rect-space-3);
-  transition: background var(--rect-motion-nav);
+  transition:
+    background var(--rect-motion-nav),
+    border-color var(--rect-motion-nav);
 }
 
-.rect-activity-item:hover {
+/*
+ * Background and border together, which is what every other row and card in
+ * the product does on hover. The trail had only the background tint, and
+ * against a surface this close to the canvas that is nearly nothing — the
+ * owner could not tell which row the pointer was on. Matching the existing
+ * treatment rather than inventing a louder one keeps it the same product.
+ *
+ * `focus-visible` is included because a keyboard reader needs the row it has
+ * reached to be as findable as the one a pointer is over.
+ */
+.rect-activity-item:hover,
+.rect-activity-item:focus-visible,
+.rect-activity-item:focus-within {
   background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-border-active);
 }
 
 .rect-activity-item__body {
@@ -212,8 +233,12 @@
   transition: background var(--rect-motion-nav), border-color var(--rect-motion-nav);
 }
 
-.rect-tally__row:hover {
+/* Same treatment as the trail rows, and as every other row in the product:
+   the border is what makes it visible, the tint alone is not. */
+.rect-tally__row:hover,
+.rect-tally__row:focus-visible {
   background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-border-active);
 }
 
 /* The row is a filter, so its pressed state has to be unmistakable — this is

@@ -7,6 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/shared/auth";
 import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import ActivityPage from "./ActivityPage";
+import activityCss from "./ActivityPage.css?raw";
+import projectsCss from "@/features/projects/ProjectsPage.css?raw";
 
 const viewerAuth: AuthContextValue = {
   setupRequired: false,
@@ -341,5 +343,48 @@ describe("ActivityPage", () => {
 
     const panel = await screen.findByRole("complementary", { name: "Most active" });
     expect(within(panel).getByText("Nobody has done anything in this range.")).toBeInTheDocument();
+  });
+
+
+  /*
+   * The owner could not tell which row the pointer was on. The trail tinted the
+   * background and nothing else, and against a surface this close to the canvas
+   * that is nearly invisible — while every card and row elsewhere in the
+   * product moves a border as well.
+   *
+   * Asserted against the projects page rather than against a hard-coded pair of
+   * properties, so "consistent with the rest of the interface" stays true if
+   * the rest of the interface changes, instead of quietly becoming a copy of
+   * what it looked like today.
+   */
+  describe("hover states match the rest of the product", () => {
+    function hoverBlock(css: string, selector: string): string {
+      const start = css.indexOf(selector);
+      return css.slice(start, css.indexOf("}", start));
+    }
+
+    it("moves a border and not only the background, on rows and on tallies", () => {
+      const reference = hoverBlock(projectsCss, ".rect-project-card:hover");
+      expect(reference).toContain("--rect-border-active");
+      expect(reference).toContain("--rect-surface-bg-hover");
+
+      for (const selector of [".rect-activity-item:hover", ".rect-tally__row:hover"]) {
+        const block = hoverBlock(activityCss, selector);
+        expect(block).toContain("--rect-surface-bg-hover");
+        expect(block).toContain("--rect-border-active");
+      }
+    });
+
+    it("reserves the border in the resting state so hovering never shifts a row", () => {
+      // Adding a border on hover rather than colouring one already there moves
+      // every row by a pixel, and the whole trail twitches under the pointer.
+      const resting = hoverBlock(activityCss, ".rect-activity-item {");
+      expect(resting).toMatch(/border:\s*1px solid transparent/u);
+    });
+
+    it("gives a keyboard reader the same landmark as a pointer", () => {
+      expect(activityCss).toMatch(/\.rect-activity-item:focus-visible/u);
+      expect(activityCss).toMatch(/\.rect-tally__row:focus-visible/u);
+    });
   });
 });

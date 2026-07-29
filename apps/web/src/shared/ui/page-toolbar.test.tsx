@@ -8,6 +8,8 @@ import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import { PageToolbar, type ToolbarFilter } from "./page-toolbar";
+/** The slot must be absent from the source, not merely unused by callers. */
+import toolbarSource from "./page-toolbar.tsx?raw";
 
 /** Mirrors how a page uses it: state lives outside, the toolbar reports changes. */
 function Harness({ onSearch }: { onSearch?: (value: string) => void } = {}) {
@@ -151,5 +153,65 @@ describe("PageToolbar", () => {
     await setRectangleLanguage("ar");
     renderToolbar();
     expect(screen.getByRole("button", { name: /التصفية/u })).toBeInTheDocument();
+  });
+
+
+  /*
+   * One order, on every page.
+   *
+   * The owner reported that Risks felt different from the rest. It was not the
+   * page's fault — the toolbar renders a fixed order — but a `leading` slot let
+   * exactly one page put a control before the search box, and one page with its
+   * own arrangement is not a variation, it is something to relearn.
+   *
+   * Asserted on document position rather than by reading the JSX, because the
+   * order that matters is the one the browser paints and the one the keyboard
+   * walks, and both follow the DOM.
+   */
+  it("puts what narrows the list first and what changes the view last", () => {
+    render(
+      <RectangleI18nProvider>
+        <PageToolbar<"cards" | "table">
+          search={{ value: "", onChange: () => {}, label: "Search items" }}
+          filters={[]}
+          actions={<button type="button">Create</button>}
+          scope={<button type="button">This week</button>}
+          view={{
+            value: "cards",
+            label: "Cards",
+            onChange: () => {},
+            options: [
+              { value: "cards", label: "Cards" },
+              { value: "table", label: "Table" },
+            ],
+          }}
+        />
+      </RectangleI18nProvider>,
+    );
+
+    const positions = [
+      screen.getByLabelText("Search items"),
+      screen.getByRole("button", { name: "Create" }),
+      screen.getByRole("button", { name: "This week" }),
+      screen.getByRole("radio", { name: "Cards" }),
+    ];
+
+    for (let index = 1; index < positions.length; index += 1) {
+      const previous = positions[index - 1] as HTMLElement;
+      const current = positions[index] as HTMLElement;
+      // DOCUMENT_POSITION_FOLLOWING: `current` comes after `previous`.
+      expect(previous.compareDocumentPosition(current) & Node.DOCUMENT_POSITION_FOLLOWING)
+        .toBeTruthy();
+    }
+  });
+
+  it("offers no way to put a control before the search box", () => {
+    /*
+     * The slot that allowed it is gone rather than merely unused. Left in
+     * place it would be reached for again the next time a page wanted its
+     * dates on the row, and the inconsistency would come back.
+     */
+    expect(toolbarSource).not.toMatch(/leading\?:\s*ReactNode/u);
+    expect(toolbarSource).toMatch(/scope\?:\s*ReactNode/u);
   });
 });
