@@ -14,7 +14,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  canManageProjects,
+  canReachAllProjects,
   canReadProjectRegistry,
   companyStandingSchema,
   hasPermission,
@@ -86,7 +86,7 @@ describe("company standing", () => {
     // hand them the whole company's project list; they see what they are added
     // to, which membership decides.
     expect(canReadProjectRegistry(principal("guest", ["projects.read"]))).toBe(false);
-    expect(canManageProjects(principal("guest", ["projects.manage"]))).toBe(false);
+    expect(canReachAllProjects(principal("guest", ["projects.manage_all"]))).toBe(false);
   });
 
   it("refuses a guest every company-wide capability, whatever their types say", () => {
@@ -97,7 +97,7 @@ describe("company standing", () => {
      * configuration, which is the opposite of what "guest" means.
      */
     expect(hasPermission(principal("guest", ["settings.manage"]), "settings.manage")).toBe(false);
-    expect(hasPermission(principal("guest", ["users.manage"]), "users.manage")).toBe(false);
+    expect(hasPermission(principal("guest", ["users.edit"]), "users.edit")).toBe(false);
     expect(hasPermission(principal("guest", ["activity.read_all"]), "activity.read_all")).toBe(false);
     // A member with the same type keeps it: the refusal is about standing.
     expect(hasPermission(principal("member", ["settings.manage"]), "settings.manage")).toBe(true);
@@ -105,7 +105,7 @@ describe("company standing", () => {
 
   it("still lets a user type carry a permission a member needs", () => {
     expect(hasPermission(principal("member", ["users.read"]), "users.read")).toBe(true);
-    expect(hasPermission(principal("member", ["users.read"]), "users.manage")).toBe(false);
+    expect(hasPermission(principal("member", ["users.read"]), "users.edit")).toBe(false);
   });
 
   it("does not let a member reach administration by standing", () => {

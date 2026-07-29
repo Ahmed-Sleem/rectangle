@@ -147,13 +147,25 @@ for (const page of PAGES) {
   );
 
   // Question 5: actions must be gated, not shown and then rejected.
+  //
+  // Matched on the authority helpers rather than on the name of a local flag.
+  // The previous version looked for a variable called `canManage`, so splitting
+  // the coarse permissions into atomic ones — which replaced that one flag with
+  // `canCreate`, `canEdit` and `canDelete` on every page — reported four pages
+  // as ungated while they were in fact gated more tightly than before. A check
+  // that fails when the code improves is measuring the wrong thing.
+  //
+  // `access.data?.access` covers the per-project pages, where the answer is not
+  // a company-wide permission at all: the server resolves what this caller may
+  // do on this one project, and the page gates on that.
   const hasWriteAction = /Button[^>]*variant="primary"|onClick=\{\(\) => set\w*Open/.test(source);
   if (!page.singleRecord) {
     check(
       "page",
       page.id,
       "actions gated by permission",
-      !hasWriteAction || /canManage|permissions\.includes|roles\.some/.test(source),
+      !hasWriteAction ||
+        /hasPermission\(|permissions\.includes|roles\.some|access\.data\?\.access/.test(source),
     );
   }
 
@@ -222,7 +234,7 @@ for (const service of SERVICES) {
       "service",
       service.id,
       "checks authorization",
-      /require[A-Z]\w*|canManage|resolveAccess|availableScopes/.test(source),
+      /require[A-Z]\w*|canReach[A-Z]\w*|canRead[A-Z]\w*|resolveAccess|availableScopes/.test(source),
     );
   }
   check("service", service.id, "scopes to tenant", /tenantId/.test(source));

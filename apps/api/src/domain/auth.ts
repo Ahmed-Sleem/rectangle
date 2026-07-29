@@ -106,9 +106,18 @@ export function hasPermission(principal: UserPrincipal, permission: Permission):
   return principal.permissions.includes(permission) || rolePermissions(principal.roles).includes(permission);
 }
 
-export function canManageProjects(principal: UserPrincipal): boolean {
+/**
+ * May this person act on projects they are not a member of?
+ *
+ * This is the head-office power, and it is deliberately narrow. It used to be
+ * implied by `projects.manage`, which meant anybody who could create a project
+ * could also edit and destroy every other project in the company — membership
+ * was consulted only after this had already said yes. Reach and capability are
+ * now separate questions, and this one answers only reach.
+ */
+export function canReachAllProjects(principal: UserPrincipal): boolean {
   if (isGuest(principal)) return false;
-  return isCompanyAdministrator(principal) || hasPermission(principal, "projects.manage");
+  return isCompanyAdministrator(principal) || hasPermission(principal, "projects.manage_all");
 }
 
 /**
@@ -147,12 +156,6 @@ export function requirePermission(principal: UserPrincipal, permission: Permissi
  */
 export function canReadUsers(principal: UserPrincipal): boolean {
   return hasPermission(principal, "users.read");
-}
-
-export function requireProjectManagement(principal: UserPrincipal): void {
-  if (!canManageProjects(principal)) {
-    throw new DomainError("FORBIDDEN", "You do not have permission to manage projects.");
-  }
 }
 
 /** Guards the register. Reaching a single project is `resolveAccess`'s job. */

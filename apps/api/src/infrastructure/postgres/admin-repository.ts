@@ -47,17 +47,50 @@ export class PostgresAdminRepository implements AdminRepository {
        */
       `insert into user_types (tenant_id, name, key, description, permissions, system_type)
        values ($1, 'Full access', 'full_access', 'Every permission in the product.', $2, true),
-              ($1, 'Project Manager', 'project_manager', 'Manage projects and view users.', $3, true),
-              ($1, 'Viewer', 'viewer', 'Read-only project access.', $4, true)
+              ($1, 'Project office', 'project_manager', 'Run projects across the company.', $3, true),
+              ($1, 'Read only', 'viewer', 'See the work, change nothing.', $4, true)
        on conflict (tenant_id, key) do nothing`,
-      [tenantId, allPermissions, ["projects.read", "projects.manage", "users.read", "user_types.read"], ["projects.read"]],
+      /*
+       * Renamed, keys kept. "Viewer" as a user type sat beside `viewer` as a
+       * project role and the two meant different things, which is how the
+       * owner came to ask how a viewer could delete a project. The key is what
+       * assignments point at, so renaming it would orphan them.
+       */
+      [
+        tenantId,
+        allPermissions,
+        [
+          "projects.read",
+          "projects.create",
+          "projects.edit",
+          "projects.archive",
+          "projects.manage_all",
+          "project_team.read",
+          "project_team.manage",
+          "tasks.read",
+          "tasks.create",
+          "tasks.edit",
+          "tasks.delete",
+          "risks.read",
+          "risks.create",
+          "risks.edit",
+          "risks.delete",
+          "users.read",
+          "user_types.read",
+        ],
+        ["projects.read", "project_team.read", "tasks.read", "risks.read"],
+      ],
     );
   }
 
   /**
    * Counts people other than `excludingUserId` who can still administer the
    * company: either a tenant-level admin role, or a user type carrying
-   * `users.manage`. Only active accounts count, since a disabled one cannot act.
+   * `users.edit`. Only active accounts count, since a disabled one cannot act.
+   *
+   * `users.edit` and not `users.create`, because being locked out is the fault
+   * this prevents: somebody who can only add people cannot restore an account
+   * that was wrongly disabled, so they are not a way back in.
    */
   async countOtherActiveAdmins(tenantId: string, excludingUserId: string): Promise<number> {
     const result = await this.pool.query<{ count: string }>(
@@ -73,7 +106,7 @@ export class PostgresAdminRepository implements AdminRepository {
           and users.status = 'active'
           and (
             r.role in ('owner', 'admin')
-            or 'users.manage' = any(t.permissions)
+            or 'users.edit' = any(t.permissions)
           )`,
       [tenantId, excludingUserId],
     );

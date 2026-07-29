@@ -19,6 +19,28 @@ export const updateUserTypeSchema = z.object({
   permissions: z.array(permissionSchema).min(1).max(50).optional(),
 }).refine((value) => Object.keys(value).length > 0, "At least one field is required.");
 
+/**
+ * Access has to come from somewhere.
+ *
+ * Owners and administrators hold everything by standing. For everyone else a
+ * user type is the only source of company-wide permission, so a person created
+ * without one could sign in and reach nothing — an account that looks real and
+ * is not.
+ */
+function requireTypesUnlessAdministering(
+  value: { standing: string; userTypeIds: string[] },
+  context: z.RefinementCtx,
+): void {
+  if (value.standing === "owner" || value.standing === "admin") return;
+  if (value.userTypeIds.length === 0) {
+    context.addIssue({
+      code: "custom",
+      path: ["userTypeIds"],
+      message: "At least one user type is required.",
+    });
+  }
+}
+
 export const createUserSchema = z.object({
   displayName: z.string().trim().min(2).max(160),
   email: z.email().trim().toLowerCase().max(254),
@@ -37,16 +59,35 @@ export const createUserSchema = z.object({
    * promote anybody through any screen.
    */
   standing: companyStandingSchema.default("member"),
-  userTypeIds: z.array(z.uuid()).min(1).max(10),
-});
+  /*
+   * Not `min(1)`. An owner or administrator holds every permission by standing,
+   * so demanding a user type of them was a required choice that changed
+   * nothing. Everyone else must still have one, which is asserted below where
+   * the standing is in scope.
+   */
+  userTypeIds: z.array(z.uuid()).max(10),
+}).superRefine(requireTypesUnlessAdministering);
 
 export const updateUserSchema = z.object({
   displayName: z.string().trim().min(2).max(160).optional(),
   status: z.enum(["active", "disabled"]).optional(),
   password: z.string().min(12).max(256).regex(/[a-z]/u).regex(/[A-Z]/u).regex(/[0-9]/u).optional(),
   standing: companyStandingSchema.optional(),
-  userTypeIds: z.array(z.uuid()).min(1).max(10).optional(),
-}).refine((value) => Object.keys(value).length > 0, "At least one field is required.");
+  /*
+   * An edit may set an empty list only when it is also making the person an
+   * owner or administrator, who need none. Left undefined the field is simply
+   * not being changed.
+   */
+  userTypeIds: z.array(z.uuid()).max(10).optional(),
+})
+  .refine((value) => Object.keys(value).length > 0, "At least one field is required.")
+  .superRefine((value, context) => {
+    if (value.userTypeIds === undefined) return;
+    requireTypesUnlessAdministering(
+      { standing: value.standing ?? "member", userTypeIds: value.userTypeIds },
+      context,
+    );
+  });
 
 export type CreateUserTypeInput = z.infer<typeof createUserTypeSchema>;
 export type UpdateUserTypeInput = z.infer<typeof updateUserTypeSchema>;

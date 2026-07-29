@@ -24,6 +24,67 @@ export function isProjectAdminRole(role: ProjectMemberRole): boolean {
   return projectAdminRoles.has(role);
 }
 
+/**
+ * What a project role grants on its own project.
+ *
+ * Being made administrator of a project has to mean something by itself,
+ * otherwise the appointment is decorative: a site team would need head office
+ * to grant them a company-wide permission before they could add their own
+ * people, which is the opposite of delegating a project. These are scoped to
+ * the one project the role is held on — the company-wide grant of the same key
+ * is what lets somebody do it everywhere.
+ *
+ * Deletion is deliberately absent. Destroying a project is checked separately
+ * and requires `projects.delete` as well as being that project's administrator,
+ * so it can never be reached by appointment alone.
+ */
+const projectRoleGrants: Record<ProjectMemberRole, readonly string[]> = {
+  project_admin: [
+    "projects.edit",
+    "projects.archive",
+    "project_team.read",
+    "project_team.manage",
+    "tasks.read",
+    "tasks.create",
+    "tasks.edit",
+    "tasks.delete",
+    "risks.read",
+    "risks.create",
+    "risks.edit",
+    "risks.delete",
+  ],
+  project_manager: [
+    "projects.edit",
+    "projects.archive",
+    "project_team.read",
+    "project_team.manage",
+    "tasks.read",
+    "tasks.create",
+    "tasks.edit",
+    "tasks.delete",
+    "risks.read",
+    "risks.create",
+    "risks.edit",
+    "risks.delete",
+  ],
+  controls_manager: [
+    "project_team.read",
+    "tasks.read",
+    "tasks.create",
+    "tasks.edit",
+    "risks.read",
+    "risks.create",
+    "risks.edit",
+  ],
+  viewer: ["project_team.read", "tasks.read", "risks.read"],
+  external_collaborator: ["tasks.read"],
+};
+
+/** Does holding this role on a project grant this permission on that project? */
+export function roleGrantsOnProject(role: ProjectMemberRole, permission: string): boolean {
+  return projectRoleGrants[role].includes(permission);
+}
+
 export const addProjectMemberInputSchema = z.object({
   userId: z.uuid(),
   role: projectMemberRoleSchema,

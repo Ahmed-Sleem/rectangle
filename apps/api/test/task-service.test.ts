@@ -145,10 +145,23 @@ class MemoryTaskRepository implements TaskRepository {
 
 /** Stands in for the project team service, which owns object-level access. */
 function accessStub(access: Partial<ProjectAccess> & { throws?: boolean } = {}) {
+  const resolve = async (): Promise<ProjectAccess> => {
+    if (access.throws) throw new DomainError("NOT_FOUND", "Project was not found.");
+    return { canRead: access.canRead ?? true, canManage: access.canManage ?? true };
+  };
   return {
-    async resolveAccess(): Promise<ProjectAccess> {
-      if (access.throws) throw new DomainError("NOT_FOUND", "Project was not found.");
-      return { canRead: access.canRead ?? true, canManage: access.canManage ?? true };
+    resolveAccess: resolve,
+    /*
+     * Mirrors the real rule rather than waving every call through. A stub that
+     * always allowed would make every authorization test here pass regardless
+     * of what the service did, which is worse than having no test.
+     */
+    async requireProjectCapability(): Promise<ProjectAccess> {
+      const resolved = await resolve();
+      if (!resolved.canManage) {
+        throw new DomainError("FORBIDDEN", "You do not have permission to manage this project.");
+      }
+      return resolved;
     },
   };
 }

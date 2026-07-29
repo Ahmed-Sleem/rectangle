@@ -5,7 +5,7 @@
  * means being able to reach the project it belongs to. That keeps one answer to
  * "who can see this project's work" instead of a second, drifting copy.
  */
-import { canManageProjects, type UserPrincipal } from "../domain/auth.js";
+import { canReachAllProjects, hasPermission, type UserPrincipal } from "../domain/auth.js";
 import { DomainError } from "../domain/errors.js";
 import { parseProjectId } from "../domain/project.js";
 import {
@@ -60,7 +60,7 @@ export interface TaskRepository {
 export class TaskService {
   constructor(
     private readonly tasks: TaskRepository,
-    private readonly projectTeam: Pick<ProjectTeamService, "resolveAccess">,
+    private readonly projectTeam: Pick<ProjectTeamService, "resolveAccess" | "requireProjectCapability">,
     private readonly audit: AuditRepository,
   ) {}
 
@@ -116,10 +116,12 @@ export class TaskService {
     rawInput: unknown,
   ): Promise<TaskRecord> {
     const projectId = parseProjectId(rawProjectId);
-    const access = await this.projectTeam.resolveAccess(actor, projectId);
-    if (!access.canManage) {
-      throw new DomainError("FORBIDDEN", "You do not have permission to add work to this project.");
-    }
+    /*
+     * Reach and capability, the same pair as everywhere else: being able to
+     * manage this project says which project, `tasks.create` says which action.
+     * Before this, anyone who could reach a project could add work to it.
+     */
+    await this.projectTeam.requireProjectCapability(actor, projectId, "tasks.create");
 
     const input = parseCreateTaskInput(rawInput);
     if (input.assigneeUserId) {
@@ -161,7 +163,7 @@ export class TaskService {
       return this.tasks.list(actor.tenantId, query, actor.userId);
     }
 
-    return canManageProjects(actor)
+    return canReachAllProjects(actor)
       ? this.tasks.list(actor.tenantId, query, actor.userId)
       : this.tasks.listForMemberProjects(actor.tenantId, query, actor.userId);
   }
@@ -176,16 +178,16 @@ export class TaskService {
     rawTaskId: unknown,
     rawInput: unknown,
   ): Promise<TaskRecord> {
-    const { task, canManage } = await this.loadTask(actor, rawTaskId);
+    const { task } = await this.loadTask(actor, rawTaskId);
     const input = parseUpdateTaskInput(rawInput);
 
     // Someone who can see a project's work may progress their own task without
-    // being able to administer the project. Every other edit needs manage
-    // rights, so a viewer cannot retitle or reassign work.
+    // being able to administer the project. Every other edit needs the edit
+    // capability, so a reader cannot retitle or reassign work.
     const onlyStatusChange = Object.keys(input).length === 1 && input.status !== undefined;
     const isOwnTask = task.assigneeUserId === actor.userId;
-    if (!canManage && !(onlyStatusChange && isOwnTask)) {
-      throw new DomainError("FORBIDDEN", "You do not have permission to change this task.");
+    if (!(onlyStatusChange && isOwnTask)) {
+      await this.projectTeam.requireProjectCapability(actor, task.projectId, "tasks.edit");
     }
 
     if (input.status && input.status !== task.status) {
@@ -229,10 +231,8 @@ export class TaskService {
   }
 
   async deleteTask(actor: UserPrincipal, rawTaskId: unknown): Promise<void> {
-    const { task, canManage } = await this.loadTask(actor, rawTaskId);
-    if (!canManage) {
-      throw new DomainError("FORBIDDEN", "You do not have permission to delete this task.");
-    }
+    const { task } = await this.loadTask(actor, rawTaskId);
+    await this.projectTeam.requireProjectCapability(actor, task.projectId, "tasks.delete");
 
     // Written before the row goes, since the audit entry becomes the only
     // remaining record of it.

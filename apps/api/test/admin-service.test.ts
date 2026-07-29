@@ -40,7 +40,7 @@ class MemoryAdminRepository implements AdminRepository {
   async countOtherActiveAdmins(): Promise<number> { return this.otherAdmins; }
   async ensureSystemUserTypes(): Promise<void> {
     if (!this.userTypes.find((type) => type.key === "owner")) {
-      this.userTypes.push({ id: "44444444-4444-4444-8444-444444444444", tenantId, name: "Owner", key: "owner", permissions: ["projects.read", "projects.manage", "users.read", "users.manage", "user_types.read", "user_types.manage", "settings.manage"], systemType: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+      this.userTypes.push({ id: "44444444-4444-4444-8444-444444444444", tenantId, name: "Owner", key: "owner", permissions: ["projects.read", "projects.manage_all", "users.read", "users.create", "users.edit", "users.disable", "user_types.read", "user_types.create", "user_types.edit", "settings.manage"], systemType: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     }
   }
   async listUserTypes(): Promise<UserTypeRecord[]> { return this.userTypes; }
@@ -400,8 +400,8 @@ describe("AdminService", () => {
     const { service, repo } = createService();
     await repo.ensureSystemUserTypes();
     repo.separationRules = [{
-      a: "user_types.manage",
-      b: "users.manage",
+      a: "user_types.create",
+      b: "users.edit",
       reason: "Inventing a role and assigning it must not be one person's job.",
     }];
 
@@ -419,13 +419,13 @@ describe("AdminService", () => {
     const { service, repo } = createService();
     await repo.ensureSystemUserTypes();
     const inventor = await service.createUserType(admin, {
-      name: "Role Author", key: "role_author", permissions: ["user_types.manage"],
+      name: "Role Author", key: "role_author", permissions: ["user_types.create"],
     });
     const assigner = await service.createUserType(admin, {
-      name: "People Admin", key: "people_admin", permissions: ["users.manage"],
+      name: "People Admin", key: "people_admin", permissions: ["users.edit"],
     });
     repo.separationRules = [{
-      a: "user_types.manage", b: "users.manage",
+      a: "user_types.create", b: "users.edit",
       reason: "Inventing a role and assigning it must not be one person's job.",
     }];
 
@@ -446,7 +446,7 @@ describe("AdminService", () => {
     const { service, repo } = createService();
     await repo.ensureSystemUserTypes();
     repo.separationRules = [{
-      a: "user_types.manage", b: "users.manage",
+      a: "user_types.create", b: "users.edit",
       reason: "Inventing a role and assigning it must not be one person's job.",
     }];
 
@@ -464,10 +464,10 @@ describe("AdminService", () => {
     const { service, repo } = createService();
     await repo.ensureSystemUserTypes();
     const inventor = await service.createUserType(admin, {
-      name: "Role Author", key: "role_author", permissions: ["user_types.manage"],
+      name: "Role Author", key: "role_author", permissions: ["user_types.create"],
     });
     const assigner = await service.createUserType(admin, {
-      name: "People Admin", key: "people_admin", permissions: ["users.manage"],
+      name: "People Admin", key: "people_admin", permissions: ["users.edit"],
     });
     const { user } = await service.createUser(admin, {
       displayName: "Grows Into It", email: "grows@example.com",
@@ -475,7 +475,7 @@ describe("AdminService", () => {
     });
 
     repo.separationRules = [{
-      a: "user_types.manage", b: "users.manage",
+      a: "user_types.create", b: "users.edit",
       reason: "Inventing a role and assigning it must not be one person's job.",
     }];
 

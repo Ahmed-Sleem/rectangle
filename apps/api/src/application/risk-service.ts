@@ -5,7 +5,7 @@
  * risk means being able to reach the project it belongs to. A second copy of
  * that rule would drift from the first.
  */
-import { canManageProjects, type UserPrincipal } from "../domain/auth.js";
+import { canReachAllProjects, hasPermission, type UserPrincipal } from "../domain/auth.js";
 import { DomainError } from "../domain/errors.js";
 import { parseProjectId } from "../domain/project.js";
 import {
@@ -58,7 +58,7 @@ export interface RiskRepository {
 export class RiskService {
   constructor(
     private readonly risks: RiskRepository,
-    private readonly projectTeam: Pick<ProjectTeamService, "resolveAccess">,
+    private readonly projectTeam: Pick<ProjectTeamService, "resolveAccess" | "requireProjectCapability">,
     private readonly audit: AuditRepository,
   ) {}
 
@@ -128,10 +128,12 @@ export class RiskService {
     rawInput: unknown,
   ): Promise<RiskRecord> {
     const projectId = parseProjectId(rawProjectId);
-    const access = await this.projectTeam.resolveAccess(actor, projectId);
-    if (!access.canManage) {
-      throw new DomainError("FORBIDDEN", "You do not have permission to add risks to this project.");
-    }
+    /*
+     * Reach and capability, the same pair as everywhere else: managing this
+     * project says which project, `risks.create` says which action. Before
+     * this, anyone who could reach a project could raise risks on it.
+     */
+    await this.projectTeam.requireProjectCapability(actor, projectId, "risks.create");
 
     const input = parseCreateRiskInput(rawInput);
     if (input.ownerUserId) {
@@ -170,7 +172,7 @@ export class RiskService {
       return this.risks.list(actor.tenantId, query, actor.userId);
     }
 
-    return canManageProjects(actor)
+    return canReachAllProjects(actor)
       ? this.risks.list(actor.tenantId, query, actor.userId)
       : this.risks.listForMemberProjects(actor.tenantId, query, actor.userId);
   }
@@ -188,7 +190,7 @@ export class RiskService {
       actor.tenantId,
       projectId,
       actor.userId,
-      canManageProjects(actor) ? "all" : "member",
+      canReachAllProjects(actor) ? "all" : "member",
     );
   }
 
@@ -202,15 +204,15 @@ export class RiskService {
     rawRiskId: unknown,
     rawInput: unknown,
   ): Promise<RiskRecord> {
-    const { risk, canManage } = await this.loadRisk(actor, rawRiskId);
+    const { risk } = await this.loadRisk(actor, rawRiskId);
     const input = parseUpdateRiskInput(rawInput);
 
     // The owner may move their own entry along without administering the
     // project; reassessing or reassigning it is a different matter.
     const onlyStatusChange = Object.keys(input).length === 1 && input.status !== undefined;
     const isOwnRisk = risk.ownerUserId === actor.userId;
-    if (!canManage && !(onlyStatusChange && isOwnRisk)) {
-      throw new DomainError("FORBIDDEN", "You do not have permission to change this risk.");
+    if (!(onlyStatusChange && isOwnRisk)) {
+      await this.projectTeam.requireProjectCapability(actor, risk.projectId, "risks.edit");
     }
 
     if (input.status && input.status !== risk.status) {
@@ -255,10 +257,8 @@ export class RiskService {
   }
 
   async deleteRisk(actor: UserPrincipal, rawRiskId: unknown): Promise<void> {
-    const { risk, canManage } = await this.loadRisk(actor, rawRiskId);
-    if (!canManage) {
-      throw new DomainError("FORBIDDEN", "You do not have permission to delete this risk.");
-    }
+    const { risk } = await this.loadRisk(actor, rawRiskId);
+    await this.projectTeam.requireProjectCapability(actor, risk.projectId, "risks.delete");
 
     // Written first: once the row is gone this entry is the only record that
     // the risk was ever raised.

@@ -117,6 +117,18 @@ const en = {
   updateUserTypeFailed: "That role could not be updated.",
   permissionCount_one: "{{count}} permission",
   permissionCount_other: "{{count}} permissions",
+
+  permissionsHint: "Each one is a single action. Take a whole area, or pick from inside it.",
+  permissionGroupAll: "All",
+  permissionGroupCount: "{{chosen}} of {{total}}",
+  permissionGroup_projects: "Projects",
+  permissionGroup_project_team: "Project teams",
+  permissionGroup_tasks: "Tasks",
+  permissionGroup_risks: "Risks",
+  permissionGroup_users: "People",
+  permissionGroup_user_types: "User types",
+  permissionGroup_company: "Company",
+  userTypesHint: "Where a member's access comes from. Owners and administrators need none.",
 } as const;
 
 const ar: LocaleBundle<typeof en> = {
@@ -245,6 +257,17 @@ const ar: LocaleBundle<typeof en> = {
   permissionCount_few: "{{count}} صلاحيات",
   permissionCount_many: "{{count}} صلاحية",
   permissionCount_other: "{{count}} صلاحية",
+  permissionsHint: "كل صلاحية إجراء واحد. اختر المجال كاملًا أو انتقِ من داخله.",
+  permissionGroupAll: "الكل",
+  permissionGroupCount: "{{chosen}} من {{total}}",
+  permissionGroup_projects: "المشاريع",
+  permissionGroup_project_team: "فرق المشاريع",
+  permissionGroup_tasks: "المهام",
+  permissionGroup_risks: "المخاطر",
+  permissionGroup_users: "الأشخاص",
+  permissionGroup_user_types: "أنواع المستخدم",
+  permissionGroup_company: "الشركة",
+  userTypesHint: "مصدر صلاحيات العضو. المالك والمسؤول لا يحتاجان إليها.",
 };
 
 export const team = { en, ar };

@@ -162,6 +162,7 @@ async function createTestServer() {
   const projects = new MemoryProjectsRepository();
   const team = new MemoryProjectTeamRepository();
   const audit = new MemoryAuditRepository();
+  const projectTeamService = new ProjectTeamService(projects, team, audit);
   const app = await createServer({
     activityService: inactiveActivityService,
     overviewService: inactiveOverviewService,
@@ -173,8 +174,8 @@ async function createTestServer() {
     adminService: inactiveAdminService,
     emailSettingsService: inactiveEmailSettingsService,
     passkeyService: inactivePasskeyService,
-    projectService: new ProjectService(projects, audit),
-    projectTeamService: new ProjectTeamService(projects, team, audit),
+    projectService: new ProjectService(projects, audit, projectTeamService),
+    projectTeamService,
     setupService: inactiveSetupService,
     authService: new AuthService(new MemoryAuthRepository(), new TestPasswordHasher(), audit, jwtSecret),
     jwtSecret,

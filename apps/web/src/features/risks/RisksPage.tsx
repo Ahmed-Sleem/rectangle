@@ -128,8 +128,14 @@ export default function RisksPage() {
   const [editing, setEditing] = useState<RiskRecord | null>(null);
   const [pendingDelete, setPendingDelete] = useState<RiskRecord | null>(null);
 
-  const canManage =
-    hasPermission(auth?.user, "projects.manage");
+  /*
+   * One flag per action, because they are separate grants now. Presentation
+   * only — the server decides — but offering a button whose request would be
+   * refused is a worse lie than not offering it.
+   */
+  const canCreate = hasPermission(auth?.user, "risks.create");
+  const canEdit = hasPermission(auth?.user, "risks.edit");
+  const canDelete = hasPermission(auth?.user, "risks.delete");
 
   const filters = {
     ...(search.trim() ? { search: search.trim() } : {}),
@@ -349,7 +355,7 @@ export default function RisksPage() {
         ]}
         onClearFilters={clearFilters}
         actions={
-          canManage ? (
+          canCreate ? (
             <Button
               variant="primary"
               onClick={() => { form.reset(); setCreateOpen(true); }}
@@ -399,8 +405,8 @@ export default function RisksPage() {
               ) : rows.length === 0 ? (
                 <EmptyState
                   title={t("risks.emptyTitle")}
-                  message={canManage ? t("risks.emptyManage") : t("risks.emptyRead")}
-                  {...(canManage
+                  message={canCreate ? t("risks.emptyManage") : t("risks.emptyRead")}
+                  {...(canCreate
                     ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("risks.create")}</Button> }
                     : {})}
                 />
@@ -420,7 +426,7 @@ export default function RisksPage() {
                         </span>
                       </header>
 
-                      {canManage ? (
+                      {canEdit ? (
                         <button type="button" className="rect-risk__link" onClick={() => setEditing(risk)}>
                           {risk.title}
                         </button>
@@ -467,7 +473,7 @@ export default function RisksPage() {
                           <Badge tone={risk.kind === "issue" ? "danger" : "neutral"}>
                             {t(`enums.riskKind.${risk.kind}`)}
                           </Badge>
-                          {canManage ? (
+                          {canEdit ? (
                             <button type="button" className="rect-risk__link" onClick={() => setEditing(risk)}>
                               {risk.title}
                             </button>
@@ -513,7 +519,7 @@ export default function RisksPage() {
                           ? dateFormatter.format(new Date(`${risk.dueDate}T00:00:00`))
                           : t("common.notAvailable"),
                     },
-                    ...(canManage
+                    ...(canDelete
                       ? [{
                           id: "actions",
                           header: t("common.actions"),

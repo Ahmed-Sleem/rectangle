@@ -88,6 +88,7 @@ async function createTestServer() {
     roles: ["admin"],
     permissions: [],
   };
+  const projectTeamService = new ProjectTeamService(new EmptyProjectsRepository(), new MemoryProjectTeamRepository(), audit);
   const app = await createServer({
     activityService: inactiveActivityService,
     overviewService: inactiveOverviewService,
@@ -99,8 +100,8 @@ async function createTestServer() {
     adminService: inactiveAdminService,
     emailSettingsService: inactiveEmailSettingsService,
     passkeyService: inactivePasskeyService,
-    projectService: new ProjectService(new EmptyProjectsRepository(), audit),
-    projectTeamService: new ProjectTeamService(new EmptyProjectsRepository(), new MemoryProjectTeamRepository(), audit),
+    projectService: new ProjectService(new EmptyProjectsRepository(), audit, projectTeamService),
+    projectTeamService,
     setupService: inactiveSetupService,
     authService: new AuthService(new MemoryAuthRepository(user), hasher, audit, jwtSecret),
     jwtSecret,

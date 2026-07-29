@@ -47,14 +47,15 @@ const projectsRepository = new PostgresProjectsRepository(pool);
 const overviewService = new OverviewService(new PostgresOverviewRepository(pool));
 const activityRepository = new PostgresActivityRepository(pool);
 const activityService = new ActivityService(activityRepository);
-const projectService = new ProjectService(
-  projectsRepository,
-  auditRepository,
-);
 const projectTeamService = new ProjectTeamService(
   projectsRepository,
   new PostgresProjectTeamRepository(pool),
   auditRepository,
+);
+const projectService = new ProjectService(
+  projectsRepository,
+  auditRepository,
+  projectTeamService,
 );
 const taskService = new TaskService(
   new PostgresTaskRepository(pool),

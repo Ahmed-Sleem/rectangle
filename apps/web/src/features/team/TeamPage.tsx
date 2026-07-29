@@ -23,6 +23,7 @@ import {
   Select,
   ViewToggle,
 } from "@/shared/ui";
+import { PermissionPicker } from "./PermissionPicker";
 import { adminApi, type AdminUserRecord, type UserTypeRecord } from "./admin-api";
 import "./TeamPage.css";
 
@@ -48,7 +49,13 @@ const userFields = z.object({
   invite: z.boolean(),
   /** Company standing. One value, never a set. */
   standing: z.enum(["owner", "admin", "member", "guest"]),
-  userTypeIds: z.array(z.string()).min(1),
+  /*
+   * Not `min(1)`. An owner or administrator holds every permission by standing,
+   * so requiring a user type of them demanded a choice that changed nothing —
+   * the redundancy the owner reported. The rule that a *member* needs at least
+   * one is expressed below, where the standing is in scope.
+   */
+  userTypeIds: z.array(z.string()),
 });
 
 /**
@@ -56,7 +63,19 @@ const userFields = z.object({
  * It lives on a separate schema because a refined object cannot be narrowed,
  * and the edit form needs to narrow this one.
  */
+/** Everyone whose access comes from user types must be given at least one. */
+function requireTypesUnlessAdministering(
+  value: { standing: string; userTypeIds: string[] },
+  context: z.RefinementCtx,
+): void {
+  if (value.standing === "owner" || value.standing === "admin") return;
+  if (value.userTypeIds.length === 0) {
+    context.addIssue({ code: "custom", path: ["userTypeIds"], message: "required" });
+  }
+}
+
 const userSchema = userFields.superRefine((value, context) => {
+  requireTypesUnlessAdministering(value, context);
   if (value.invite) return;
   const password = value.password ?? "";
   const strong =
@@ -70,7 +89,9 @@ const userSchema = userFields.superRefine((value, context) => {
 });
 
 /** Email is the sign-in identity; a password is not reset by editing a profile. */
-const editUserSchema = userFields.omit({ email: true, password: true, invite: true });
+const editUserSchema = userFields
+  .omit({ email: true, password: true, invite: true })
+  .superRefine(requireTypesUnlessAdministering);
 
 type UserTypeForm = z.infer<typeof userTypeSchema>;
 type EditUserTypeForm = z.infer<typeof editUserTypeSchema>;
@@ -140,15 +161,22 @@ function roleName(type: { name: string; key: string; systemType?: boolean }, t: 
 export default function TeamPage() {
   const { t } = useTranslation();
   const auth = useOptionalAuth();
-  // The API gates people and roles on different permissions, so the interface
-  // must too. Offering a role button to someone holding only `users.manage`
-  // would show an action that fails.
+  /*
+   * One flag per action. The API gates each of these separately now, so the
+   * interface has to as well — a button whose request the server would refuse
+   * is worse than no button, because the person cannot tell which of the two
+   * is broken.
+   */
   const isOwner = auth?.user?.roles.includes("owner") ?? false;
   const isTenantAdmin =
     auth?.user?.roles.some((role) => ["owner", "admin"].includes(role)) ?? false;
-  const canManage = isTenantAdmin || (auth?.user?.permissions.includes("users.manage") ?? false);
-  const canManageRoles =
-    isTenantAdmin || (auth?.user?.permissions.includes("user_types.manage") ?? false);
+  const held = (permission: string) =>
+    isTenantAdmin || (auth?.user?.permissions.includes(permission) ?? false);
+  const canAddUsers = held("users.create");
+  const canEditUsers = held("users.edit");
+  const canDisableUsers = held("users.disable");
+  const canAddRoles = held("user_types.create");
+  const canEditRoles = held("user_types.edit");
 
   const [segment, setSegment] = useState<Segment>("users");
   const [view, setView] = useState<ViewMode>(() => readStoredView());
@@ -391,7 +419,7 @@ export default function TeamPage() {
           ],
         }}
         actions={
-          (showingUsers ? canManage : canManageRoles) ? (
+          (showingUsers ? canAddUsers : canAddRoles) ? (
             showingUsers ? (
               <Button
                 variant="primary"
@@ -425,8 +453,8 @@ export default function TeamPage() {
         allUsers.length === 0 ? (
           <EmptyState
             title={t("team.noUsersTitle")}
-            message={canManage ? t("team.noUsersMessage") : t("team.readOnlyMessage")}
-            {...(canManage && typeRows.length > 0
+            message={canAddUsers ? t("team.noUsersMessage") : t("team.readOnlyMessage")}
+            {...(canAddUsers && typeRows.length > 0
               ? { action: <Button variant="primary" onClick={() => setUserOpen(true)}>{t("team.createUser")}</Button> }
               : {})}
           />
@@ -476,16 +504,20 @@ export default function TeamPage() {
                   <span className="rect-person__meta">
                     {t("team.userProjectCount", { count: user.projectCount })}
                   </span>
-                  {canManage ? (
+                  {canEditUsers || canDisableUsers ? (
                     <span className="rect-person__actions">
-                      <Button size="sm" variant="secondary" onClick={() => setEditingUser(user)}>{t("team.edit")}</Button>
-                      {user.status === "active" ? (
-                        <Button size="sm" variant="secondary" onClick={() => setPendingDisable(user)}>{t("team.disable")}</Button>
-                      ) : (
-                        <Button size="sm" variant="secondary" onClick={() => setStatus.mutate({ userId: user.id, status: "active" })}>
-                          {t("team.enableAction")}
-                        </Button>
-                      )}
+                      {canEditUsers ? (
+                        <Button size="sm" variant="secondary" onClick={() => setEditingUser(user)}>{t("team.edit")}</Button>
+                      ) : null}
+                      {canDisableUsers ? (
+                        user.status === "active" ? (
+                          <Button size="sm" variant="secondary" onClick={() => setPendingDisable(user)}>{t("team.disable")}</Button>
+                        ) : (
+                          <Button size="sm" variant="secondary" onClick={() => setStatus.mutate({ userId: user.id, status: "active" })}>
+                            {t("team.enableAction")}
+                          </Button>
+                        )
+                      ) : null}
                     </span>
                   ) : null}
                 </footer>
@@ -532,20 +564,24 @@ export default function TeamPage() {
                   </Badge>
                 ),
               },
-              ...(canManage
+              ...(canEditUsers || canDisableUsers
                 ? [{
                     id: "action",
                     header: t("team.userAction"),
                     accessor: (row: AdminUserRecord) => (
                       <span className="rect-person__actions">
-                        <Button size="sm" variant="secondary" onClick={() => setEditingUser(row)}>{t("team.edit")}</Button>
-                        {row.status === "active" ? (
-                          <Button size="sm" variant="secondary" onClick={() => setPendingDisable(row)}>{t("team.disable")}</Button>
-                        ) : (
-                          <Button size="sm" variant="secondary" onClick={() => setStatus.mutate({ userId: row.id, status: "active" })}>
-                            {t("team.enableAction")}
-                          </Button>
-                        )}
+                        {canEditUsers ? (
+                          <Button size="sm" variant="secondary" onClick={() => setEditingUser(row)}>{t("team.edit")}</Button>
+                        ) : null}
+                        {canDisableUsers ? (
+                          row.status === "active" ? (
+                            <Button size="sm" variant="secondary" onClick={() => setPendingDisable(row)}>{t("team.disable")}</Button>
+                          ) : (
+                            <Button size="sm" variant="secondary" onClick={() => setStatus.mutate({ userId: row.id, status: "active" })}>
+                              {t("team.enableAction")}
+                            </Button>
+                          )
+                        ) : null}
                       </span>
                     ),
                   }]
@@ -557,8 +593,8 @@ export default function TeamPage() {
       ) : typeRows.length === 0 ? (
         <EmptyState
           title={t("team.noUserTypesTitle")}
-          message={canManageRoles ? t("team.noUserTypesMessage") : t("team.readOnlyMessage")}
-          {...(canManageRoles
+          message={canAddRoles ? t("team.noUserTypesMessage") : t("team.readOnlyMessage")}
+          {...(canAddRoles
             ? { action: <Button variant="primary" onClick={() => setTypeOpen(true)}>{t("team.createUserType")}</Button> }
             : {})}
         />
@@ -595,7 +631,7 @@ export default function TeamPage() {
                 <Badge tone="neutral">{row.systemType ? t("team.originSystem") : t("team.originCustom")}</Badge>
               ),
             },
-            ...(canManageRoles
+            ...(canEditRoles
               ? [{
                   id: "action",
                   header: t("team.userAction"),
@@ -626,7 +662,7 @@ export default function TeamPage() {
               </div>
               <footer className="rect-role__foot">
                 <span className="rect-role__meta">{t("team.permissionCount", { count: type.permissions.length })}</span>
-                {canManageRoles ? (
+                {canEditRoles ? (
                   <Button size="sm" variant="secondary" onClick={() => setEditingType(type)}>{t("team.edit")}</Button>
                 ) : null}
               </footer>
@@ -648,12 +684,12 @@ export default function TeamPage() {
         <Field label={t("team.fieldName")} error={typeForm.formState.errors.name?.message} required><Input data-autofocus="true" {...typeForm.register("name")} /></Field>
         <Field label={t("team.fieldKey")} error={typeForm.formState.errors.key?.message} required><Input {...typeForm.register("key")} /></Field>
         <Field label={t("team.fieldDescription")} error={typeForm.formState.errors.description?.message}><Input {...typeForm.register("description")} /></Field>
-        <Field label={t("team.fieldPermissions")} error={typeForm.formState.errors.permissions?.message} required>
-          <div className="rect-team-permissions">
-            {permissionOptions.map((permission) => (
-              <Checkbox key={permission.key} label={permission.label} description={permission.description} value={permission.key} {...typeForm.register("permissions")} />
-            ))}
-          </div>
+        <Field label={t("team.fieldPermissions")} hint={t("team.permissionsHint")} error={typeForm.formState.errors.permissions?.message} required>
+          <PermissionPicker
+            options={permissionOptions}
+            value={typeForm.watch("permissions") ?? []}
+            onChange={(next) => typeForm.setValue("permissions", next, { shouldValidate: true })}
+          />
         </Field>
       </FormDialog>
 
@@ -671,12 +707,12 @@ export default function TeamPage() {
       >
         <Field label={t("team.fieldName")} error={editTypeForm.formState.errors.name?.message} required><Input data-autofocus="true" {...editTypeForm.register("name")} /></Field>
         <Field label={t("team.fieldDescription")} error={editTypeForm.formState.errors.description?.message}><Input {...editTypeForm.register("description")} /></Field>
-        <Field label={t("team.fieldPermissions")} error={editTypeForm.formState.errors.permissions?.message} required>
-          <div className="rect-team-permissions">
-            {permissionOptions.map((permission) => (
-              <Checkbox key={permission.key} label={permission.label} description={permission.description} value={permission.key} {...editTypeForm.register("permissions")} />
-            ))}
-          </div>
+        <Field label={t("team.fieldPermissions")} hint={t("team.permissionsHint")} error={editTypeForm.formState.errors.permissions?.message} required>
+          <PermissionPicker
+            options={permissionOptions}
+            value={editTypeForm.watch("permissions") ?? []}
+            onChange={(next) => editTypeForm.setValue("permissions", next, { shouldValidate: true })}
+          />
         </Field>
       </FormDialog>
 
@@ -718,13 +754,23 @@ export default function TeamPage() {
             ))}
           </Select>
         </Field>
-        <Field label={t("team.userTypes")} error={userForm.formState.errors.userTypeIds?.message} required>
-          <div className="rect-team-permissions">
-            {typeRows.map((type) => (
-              <Checkbox key={type.id} label={roleName(type, t)} {...(type.description ? { description: type.description } : {})} value={type.id} {...userForm.register("userTypeIds")} />
-            ))}
-          </div>
-        </Field>
+        {/*
+          * Hidden for owners and administrators, and this is the confusion the
+          * owner reported. Their standing already carries every permission, so
+          * the form was demanding a second choice that changed nothing and then
+          * reporting, truthfully, that the choice had changed nothing. The
+          * question is only asked of the people whose access actually depends
+          * on the answer.
+          */}
+        {standingGrantsEverything(userForm.watch("standing")) ? null : (
+          <Field label={t("team.userTypes")} hint={t("team.userTypesHint")} error={userForm.formState.errors.userTypeIds?.message} required>
+            <div className="rect-team-permissions">
+              {typeRows.map((type) => (
+                <Checkbox key={type.id} label={roleName(type, t)} {...(type.description ? { description: type.description } : {})} value={type.id} {...userForm.register("userTypeIds")} />
+              ))}
+            </div>
+          </Field>
+        )}
         <Field label={t("team.effectiveTitle")} hint={t("team.effectiveHint")}>
           <div className="rect-team-effective">
             {standingGrantsEverything(userForm.watch("standing")) ? (

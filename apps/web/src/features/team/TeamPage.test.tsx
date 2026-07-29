@@ -38,15 +38,16 @@ function renderTeam(auth: AuthContextValue = adminAuth) {
 }
 
 const permissions = { permissions: [
-  { key: "projects.read", label: "View projects", description: "Open projects." },
-  { key: "users.manage", label: "Manage users", description: "Create users." },
+  { key: "projects.read", group: "projects", label: "View projects", description: "Open projects." },
+  { key: "users.read", group: "users", label: "View people", description: "See people." },
+  { key: "users.edit", group: "users", label: "Edit people", description: "Change people.", implies: ["users.read"] },
 ] };
 
 const ownerTypeId = "11111111-1111-4111-8111-111111111111";
 const viewerTypeId = "44444444-4444-4444-8444-444444444444";
 
 const userTypes = { userTypes: [
-  { id: ownerTypeId, name: "Owner", key: "owner", permissions: ["projects.read", "users.manage"], systemType: true },
+  { id: ownerTypeId, name: "Owner", key: "owner", permissions: ["projects.read", "users.read", "users.edit"], systemType: true },
   { id: viewerTypeId, name: "Site Viewer", key: "site_viewer", description: "Read-only site access.", permissions: ["projects.read"], systemType: false },
 ] };
 
@@ -166,6 +167,12 @@ describe("TeamPage", () => {
     await user.click(screen.getByRole("button", { name: "Create user type" }));
     await user.type(screen.getByLabelText("Name"), "Cost Controller");
     await user.type(screen.getByLabelText("Key"), "cost_controller");
+    /*
+     * Permissions are grouped now, and a group with nothing chosen starts
+     * collapsed — which is what keeps twenty-seven of them readable. Open the
+     * area before choosing from inside it, exactly as a person would.
+     */
+    await user.click(screen.getByRole("button", { name: /Projects/i }));
     await user.click(screen.getByRole("checkbox", { name: /View projects/i }));
     const dialog = screen.getByRole("dialog", { name: "Create user type" });
     await user.click(within(dialog).getByRole("button", { name: "Create user type" }));
@@ -355,7 +362,10 @@ describe("TeamPage", () => {
     mockReads();
     renderTeam({
       ...adminAuth,
-      user: { tenantId: "1", userId: "4", roles: ["member"], permissions: ["users.manage"] },
+      user: {
+        tenantId: "1", userId: "4", roles: ["member"],
+        permissions: ["users.read", "users.create", "users.edit"],
+      },
     });
 
     await screen.findByText("Mona Adel");
@@ -363,8 +373,129 @@ describe("TeamPage", () => {
     expect(screen.getByRole("button", { name: "Create user" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: /Roles/u }));
-    // Roles need user_types.manage, which this principal does not hold.
+    // Roles need user_types.create/edit, which this principal does not hold.
     expect(screen.queryByRole("button", { name: "Create user type" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+  });
+
+  /*
+   * The two faults the owner reported, as tests.
+   *
+   * "Why choose standing and then choose the accessibility options too?" and
+   * the wall of checkboxes that produced it. Both are about the form asking
+   * questions whose answers do not matter, so both are asserted from what the
+   * screen actually offers rather than from internal state.
+   */
+  describe("the create-user form asks only what matters", () => {
+    it("stops asking for a user type once the standing already grants everything", async () => {
+      const user = userEvent.setup();
+      mockReads();
+      renderTeam();
+
+      await screen.findByText("Mona Adel");
+      await user.click(screen.getByRole("button", { name: "Create user" }));
+      const dialog = await screen.findByRole("dialog", { name: "Create user" });
+
+      // A member's access comes entirely from their types, so it is asked for.
+      expect(within(dialog).getByText("User types")).toBeInTheDocument();
+
+      // An administrator holds everything by standing, so the question is moot
+      // and asking it was the contradiction: a required choice that changes
+      // nothing, beside a panel correctly reporting it changed nothing.
+      await user.selectOptions(within(dialog).getByLabelText("Company standing"), "admin");
+      expect(within(dialog).queryByText("User types")).not.toBeInTheDocument();
+      expect(
+        within(dialog).getByText("Every permission, because of their company standing."),
+      ).toBeInTheDocument();
+    });
+
+    it("still refuses to create a member with no source of access", async () => {
+      const user = userEvent.setup();
+      mockReads();
+      renderTeam();
+
+      await screen.findByText("Mona Adel");
+      await user.click(screen.getByRole("button", { name: "Create user" }));
+      const dialog = await screen.findByRole("dialog", { name: "Create user" });
+      await user.type(within(dialog).getByLabelText("Name"), "Nadia Samir");
+      await user.type(within(dialog).getByLabelText("Email"), "nadia@example.com");
+      await user.click(within(dialog).getByRole("button", { name: "Create user" }));
+
+      // Relaxing the rule for administrators must not relax it for everyone:
+      // a member with no user type could sign in and reach nothing.
+      await waitFor(() => {
+        expect(screen.getByRole("dialog", { name: "Create user" })).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("the permission picker keeps a long list readable", () => {
+    it("groups permissions by area and opens one at a time", async () => {
+      const user = userEvent.setup();
+      mockReads();
+      renderTeam();
+
+      await user.click(await screen.findByRole("radio", { name: "Roles" }));
+      await user.click(screen.getByRole("button", { name: "Create user type" }));
+      const dialog = await screen.findByRole("dialog", { name: "Create user type" });
+
+      // Closed to begin with: the whole point is that the list is short until
+      // somebody asks for an area.
+      expect(within(dialog).queryByRole("checkbox", { name: /View projects/iu })).not.toBeInTheDocument();
+
+      await user.click(within(dialog).getByRole("button", { name: /Projects/iu }));
+      expect(within(dialog).getByRole("checkbox", { name: /View projects/iu })).toBeInTheDocument();
+    });
+
+    it("grants the read a write implies rather than a write nobody can see", async () => {
+      const user = userEvent.setup();
+      const fetchMock = mockReads();
+      renderTeam();
+
+      await user.click(await screen.findByRole("radio", { name: "Roles" }));
+      await user.click(screen.getByRole("button", { name: "Create user type" }));
+      const dialog = await screen.findByRole("dialog", { name: "Create user type" });
+      await user.type(within(dialog).getByLabelText("Name"), "People Editor");
+      await user.type(within(dialog).getByLabelText("Key"), "people_editor");
+
+      await user.click(within(dialog).getByRole("button", { name: /People/iu }));
+      await user.click(within(dialog).getByRole("checkbox", { name: /Edit people/iu }));
+
+      // Choosing "edit" alone would produce somebody who can change a record
+      // and not see the result, which nobody means to ask for.
+      expect(within(dialog).getByRole("checkbox", { name: /View people/iu })).toBeChecked();
+
+      fetchMock.mockImplementation((input, init) => {
+        const url = String(input);
+        if (init?.method === "POST") {
+          expect(JSON.parse(String(init.body)).permissions).toEqual(["users.read", "users.edit"]);
+          return jsonResponse({ userType: { id: "55555555-5555-4555-8555-555555555555", name: "People Editor", key: "people_editor", permissions: ["users.read", "users.edit"], systemType: false } }, 201);
+        }
+        if (url.includes("permissions")) return jsonResponse(permissions);
+        if (url.includes("user-types")) return jsonResponse(userTypes);
+        return jsonResponse(users);
+      });
+      await user.click(within(dialog).getByRole("button", { name: "Create user type" }));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    });
+
+    it("takes a whole area at once, and says how much of it is held", async () => {
+      const user = userEvent.setup();
+      mockReads();
+      renderTeam();
+
+      await user.click(await screen.findByRole("radio", { name: "Roles" }));
+      await user.click(screen.getByRole("button", { name: "Create user type" }));
+      const dialog = await screen.findByRole("dialog", { name: "Create user type" });
+
+      await user.click(within(dialog).getByRole("button", { name: /People/iu }));
+      expect(within(dialog).getByRole("button", { name: /People/iu })).toHaveTextContent("0 of 2");
+
+      // "All" is what stops a company hand-picking eight boxes to express
+      // something as ordinary as "may run the people register".
+      const people = within(dialog).getByRole("button", { name: /People/iu }).closest("section");
+      await user.click(within(people as HTMLElement).getByRole("checkbox", { name: "All" }));
+      expect(within(dialog).getByRole("button", { name: /People/iu })).toHaveTextContent("2 of 2");
+    });
   });
 });

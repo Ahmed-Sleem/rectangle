@@ -1,0 +1,79 @@
+/* The grouped permission picker. All values from tokens. */
+
+.rect-permissions {
+  display: grid;
+  gap: var(--rect-space-2);
+  max-block-size: min(46dvh, 400px);
+  overflow-y: auto;
+  /* Keeps a focus ring off the clip edge of the scroll container. */
+  padding-inline: var(--rect-space-05);
+}
+
+/*
+ * Each area is a bounded surface rather than a run of checkboxes under a
+ * heading. With twenty-seven of them the boundary is what tells a reader where
+ * one decision ends and the next begins.
+ */
+.rect-permissions__group {
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  padding: var(--rect-space-3);
+  display: grid;
+  gap: var(--rect-space-2);
+}
+
+.rect-permissions__head {
+  align-items: center;
+  display: flex;
+  gap: var(--rect-space-3);
+  justify-content: space-between;
+}
+
+/* The whole heading opens the group, not a small chevron beside it. */
+.rect-permissions__disclose {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--rect-text-primary);
+  cursor: pointer;
+  display: flex;
+  flex: 1 1 auto;
+  font: inherit;
+  gap: var(--rect-space-2);
+  min-inline-size: 0;
+  padding: 0;
+  text-align: start;
+}
+
+.rect-permissions__chevron {
+  flex-shrink: 0;
+  transition: transform var(--rect-motion-nav);
+}
+
+/* Rotation rather than a second icon, so the two states are visibly the same
+   control in different positions. */
+.rect-permissions__chevron--open {
+  transform: rotate(180deg);
+}
+
+.rect-permissions__name {
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* How much of this area is granted, readable without opening it. */
+.rect-permissions__count {
+  color: var(--rect-text-secondary);
+  flex-shrink: 0;
+  font-size: var(--rect-text-label);
+}
+
+.rect-permissions__list {
+  display: grid;
+  gap: var(--rect-space-2);
+  padding-inline-start: var(--rect-space-5);
+}

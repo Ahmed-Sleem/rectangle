@@ -1,7 +1,19 @@
 /** API helpers for tenant user and user type administration. */
 import { apiRequest } from "@/shared/api/client";
 
-export interface PermissionOption { key: string; label: string; description: string }
+/**
+ * One atomic permission as the server describes it.
+ *
+ * `group` and `implies` come from the server rather than being re-derived here,
+ * so the picker cannot disagree with the rules that will actually be applied.
+ */
+export interface PermissionOption {
+  key: string;
+  group: string;
+  label: string;
+  description: string;
+  implies?: string[];
+}
 export interface UserTypeRecord { id: string; name: string; key: string; description?: string; permissions: string[]; systemType: boolean }
 export interface AdminUserRecord {
   id: string;

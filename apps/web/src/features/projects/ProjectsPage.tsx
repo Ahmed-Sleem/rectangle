@@ -99,9 +99,11 @@ export default function ProjectsPage() {
   const { t } = useTranslation();
   const auth = useOptionalAuth();
 
-  // Only offer creation to people whose request would actually succeed.
-  const canManage =
-    hasPermission(auth?.user, "projects.manage");
+  // Only offer creation to people whose request would actually succeed. Every
+  // use of this on the register is the create button or the empty state that
+  // offers it; editing and deleting live on the project itself, where reaching
+  // that one project is part of the answer.
+  const canCreate = hasPermission(auth?.user, "projects.create");
 
   const queryClient = useQueryClient();
   const filters = { ...(search.trim() ? { search: search.trim() } : {}), ...(status ? { status } : {}) };
@@ -186,7 +188,7 @@ export default function ProjectsPage() {
         ]}
         onClearFilters={() => { setSearch(""); setStatus(""); setSortKey("updatedAt"); }}
         actions={
-          canManage ? (
+          canCreate ? (
             <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("projects.create")}</Button>
           ) : null
         }
@@ -231,10 +233,10 @@ export default function ProjectsPage() {
       ) : rows.length === 0 ? (
         <EmptyState
           title={t("projects.emptyTitle")}
-          message={canManage
+          message={canCreate
             ? t("projects.emptyManage")
             : t("projects.emptyRead")}
-          {...(canManage
+          {...(canCreate
             ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("projects.create")}</Button> }
             : {})}
         />

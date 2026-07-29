@@ -3,7 +3,7 @@
  * and future AI tools must call this service instead of bypassing validation,
  * authorization, tenant ownership, or audit logging.
  */
-import { canManageProjects, requireProjectManagement, requireProjectRead, type UserPrincipal } from "../domain/auth.js";
+import { canReachAllProjects, requirePermission, requireProjectRead, type UserPrincipal } from "../domain/auth.js";
 import { DomainError } from "../domain/errors.js";
 import {
   parseCreateProjectInput,
@@ -15,6 +15,7 @@ import {
   type ProjectRecord,
   type UpdateProjectInput,
 } from "../domain/project.js";
+import type { ProjectTeamService } from "./project-team-service.js";
 
 export interface AuditEventInput {
   tenantId: string;
@@ -44,10 +45,22 @@ export class ProjectService {
   constructor(
     private readonly projects: ProjectsRepository,
     private readonly audit: AuditRepository,
+    /*
+     * Editing and deleting are decided per project, not company-wide, so this
+     * service has to ask who can reach the record in front of it. Only the
+     * narrow slice it needs is depended on, so the two services stay testable
+     * apart from each other.
+     */
+    private readonly projectTeam: Pick<
+      ProjectTeamService,
+      "requireProjectCapability" | "requireProjectDeletion"
+    >,
   ) {}
 
   async createProject(actor: UserPrincipal, rawInput: unknown): Promise<ProjectRecord> {
-    requireProjectManagement(actor);
+    // Starting a project is a company-wide act: there is no project to be a
+    // member of yet, so this is the one project action membership cannot gate.
+    requirePermission(actor, "projects.create");
     const input = parseCreateProjectInput(rawInput);
     const existing = await this.projects.findByTenantAndCode(actor.tenantId, input.code);
     if (existing) {
@@ -84,9 +97,23 @@ export class ProjectService {
   }
 
   async updateProject(actor: UserPrincipal, rawProjectId: unknown, rawInput: unknown): Promise<ProjectRecord> {
-    requireProjectManagement(actor);
     const projectId = parseProjectId(rawProjectId);
     const input = parseUpdateProjectInput(rawInput);
+
+    /*
+     * Archiving is a smaller act than editing and is deliberately governed
+     * separately, so a company can let a site team close out its own work
+     * without also letting it rewrite the contract details. A change that only
+     * moves the status to archived asks for the archive permission; anything
+     * else, including archiving as part of a wider edit, asks to edit.
+     */
+    const onlyArchiving =
+      Object.keys(input).length === 1 && input.status === "archived";
+    await this.projectTeam.requireProjectCapability(
+      actor,
+      projectId,
+      onlyArchiving ? "projects.archive" : "projects.edit",
+    );
 
     if (input.code) {
       const existing = await this.projects.findByTenantAndCode(actor.tenantId, input.code);
@@ -109,7 +136,7 @@ export class ProjectService {
       result: "success",
       metadata: {
         changedFields: Object.keys(input),
-        canManageProjects: canManageProjects(actor),
+        reachedEveryProject: canReachAllProjects(actor),
       },
     });
     return updated;
@@ -118,13 +145,17 @@ export class ProjectService {
   /**
    * Permanently removes a project.
    *
-   * Archiving is the reversible path and should be preferred; this exists for
-   * records created in error. Related rows are removed by cascading foreign
-   * keys, so the audit entry is written before the row disappears.
+   * Held to a stricter rule than every other project action: administering
+   * that specific project, or the company. The head-office permission that
+   * reaches every project is enough to edit one and deliberately not enough to
+   * destroy one, because this takes the tasks, risks and history with it and
+   * cannot be undone. Archiving is the reversible path and should be preferred;
+   * this exists for records created in error. Related rows are removed by
+   * cascading foreign keys, so the audit entry is written before the row goes.
    */
   async deleteProject(actor: UserPrincipal, rawProjectId: unknown): Promise<void> {
-    requireProjectManagement(actor);
     const projectId = parseProjectId(rawProjectId);
+    await this.projectTeam.requireProjectDeletion(actor, projectId);
 
     const existing = await this.projects.findByIdForTenant(actor.tenantId, projectId);
     if (!existing) {

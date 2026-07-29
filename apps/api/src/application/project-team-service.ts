@@ -5,7 +5,13 @@
  * be able to reach *this* project, either through a tenant-wide project role or
  * through membership of the project itself.
  */
-import { canManageProjects, requireProjectRead, type UserPrincipal } from "../domain/auth.js";
+import {
+  canReachAllProjects,
+  hasPermission,
+  isCompanyAdministrator,
+  requireProjectRead,
+  type UserPrincipal,
+} from "../domain/auth.js";
 import { DomainError } from "../domain/errors.js";
 import { parseProjectId } from "../domain/project.js";
 import type {
@@ -15,6 +21,7 @@ import type {
 } from "../domain/project-team.js";
 import {
   isProjectAdminRole,
+  roleGrantsOnProject,
   parseAddProjectMemberInput,
   parseCreateStakeholderInput,
   parseProjectActivityQuery,
@@ -72,6 +79,16 @@ export interface ProjectTeamRepository {
   ): Promise<ProjectActivityRecord[]>;
 }
 
+/**
+ * What the caller may do on one project.
+ *
+ * `canManage` answers *reach with authority over this project* — company
+ * administrator, head office through `projects.manage_all`, or a project admin
+ * role on this project. It deliberately does not answer "may they edit", which
+ * is a capability question the caller asks separately with the relevant atomic
+ * permission. Keeping them apart is the whole point of the model: reach says
+ * which projects, capability says which actions.
+ */
 export interface ProjectAccess {
   canRead: boolean;
   canManage: boolean;
@@ -88,8 +105,12 @@ export class ProjectTeamService {
   /**
    * Resolves what the caller may do on one project.
    *
-   * A tenant-wide project manager can manage any project. Otherwise the caller
-   * must be a member, and only project admin roles may change the team.
+   * Membership is the authority, and that is the correction this carries.
+   * A company-wide grant used to answer this on its own, so anyone who could
+   * create a project could also edit and destroy every project in the company
+   * without ever being part of it. Now only a company administrator or the
+   * explicit head-office permission reaches past membership, and everyone else
+   * gets exactly the projects they were put on.
    */
   async resolveAccess(actor: UserPrincipal, projectId: string): Promise<ProjectAccess> {
     /*
@@ -103,7 +124,7 @@ export class ProjectTeamService {
       throw new DomainError("NOT_FOUND", "Project was not found.");
     }
 
-    if (canManageProjects(actor)) {
+    if (canReachAllProjects(actor)) {
       return { canRead: true, canManage: true };
     }
 
@@ -121,11 +142,75 @@ export class ProjectTeamService {
     };
   }
 
-  private async requireManage(actor: UserPrincipal, projectId: string): Promise<void> {
+  /**
+   * Reach *and* capability, which is the rule the whole model rests on.
+   *
+   * Reaching a project says which records a person is allowed near. It never
+   * says what they may do once there — that is the atomic permission, checked
+   * here in the same breath so no call site can satisfy one and forget the
+   * other. Company administrators hold every permission, so they pass the
+   * second test by holding it rather than by being excused from it.
+   */
+  async requireProjectCapability(
+    actor: UserPrincipal,
+    projectId: string,
+    permission: Parameters<typeof hasPermission>[1],
+  ): Promise<ProjectAccess> {
     const access = await this.resolveAccess(actor, projectId);
     if (!access.canManage) {
       throw new DomainError("FORBIDDEN", "You do not have permission to manage this project.");
     }
+
+    /*
+     * The capability can come from either side, and both are legitimate.
+     *
+     * A company-wide permission grants the action everywhere the person can
+     * reach. A project role grants it on the one project it is held on, which
+     * is what being made administrator of a project has to mean — otherwise
+     * the appointment is decorative and a site team has to ask head office
+     * before adding its own people.
+     */
+    const grantedByRole =
+      access.membershipRole !== undefined &&
+      roleGrantsOnProject(access.membershipRole, permission);
+    if (!grantedByRole && !hasPermission(actor, permission)) {
+      throw new DomainError("FORBIDDEN", "You do not have permission to perform this action.");
+    }
+    return access;
+  }
+
+  /**
+   * Destroying a project is held to a stricter rule than changing one.
+   *
+   * Deletion takes the tasks, risks and history with it and cannot be undone,
+   * so the head-office reach that is enough to edit any project is deliberately
+   * not enough to destroy one. It requires being the administrator of that
+   * specific project, or administering the company. Archiving remains open to
+   * anyone who can manage the project, because it is the reversible answer and
+   * should be the easy one to reach for.
+   */
+  async requireProjectDeletion(actor: UserPrincipal, projectId: string): Promise<void> {
+    if (isCompanyAdministrator(actor)) return;
+
+    if (!hasPermission(actor, "projects.delete")) {
+      throw new DomainError("FORBIDDEN", "You do not have permission to delete projects.");
+    }
+
+    const membership = await this.team.findMember(actor.tenantId, projectId, actor.userId);
+    if (membership?.role !== "project_admin") {
+      throw new DomainError(
+        "FORBIDDEN",
+        "Deleting a project requires being its project administrator. Archive it instead.",
+      );
+    }
+  }
+
+  /**
+   * Members and stakeholders are one register, so one capability governs both.
+   * Reach still has to hold as well; `requireProjectCapability` asks both.
+   */
+  private async requireManage(actor: UserPrincipal, projectId: string): Promise<void> {
+    await this.requireProjectCapability(actor, projectId, "project_team.manage");
   }
 
   async listMembers(actor: UserPrincipal, rawProjectId: unknown): Promise<ProjectMemberRecord[]> {

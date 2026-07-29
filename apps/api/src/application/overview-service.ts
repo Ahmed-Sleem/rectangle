@@ -10,7 +10,7 @@
  * and simply has no team block, instead of being refused the page.
  */
 import {
-  canManageProjects,
+  canReachAllProjects,
   canReadUsers,
   hasPermission,
   requireProjectRead,
@@ -62,7 +62,7 @@ export class OverviewService {
     // tenant-wide project manager can reach any project, everyone else only
     // the ones they belong to. Counting work the viewer cannot open would send
     // them from a figure to an empty list.
-    const taskScope = canManageProjects(actor) ? "all" : "member";
+    const taskScope = canReachAllProjects(actor) ? "all" : "member";
 
     const [statusCounts, budgets, attention, tasks, risks, team] = await Promise.all([
       this.repository.countProjectsByStatus(actor.tenantId),

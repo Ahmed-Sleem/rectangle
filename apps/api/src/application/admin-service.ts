@@ -105,7 +105,7 @@ export class AdminService {
   }
 
   async createUserType(actor: UserPrincipal, rawInput: unknown): Promise<{ userType: UserTypeRecord }> {
-    requirePermission(actor, "user_types.manage");
+    requirePermission(actor, "user_types.create");
     const input = parseCreateUserType(rawInput);
     const invalid = input.permissions.filter((permission) => !allPermissions.includes(permission));
     if (invalid.length > 0) throw new DomainError("VALIDATION_FAILED", "Unknown permission.");
@@ -117,7 +117,7 @@ export class AdminService {
   }
 
   async updateUserType(actor: UserPrincipal, id: string, rawInput: unknown): Promise<{ userType: UserTypeRecord }> {
-    requirePermission(actor, "user_types.manage");
+    requirePermission(actor, "user_types.edit");
     const input = parseUpdateUserType(rawInput);
     const userType = await this.repository.updateUserType(actor.tenantId, id, input);
     if (!userType) throw new DomainError("NOT_FOUND", "User type was not found.");
@@ -132,7 +132,7 @@ export class AdminService {
   }
 
   async createUser(actor: UserPrincipal, rawInput: unknown): Promise<{ user: AdminUserRecord }> {
-    requirePermission(actor, "users.manage");
+    requirePermission(actor, "users.create");
     const input = parseCreateUser(rawInput);
     const existing = await this.repository.findUserByEmail(actor.tenantId, input.email);
     if (existing) throw new DomainError("CONFLICT", "A user with this email already exists.");
@@ -208,8 +208,18 @@ export class AdminService {
   }
 
   async updateUser(actor: UserPrincipal, userId: string, rawInput: unknown): Promise<{ user: AdminUserRecord }> {
-    requirePermission(actor, "users.manage");
     const input = parseUpdateUser(rawInput);
+
+    /*
+     * Revoking somebody's access is a heavier act than correcting their name,
+     * so it is its own permission. A change that only disables or re-enables
+     * asks for that one; anything else asks to edit. A request that does both
+     * has to satisfy both, because it is doing both.
+     */
+    const changesStatus = input.status !== undefined;
+    const changesAnythingElse = Object.keys(input).some((field) => field !== "status");
+    if (changesStatus) requirePermission(actor, "users.disable");
+    if (changesAnythingElse) requirePermission(actor, "users.edit");
 
     if (input.status === "disabled") {
       // Disabling yourself ends the session performing the action, which is
@@ -232,7 +242,7 @@ export class AdminService {
       /*
        * Only an owner may create or unmake another owner. An admin holds every
        * permission, so without this an admin could promote themselves and then
-       * remove the owner — `users.manage` would silently be ownership.
+       * remove the owner — `users.edit` would silently be ownership.
        */
       if ((input.standing === "owner" || (await this.repository.findStanding(actor.tenantId, userId)) === "owner")
         && standingOf(actor) !== "owner") {

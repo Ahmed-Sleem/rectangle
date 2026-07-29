@@ -131,8 +131,14 @@ export default function TasksPage() {
   const [pendingDelete, setPendingDelete] = useState<TaskRecord | null>(null);
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
 
-  const canManage =
-    hasPermission(auth?.user, "projects.manage");
+  /*
+   * One flag per action, because they are separate grants now. Presentation
+   * only — the server decides — but offering a button whose request would be
+   * refused is a worse lie than not offering it.
+   */
+  const canCreate = hasPermission(auth?.user, "tasks.create");
+  const canEdit = hasPermission(auth?.user, "tasks.edit");
+  const canDelete = hasPermission(auth?.user, "tasks.delete");
 
   const filters = {
     ...(projectFilter ? { projectId: projectFilter } : {}),
@@ -325,7 +331,7 @@ export default function TasksPage() {
         ]}
         onClearFilters={clearFilters}
         actions={
-          canManage ? (
+          canCreate ? (
             <Button
               variant="primary"
               onClick={() => { form.reset(); setCreateOpen(true); }}
@@ -375,8 +381,8 @@ export default function TasksPage() {
       ) : rows.length === 0 ? (
         <EmptyState
           title={t("tasks.emptyTitle")}
-          message={canManage ? t("tasks.emptyManage") : t("tasks.emptyRead")}
-          {...(canManage
+          message={canCreate ? t("tasks.emptyManage") : t("tasks.emptyRead")}
+          {...(canCreate
             ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("tasks.create")}</Button> }
             : {})}
         />
@@ -447,7 +453,8 @@ export default function TasksPage() {
       <TaskDetail
         taskId={openTaskId}
         tasks={rows}
-        canManage={canManage}
+        canEdit={canEdit}
+        canDelete={canDelete}
         onClose={() => setOpenTaskId(null)}
         onEdit={(task) => { setOpenTaskId(null); setEditing(task); }}
         onDelete={(task) => { setOpenTaskId(null); setPendingDelete(task); }}

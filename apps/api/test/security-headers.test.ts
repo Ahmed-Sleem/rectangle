@@ -59,6 +59,7 @@ const notUsed = (): never => { throw new Error("not used"); };
 
 async function createTestServer() {
   const audit = new MemoryAuditRepository();
+  const projectTeamService = new ProjectTeamService(new EmptyProjectsRepository(), new MemoryProjectTeamRepository(), audit);
   return createServer({
     activityService: inactiveActivityService,
     overviewService: inactiveOverviewService,
@@ -76,8 +77,8 @@ async function createTestServer() {
       list: notUsed, beginRegistration: notUsed, verifyRegistration: notUsed,
       beginLogin: notUsed, verifyLogin: notUsed,
     },
-    projectService: new ProjectService(new EmptyProjectsRepository(), audit),
-    projectTeamService: new ProjectTeamService(new EmptyProjectsRepository(), new MemoryProjectTeamRepository(), audit),
+    projectService: new ProjectService(new EmptyProjectsRepository(), audit, projectTeamService),
+    projectTeamService,
     setupService: { async getStatus() { return { setupRequired: false }; }, createFirstAdmin: notUsed },
     authService: new AuthService(new EmptyAuthRepository(), new TestPasswordHasher(), audit, jwtSecret),
     jwtSecret,

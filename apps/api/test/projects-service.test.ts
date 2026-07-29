@@ -1,5 +1,7 @@
 /** Tests Projects service validation, authorization, uniqueness, and audit behavior. */
 import { describe, expect, it } from "vitest";
+import { ProjectTeamService } from "../src/application/project-team-service.js";
+import { MemoryProjectTeamRepository } from "./support/memory-project-team-repository.js";
 import { ProjectService, type AuditEventInput, type AuditRepository, type ProjectsRepository } from "../src/application/project-service.js";
 import type { UserPrincipal } from "../src/domain/auth.js";
 import { DomainError } from "../src/domain/errors.js";
@@ -87,7 +89,14 @@ class MemoryAuditRepository implements AuditRepository {
 function createService() {
   const projects = new MemoryProjectsRepository();
   const audit = new MemoryAuditRepository();
-  return { service: new ProjectService(projects, audit), projects, audit };
+  /*
+   * The real collaborator, not a stand-in. Reach is part of what these tests
+   * exercise, and a permissive stub would let them pass whatever the
+   * authorization code did.
+   */
+  const team = new MemoryProjectTeamRepository();
+  const projectTeam = new ProjectTeamService(projects, team, audit);
+  return { service: new ProjectService(projects, audit, projectTeam), projects, audit, team };
 }
 
 describe("ProjectService", () => {

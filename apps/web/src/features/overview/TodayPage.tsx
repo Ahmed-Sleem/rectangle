@@ -72,8 +72,7 @@ export default function TodayPage() {
   const language = getCurrentLanguage();
   const auth = useOptionalAuth();
 
-  const canManageProjects =
-    hasPermission(auth?.user, "projects.manage");
+  const canCreateProjects = hasPermission(auth?.user, "projects.create");
 
   const overview = useQuery({ queryKey: ["overview"], queryFn: getOverview });
   const summary = overview.data?.overview;
@@ -110,8 +109,8 @@ export default function TodayPage() {
     return (
       <EmptyState
         title={t("overview.emptyTitle")}
-        message={canManageProjects ? t("overview.emptyManage") : t("overview.emptyRead")}
-        {...(canManageProjects
+        message={canCreateProjects ? t("overview.emptyManage") : t("overview.emptyRead")}
+        {...(canCreateProjects
           ? {
               action: (
                 <Link className={buttonClassName("primary")} to="/projects">

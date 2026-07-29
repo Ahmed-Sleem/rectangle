@@ -11,7 +11,7 @@
  * audit trail exists to preserve.
  */
 import {
-  canManageProjects,
+  canReachAllProjects,
   canReadProjectRegistry,
   canReadUsers,
   type UserPrincipal,
@@ -70,7 +70,7 @@ export class SearchService {
 
     // Task visibility follows the same rule as the task list and the project
     // workspace, so search can never surface work its owner cannot open.
-    const taskScope = canManageProjects(actor) ? "all" : "member";
+    const taskScope = canReachAllProjects(actor) ? "all" : "member";
 
     const [projects, tasks, risks, people] = await Promise.all([
       canReadProjectRegistry(actor)

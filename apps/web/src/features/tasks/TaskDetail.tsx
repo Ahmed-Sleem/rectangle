@@ -33,7 +33,8 @@ const NEXT_STATUSES: Record<TaskStatus, readonly TaskStatus[]> = {
 export interface TaskDetailProps {
   taskId: string | null;
   tasks: readonly TaskRecord[];
-  canManage: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
   onClose: () => void;
   onEdit: (task: TaskRecord) => void;
   onDelete: (task: TaskRecord) => void;
@@ -44,7 +45,8 @@ export interface TaskDetailProps {
 export function TaskDetail({
   taskId,
   tasks,
-  canManage,
+  canEdit,
+  canDelete,
   onClose,
   onEdit,
   onDelete,
@@ -89,10 +91,14 @@ export function TaskDetail({
       size="lg"
       onClose={onClose}
       footer={
-        canManage ? (
+        canEdit || canDelete ? (
           <>
-            <Button variant="danger" onClick={() => onDelete(task)}>{t("tasks.delete")}</Button>
-            <Button variant="secondary" onClick={() => onEdit(task)}>{t("tasks.edit")}</Button>
+            {canDelete ? (
+              <Button variant="danger" onClick={() => onDelete(task)}>{t("tasks.delete")}</Button>
+            ) : null}
+            {canEdit ? (
+              <Button variant="secondary" onClick={() => onEdit(task)}>{t("tasks.edit")}</Button>
+            ) : null}
           </>
         ) : null
       }
@@ -119,7 +125,7 @@ export function TaskDetail({
 
         {task.description ? <p className="rect-task-detail__description">{task.description}</p> : null}
 
-        {canManage || task.assigneeUserId ? (
+        {canEdit || task.assigneeUserId ? (
           <div className="rect-task-detail__moves">
             {NEXT_STATUSES[task.status].map((status) => (
               <Button
