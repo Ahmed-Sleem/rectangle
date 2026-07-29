@@ -21,6 +21,7 @@ export class PostgresSetupRepository implements SetupRepository {
     adminEmail: string;
     passwordHash: string;
     expiresAt: string;
+    absoluteExpiresAt: string;
     userAgent?: string;
     ipAddress?: string;
   }) {
@@ -53,9 +54,16 @@ export class PostgresSetupRepository implements SetupRepository {
       );
 
       const session = await client.query(
-        `insert into auth_sessions (tenant_id, user_id, user_agent, ip_address, expires_at)
-         values ($1, $2, $3, $4, $5) returning id`,
-        [tenantId, userId, input.userAgent ?? null, input.ipAddress ?? null, input.expiresAt],
+        `insert into auth_sessions (tenant_id, user_id, user_agent, ip_address, expires_at, absolute_expires_at, last_seen_at)
+         values ($1, $2, $3, $4, $5, $6, now()) returning id`,
+        [
+          tenantId,
+          userId,
+          input.userAgent ?? null,
+          input.ipAddress ?? null,
+          input.expiresAt,
+          input.absoluteExpiresAt,
+        ],
       );
 
       await client.query("commit");

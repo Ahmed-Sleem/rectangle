@@ -33,6 +33,9 @@ class EmptyProjectsRepository implements ProjectsRepository {
 class EmptyAuthRepository implements AuthRepository {
   async findCredentialUser(): Promise<null> { return null; }
   async createSession(): Promise<{ id: string; tenantId: string; userId: string; expiresAt: string }> { throw new Error("not used"); }
+  /** The real one slides the deadline; nothing here reads it back. */
+  async touchSession(): Promise<void> {}
+
   async findActiveSession(): Promise<null> { return null; }
   async revokeSession(): Promise<void> {}
 }

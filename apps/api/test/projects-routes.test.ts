@@ -111,6 +111,9 @@ class MemoryAuthRepository implements AuthRepository {
   async createSession() {
     return { id: sessionId, tenantId, userId, expiresAt: new Date(Date.now() + 3600000).toISOString() };
   }
+  /** The real one slides the deadline; nothing here reads it back. */
+  async touchSession(): Promise<void> {}
+
   async findActiveSession(lookupSessionId: string, sessionTenantId: string, sessionUserId: string) {
     return {
       id: lookupSessionId,

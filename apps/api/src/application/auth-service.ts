@@ -2,6 +2,7 @@
  * AuthService issues real authenticated sessions after validating tenant/user
  * credentials. It does not create demo users or bypass role lookup.
  */
+import { nextIdleDeadline, sessionDeadlines, tokenLifetimeSeconds } from "../domain/session-policy.js";
 import { randomUUID } from "node:crypto";
 import { SignJWT } from "jose";
 import { tenantRoleSchema, type TenantRole } from "../domain/auth.js";
@@ -36,6 +37,8 @@ export interface AuthSessionRecord {
   tenantId: string;
   userId: string;
   expiresAt: string;
+  /** Fixed at sign-in and never extended; absent on rows created before it existed. */
+  absoluteExpiresAt?: string;
 }
 
 export interface AuthRepository {
@@ -46,8 +49,11 @@ export interface AuthRepository {
     userAgent?: string;
     ipAddress?: string;
     expiresAt: string;
+    absoluteExpiresAt: string;
   }): Promise<AuthSessionRecord>;
   findActiveSession(sessionId: string, tenantId: string, userId: string): Promise<AuthSessionRecord | null>;
+  /** Slides the idle deadline. Never moves the absolute cap. */
+  touchSession(sessionId: string, expiresAt: string): Promise<void>;
   revokeSession(sessionId: string, tenantId: string, userId: string): Promise<void>;
   /**
    * The tenant behind a slug, regardless of whether the email matched anyone.
@@ -77,7 +83,6 @@ export interface LoginResult {
   };
 }
 
-const accessTokenLifetimeSeconds = 60 * 60;
 
 export class AuthService {
   constructor(
@@ -110,6 +115,34 @@ export class AuthService {
   } | null> {
     const session = await this.authRepository.findActiveSession(sessionId, tenantId, userId);
     if (!session) return null;
+
+    /*
+     * Being used is what keeps a session alive.
+     *
+     * This runs on every authenticated request, which makes it the only place
+     * that reliably knows somebody is still working. The write is skipped
+     * unless the deadline has drifted far enough to be worth one, so a page
+     * issuing several queries at once does not write the same row several
+     * times.
+     *
+     * Deliberately not awaited into the failure path: if the update fails the
+     * request should still succeed, because the person is authenticated and
+     * the worst case is that their session expires on the original schedule.
+     * Failing a valid request to record a timestamp would be the tail wagging
+     * the dog.
+     */
+    if (session.absoluteExpiresAt) {
+      const next = nextIdleDeadline(
+        new Date(session.expiresAt),
+        new Date(session.absoluteExpiresAt),
+      );
+      if (next) {
+        await this.authRepository
+          .touchSession(sessionId, next)
+          .catch(() => undefined);
+      }
+    }
+
     return {
       roles: session.roles ?? [],
       permissions: [...new Set(session.permissions ?? [])],
@@ -183,11 +216,12 @@ export class AuthService {
 
     this.throttle?.recordSuccess(throttleKeys);
 
-    const expiresAt = new Date(Date.now() + accessTokenLifetimeSeconds * 1000).toISOString();
+    const { expiresAt, absoluteExpiresAt } = sessionDeadlines();
     const session = await this.authRepository.createSession({
       tenantId: user.tenantId,
       userId: user.userId,
       expiresAt,
+      absoluteExpiresAt,
       ...(context.userAgent ? { userAgent: context.userAgent } : {}),
       ...(context.ipAddress ? { ipAddress: context.ipAddress } : {}),
     });
@@ -198,7 +232,7 @@ export class AuthService {
       .setSubject(user.userId)
       .setJti(randomUUID())
       .setIssuedAt()
-      .setExpirationTime(`${accessTokenLifetimeSeconds}s`)
+      .setExpirationTime(`${tokenLifetimeSeconds}s`)
       .sign(new TextEncoder().encode(this.jwtSecret));
 
     await this.audit.append({

@@ -13,6 +13,9 @@ function mapSession(row: Record<string, unknown>): AuthSessionRecord {
     userId: String(row.user_id),
     expiresAt: new Date(String(row.expires_at)).toISOString(),
   };
+  if (row.absolute_expires_at != null) {
+    session.absoluteExpiresAt = new Date(String(row.absolute_expires_at)).toISOString();
+  }
   // Only the per-request lookup selects identity and authority; session
   // creation returns the bare session row.
   if (Array.isArray(row.roles)) session.roles = row.roles.map(String) as TenantRole[];
@@ -80,12 +83,20 @@ export class PostgresAuthRepository implements AuthRepository {
     userAgent?: string;
     ipAddress?: string;
     expiresAt: string;
+    absoluteExpiresAt: string;
   }): Promise<AuthSessionRecord> {
     const result = await this.pool.query(
-      `insert into auth_sessions (tenant_id, user_id, user_agent, ip_address, expires_at)
-       values ($1,$2,$3,$4,$5)
-       returning id, tenant_id, user_id, expires_at`,
-      [input.tenantId, input.userId, input.userAgent ?? null, input.ipAddress ?? null, input.expiresAt],
+      `insert into auth_sessions (tenant_id, user_id, user_agent, ip_address, expires_at, absolute_expires_at, last_seen_at)
+       values ($1,$2,$3,$4,$5,$6,now())
+       returning id, tenant_id, user_id, expires_at, absolute_expires_at`,
+      [
+        input.tenantId,
+        input.userId,
+        input.userAgent ?? null,
+        input.ipAddress ?? null,
+        input.expiresAt,
+        input.absoluteExpiresAt,
+      ],
     );
     return mapSession(result.rows[0] as Record<string, unknown>);
   }
@@ -96,7 +107,7 @@ export class PostgresAuthRepository implements AuthRepository {
       // login. Without the status check a disabled account keeps working until
       // its token expires; without re-reading roles and permissions, granting
       // or revoking access does not take effect until then either.
-      `select s.id, s.tenant_id, s.user_id, s.expires_at,
+      `select s.id, s.tenant_id, s.user_id, s.expires_at, s.absolute_expires_at,
               u.display_name, u.email,
               coalesce(array_agg(distinct r.role) filter (where r.role is not null), '{}') as roles,
               coalesce(array_agg(distinct permission_value) filter (where permission_value is not null), '{}') as permissions
@@ -107,13 +118,34 @@ export class PostgresAuthRepository implements AuthRepository {
          left join user_types t on t.id = a.user_type_id
          left join lateral unnest(t.permissions) as permission_value on true
         where s.id = $1 and s.tenant_id = $2 and s.user_id = $3
-          and s.revoked_at is null and s.expires_at > now()
+          and s.revoked_at is null
+          -- Both deadlines, and the earlier one wins. Checking only the idle
+          -- one would let a background poll hold a session open forever.
+          and s.expires_at > now() and s.absolute_expires_at > now()
           and u.status = 'active'
-        group by s.id, s.tenant_id, s.user_id, s.expires_at, u.display_name, u.email
+        group by s.id, s.tenant_id, s.user_id, s.expires_at, s.absolute_expires_at, u.display_name, u.email
         limit 1`,
       [sessionId, tenantId, userId],
     );
     return result.rows[0] ? mapSession(result.rows[0] as Record<string, unknown>) : null;
+  }
+
+  /**
+   * Moves the idle deadline forward and records that the session was used.
+   *
+   * Guarded by the caller, which only asks once the deadline has drifted far
+   * enough to be worth a write — a page firing five queries at once would
+   * otherwise write the same row five times for no gain. The absolute cap is
+   * deliberately not touched: it is the one thing activity must not extend.
+   */
+  async touchSession(sessionId: string, expiresAt: string): Promise<void> {
+    await this.pool.query(
+      `update auth_sessions
+          set expires_at = least($2::timestamptz, absolute_expires_at),
+              last_seen_at = now()
+        where id = $1 and revoked_at is null`,
+      [sessionId, expiresAt],
+    );
   }
 
   /** Ends every live session for one person, used when access is withdrawn. */

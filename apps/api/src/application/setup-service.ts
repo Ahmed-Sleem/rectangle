@@ -2,6 +2,7 @@
  * SetupService performs the one-time first company/admin bootstrap. It is the
  * only production path that can create the first tenant without authentication.
  */
+import { sessionDeadlines, tokenLifetimeSeconds } from "../domain/session-policy.js";
 import { SignJWT } from "jose";
 import { randomUUID } from "node:crypto";
 import { parseFirstAdminSetupInput } from "../domain/setup.js";
@@ -22,6 +23,7 @@ export interface SetupRepository {
     adminEmail: string;
     passwordHash: string;
     expiresAt: string;
+    absoluteExpiresAt: string;
     userAgent?: string;
     ipAddress?: string;
   }): Promise<{
@@ -48,7 +50,6 @@ export interface SetupResult {
   };
 }
 
-const accessTokenLifetimeSeconds = 60 * 60;
 
 export class SetupService {
   constructor(
@@ -70,7 +71,7 @@ export class SetupService {
 
     const input = parseFirstAdminSetupInput(rawInput);
     const passwordHash = await this.passwordHasher.hash(input.password);
-    const expiresAt = new Date(Date.now() + accessTokenLifetimeSeconds * 1000).toISOString();
+    const { expiresAt, absoluteExpiresAt } = sessionDeadlines();
     const created = await this.setupRepository.createFirstAdmin({
       companyName: input.companyName,
       companySlug: input.companySlug,
@@ -78,6 +79,7 @@ export class SetupService {
       adminEmail: input.adminEmail,
       passwordHash,
       expiresAt,
+      absoluteExpiresAt,
       ...(context.userAgent ? { userAgent: context.userAgent } : {}),
       ...(context.ipAddress ? { ipAddress: context.ipAddress } : {}),
     });
@@ -87,7 +89,7 @@ export class SetupService {
       .setSubject(created.userId)
       .setJti(randomUUID())
       .setIssuedAt()
-      .setExpirationTime(`${accessTokenLifetimeSeconds}s`)
+      .setExpirationTime(`${tokenLifetimeSeconds}s`)
       .sign(new TextEncoder().encode(this.jwtSecret));
 
     await this.audit.append({

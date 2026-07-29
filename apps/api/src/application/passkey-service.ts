@@ -1,4 +1,5 @@
 /** Passkey service implements WebAuthn registration and login ceremonies. */
+import { sessionDeadlines, tokenLifetimeSeconds } from "../domain/session-policy.js";
 import { SignJWT } from "jose";
 import { randomUUID } from "node:crypto";
 import { generateAuthenticationOptions, generateRegistrationOptions, verifyAuthenticationResponse, verifyRegistrationResponse } from "@simplewebauthn/server";
@@ -42,7 +43,7 @@ export interface PasskeyRepository {
   consumeChallenge(input: { tenantId: string; userId: string; ceremony: "registration" | "authentication" }): Promise<string | null>;
   saveCredential(input: Omit<PasskeyCredentialRecord, "id" | "createdAt" | "lastUsedAt">): Promise<PasskeyCredentialRecord>;
   updateCredentialCounter(credentialId: string, counter: number): Promise<void>;
-  createSession(input: { tenantId: string; userId: string; expiresAt: string; userAgent?: string; ipAddress?: string }): Promise<{ id: string; expiresAt: string }>;
+  createSession(input: { tenantId: string; userId: string; expiresAt: string; absoluteExpiresAt: string; userAgent?: string; ipAddress?: string }): Promise<{ id: string; expiresAt: string }>;
 }
 
 export interface RelyingPartyInfo {
@@ -50,7 +51,6 @@ export interface RelyingPartyInfo {
   origin: string;
 }
 
-const accessTokenLifetimeSeconds = 60 * 60;
 
 /**
  * Transport input is parsed rather than cast. WebAuthn verification does the
@@ -164,14 +164,14 @@ export class PasskeyService {
     await this.repository.updateCredentialCounter(credential.credentialId, verification.authenticationInfo.newCounter);
     const user = await this.repository.findUserById(credential.tenantId, credential.userId);
     if (!user) throw new DomainError("UNAUTHENTICATED", "Passkey user was not found.");
-    const expiresAt = new Date(Date.now() + accessTokenLifetimeSeconds * 1000).toISOString();
-    const session = await this.repository.createSession({ tenantId: credential.tenantId, userId: credential.userId, expiresAt, ...(context.userAgent ? { userAgent: context.userAgent } : {}), ...(context.ipAddress ? { ipAddress: context.ipAddress } : {}) });
+    const { expiresAt, absoluteExpiresAt } = sessionDeadlines();
+    const session = await this.repository.createSession({ tenantId: credential.tenantId, userId: credential.userId, expiresAt, absoluteExpiresAt, ...(context.userAgent ? { userAgent: context.userAgent } : {}), ...(context.ipAddress ? { ipAddress: context.ipAddress } : {}) });
     const accessToken = await new SignJWT({ tenant_id: user.tenantId, roles: user.roles, permissions: user.permissions, sid: session.id })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(credential.userId)
       .setJti(randomUUID())
       .setIssuedAt()
-      .setExpirationTime(`${accessTokenLifetimeSeconds}s`)
+      .setExpirationTime(`${tokenLifetimeSeconds}s`)
       .sign(new TextEncoder().encode(this.jwtSecret));
     await this.audit.append({ tenantId: credential.tenantId, actorUserId: credential.userId, action: "passkey.login", entityType: "user", entityId: credential.userId, result: "success" });
     return { accessToken, expiresAt, user: { id: user.userId, tenantId: user.tenantId, email: user.email, displayName: user.displayName, roles: user.roles, permissions: user.permissions } };

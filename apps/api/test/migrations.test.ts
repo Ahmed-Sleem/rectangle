@@ -26,6 +26,7 @@ describe("PostgreSQL migrations", () => {
       "012_company_standing.sql",
       "013_separation_of_duties.sql",
       "014_atomic_permissions.sql",
+      "015_session_sliding_expiry.sql",
     ]);
 
     for (const file of files) {
