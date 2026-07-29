@@ -14,13 +14,14 @@ import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrateUpTo } from "./support/migrations.js";
 
+/** Shared by both suites in this file; see the note above the second one. */
+let db: PGlite;
+
 const TENANT = "44444444-4444-4444-8444-444444444444";
 const USER = "55555555-5555-4555-8555-555555555555";
 const OLD_SESSION = "66666666-6666-4666-8666-666666666666";
 
 describe("session sliding expiry migration", () => {
-  let db: PGlite;
-
   beforeAll(async () => {
     db = new PGlite();
     await migrateUpTo(db, "015_session_sliding_expiry.sql");
@@ -39,10 +40,6 @@ describe("session sliding expiry migration", () => {
     `);
     await migrateUpTo(db);
   }, 60_000);
-
-  afterAll(async () => {
-    await db.close();
-  });
 
   async function session(): Promise<Record<string, unknown>> {
     const result = await db.query<Record<string, unknown>>(
@@ -101,23 +98,16 @@ describe("session sliding expiry migration", () => {
   });
 });
 
+/*
+ * Shares the database above rather than standing up another.
+ *
+ * Each PGlite instance is a whole PostgreSQL compiled to WASM and the pages are
+ * not returned to the operating system when one closes, so the cost accumulates
+ * across a run until a worker is killed — which shows up as tests silently not
+ * being counted rather than as a failure. These cases only read and insert
+ * rows, so they have no reason to want a database of their own.
+ */
 describe("what the per-request lookup accepts", () => {
-  let db: PGlite;
-
-  beforeAll(async () => {
-    db = new PGlite();
-    await migrateUpTo(db);
-    await db.exec(`
-      insert into tenants (id, name, slug) values ('${TENANT}','Sliding','sliding');
-      insert into users (id, tenant_id, email, display_name, status)
-        values ('${USER}','${TENANT}','site@example.com','Site Engineer','active');
-    `);
-  }, 60_000);
-
-  afterAll(async () => {
-    await db.close();
-  });
-
   /** Mirrors the predicate in `findActiveSession`. */
   async function isLive(id: string): Promise<boolean> {
     const result = await db.query<{ c: number }>(
@@ -182,4 +172,13 @@ describe("what the per-request lookup accepts", () => {
       new Date(String(row.rows[0]?.absolute_expires_at)).getTime(),
     );
   });
+});
+
+/*
+ * Closed at the end of the file rather than at the end of the first suite,
+ * because the second one shares it. Placed here so adding a third suite does
+ * not silently reintroduce the second database.
+ */
+afterAll(async () => {
+  await db.close();
 });
