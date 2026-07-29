@@ -16,7 +16,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const MIGRATIONS_DIR = fileURLToPath(new URL("../migrations", import.meta.url));
 
@@ -100,6 +100,16 @@ describe("company standing migration", () => {
     const result = await db.query<{ c: number }>(sql);
     return result.rows[0]?.c ?? -1;
   }
+
+  /*
+   * Each PGlite instance holds a whole PostgreSQL compiled to WASM in memory.
+   * Two suites left theirs open for the length of the run and a third tipped
+   * the worker over, which surfaced as tests silently not running rather than
+   * as a failure — the worst way for a check to break.
+   */
+  afterAll(async () => {
+    await db.close();
+  });
 
   it("leaves no legacy role name behind", async () => {
     expect(
@@ -225,6 +235,10 @@ describe("atomic permission migration", () => {
     `);
     await migrateUpTo(db);
   }, 60_000);
+
+  afterAll(async () => {
+    await db.close();
+  });
 
   it("leaves no retired key anywhere", async () => {
     const result = await db.query<{ c: number }>(
