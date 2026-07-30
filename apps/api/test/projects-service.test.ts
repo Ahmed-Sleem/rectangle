@@ -19,7 +19,14 @@ class MemoryProjectsRepository implements ProjectsRepository {
 
   readonly projects = new Map<string, ProjectRecord>();
 
-  async create(projectTenantId: string, input: CreateProjectInput): Promise<ProjectRecord> {
+  /** Records who the repository was told to enrol, so the service can be checked. */
+  enrolled: Array<{ projectId: string; userId: string }> = [];
+
+  async create(
+    projectTenantId: string,
+    input: CreateProjectInput,
+    creatorUserId: string,
+  ): Promise<ProjectRecord> {
     const now = new Date("2026-07-23T20:00:00.000Z").toISOString();
     const project: ProjectRecord = {
       id: crypto.randomUUID(),
@@ -39,6 +46,7 @@ class MemoryProjectsRepository implements ProjectsRepository {
       updatedAt: now,
     };
     this.projects.set(project.id, project);
+    this.enrolled.push({ projectId: project.id, userId: creatorUserId });
     return project;
   }
 
@@ -148,5 +156,37 @@ describe("ProjectService", () => {
 
     await expect(service.createProject(admin, { name: "Mall Phase 2", code: "MALL-01" })).rejects.toBeInstanceOf(DomainError);
     await expect(service.createProject(admin, { name: "Mall Phase 2", code: "MALL-01" })).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+});
+
+describe("creating a project you can then open", () => {
+  it("enrols the creator as the project's administrator", async () => {
+    /*
+     * A real bug this catches. Membership is what grants reach, so somebody
+     * holding `projects.create` without the company-wide `projects.manage_all`
+     * created a job and immediately lost it: `resolveAccess` found no
+     * membership and answered "not found". They had made something they could
+     * not open, and could not even see to ask about.
+     *
+     * Procore does the same thing for the same reason — granting project
+     * creation makes the creator administrator of what they create.
+     */
+    const { service, projects } = createService();
+    const starter: UserPrincipal = {
+      tenantId,
+      userId: "44444444-4444-4444-8444-444444444444",
+      roles: ["member"],
+      permissions: ["projects.read", "projects.create"],
+    };
+
+    const project = await service.createProject(starter, {
+      name: "Sheikh Zayed Depot",
+      code: "SZD-001",
+      status: "active",
+    });
+
+    expect(projects.enrolled).toEqual([
+      { projectId: project.id, userId: starter.userId },
+    ]);
   });
 });

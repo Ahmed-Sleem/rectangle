@@ -8,10 +8,7 @@
  * and check the two things that were wrong.
  */
 import { describe, expect, it } from "vitest";
-import {
-  PostgresSearchRepository,
-  searchInternals,
-} from "../src/infrastructure/postgres/search-repository.js";
+import { PostgresSearchRepository } from "../src/infrastructure/postgres/search-repository.js";
 
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
@@ -50,7 +47,13 @@ describe("search SQL", () => {
     await repository.searchRisks(tenantId, userId, "cairo", 5, "member");
     await repository.searchRisks(tenantId, userId, "cairo", 5, "all");
 
-    expect(captured).toHaveLength(6);
+    /*
+     * Twelve statements from six searches: the fake pool returns no rows, so
+     * every search falls through to the forgiving stage. That is the behaviour
+     * wanted — and it means both stages are checked here, which is the point,
+     * since the fuzzy stage binds a different value from the precise one.
+     */
+    expect(captured).toHaveLength(12);
     for (const { sql, values } of captured) {
       expect(placeholderCount(sql)).toBe(values.length);
     }
@@ -64,7 +67,9 @@ describe("search SQL", () => {
 
     // A tenant-wide manager needs no membership filter, so the user id must
     // not be bound: Postgres refuses a bind with more values than parameters.
-    expect(captured[0]!.values).not.toContain(userId);
+    for (const { values } of captured) {
+      expect(values).not.toContain(userId);
+    }
   });
 
   it("keeps the membership value when the clause is present", async () => {
@@ -73,8 +78,12 @@ describe("search SQL", () => {
 
     await repository.searchTasks(tenantId, userId, "cairo", 5, "member");
 
-    expect(captured[0]!.sql).toContain("project_members");
-    expect(captured[0]!.values).toContain(userId);
+    for (const { sql, values } of captured) {
+      // Both stages must keep the membership filter. A fuzzy fallback that
+      // dropped it would show a person work they cannot open.
+      expect(sql).toContain("project_members");
+      expect(values).toContain(userId);
+    }
   });
 
   it("searches the indexed column rather than scanning with a leading wildcard", async () => {
@@ -84,7 +93,7 @@ describe("search SQL", () => {
     await repository.searchProjects(tenantId, "cairo", 5);
 
     // `ilike '%term%'` cannot use an index; the generated column can.
-    expect(captured[0]!.sql).toContain("search_document @@ to_tsquery");
+    expect(captured[0]!.sql).toContain("search_document @@");
     expect(captured[0]!.sql).not.toMatch(/ilike/iu);
   });
 
@@ -95,31 +104,5 @@ describe("search SQL", () => {
     await repository.searchProjects(tenantId, "cairo", 5);
 
     expect(captured[0]!.sql).toContain("ts_rank_cd");
-  });
-});
-
-describe("prefix query building", () => {
-  it("matches a word still being typed", () => {
-    // Without `:*`, nothing matches until the word is finished.
-    expect(searchInternals.prefixQuery("cai")).toBe("cai:*");
-  });
-
-  it("requires every word, so more typing narrows rather than widens", () => {
-    expect(searchInternals.prefixQuery("new cairo")).toBe("new:* & cairo:*");
-  });
-
-  it("strips punctuation that to_tsquery would reject", () => {
-    // A raw apostrophe or ampersand makes to_tsquery throw a syntax error.
-    expect(searchInternals.prefixQuery("a & b")).toBe("a:* & b:*");
-    expect(searchInternals.prefixQuery("o'brien")).toBe("o:* & brien:*");
-  });
-
-  it("produces nothing for a term with no searchable characters", () => {
-    // Returned early rather than passed on, because to_tsquery rejects it.
-    expect(searchInternals.prefixQuery("!!!")).toBe("");
-  });
-
-  it("keeps Arabic words intact", () => {
-    expect(searchInternals.prefixQuery("مشروع القاهرة")).toBe("مشروع:* & القاهرة:*");
   });
 });

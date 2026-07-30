@@ -309,10 +309,18 @@ describe("activity summary", () => {
       tenantId, userId, scope: "all", query: parseActivityQuery({ search: "metro" }),
     });
 
+    /*
+     * All three fields a row shows, matched through the shared engine rather
+     * than `ilike '%term%'` — which could not use an index and ranked nothing.
+     * Asserted on the fields being searched rather than on the operator, so
+     * this keeps meaning the same thing if the engine changes again.
+     */
     const { sql } = captured[0]!;
-    expect(sql).toContain("u.display_name ilike");
-    expect(sql).toContain("a.action ilike");
-    expect(sql).toContain("p.name ilike");
+    expect(sql).toContain("u.display_name");
+    expect(sql).toContain("a.action");
+    expect(sql).toContain("p.name");
+    expect(sql).toContain("websearch_to_tsquery");
+    expect(sql).not.toMatch(/ilike/iu);
   });
 
   it("binds exactly the parameters the summary references", async () => {

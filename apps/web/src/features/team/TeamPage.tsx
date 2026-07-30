@@ -23,6 +23,7 @@ import {
   Select,
   ViewToggle,
 } from "@/shared/ui";
+import { searchRecords } from "@/shared/search/match";
 import { PermissionPicker } from "./PermissionPicker";
 import { adminApi, type AdminUserRecord, type UserTypeRecord } from "./admin-api";
 import "./TeamPage.css";
@@ -267,36 +268,42 @@ export default function TeamPage() {
   const typeRows = useMemo(() => userTypes.data?.userTypes ?? [], [userTypes.data]);
   const allUsers = useMemo(() => users.data?.users ?? [], [users.data]);
 
+  /*
+   * Filtered here rather than through the API, and searched with the shared
+   * rules rather than `includes`.
+   *
+   * In the browser because this page already downloads every person with no
+   * limit, so there is nothing a round trip would find that is not already
+   * here — unlike projects or tasks, which arrive a page at a time and must be
+   * searched where the whole set lives. What must not differ is the behaviour,
+   * so the matching itself comes from the module the SQL engine is checked
+   * against: same Arabic folding, same typo tolerance, same operators.
+   */
   const filteredUsers = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase();
-    return allUsers.filter((user) => {
+    const narrowed = allUsers.filter((user) => {
       if (statusFilter && user.status !== statusFilter) return false;
       if (typeFilter && !user.userTypes.some((type) => type.id === typeFilter)) return false;
-      if (!term) return true;
-      return (
-        user.displayName.toLocaleLowerCase().includes(term) ||
-        user.email.toLocaleLowerCase().includes(term)
-      );
+      return true;
     });
+    return searchRecords(narrowed, search, (user) => [user.displayName, user.email]);
   }, [allUsers, search, statusFilter, typeFilter]);
 
   /**
-   * Roles are searched in the browser rather than through the API. The whole
-   * set is already loaded and a company has a handful of them, so a round trip
-   * would add latency and an endpoint to maintain for no gain.
+   * Roles are searched in the browser for the same reason people are: the whole
+   * set is already loaded and a company has a handful of them. The rules are
+   * the shared ones, so a role is found the same way a project is.
    */
   const filteredTypes = useMemo(() => {
-    const term = roleSearch.trim().toLocaleLowerCase();
-    return typeRows.filter((type) => {
+    const narrowed = typeRows.filter((type) => {
       if (roleOriginFilter === "system" && !type.systemType) return false;
       if (roleOriginFilter === "custom" && type.systemType) return false;
-      if (!term) return true;
-      return (
-        roleName(type, t).toLocaleLowerCase().includes(term) ||
-        type.key.toLocaleLowerCase().includes(term) ||
-        (type.description ?? "").toLocaleLowerCase().includes(term)
-      );
+      return true;
     });
+    return searchRecords(narrowed, roleSearch, (type) => [
+      roleName(type, t),
+      type.key,
+      type.description ?? "",
+    ]);
   }, [typeRows, roleSearch, roleOriginFilter, t]);
 
   const activeCount = allUsers.filter((user) => user.status === "active").length;

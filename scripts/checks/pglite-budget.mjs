@@ -24,10 +24,18 @@ import { fileURLToPath } from "node:url";
 const TEST_DIR = fileURLToPath(new URL("../../apps/api/test", import.meta.url));
 
 /**
- * Four fits comfortably in the smallest environment this has been run in,
- * which had under a gigabyte free. Raising it means checking there, not here.
+ * Five fits in the smallest environment this has been run in.
+ *
+ * Raised from four when the search engine arrived, and only after doing what
+ * this comment demands: the full suite was run with 982 MB free and reported
+ * 361 of 361 with no worker killed and no unhandled error. The fifth instance
+ * belongs to `support/search-database.ts`, shared by both search suites, so
+ * the count is instances rather than files.
+ *
+ * Raising it again means measuring again, on a machine that small. The number
+ * is not the control — the measurement is.
  */
-const BUDGET = 4;
+const BUDGET = 5;
 
 function testFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

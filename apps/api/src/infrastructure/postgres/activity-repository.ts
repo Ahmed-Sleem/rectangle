@@ -10,6 +10,7 @@
  *   or if it is about you.
  */
 import type pg from "pg";
+import { buildExpressionSearchClause, type SearchMode } from "./search-sql.js";
 import {
   decodeCursor,
   encodeCursor,
@@ -69,7 +70,10 @@ export interface ActivityReadOptions {
  * what they are looking at, and the two would drift the first time a filter was
  * added to one and not the other.
  */
-function buildPredicate(options: ActivityReadOptions): { where: string; values: unknown[] } {
+function buildPredicate(
+  options: ActivityReadOptions,
+  searchMode: SearchMode = "exact",
+): { where: string; values: unknown[] } {
   const { tenantId, userId, scope, query } = options;
 
   const values: unknown[] = [tenantId];
@@ -130,16 +134,27 @@ function buildPredicate(options: ActivityReadOptions): { where: string; values: 
         break;
     }
 
-    if (query.search) {
     /*
      * Actor, action and project — the three things visible on a row. Matching
      * the raw action key as well as the display name means a search for
      * "login_failed" works even though the row renders it as prose.
+     *
+     * The expression form of the shared engine, because a trail row is
+     * assembled from joins and has no document of its own to keep a tsvector
+     * on. The mechanism differs; what a person types and what they get back is
+     * the same as everywhere else in the product.
      */
-    const term = bind(`%${query.search}%`);
-    where.push(`(u.display_name ilike ${term} or a.action ilike ${term} or p.name ilike ${term})`);
-  }
-  if (query.action) where.push(`a.action = ${bind(query.action)}`);
+    const search = buildExpressionSearchClause(
+      query.search ?? "",
+      ["u.display_name", "a.action", "p.name"],
+      values.length + 1,
+      searchMode,
+    );
+    if (search) {
+      values.push(...search.values);
+      where.push(search.where);
+    }
+    if (query.action) where.push(`a.action = ${bind(query.action)}`);
     if (query.entityType) where.push(`a.entity_type = ${bind(query.entityType)}`);
     if (query.actorUserId) where.push(`a.actor_user_id = ${bind(query.actorUserId)}`);
     if (query.projectId) where.push(`a.project_id = ${bind(query.projectId)}`);
@@ -148,15 +163,31 @@ function buildPredicate(options: ActivityReadOptions): { where: string; values: 
     // Inclusive of the end day: a person filtering "to the 5th" means through it.
     if (query.to) where.push(`a.created_at < (${bind(query.to)}::date + interval '1 day')`);
 
-  return { where: where.join(" and "), values };
+    return { where: where.join(" and "), values };
 }
 
 export class PostgresActivityRepository {
   constructor(private readonly pool: pg.Pool) {}
 
+  /**
+   * Precise search first; the forgiving one only when it found nothing.
+   *
+   * Skipped entirely when the reader is paging, because a cursor belongs to the
+   * result set it came from — falling through to a different stage mid-scroll
+   * would page through a list the reader never saw the beginning of.
+   */
   async list(options: ActivityReadOptions): Promise<Omit<ActivityPage, "availableScopes" | "summary">> {
+    const exact = await this.listMatching(options, "exact");
+    if (!options.query.search || options.query.cursor || exact.entries.length > 0) return exact;
+    return this.listMatching(options, "fuzzy");
+  }
+
+  private async listMatching(
+    options: ActivityReadOptions,
+    searchMode: SearchMode,
+  ): Promise<Omit<ActivityPage, "availableScopes" | "summary">> {
     const { query } = options;
-    const base = buildPredicate(options);
+    const base = buildPredicate(options, searchMode);
     const values = [...base.values];
     let where = base.where;
 

@@ -6,6 +6,7 @@
  * existence through counts.
  */
 import type pg from "pg";
+import { buildSearchClause, type SearchMode } from "./search-sql.js";
 import type { RiskRepository } from "../../application/risk-service.js";
 import {
   severityOf,
@@ -96,11 +97,18 @@ const RISK_SELECT = `
     left join tasks mt on mt.id = r.mitigation_task_id and mt.tenant_id = r.tenant_id`;
 
 /** Highest exposure first: a register sorted by date buries what matters. */
-const RISK_ORDER = `
-  order by case when r.status in ('closed', 'accepted') then 1 else 0 end,
+/* Split from the keyword so a search rank can be placed in front of it. */
+const RISK_ORDER_TERMS = `case when r.status in ('closed', 'accepted') then 1 else 0 end,
            r.score desc,
            r.due_date asc nulls last,
            r.created_at desc`;
+
+const RISK_ORDER = `order by ${RISK_ORDER_TERMS}`;
+
+/** Best match first when searching, the usual exposure order otherwise. */
+function riskOrder(rank: string | null): string {
+  return rank ? `order by ${rank} desc, ${RISK_ORDER_TERMS}` : RISK_ORDER;
+}
 
 export class PostgresRiskRepository implements RiskRepository {
   constructor(private readonly pool: pg.Pool) {}
@@ -159,7 +167,12 @@ export class PostgresRiskRepository implements RiskRepository {
    * separately is how a search query once bound a value its statement never
    * referenced, which Postgres rejects outright.
    */
-  private buildFilters(query: RiskListQuery, callerUserId: string, values: unknown[]): string {
+  private buildFilters(
+    query: RiskListQuery,
+    callerUserId: string,
+    values: unknown[],
+    searchMode: SearchMode,
+  ): { where: string; rank: string | null } {
     const clauses: string[] = [];
     const add = (sql: (placeholder: string) => string, value: unknown) => {
       values.push(value);
@@ -177,20 +190,48 @@ export class PostgresRiskRepository implements RiskRepository {
     else if (query.ownerUserId) add((p) => `r.owner_user_id = ${p}`, query.ownerUserId);
 
     if (query.openOnly) clauses.push(`r.status not in ('closed', 'accepted')`);
-    if (query.search) {
-      add((p) => `(r.title ilike ${p} or r.description ilike ${p})`, `%${query.search}%`);
+    /*
+     * The shared engine, so a risk is found the same way a project or a task
+     * is. This also brought `mitigation` into the searchable document, which
+     * was in no index anywhere before.
+     */
+    const search = buildSearchClause(
+      query.search ?? "",
+      "r.search_document",
+      "coalesce(r.title, '')",
+      values.length + 1,
+      searchMode,
+    );
+    if (search) {
+      values.push(...search.values);
+      clauses.push(search.where);
     }
 
-    return clauses.length > 0 ? ` and ${clauses.join(" and ")}` : "";
+    return {
+      where: clauses.length > 0 ? ` and ${clauses.join(" and ")}` : "",
+      rank: search?.rank ?? null,
+    };
   }
 
+  /** Precise search first; the forgiving one only when it found nothing. */
   async list(tenantId: string, query: RiskListQuery, callerUserId: string): Promise<RiskRecord[]> {
+    const exact = await this.listMatching(tenantId, query, callerUserId, "exact");
+    if (!query.search || exact.length > 0) return exact;
+    return this.listMatching(tenantId, query, callerUserId, "fuzzy");
+  }
+
+  private async listMatching(
+    tenantId: string,
+    query: RiskListQuery,
+    callerUserId: string,
+    searchMode: SearchMode,
+  ): Promise<RiskRecord[]> {
     const values: unknown[] = [tenantId];
-    const filters = this.buildFilters(query, callerUserId, values);
+    const filters = this.buildFilters(query, callerUserId, values, searchMode);
     values.push(query.limit);
 
     const result = await this.pool.query<RiskRow>(
-      `${RISK_SELECT} where r.tenant_id = $1${filters} ${RISK_ORDER} limit $${values.length}`,
+      `${RISK_SELECT} where r.tenant_id = $1${filters.where} ${riskOrder(filters.rank)} limit $${values.length}`,
       values,
     );
     return result.rows.map(mapRisk);
@@ -201,8 +242,19 @@ export class PostgresRiskRepository implements RiskRepository {
     query: RiskListQuery,
     callerUserId: string,
   ): Promise<RiskRecord[]> {
+    const exact = await this.listMemberMatching(tenantId, query, callerUserId, "exact");
+    if (!query.search || exact.length > 0) return exact;
+    return this.listMemberMatching(tenantId, query, callerUserId, "fuzzy");
+  }
+
+  private async listMemberMatching(
+    tenantId: string,
+    query: RiskListQuery,
+    callerUserId: string,
+    searchMode: SearchMode,
+  ): Promise<RiskRecord[]> {
     const values: unknown[] = [tenantId, callerUserId];
-    const filters = this.buildFilters(query, callerUserId, values);
+    const filters = this.buildFilters(query, callerUserId, values, searchMode);
     values.push(query.limit);
 
     const result = await this.pool.query<RiskRow>(
@@ -213,8 +265,8 @@ export class PostgresRiskRepository implements RiskRepository {
              where m.tenant_id = r.tenant_id
                and m.project_id = r.project_id
                and m.user_id = $2
-          )${filters}
-       ${RISK_ORDER}
+          )${filters.where}
+       ${riskOrder(filters.rank)}
        limit $${values.length}`,
       values,
     );

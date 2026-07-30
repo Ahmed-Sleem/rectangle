@@ -5,6 +5,7 @@
 import type pg from "pg";
 import type { ProjectsRepository } from "../../application/project-service.js";
 import type { CreateProjectInput, ProjectListQuery, ProjectRecord, UpdateProjectInput } from "../../domain/project.js";
+import { buildSearchClause, type SearchMode } from "./search-sql.js";
 
 function mapProject(row: Record<string, unknown>): ProjectRecord {
   const project: ProjectRecord = {
@@ -40,8 +41,51 @@ function mapProject(row: Record<string, unknown>): ProjectRecord {
 export class PostgresProjectsRepository implements ProjectsRepository {
   constructor(private readonly pool: pg.Pool) {}
 
-  async create(tenantId: string, input: CreateProjectInput): Promise<ProjectRecord> {
-    const result = await this.pool.query(
+  /**
+   * Creates the project and makes its creator the project administrator.
+   *
+   * One transaction, because a project whose creator is not on it is a project
+   * they cannot open. Membership is what grants reach, so somebody holding
+   * `projects.create` without the company-wide `projects.manage_all` used to
+   * create a job and watch it vanish — `resolveAccess` found no membership and
+   * answered "not found", which is the correct answer to the wrong question.
+   *
+   * This is also what the industry does: in Procore, granting project creation
+   * automatically gives the creator administrative rights on what they create.
+   * The alternative — creating something and asking somebody else to let you
+   * back in — is not a workflow anybody would design on purpose.
+   */
+  async create(
+    tenantId: string,
+    input: CreateProjectInput,
+    creatorUserId: string,
+  ): Promise<ProjectRecord> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const created = await this.insertProject(client, tenantId, input);
+      await client.query(
+        `insert into project_members (tenant_id, project_id, user_id, role)
+         values ($1, $2, $3, 'project_admin')
+         on conflict (tenant_id, project_id, user_id) do nothing`,
+        [tenantId, created.id, creatorUserId],
+      );
+      await client.query("commit");
+      return created;
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async insertProject(
+    client: pg.PoolClient,
+    tenantId: string,
+    input: CreateProjectInput,
+  ): Promise<ProjectRecord> {
+    const result = await client.query(
       `insert into projects (
         tenant_id, name, code, description, status, planned_start_date, planned_finish_date,
         budget_amount, budget_currency, sector, delivery_method, location_name
@@ -89,7 +133,26 @@ export class PostgresProjectsRepository implements ProjectsRepository {
     return result.rows[0] ? mapProject(result.rows[0]) : null;
   }
 
+  /**
+   * The register, filtered and searched.
+   *
+   * Runs the precise search first and the forgiving one only if it found
+   * nothing, which is the same two-step the palette performs. Doing it in one
+   * statement would mean asking "is this row an exact match" per row, which
+   * says nothing about whether some other row matched — so one right answer
+   * would still drag every near-miss in beside it.
+   */
   async listForTenant(tenantId: string, query: ProjectListQuery): Promise<ProjectRecord[]> {
+    const exact = await this.listMatching(tenantId, query, "exact");
+    if (!query.search || exact.length > 0) return exact;
+    return this.listMatching(tenantId, query, "fuzzy");
+  }
+
+  private async listMatching(
+    tenantId: string,
+    query: ProjectListQuery,
+    searchMode: SearchMode,
+  ): Promise<ProjectRecord[]> {
     const values: unknown[] = [tenantId];
     // Columns are qualified because the task-count join brings a second table
     // into scope; an unqualified `status` would be ambiguous.
@@ -99,11 +162,23 @@ export class PostgresProjectsRepository implements ProjectsRepository {
       values.push(query.status);
       where.push(`p.status = $${values.length}`);
     }
-    if (query.search) {
-      values.push(`%${query.search}%`);
-      where.push(
-        `(p.name ilike $${values.length} or p.code ilike $${values.length} or p.location_name ilike $${values.length})`,
-      );
+    /*
+     * The shared engine, so this box behaves exactly like the palette and every
+     * other search in the product. It replaced `ilike '%term%'`, which could not
+     * use an index — a leading wildcard forces a scan of every row on every
+     * keystroke — and returned rows in table order with the best match as likely
+     * to be last as first.
+     */
+    const search = buildSearchClause(
+      query.search ?? "",
+      "p.search_document",
+      "coalesce(p.name, '')",
+      values.length + 1,
+      searchMode,
+    );
+    if (search) {
+      values.push(...search.values);
+      where.push(search.where);
     }
     if (query.cursor) {
       values.push(query.cursor);
@@ -141,7 +216,7 @@ export class PostgresProjectsRepository implements ProjectsRepository {
              ) as named
          ) as team
         where ${where.join(" and ")}
-        order by p.id asc
+        order by ${search ? `${search.rank} desc,` : ""} p.id asc
         limit $${values.length}`,
       values,
     );

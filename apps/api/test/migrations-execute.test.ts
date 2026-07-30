@@ -13,6 +13,9 @@
  * they do in production. It is a dev dependency and never ships.
  */
 import { PGlite } from "@electric-sql/pglite";
+/* Standard contrib in any managed Postgres; PGlite ships them separately. */
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
+import { fuzzystrmatch } from "@electric-sql/pglite/contrib/fuzzystrmatch";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrateUpTo } from "./support/migrations.js";
 
@@ -39,7 +42,7 @@ const LEGACY_FIXTURE = `
 
 describe("migrations execute against PostgreSQL", () => {
   it("applies every migration to an empty database", async () => {
-    const db = new PGlite();
+    const db = new PGlite({ extensions: { pg_trgm, fuzzystrmatch } });
     try {
       // No fixture: a brand-new company installing the product for the first
       // time runs exactly this, and it must not depend on data existing.
@@ -66,7 +69,7 @@ describe("company standing migration", () => {
    * run rather than momentary.
    */
   beforeAll(async () => {
-    db = new PGlite();
+    db = new PGlite({ extensions: { pg_trgm, fuzzystrmatch } });
     await migrateUpTo(db, "012_company_standing.sql");
     await db.exec(LEGACY_FIXTURE);
     await expect(migrateUpTo(db)).resolves.toBeUndefined();

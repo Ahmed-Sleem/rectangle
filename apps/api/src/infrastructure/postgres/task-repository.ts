@@ -7,6 +7,7 @@
  * counts and paging.
  */
 import type pg from "pg";
+import { buildSearchClause, type SearchMode } from "./search-sql.js";
 import type { TaskRepository } from "../../application/task-service.js";
 import type {
   CreateTaskInput,
@@ -128,7 +129,8 @@ export class PostgresTaskRepository implements TaskRepository {
     query: TaskListQuery,
     callerUserId: string,
     values: unknown[],
-  ): string {
+    searchMode: SearchMode,
+  ): { where: string; rank: string | null } {
     const clauses: string[] = [];
 
     if (query.projectId) {
@@ -153,12 +155,27 @@ export class PostgresTaskRepository implements TaskRepository {
     if (query.openOnly) {
       clauses.push(`t.status not in ('done', 'cancelled')`);
     }
-    if (query.search) {
-      values.push(`%${query.search}%`);
-      clauses.push(`(t.title ilike $${values.length} or t.description ilike $${values.length})`);
+    /*
+     * The shared engine, so this box behaves like the palette and every other
+     * search. `ilike '%term%'` could not use an index and ranked nothing, so the
+     * best match was as likely to be last as first.
+     */
+    const search = buildSearchClause(
+      query.search ?? "",
+      "t.search_document",
+      "coalesce(t.title, '')",
+      values.length + 1,
+      searchMode,
+    );
+    if (search) {
+      values.push(...search.values);
+      clauses.push(search.where);
     }
 
-    return clauses.length > 0 ? ` and ${clauses.join(" and ")}` : "";
+    return {
+      where: clauses.length > 0 ? ` and ${clauses.join(" and ")}` : "",
+      rank: search?.rank ?? null,
+    };
   }
 
   /**
@@ -166,21 +183,46 @@ export class PostgresTaskRepository implements TaskRepository {
    * last rather than first, since an undated task is not more urgent than a
    * dated one.
    */
-  private static readonly ORDER = `
-    order by case t.priority
+  /*
+   * Split from the `order by` keyword so a search rank can be put in front of
+   * it. Slicing the keyword off a finished clause with a regex worked and was
+   * unreadable; two constants say what they are.
+   */
+  private static readonly ORDER_TERMS = `case t.priority
                when 'urgent' then 0 when 'high' then 1 when 'medium' then 2 else 3
              end,
              t.due_date asc nulls last,
              t.created_at desc`;
 
+  private static readonly ORDER = `order by ${PostgresTaskRepository.ORDER_TERMS}`;
+
+  /** Best match first when searching, the usual priority order otherwise. */
+  private static orderBy(rank: string | null): string {
+    return rank
+      ? `order by ${rank} desc, ${PostgresTaskRepository.ORDER_TERMS}`
+      : PostgresTaskRepository.ORDER;
+  }
+
+  /** Precise search first; the forgiving one only when it found nothing. */
   async list(tenantId: string, query: TaskListQuery, callerUserId: string): Promise<TaskRecord[]> {
+    const exact = await this.listMatching(tenantId, query, callerUserId, "exact");
+    if (!query.search || exact.length > 0) return exact;
+    return this.listMatching(tenantId, query, callerUserId, "fuzzy");
+  }
+
+  private async listMatching(
+    tenantId: string,
+    query: TaskListQuery,
+    callerUserId: string,
+    searchMode: SearchMode,
+  ): Promise<TaskRecord[]> {
     const values: unknown[] = [tenantId];
-    const filters = this.buildFilters(query, callerUserId, values);
+    const filters = this.buildFilters(query, callerUserId, values, searchMode);
     values.push(query.limit);
 
     const result = await this.pool.query<TaskRow>(
-      `${TASK_SELECT} where t.tenant_id = $1${filters}
-       ${PostgresTaskRepository.ORDER}
+      `${TASK_SELECT} where t.tenant_id = $1${filters.where}
+       ${PostgresTaskRepository.orderBy(filters.rank)}
        limit $${values.length}`,
       values,
     );
@@ -192,8 +234,19 @@ export class PostgresTaskRepository implements TaskRepository {
     query: TaskListQuery,
     callerUserId: string,
   ): Promise<TaskRecord[]> {
+    const exact = await this.listMemberMatching(tenantId, query, callerUserId, "exact");
+    if (!query.search || exact.length > 0) return exact;
+    return this.listMemberMatching(tenantId, query, callerUserId, "fuzzy");
+  }
+
+  private async listMemberMatching(
+    tenantId: string,
+    query: TaskListQuery,
+    callerUserId: string,
+    searchMode: SearchMode,
+  ): Promise<TaskRecord[]> {
     const values: unknown[] = [tenantId, callerUserId];
-    const filters = this.buildFilters(query, callerUserId, values);
+    const filters = this.buildFilters(query, callerUserId, values, searchMode);
     values.push(query.limit);
 
     const result = await this.pool.query<TaskRow>(
@@ -204,8 +257,8 @@ export class PostgresTaskRepository implements TaskRepository {
              where m.tenant_id = t.tenant_id
                and m.project_id = t.project_id
                and m.user_id = $2
-          )${filters}
-       ${PostgresTaskRepository.ORDER}
+          )${filters.where}
+       ${PostgresTaskRepository.orderBy(filters.rank)}
        limit $${values.length}`,
       values,
     );

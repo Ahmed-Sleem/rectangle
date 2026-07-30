@@ -60,9 +60,16 @@ describe("projects list SQL", () => {
       const repository = new PostgresProjectsRepository(fakePool(captured));
       await repository.listForTenant(tenantId, { limit: 20, ...extra });
 
-      expect(captured).toHaveLength(1);
-      const { sql, values } = captured[0]!;
-      expect(placeholderCount(sql)).toBe(values.length);
+      /*
+       * A search runs two statements when the first finds nothing — the fake
+       * pool always returns nothing, so both stages run here. That is wanted:
+       * the forgiving stage binds a different value from the precise one, and
+       * a mismatch there would break search exactly where it is least tested.
+       */
+      expect(captured).toHaveLength(extra.search ? 2 : 1);
+      for (const { sql, values } of captured) {
+        expect(placeholderCount(sql)).toBe(values.length);
+      }
     }
   });
 

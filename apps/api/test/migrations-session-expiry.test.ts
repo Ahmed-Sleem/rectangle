@@ -11,6 +11,9 @@
  * the deploy down, and the last one that got this wrong did exactly that.
  */
 import { PGlite } from "@electric-sql/pglite";
+/* Standard contrib in any managed Postgres; PGlite ships them separately. */
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
+import { fuzzystrmatch } from "@electric-sql/pglite/contrib/fuzzystrmatch";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrateUpTo } from "./support/migrations.js";
 
@@ -23,7 +26,7 @@ const OLD_SESSION = "66666666-6666-4666-8666-666666666666";
 
 describe("session sliding expiry migration", () => {
   beforeAll(async () => {
-    db = new PGlite();
+    db = new PGlite({ extensions: { pg_trgm, fuzzystrmatch } });
     await migrateUpTo(db, "015_session_sliding_expiry.sql");
     /*
      * A session created under the old scheme: one deadline, an hour out, and

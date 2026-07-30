@@ -20,13 +20,21 @@ export function migrationFiles(): string[] {
 }
 
 /**
- * `pgcrypto` is unavailable in PGlite, but the only thing the schema uses it
- * for — `gen_random_uuid` — is built into PostgreSQL 13 and later, which is
- * what PGlite is. Dropping the extension statement changes nothing the
- * migrations depend on.
+ * Drops only the extension statements PGlite cannot satisfy.
+ *
+ * `pgcrypto` is unavailable, and the only thing the schema wants from it —
+ * `gen_random_uuid` — is built into PostgreSQL 13 and later, which is what
+ * PGlite is. Dropping that statement changes nothing.
+ *
+ * Named rather than blanket, and that distinction cost a debugging session:
+ * a rule removing every `create extension` also removed `pg_trgm`, so the
+ * migration went on to create a `gin_trgm_ops` index against an extension it
+ * had just been prevented from installing. The ones the suites load through
+ * the PGlite constructor have to survive, or the schema they build is not the
+ * schema that ships.
  */
 export function forPglite(sql: string): string {
-  return sql.replace(/create extension[^;]*;/giu, "");
+  return sql.replace(/create extension[^;]*\bpgcrypto\b[^;]*;/giu, "");
 }
 
 /** Applies migrations in order, stopping before `stopBefore` when given. */

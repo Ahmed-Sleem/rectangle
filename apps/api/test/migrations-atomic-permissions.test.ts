@@ -12,6 +12,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
+/* Standard contrib in any managed Postgres; PGlite ships them separately. */
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
+import { fuzzystrmatch } from "@electric-sql/pglite/contrib/fuzzystrmatch";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MIGRATIONS_DIR, forPglite, migrateUpTo } from "./support/migrations.js";
 
@@ -29,7 +32,7 @@ describe("atomic permission migration", () => {
   }
 
   beforeAll(async () => {
-    db = new PGlite();
+    db = new PGlite({ extensions: { pg_trgm, fuzzystrmatch } });
     await migrateUpTo(db, "014_atomic_permissions.sql");
     // User types carrying the coarse keys, exactly as a company upgrading from
     // the previous release would have them.

@@ -34,7 +34,8 @@ export interface AuditRepository {
 
 export interface ProjectsRepository {
   deleteForTenant(tenantId: string, id: string): Promise<boolean>;
-  create(tenantId: string, input: CreateProjectInput): Promise<ProjectRecord>;
+  /** Also enrols the creator as project administrator, in one transaction. */
+  create(tenantId: string, input: CreateProjectInput, creatorUserId: string): Promise<ProjectRecord>;
   findByTenantAndCode(tenantId: string, code: string): Promise<ProjectRecord | null>;
   findByIdForTenant(tenantId: string, id: string): Promise<ProjectRecord | null>;
   listForTenant(tenantId: string, query: ProjectListQuery): Promise<ProjectRecord[]>;
@@ -58,8 +59,12 @@ export class ProjectService {
   ) {}
 
   async createProject(actor: UserPrincipal, rawInput: unknown): Promise<ProjectRecord> {
-    // Starting a project is a company-wide act: there is no project to be a
-    // member of yet, so this is the one project action membership cannot gate.
+    /*
+     * Starting a project is a company-wide act: there is no project to be a
+     * member of yet, so this is the one project action membership cannot gate.
+     * The repository then enrols the creator as its administrator, or they
+     * would be locked out of the thing they just made.
+     */
     requirePermission(actor, "projects.create");
     const input = parseCreateProjectInput(rawInput);
     const existing = await this.projects.findByTenantAndCode(actor.tenantId, input.code);
@@ -67,7 +72,7 @@ export class ProjectService {
       throw new DomainError("CONFLICT", "A project with this code already exists.", { code: input.code });
     }
 
-    const project = await this.projects.create(actor.tenantId, input);
+    const project = await this.projects.create(actor.tenantId, input, actor.userId);
     await this.audit.append({
       tenantId: actor.tenantId,
       actorUserId: actor.userId,
