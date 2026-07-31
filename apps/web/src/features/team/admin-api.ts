@@ -48,6 +48,14 @@ export interface SeparationViolatorRecord {
   losesEverythingIfB: boolean;
 }
 
+/** Everything that decides access, composed by the server in one response. */
+export interface PermissionReference {
+  permissions: Array<PermissionOption & { heldBy: Array<{ id: string; name: string }> }>;
+  projectRoles: Array<{ role: string; grants: string[] }>;
+  standings: Array<{ standing: string; holdsEverything: boolean; refusedCompanyWide: boolean }>;
+  deletionRule: { requiresProjectAdmin: boolean; manageAllInsufficient: boolean };
+}
+
 export const adminApi = {
   permissions: () => apiRequest<{ permissions: PermissionOption[] }>("/v1/admin/permissions"),
   userTypes: () => apiRequest<{ userTypes: UserTypeRecord[] }>("/v1/admin/user-types"),
@@ -61,6 +69,8 @@ export const adminApi = {
   updateUserType: (userTypeId: string, payload: { name?: string; description?: string; permissions?: string[] }) =>
     apiRequest<{ userType: UserTypeRecord }>(`/v1/admin/user-types/${userTypeId}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
+  permissionReference: () =>
+    apiRequest<PermissionReference>("/v1/admin/permission-reference"),
   separationRules: () =>
     apiRequest<{ rules: SeparationRuleRecord[] }>("/v1/admin/separation-rules"),
   /* A POST that changes nothing: it asks what a proposed pair would cost. */

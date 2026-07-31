@@ -76,6 +76,7 @@ async function createTestServer() {
       updateUserType: notUsed, listUsers: notUsed, createUser: notUsed, updateUser: notUsed,
       listSeparationRules: notUsed, previewSeparationRule: notUsed,
       createSeparationRule: notUsed, deleteSeparationRule: notUsed,
+      getPermissionReference: notUsed,
     },
     emailSettingsService: { getSettings: notUsed, saveSettings: notUsed, sendTestEmail: notUsed },
     passkeyService: {

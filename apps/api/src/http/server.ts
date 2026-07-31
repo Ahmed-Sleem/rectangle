@@ -62,6 +62,7 @@ export interface ServerDependencies {
     | "previewSeparationRule"
     | "createSeparationRule"
     | "deleteSeparationRule"
+    | "getPermissionReference"
   >;
   setupService: Pick<SetupService, "getStatus" | "createFirstAdmin">;
   emailSettingsService: Pick<EmailSettingsService, "getSettings" | "saveSettings" | "sendTestEmail">;

@@ -26,6 +26,18 @@ describe("SettingsPage", () => {
     vi.restoreAllMocks();
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       if (String(input).includes("passkeys")) return Promise.resolve(new Response(JSON.stringify({ passkeys: [] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+      /*
+       * The company sections each call their own endpoint. Answering every URL
+       * with the email payload made the permission reference render from a
+       * response that had no permissions in it, which threw and took the whole
+       * page down — so the mock has to be as specific as the code is.
+       */
+      if (String(input).includes("permission-reference")) {
+        return Promise.resolve(new Response(JSON.stringify({ permissions: [], projectRoles: [], standings: [], deletionRule: { requiresProjectAdmin: true, manageAllInsufficient: true } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+      }
+      if (String(input).includes("separation-rules")) {
+        return Promise.resolve(new Response(JSON.stringify({ rules: [] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+      }
       return Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: false, enabled: false, hasPassword: false } }), { status: 200, headers: { "Content-Type": "application/json" } }));
     });
     await setRectangleLanguage("en");

@@ -1,7 +1,8 @@
 /** Tenant admin service manages user types and users through real permissions. */
 import { parseCreateSeparationRule, parsePreviewSeparationRule, parseCreateUser, parseCreateUserType, parseUpdateUser, parseUpdateUserType, type CreateUserInput, type CreateUserTypeInput, type UpdateUserInput, type UpdateUserTypeInput } from "../domain/admin.js";
-import { requirePermission, standingOf, type CompanyStanding, type UserPrincipal } from "../domain/auth.js";
-import { allPermissions, findSeparationConflict, orderSeparationPair, permissionDescriptions, type Permission, type SeparationRule } from "../domain/permissions.js";
+import { companyStandingSchema, isGuest, requirePermission, rolePermissions, standingOf, type CompanyStanding, type UserPrincipal } from "../domain/auth.js";
+import { allPermissions, findSeparationConflict, orderSeparationPair, permissionDescriptions, type Permission, type PermissionDescriptor, type SeparationRule } from "../domain/permissions.js";
+import { projectRoleGrants } from "../domain/project-team.js";
 import { DomainError } from "../domain/errors.js";
 import type { PasswordHasher } from "../infrastructure/password.js";
 import type { AuditRepository } from "./project-service.js";
@@ -210,6 +211,77 @@ export class AdminService {
    * standing, so enforcing this against them would lock a company out of its
    * own administration rather than separating anything.
    */
+  /**
+   * Everything that decides access, assembled in one place for the reference.
+   *
+   * Composed here rather than in the browser because a page that computes its
+   * own answer is a second implementation of the permission model, and the
+   * moment it disagrees with the enforcer it becomes documentation that lies.
+   * Every field below is read from the same modules the guards read.
+   *
+   * Deliberately more than a permission-to-user-type matrix. Four rules decide
+   * access without appearing in such a table at all — standing overriding
+   * everything, guests being refused company-wide permissions whatever they
+   * hold, per-project actions needing reach as well as capability, and deletion
+   * being stricter than any permission. A matrix alone reads as authoritative
+   * and would be wrong.
+   */
+  async getPermissionReference(actor: UserPrincipal): Promise<{
+    permissions: Array<PermissionDescriptor & { heldBy: Array<{ id: string; name: string }> }>;
+    projectRoles: Array<{ role: string; grants: string[] }>;
+    standings: Array<{ standing: string; holdsEverything: boolean; refusedCompanyWide: boolean }>;
+    deletionRule: { requiresProjectAdmin: boolean; manageAllInsufficient: boolean };
+  }> {
+    /*
+     * `settings.manage`, the same gate as the other company-level sections.
+     * Reading the whole access model is a company-configuration question, not
+     * a user-type one — somebody who may edit roles is not automatically
+     * entitled to the map of everything the company can grant.
+     */
+    requirePermission(actor, "settings.manage");
+
+    await this.repository.ensureSystemUserTypes(actor.tenantId);
+    const userTypes = await this.repository.listUserTypes(actor.tenantId);
+
+    return {
+      permissions: permissionDescriptions.map((descriptor) => ({
+        ...descriptor,
+        heldBy: userTypes
+          .filter((type) => type.permissions.includes(descriptor.key))
+          .map((type) => ({ id: type.id, name: type.name })),
+      })),
+
+      /*
+       * Read from the same table `roleGrantsOnProject` consults, so a role that
+       * gains or loses a grant changes here in the same commit. Restating the
+       * list would be the drift this method exists to prevent.
+       */
+      projectRoles: Object.entries(projectRoleGrants).map(([role, grants]) => ({
+        role,
+        grants: [...grants],
+      })),
+
+      standings: companyStandingSchema.options.map((standing) => ({
+        standing,
+        // Both derived from the domain rather than asserted, so the page cannot
+        // describe a standing the guards treat differently.
+        holdsEverything: rolePermissions([standing]).length === allPermissions.length,
+        refusedCompanyWide: isGuest({
+          tenantId: actor.tenantId,
+          userId: actor.userId,
+          roles: [standing],
+          permissions: [],
+        }),
+      })),
+
+      /*
+       * Stated as facts rather than prose so the page cannot describe a rule
+       * that has since changed. Both are true of `requireProjectDeletion`.
+       */
+      deletionRule: { requiresProjectAdmin: true, manageAllInsufficient: true },
+    };
+  }
+
   /**
    * The rules this company has declared, for the screen that manages them.
    *

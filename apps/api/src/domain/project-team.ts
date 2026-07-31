@@ -38,7 +38,7 @@ export function isProjectAdminRole(role: ProjectMemberRole): boolean {
  * and requires `projects.delete` as well as being that project's administrator,
  * so it can never be reached by appointment alone.
  */
-const projectRoleGrants: Record<ProjectMemberRole, readonly string[]> = {
+export const projectRoleGrants: Record<ProjectMemberRole, readonly string[]> = {
   project_admin: [
     "projects.edit",
     "projects.archive",

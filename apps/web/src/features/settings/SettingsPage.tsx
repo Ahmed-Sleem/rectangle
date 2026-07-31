@@ -1,6 +1,6 @@
 /** Settings manages personal preferences and company-wide configuration. */
 import { zodResolver } from "@hookform/resolvers/zod";
-import { KeyRound, Languages, Mail, ShieldCheck } from "lucide-react";
+import { BookOpen, KeyRound, Languages, Mail, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
@@ -21,6 +21,7 @@ import {
   SettingsStack,
 } from "@/shared/ui";
 import { useRectangleI18n, type RectangleLanguage } from "@/shared/i18n";
+import { PermissionReference } from "./PermissionReference";
 import { SeparationRules } from "./SeparationRules";
 import { settingsApi } from "./settings-api";
 import { listPasskeys, registerPasskey } from "./passkey-api";
@@ -40,7 +41,7 @@ const emailSchema = z.object({
 
 type EmailForm = z.infer<typeof emailSchema>;
 
-type SectionId = "language" | "email" | "separation" | "passkeys";
+type SectionId = "language" | "email" | "permissions" | "separation" | "passkeys";
 
 function canManageCompanySettings(user: ReturnType<typeof useAuth>["user"]): boolean {
   if (!user) return false;
@@ -352,6 +353,22 @@ export default function SettingsPage() {
               {t("settings.emailTestSent")}
             </p>
           ) : null}
+        </SettingsSection>
+      ) : null}
+
+      {/*
+        Placed before separation of duties: somebody declaring which permissions
+        must stay apart needs to know what the permissions are first.
+      */}
+      {canManageCompany ? (
+        <SettingsSection
+          title={t("settings.permissionsTitle")}
+          description={t("settings.permissionsDescription")}
+          icon={<BookOpen size={18} strokeWidth={2} />}
+          open={openSection === "permissions"}
+          onToggle={() => toggleSection("permissions")}
+        >
+          <PermissionReference />
         </SettingsSection>
       ) : null}
 

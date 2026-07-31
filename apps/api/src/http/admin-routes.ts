@@ -17,6 +17,7 @@ export async function registerAdminRoutes(
     | "previewSeparationRule"
     | "createSeparationRule"
     | "deleteSeparationRule"
+    | "getPermissionReference"
   >,
 ): Promise<void> {
   app.get("/v1/admin/permissions", async (request) => adminService.listPermissions(request.principal));
@@ -41,6 +42,14 @@ export async function registerAdminRoutes(
 
   app.patch<{ Params: { userId: string } }>("/v1/admin/users/:userId", async (request) =>
     adminService.updateUser(request.principal, request.params.userId, request.body),
+  );
+
+  /*
+   * The whole access model in one response. Composed on the server so the page
+   * cannot compute a different answer from the guards that enforce it.
+   */
+  app.get("/v1/admin/permission-reference", async (request) =>
+    adminService.getPermissionReference(request.principal),
   );
 
   app.get("/v1/admin/separation-rules", async (request) =>

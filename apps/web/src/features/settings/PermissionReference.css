@@ -1,0 +1,155 @@
+/* The permission reference. All values from tokens. */
+
+.rect-permref {
+  display: grid;
+  gap: var(--rect-space-5);
+}
+
+/*
+ * The rules, set apart from everything below them. They change how the tables
+ * should be read — an owner holds every permission with no user type at all —
+ * so they are given a surface of their own rather than being a paragraph
+ * somebody scrolls past on the way to the grid.
+ */
+.rect-permref__rules {
+  background: var(--rect-surface-bg-hover);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  display: grid;
+  gap: var(--rect-space-2);
+  padding: var(--rect-space-4);
+}
+
+.rect-permref__rule-list {
+  color: var(--rect-text-secondary);
+  display: grid;
+  font-size: var(--rect-text-body);
+  gap: var(--rect-space-2);
+  margin: 0;
+  padding-inline-start: var(--rect-space-5);
+}
+
+.rect-permref__block {
+  display: grid;
+  gap: var(--rect-space-3);
+}
+
+.rect-permref__heading {
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  margin: 0;
+}
+
+.rect-permref__note {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  margin: 0;
+}
+
+.rect-permref__group {
+  display: grid;
+  gap: var(--rect-space-2);
+}
+
+.rect-permref__group-name {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-semibold);
+  margin: 0;
+}
+
+.rect-permref__rows,
+.rect-permref__standings {
+  display: grid;
+  gap: var(--rect-space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * Two columns: what the permission is, and who has it. They stack below the
+ * narrow breakpoint rather than compressing, because a list of role names
+ * squeezed into a few characters is unreadable and this page exists to be read.
+ */
+.rect-permref__row {
+  align-items: start;
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  display: grid;
+  gap: var(--rect-space-3);
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  padding: var(--rect-space-3);
+}
+
+@media (max-width: 48rem) {
+  .rect-permref__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.rect-permref__what {
+  display: grid;
+  gap: var(--rect-space-1);
+  min-inline-size: 0;
+}
+
+.rect-permref__label {
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-medium);
+}
+
+.rect-permref__description {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+/* Why a granted set is sometimes larger than the boxes that were ticked. */
+.rect-permref__implies {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-micro);
+}
+
+.rect-permref__holders {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * Not an error state. A permission no user type grants is one only owners and
+ * administrators hold, which is worth seeing plainly rather than as an empty
+ * cell somebody reads as a rendering fault.
+ */
+.rect-permref__nobody {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-style: italic;
+}
+
+.rect-permref__standing {
+  align-items: baseline;
+  border-block-end: 1px solid var(--rect-surface-divider);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-3);
+  justify-content: space-between;
+  padding-block: var(--rect-space-2);
+}
+
+.rect-permref__standing:last-child {
+  border-block-end: 0;
+}
+
+.rect-permref__standing-name {
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-medium);
+}
+
+.rect-permref__standing-effect {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}

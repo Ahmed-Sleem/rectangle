@@ -79,6 +79,7 @@ const inactiveAdminService = {
   previewSeparationRule(): never { throw new Error("not used"); },
   createSeparationRule(): never { throw new Error("not used"); },
   deleteSeparationRule(): never { throw new Error("not used"); },
+  getPermissionReference(): never { throw new Error("not used"); },
   updateUser(): never { throw new Error("not used"); },
 };
 

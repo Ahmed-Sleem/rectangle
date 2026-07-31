@@ -58,6 +58,24 @@ const PAGES = [
      * its own empty, loading and error states — a section large enough to have
      * those is large enough for the contract to be measured against it.
      */
+    /*
+     * Its own entry for the same reason the separation screen has one: it
+     * reads company-wide configuration through its own endpoint and carries
+     * its own permission, loading and error states.
+     */
+    id: "settings.permissions",
+    file: "features/settings/PermissionReference.tsx",
+    tests: ["features/settings/PermissionReference.test.tsx"],
+    /*
+     * There is no empty case to handle. The permission list, the standings and
+     * the project roles are compile-time constants of the product, not records
+     * a company creates — a build with none of them would be a build with no
+     * access model. An empty state here would be code that can never run, and
+     * the rule against unreachable states is exactly why this flag exists.
+     */
+    singleRecord: true,
+  },
+  {
     id: "settings.separation",
     file: "features/settings/SeparationRules.tsx",
     tests: ["features/settings/SeparationRules.test.tsx"],

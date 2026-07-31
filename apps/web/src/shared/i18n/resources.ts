@@ -11,6 +11,7 @@ import { enums } from "./locales/enums";
 import { overview } from "./locales/overview";
 import { projects } from "./locales/projects";
 import { risks } from "./locales/risks";
+import { permissionReference } from "./locales/permission-reference";
 import { separation } from "./locales/separation";
 import { tasks } from "./locales/tasks";
 import { team } from "./locales/team";
@@ -156,6 +157,9 @@ export const resources = {
         emailTestSent: "Test message sent.",
         emailTestFailed: "Test message could not be sent.",
         emailRequiredFirst: "Save your mail server details before sending a test.",
+        permissionsTitle: "Permissions",
+        permissionsDescription:
+          "Every permission the product has, what it allows, and which user types grant it.",
         separationTitle: "Separation of duties",
         separationDescription:
           "Permissions that must never be held by the same person, so no one can both make a decision and approve it.",
@@ -215,6 +219,7 @@ export const resources = {
       overview: overview.en,
       projects: projects.en,
       risks: risks.en,
+      permissionReference: permissionReference.en,
       separation: separation.en,
       tasks: tasks.en,
       team: team.en,
@@ -368,6 +373,9 @@ export const resources = {
         emailTestSent: "تم إرسال الرسالة التجريبية.",
         emailTestFailed: "تعذّر إرسال الرسالة التجريبية.",
         emailRequiredFirst: "احفظ بيانات خادم البريد قبل الإرسال التجريبي.",
+        permissionsTitle: "الصلاحيات",
+        permissionsDescription:
+          "كل صلاحية في المنتج، وما تتيحه، وأي أنواع المستخدم تمنحها.",
         separationTitle: "الفصل بين المهام",
         separationDescription:
           "صلاحيات لا يجوز أن يجمعها شخص واحد، حتى لا يتخذ القرار ويعتمده بنفسه.",
@@ -431,6 +439,7 @@ export const resources = {
       overview: overview.ar,
       projects: projects.ar,
       risks: risks.ar,
+      permissionReference: permissionReference.ar,
       separation: separation.ar,
       tasks: tasks.ar,
       team: team.ar,
