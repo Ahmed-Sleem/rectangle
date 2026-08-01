@@ -6,6 +6,7 @@ import { z } from "zod";
 import { useAuth } from "@/shared/auth";
 import { apiRequest, ApiClientError } from "@/shared/api/client";
 import { Button, buttonClassName, Card, Field, Input, Toolbar } from "@/shared/ui";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { loginWithPasskey } from "./passkey-api";
 import "../setup/setup-page.css";
@@ -18,6 +19,7 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const form = useForm<LoginForm>({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "" } });
 
@@ -32,21 +34,26 @@ export default function LoginPage() {
   });
 
   const error = login.error ?? passkeyLogin.error;
-  const errorMessage = error instanceof ApiClientError ? error.message : error ? "Sign in failed." : null;
+  const errorMessage =
+    error instanceof ApiClientError ? error.message : error ? t("auth.signInFailed") : null;
 
   return (
     <Card className="rect-setup-card">
-      <div className="rect-setup-card__header"><p>Rectangle</p><h1>Sign in</h1><span>Use your email and password. If you added a passkey, you can use it after entering your email.</span></div>
+      <div className="rect-setup-card__header">
+        <p>{t("app.name")}</p>
+        <h1>{t("auth.signInTitle")}</h1>
+        <span>{t("auth.signInIntro")}</span>
+      </div>
       <form className="rect-setup-form" onSubmit={form.handleSubmit((values) => login.mutate(values))}>
-        <Field label="Email" error={form.formState.errors.email?.message} required><Input aria-label="Email" autoComplete="username webauthn" type="email" {...form.register("email")} /></Field>
-        <Field label="Password" error={form.formState.errors.password?.message} required><Input aria-label="Password" autoComplete="current-password" type="password" {...form.register("password")} /></Field>
+        <Field label={t("auth.email")} error={form.formState.errors.email?.message} required><Input aria-label={t("auth.email")} autoComplete="username webauthn" type="email" {...form.register("email")} /></Field>
+        <Field label={t("auth.password")} error={form.formState.errors.password?.message} required><Input aria-label={t("auth.password")} autoComplete="current-password" type="password" {...form.register("password")} /></Field>
         {errorMessage ? <p className="rect-setup-form__error" role="alert">{errorMessage}</p> : null}
         <Toolbar>
-          <Button variant="primary" type="submit" disabled={login.isPending}>{login.isPending ? "Signing in…" : "Sign in"}</Button>
-          <Button variant="secondary" type="button" disabled={passkeyLogin.isPending || !form.watch("email")} onClick={() => passkeyLogin.mutate()}>{passkeyLogin.isPending ? "Checking…" : "Use passkey"}</Button>
+          <Button variant="primary" type="submit" disabled={login.isPending}>{login.isPending ? t("auth.signingIn") : t("auth.signIn")}</Button>
+          <Button variant="secondary" type="button" disabled={passkeyLogin.isPending || !form.watch("email")} onClick={() => passkeyLogin.mutate()}>{passkeyLogin.isPending ? t("auth.checkingPasskey") : t("auth.usePasskey")}</Button>
         </Toolbar>
         <Link className={buttonClassName("ghost", "sm")} to="/reset">
-          Forgot your password?
+          {t("auth.forgotPassword")}
         </Link>
       </form>
     </Card>

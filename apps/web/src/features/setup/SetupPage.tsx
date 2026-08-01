@@ -2,6 +2,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { useAuth } from "@/shared/auth";
 import { apiRequest, ApiClientError } from "@/shared/api/client";
@@ -19,6 +20,7 @@ const setupSchema = z.object({
 type SetupForm = z.infer<typeof setupSchema>;
 
 export default function SetupPage() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const form = useForm<SetupForm>({
     resolver: zodResolver(setupSchema),
@@ -39,33 +41,33 @@ export default function SetupPage() {
     onSuccess: () => auth.refresh(),
   });
 
-  const errorMessage = setup.error instanceof ApiClientError ? setup.error.message : setup.error ? "Setup failed." : null;
+  const errorMessage = setup.error instanceof ApiClientError ? setup.error.message : setup.error ? t("auth.setupFailed") : null;
 
   return (
     <Card className="rect-setup-card">
       <div className="rect-setup-card__header">
-        <p>Rectangle</p>
-        <h1>Set up your company</h1>
-        <span>Create the first company workspace and owner account.</span>
+        <p>{t("app.name")}</p>
+        <h1>{t("auth.setupTitle")}</h1>
+        <span>{t("auth.setupIntro")}</span>
       </div>
       <form className="rect-setup-form" onSubmit={form.handleSubmit((values) => setup.mutate(values))}>
-        <Field label="Company name" error={form.formState.errors.companyName?.message} required>
-          <Input aria-label="Company name" autoComplete="organization" {...form.register("companyName")} />
+        <Field label={t("auth.companyName")} error={form.formState.errors.companyName?.message} required>
+          <Input aria-label={t("auth.companyName")} autoComplete="organization" {...form.register("companyName")} />
         </Field>
-        <Field label="Company slug" hint="Lowercase letters, numbers, and dashes." error={form.formState.errors.companySlug?.message} required>
-          <Input aria-label="Company slug" autoComplete="off" {...form.register("companySlug")} />
+        <Field label={t("auth.companySlug")} hint={t("auth.companySlugHint")} error={form.formState.errors.companySlug?.message} required>
+          <Input aria-label={t("auth.companySlug")} autoComplete="off" {...form.register("companySlug")} />
         </Field>
-        <Field label="Your name" error={form.formState.errors.adminName?.message} required>
-          <Input aria-label="Your name" autoComplete="name" {...form.register("adminName")} />
+        <Field label={t("auth.yourName")} error={form.formState.errors.adminName?.message} required>
+          <Input aria-label={t("auth.yourName")} autoComplete="name" {...form.register("adminName")} />
         </Field>
-        <Field label="Email" error={form.formState.errors.adminEmail?.message} required>
-          <Input aria-label="Email" autoComplete="email" type="email" {...form.register("adminEmail")} />
+        <Field label={t("auth.email")} error={form.formState.errors.adminEmail?.message} required>
+          <Input aria-label={t("auth.email")} autoComplete="email" type="email" {...form.register("adminEmail")} />
         </Field>
-        <Field label="Password" hint="At least 12 characters with uppercase, lowercase, and number." error={form.formState.errors.password?.message} required>
-          <Input aria-label="Password" autoComplete="new-password" type="password" {...form.register("password")} />
+        <Field label={t("auth.password")} hint={t("auth.passwordRule")} error={form.formState.errors.password?.message} required>
+          <Input aria-label={t("auth.password")} autoComplete="new-password" type="password" {...form.register("password")} />
         </Field>
         {errorMessage ? <p className="rect-setup-form__error" role="alert">{errorMessage}</p> : null}
-        <Button variant="primary" type="submit" disabled={setup.isPending}>{setup.isPending ? "Creating…" : "Create company"}</Button>
+        <Button variant="primary" type="submit" disabled={setup.isPending}>{setup.isPending ? t("auth.setupPending") : t("auth.setupSubmit")}</Button>
       </form>
     </Card>
   );

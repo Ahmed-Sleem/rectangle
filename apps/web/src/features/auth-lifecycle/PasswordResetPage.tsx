@@ -8,6 +8,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
@@ -23,6 +24,7 @@ const schema = z.object({
 type ResetForm = z.infer<typeof schema>;
 
 export default function PasswordResetPage() {
+  const { t } = useTranslation();
   const form = useForm<ResetForm>({
     resolver: zodResolver(schema),
     defaultValues: { tenantSlug: "", email: "" },
@@ -36,8 +38,8 @@ export default function PasswordResetPage() {
     return (
       <Card className="rect-setup-card">
         <div className="rect-setup-card__header">
-          <p>Rectangle</p>
-          <h1>Check your email</h1>
+          <p>{t("app.name")}</p>
+          <h1>{t("auth.resetSentTitle")}</h1>
           <span>
             If that address belongs to an active account, a reset link is on its way. The link
             expires in an hour and can be used once.
@@ -54,29 +56,29 @@ export default function PasswordResetPage() {
     request.error instanceof ApiClientError
       ? request.error.message
       : request.error
-        ? "That request could not be sent."
+        ? t("auth.resetRequestFailed")
         : null;
 
   return (
     <Card className="rect-setup-card">
       <div className="rect-setup-card__header">
-        <p>Rectangle</p>
-        <h1>Reset your password</h1>
-        <span>We will email you a link to choose a new one.</span>
+        <p>{t("app.name")}</p>
+        <h1>{t("auth.resetTitle")}</h1>
+        <span>{t("auth.resetIntroShort")}</span>
       </div>
 
       <form className="rect-setup-form" onSubmit={form.handleSubmit((values) => request.mutate(values))}>
-        <Field label="Company" hint="The short name in your Rectangle address." error={form.formState.errors.tenantSlug?.message} required>
+        <Field label={t("auth.company")} hint={t("auth.companyHint")} error={form.formState.errors.tenantSlug?.message} required>
           <Input data-autofocus="true" autoComplete="organization" {...form.register("tenantSlug")} />
         </Field>
-        <Field label="Email" error={form.formState.errors.email?.message} required>
+        <Field label={t("auth.email")} error={form.formState.errors.email?.message} required>
           <Input type="email" autoComplete="username" {...form.register("email")} />
         </Field>
 
         {errorMessage ? <p className="rect-setup-form__error" role="alert">{errorMessage}</p> : null}
 
         <Button variant="primary" type="submit" disabled={request.isPending}>
-          {request.isPending ? "Sending…" : "Send reset link"}
+          {request.isPending ? t("auth.resetPending") : t("auth.resetSendLink")}
         </Button>
         <Link className={buttonClassName("ghost")} to="/login">
           Back to sign in

@@ -10,9 +10,7 @@ import { resources } from "./resources";
 
 import projectsSource from "@/features/projects/ProjectsPage.tsx?raw";
 import projectDetailSource from "@/features/projects/ProjectDetailPage.tsx?raw";
-import projectSettingsSource from "@/features/projects/ProjectSettingsPage.tsx?raw";
 import teamSource from "@/features/team/TeamPage.tsx?raw";
-import settingsSource from "@/features/settings/SettingsPage.tsx?raw";
 
 type Tree = Record<string, unknown>;
 
@@ -75,13 +73,36 @@ describe("translation completeness", () => {
 });
 
 describe("feature pages read their copy from translations", () => {
-  const pages: Array<[string, string]> = [
-    ["ProjectsPage.tsx", projectsSource],
-    ["ProjectDetailPage.tsx", projectDetailSource],
-    ["ProjectSettingsPage.tsx", projectSettingsSource],
-    ["TeamPage.tsx", teamSource],
-    ["SettingsPage.tsx", settingsSource],
-  ];
+  /*
+   * Every page, discovered rather than listed.
+   *
+   * This was a hand-written list of five, and the six screens a person sees
+   * before they have an account were not on it — sign-in, first setup, both
+   * halves of a password reset, the invitation and the email-change
+   * confirmation were hardcoded English in an Arabic-first product, and the
+   * check that exists to prevent exactly that never looked at them. A list
+   * only guards what somebody remembered to add, so the glob is the check.
+   */
+  const discovered = import.meta.glob("@/features/**/*Page.tsx", {
+    eager: true,
+    query: "?raw",
+    import: "default",
+  }) as Record<string, string>;
+
+  const pages: Array<[string, string]> = Object.entries(discovered)
+    .filter(([path]) => !path.includes(".test."))
+    /*
+     * Logout is a redirect with one line of progress copy and no interface of
+     * its own. Everything else on screen must be translatable.
+     */
+    .filter(([path]) => !path.endsWith("LogoutPage.tsx"))
+    .map(([path, source]) => [path.slice(path.lastIndexOf("/") + 1), source]);
+
+  it("finds the pages rather than trusting a list", () => {
+    // Guards the glob itself: if it silently matched nothing, every assertion
+    // below would pass while checking no files at all.
+    expect(pages.length).toBeGreaterThanOrEqual(12);
+  });
 
   it("uses the translation hook on every page that shows text", () => {
     for (const [name, source] of pages) {

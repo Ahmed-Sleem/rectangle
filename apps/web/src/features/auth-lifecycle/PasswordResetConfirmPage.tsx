@@ -2,6 +2,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
@@ -29,6 +30,7 @@ const schema = z
 type ConfirmForm = z.infer<typeof schema>;
 
 export default function PasswordResetConfirmPage() {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const token = params.get("token") ?? "";
@@ -48,9 +50,9 @@ export default function PasswordResetConfirmPage() {
     return (
       <Card className="rect-setup-card">
         <div className="rect-setup-card__header">
-          <p>Rectangle</p>
-          <h1>Link incomplete</h1>
-          <span>This reset link is missing its token. Request a new one.</span>
+          <p>{t("app.name")}</p>
+          <h1>{t("auth.linkIncompleteTitle")}</h1>
+          <span>{t("auth.resetTokenMissing")}</span>
         </div>
         <Link className={buttonClassName("secondary")} to="/reset">
           Request a new link
@@ -63,31 +65,31 @@ export default function PasswordResetConfirmPage() {
     confirm.error instanceof ApiClientError
       ? confirm.error.message
       : confirm.error
-        ? "Your password could not be changed."
+        ? t("auth.passwordChangeFailed")
         : null;
 
   return (
     <Card className="rect-setup-card">
       <div className="rect-setup-card__header">
-        <p>Rectangle</p>
-        <h1>Choose a new password</h1>
+        <p>{t("app.name")}</p>
+        <h1>{t("auth.resetChooseTitle")}</h1>
         {/* Said plainly, because being signed out everywhere is surprising
             if it happens without warning. */}
-        <span>Signing in again will be required on every device.</span>
+        <span>{t("auth.resetSignsOutEverywhere")}</span>
       </div>
 
       <form className="rect-setup-form" onSubmit={form.handleSubmit((values) => confirm.mutate(values))}>
         <Field
-          label="New password"
-          hint="At least 12 characters, with an uppercase letter, a lowercase letter, and a digit."
+          label={t("auth.newPassword")}
+          hint={t("auth.passwordRule")}
           error={form.formState.errors.newPassword?.message}
           required
         >
           <Input data-autofocus="true" type="password" autoComplete="new-password" {...form.register("newPassword")} />
         </Field>
         <Field
-          label="Confirm new password"
-          error={form.formState.errors.confirmPassword ? "Both passwords must match." : undefined}
+          label={t("auth.confirmNewPassword")}
+          error={form.formState.errors.confirmPassword ? t("auth.passwordsMustMatch") : undefined}
           required
         >
           <Input type="password" autoComplete="new-password" {...form.register("confirmPassword")} />
@@ -96,7 +98,7 @@ export default function PasswordResetConfirmPage() {
         {errorMessage ? <p className="rect-setup-form__error" role="alert">{errorMessage}</p> : null}
 
         <Button variant="primary" type="submit" disabled={confirm.isPending}>
-          {confirm.isPending ? "Saving…" : "Set new password"}
+          {confirm.isPending ? t("auth.resetConfirmPending") : t("auth.setNewPassword")}
         </Button>
       </form>
     </Card>

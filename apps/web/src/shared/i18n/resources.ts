@@ -7,6 +7,7 @@
  * fallback at runtime, which is how screens drifted back to English before.
  */
 import { activity } from "./locales/activity";
+import { auth } from "./locales/auth";
 import { enums } from "./locales/enums";
 import { overview } from "./locales/overview";
 import { projects } from "./locales/projects";
@@ -223,6 +224,7 @@ export const resources = {
       separation: separation.en,
       tasks: tasks.en,
       team: team.en,
+      auth: auth.en,
     },
   },
   ar: {
@@ -443,6 +445,7 @@ export const resources = {
       separation: separation.ar,
       tasks: tasks.ar,
       team: team.ar,
+      auth: auth.ar,
     },
   },
 } as const;

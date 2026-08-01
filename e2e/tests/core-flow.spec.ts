@@ -35,7 +35,7 @@ test("the first owner creates the company and lands inside the product", async (
   await page.goto("/");
 
   await page.getByLabel("Company name").fill(OWNER.companyName);
-  await page.getByLabel("Company slug").fill(OWNER.companySlug);
+  await page.getByLabel("Company address").fill(OWNER.companySlug);
   await page.getByLabel("Your name").fill(OWNER.name);
   await page.getByLabel("Email").fill(OWNER.email);
   await page.getByLabel("Password").fill(OWNER.password);

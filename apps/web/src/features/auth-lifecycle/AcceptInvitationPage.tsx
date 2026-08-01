@@ -9,6 +9,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
@@ -37,6 +38,7 @@ const schema = z
 type AcceptForm = z.infer<typeof schema>;
 
 export default function AcceptInvitationPage() {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const token = params.get("token") ?? "";
@@ -65,12 +67,12 @@ export default function AcceptInvitationPage() {
     const message =
       invitation.error instanceof ApiClientError
         ? invitation.error.message
-        : "This invitation link is no longer valid. Ask an administrator to send a new one.";
+        : t("auth.invitationLinkInvalid");
     return (
       <Card className="rect-setup-card">
         <div className="rect-setup-card__header">
-          <p>Rectangle</p>
-          <h1>Invitation unavailable</h1>
+          <p>{t("app.name")}</p>
+          <h1>{t("auth.invitationUnavailableTitle")}</h1>
           <span>{message}</span>
         </div>
         <Link className={buttonClassName("secondary")} to="/login">
@@ -83,7 +85,7 @@ export default function AcceptInvitationPage() {
   if (invitation.isLoading || !invitation.data) {
     return (
       <Card className="rect-setup-card">
-        <LoadingState title="Checking your invitation" message="One moment…" />
+        <LoadingState title={t("auth.checkingInvitation")} message={t("auth.oneMoment")} />
       </Card>
     );
   }
@@ -93,14 +95,14 @@ export default function AcceptInvitationPage() {
     accept.error instanceof ApiClientError
       ? accept.error.message
       : accept.error
-        ? "Your account could not be set up."
+        ? t("auth.accountSetupFailed")
         : null;
 
   return (
     <Card className="rect-setup-card">
       <div className="rect-setup-card__header">
         <p>{summary.companyName}</p>
-        <h1>Set up your account</h1>
+        <h1>{t("auth.invitationTitle")}</h1>
         {/* Naming the address proves the link belongs to the recipient. */}
         <span>Choose a password for {summary.email}.</span>
       </div>
@@ -109,7 +111,7 @@ export default function AcceptInvitationPage() {
         className="rect-setup-form"
         onSubmit={form.handleSubmit((values) => accept.mutate(values))}
       >
-        <Field label="Your name" error={form.formState.errors.displayName?.message} required>
+        <Field label={t("auth.yourName")} error={form.formState.errors.displayName?.message} required>
           <Input
             data-autofocus="true"
             defaultValue={summary.displayName}
@@ -118,16 +120,16 @@ export default function AcceptInvitationPage() {
           />
         </Field>
         <Field
-          label="Password"
-          hint="At least 12 characters, with an uppercase letter, a lowercase letter, and a digit."
+          label={t("auth.password")}
+          hint={t("auth.passwordRule")}
           error={form.formState.errors.password?.message}
           required
         >
           <Input type="password" autoComplete="new-password" {...form.register("password")} />
         </Field>
         <Field
-          label="Confirm password"
-          error={form.formState.errors.confirmPassword ? "Both passwords must match." : undefined}
+          label={t("auth.confirmPassword")}
+          error={form.formState.errors.confirmPassword ? t("auth.passwordsMustMatch") : undefined}
           required
         >
           <Input type="password" autoComplete="new-password" {...form.register("confirmPassword")} />
@@ -140,7 +142,7 @@ export default function AcceptInvitationPage() {
         ) : null}
 
         <Button variant="primary" type="submit" disabled={accept.isPending}>
-          {accept.isPending ? "Setting up…" : "Activate account"}
+          {accept.isPending ? t("auth.settingUp") : t("auth.activateAccount")}
         </Button>
       </form>
     </Card>

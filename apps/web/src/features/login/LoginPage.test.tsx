@@ -1,5 +1,6 @@
 /** Tests login form submits real auth request. */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RectangleI18nProvider } from "@/shared/i18n";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -11,13 +12,15 @@ function renderLogin() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   // The page links to password reset, so it needs a router to render.
   return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <AuthProvider>
-          <LoginPage />
-        </AuthProvider>
-      </MemoryRouter>
-    </QueryClientProvider>,
+    <RectangleI18nProvider>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AuthProvider>
+            <LoginPage />
+          </AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </RectangleI18nProvider>,
   );
 }
 

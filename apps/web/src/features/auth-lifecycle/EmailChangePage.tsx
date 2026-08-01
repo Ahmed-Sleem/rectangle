@@ -5,6 +5,7 @@
  * token, see what happened — and differ only in what the outcome means.
  */
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ApiClientError } from "@/shared/api/client";
@@ -13,6 +14,7 @@ import { confirmEmailChange, revertEmailChange } from "./lifecycle-api";
 import "../setup/setup-page.css";
 
 export default function EmailChangePage({ mode }: { mode: "confirm" | "revert" }) {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const token = params.get("token") ?? "";
 
@@ -37,9 +39,9 @@ export default function EmailChangePage({ mode }: { mode: "confirm" | "revert" }
     return (
       <Card className="rect-setup-card">
         <div className="rect-setup-card__header">
-          <p>Rectangle</p>
-          <h1>Link incomplete</h1>
-          <span>This link is missing its token.</span>
+          <p>{t("app.name")}</p>
+          <h1>{t("auth.linkIncompleteTitle")}</h1>
+          <span>{t("auth.emailTokenMissing")}</span>
         </div>
         <Link className={buttonClassName("secondary")} to="/login">
           Go to sign in
@@ -52,8 +54,8 @@ export default function EmailChangePage({ mode }: { mode: "confirm" | "revert" }
     return (
       <Card className="rect-setup-card">
         <LoadingState
-          title={mode === "confirm" ? "Confirming your new address" : "Restoring your address"}
-          message="One moment…"
+          title={mode === "confirm" ? t("auth.confirmingNewAddress") : t("auth.restoringAddress")}
+          message={t("auth.oneMoment")}
         />
       </Card>
     );
@@ -63,12 +65,12 @@ export default function EmailChangePage({ mode }: { mode: "confirm" | "revert" }
     const message =
       action.error instanceof ApiClientError
         ? action.error.message
-        : "This link is no longer valid.";
+        : t("auth.linkNoLongerValid");
     return (
       <Card className="rect-setup-card">
         <div className="rect-setup-card__header">
-          <p>Rectangle</p>
-          <h1>Link unavailable</h1>
+          <p>{t("app.name")}</p>
+          <h1>{t("auth.linkUnavailableTitle")}</h1>
           <span>{message}</span>
         </div>
         <Link className={buttonClassName("secondary")} to="/login">
@@ -81,12 +83,12 @@ export default function EmailChangePage({ mode }: { mode: "confirm" | "revert" }
   return (
     <Card className="rect-setup-card">
       <div className="rect-setup-card__header">
-        <p>Rectangle</p>
-        <h1>{mode === "confirm" ? "Email address updated" : "Address restored"}</h1>
+        <p>{t("app.name")}</p>
+        <h1>{mode === "confirm" ? t("auth.emailAddressUpdated") : t("auth.addressRestored")}</h1>
         <span>
           {mode === "confirm"
-            ? "Sign in with your new address. You have been signed out everywhere else."
-            : "Your previous address is back and the account has been disabled. Ask an administrator to review it and re-enable it."}
+            ? t("auth.emailChangedSignedOut")
+            : t("auth.emailRevertedDisabled")}
         </span>
       </div>
       <Link className={buttonClassName("primary")} to="/login">
