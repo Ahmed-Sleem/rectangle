@@ -51,14 +51,23 @@ const userTypes = { userTypes: [
   { id: viewerTypeId, name: "Site Viewer", key: "site_viewer", description: "Read-only site access.", permissions: ["projects.read"], systemType: false },
 ] };
 
-const users = { users: [
+/*
+ * The people register as the directory endpoint answers it. It replaced the
+ * administrative user list, which showed the same people in a second place —
+ * each row now carries both the project context and the administrative fields.
+ */
+const people = { people: [
   {
     id: "22222222-2222-4222-8222-222222222222",
     displayName: "Owner",
     email: "owner@rectangle.test",
     status: "active",
     standing: "owner",
-    projectCount: 3,
+    projects: [
+      { id: "p1", name: "Nile Tower", code: "NT-001", role: "project_admin", sharedWithViewer: true },
+    ],
+    sharedProjectCount: 1,
+    openTaskCount: 2,
     userTypes: [{ id: ownerTypeId, name: "Owner", key: "owner" }],
   },
   {
@@ -67,17 +76,21 @@ const users = { users: [
     email: "mona@rectangle.test",
     status: "disabled",
     standing: "member",
-    projectCount: 0,
+    projects: [],
+    sharedProjectCount: 0,
+    openTaskCount: 0,
     userTypes: [{ id: viewerTypeId, name: "Site Viewer", key: "site_viewer" }],
   },
 ] };
 
-function mockReads() {
+function mockReads({ registers = ["company", "colleagues"] }: { registers?: string[] } = {}) {
   return vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
     const url = String(input);
     if (url.includes("permissions")) return jsonResponse(permissions);
     if (url.includes("user-types")) return jsonResponse(userTypes);
-    return jsonResponse(users);
+    // Which register the caller may open decides which people they are sent.
+    if (url.includes("/v1/directory/registers")) return jsonResponse({ registers });
+    return jsonResponse(people);
   });
 }
 
@@ -88,15 +101,16 @@ describe("TeamPage", () => {
     window.localStorage.clear();
   });
 
-  it("renders people from the API with their real project counts", async () => {
+  it("renders people with the projects the viewer may see", async () => {
     mockReads();
     renderTeam();
 
     expect(await screen.findByText("Mona Adel")).toBeInTheDocument();
     expect(screen.getByText("owner@rectangle.test")).toBeInTheDocument();
-    expect(screen.getByText("3 projects")).toBeInTheDocument();
-    // A person with no project membership says so rather than showing nothing.
-    expect(screen.getByText("0 projects")).toBeInTheDocument();
+    // Named, not counted. A count says how much is hidden; the register shows
+    // what the viewer is entitled to see and says so when that is nothing.
+    expect(screen.getByText("Nile Tower")).toBeInTheDocument();
+    expect(screen.getByText("No projects you can see")).toBeInTheDocument();
   });
 
   it("summarises the register from the records it loaded", async () => {
@@ -159,7 +173,8 @@ describe("TeamPage", () => {
       }
       if (url.includes("permissions")) return jsonResponse(permissions);
       if (url.includes("user-types")) return jsonResponse(userTypes);
-      return jsonResponse(users);
+      if (url.includes("/v1/directory/registers")) return jsonResponse({ registers: ["company", "colleagues"] });
+      return jsonResponse(people);
     });
     renderTeam();
 
@@ -186,7 +201,7 @@ describe("TeamPage", () => {
     renderTeam();
 
     await screen.findByText("Mona Adel");
-    const card = screen.getByText("Mona Adel").closest("article")!;
+    const card = screen.getByText("Mona Adel").closest("li")!;
     await user.click(within(card).getByRole("button", { name: "Edit" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Edit person" });
@@ -210,7 +225,7 @@ describe("TeamPage", () => {
     renderTeam();
 
     await screen.findByText("owner@rectangle.test");
-    const card = screen.getByText("owner@rectangle.test").closest("article")!;
+    const card = screen.getByText("owner@rectangle.test").closest("li")!;
     await user.click(within(card).getByRole("button", { name: "Disable" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Disable this person?" });
@@ -224,14 +239,12 @@ describe("TeamPage", () => {
     renderTeam(viewerAuth);
 
     /*
-     * They do not see the account register at all now, so they never see the
-     * people in it — which is why this no longer waits for a name from that
-     * list. The page opens on the directory, which is theirs, and the two
-     * administrative segments are absent rather than present-and-refusing.
+     * People is everyone's register — it shows this person their colleagues
+     * rather than the company — so the segment is there and the row actions
+     * are not. Roles is administrative and absent entirely.
      */
     const segments = await screen.findByRole("radiogroup", { name: "Team register" });
-    expect(within(segments).getByRole("radio", { name: /Directory/u })).toBeInTheDocument();
-    expect(within(segments).queryByRole("radio", { name: /People/u })).not.toBeInTheDocument();
+    expect(within(segments).getByRole("radio", { name: /People/u })).toBeInTheDocument();
     expect(within(segments).queryByRole("radio", { name: /Roles/u })).not.toBeInTheDocument();
 
     expect(screen.queryByRole("button", { name: "Create user" })).not.toBeInTheDocument();
@@ -267,16 +280,15 @@ describe("TeamPage", () => {
     const segments = screen.getByRole("radiogroup", { name: "Team register" });
     // The words must be rendered, not only announced, or the control is a row
     // of unlabelled squares.
-    expect(within(segments).getByText("Directory")).toBeInTheDocument();
     expect(within(segments).getByText("People")).toBeInTheDocument();
     expect(within(segments).getByText("Roles")).toBeInTheDocument();
     /*
      * One icon per option, counted from the options rather than hard-coded, so
-     * adding a fourth register cannot leave it iconless while this still
-     * passes — which is what a literal 3 here would allow.
+     * adding a third register cannot leave it iconless while this still
+     * passes — which is what a literal count here would allow.
      */
     const options = within(segments).getAllByRole("radio");
-    expect(options).toHaveLength(3);
+    expect(options).toHaveLength(2);
     expect(segments.querySelectorAll("svg").length).toBe(options.length);
   });
 
@@ -497,7 +509,8 @@ describe("TeamPage", () => {
         }
         if (url.includes("permissions")) return jsonResponse(permissions);
         if (url.includes("user-types")) return jsonResponse(userTypes);
-        return jsonResponse(users);
+        if (url.includes("/v1/directory/registers")) return jsonResponse({ registers: ["company", "colleagues"] });
+        return jsonResponse(people);
       });
       await user.click(within(dialog).getByRole("button", { name: "Create user type" }));
       await waitFor(() => expect(fetchMock).toHaveBeenCalled());

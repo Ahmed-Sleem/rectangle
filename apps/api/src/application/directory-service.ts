@@ -22,7 +22,13 @@
  * C45 just closed: a member who cannot open a project must not learn its name by
  * opening a colleague's profile.
  */
-import { canReachAllProjects, hasPermission, requirePermission, type UserPrincipal } from "../domain/auth.js";
+import {
+  canReachAllProjects,
+  hasPermission,
+  requirePermission,
+  type CompanyStanding,
+  type UserPrincipal,
+} from "../domain/auth.js";
 
 /** A project the viewer may see, and what the subject does on it. */
 export interface DirectoryProject {
@@ -39,7 +45,7 @@ export interface DirectoryPerson {
   displayName: string;
   email: string;
   status: "active" | "invited" | "disabled";
-  standing: string;
+  standing: CompanyStanding;
   /**
    * Only the projects the VIEWER can reach. A person may well be on more; that
    * is not the viewer's business and the count below does not hint at it.
@@ -49,6 +55,18 @@ export interface DirectoryPerson {
   sharedProjectCount: number;
   /** Open tasks assigned to this person, on projects the viewer can reach. */
   openTaskCount: number;
+  /**
+   * The user types this person holds.
+   *
+   * Carried here so the Team page has one people register rather than two. It
+   * previously ran a directory list and an administrative list side by side,
+   * showing the same people twice under two headings a reader could not tell
+   * apart — the owner said so directly. The administrative columns are only
+   * *rendered* for somebody who may administer people; they are only *sent* to
+   * a caller holding `users.read`, since the colleague register is open to
+   * everyone.
+   */
+  userTypes: Array<{ id: string; name: string; key: string }>;
 }
 
 export interface DirectoryReach {

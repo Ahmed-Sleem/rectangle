@@ -54,12 +54,18 @@ const PAGES = [
     file: "features/team/PeopleDirectory.tsx",
     tests: ["features/team/PeopleDirectory.test.tsx"],
     /*
-     * Its own entry rather than being covered by the page that hosts it. It
-     * reads two registers through its own endpoints and carries its own empty,
-     * loading and error states, and it is the surface where the visibility
-     * rule is actually visible to a person.
+     * A presentational register, not a page.
+     *
+     * It briefly owned its own fetch, its own search box and its own empty,
+     * loading and error states — which is how the Team page ended up with two
+     * lists of the same people under two headings. The page owns all of that
+     * now, shares one toolbar with Projects, Tasks and Risks, and hands this
+     * the rows to draw. Its states are measured on `features/team/TeamPage.tsx`
+     * above, where they actually live.
      */
+    singleRecord: true,
     selfService: true,
+    statesOwnedByHost: true,
   },
   {
     id: "profile",
@@ -178,8 +184,16 @@ for (const page of PAGES) {
   if (!page.singleRecord) {
     check("page", page.id, "empty state", /EmptyState|rect-empty|noRecords/.test(source));
   }
-  check("page", page.id, "loading state", /LoadingState|isLoading|isPending/.test(source));
-  check("page", page.id, "error state", /ErrorState|role="alert"|isError/.test(source));
+  /*
+   * A register that is handed its rows does not fetch, so it has no loading or
+   * error of its own — its host does, and that is where they are measured.
+   * Demanding them here would push a spinner into a presentational component
+   * purely to satisfy a check, which is the tail wagging the dog.
+   */
+  if (!page.statesOwnedByHost) {
+    check("page", page.id, "loading state", /LoadingState|isLoading|isPending/.test(source));
+    check("page", page.id, "error state", /ErrorState|role="alert"|isError/.test(source));
+  }
   /*
    * Question 4: what does someone without permission see?
    *

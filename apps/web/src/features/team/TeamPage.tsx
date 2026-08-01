@@ -9,7 +9,7 @@
  */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Contact, LayoutGrid, Rows3, ShieldCheck, Users } from "lucide-react";
+import { LayoutGrid, Rows3, ShieldCheck, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -18,7 +18,7 @@ import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import { useOptionalAuth } from "@/shared/auth";
 import {
-  Avatar, Badge, Button, CardGrid, Checkbox, ConfirmDialog, DataTable, EmptyState,
+  Badge, Button, CardGrid, Checkbox, ConfirmDialog, DataTable, EmptyState,
   ErrorState, Field, FormDialog, Input, LoadingState, PageToolbar, StatCard, StatRow,
   ViewToggle,
 } from "@/shared/ui";
@@ -26,7 +26,8 @@ import { searchRecords } from "@/shared/search/match";
 import { AccessFields, type AccessFormValues } from "./AccessFields";
 import { PeopleDirectory } from "./PeopleDirectory";
 import { PermissionPicker } from "./PermissionPicker";
-import { adminApi, type AdminUserRecord, type UserTypeRecord } from "./admin-api";
+import { adminApi, type UserTypeRecord } from "./admin-api";
+import { directoryApi, type DirectoryPerson } from "./directory-api";
 import "./TeamPage.css";
 
 const userTypeSchema = z.object({
@@ -101,17 +102,15 @@ type UserForm = z.infer<typeof userSchema>;
 type EditUserForm = z.infer<typeof editUserSchema>;
 
 /**
- * Three registers, not two.
+ * Two registers.
  *
- * `directory` is the people register and is open to everyone — it shows the
- * colleagues you share work with, which membership already discloses. `users`
- * and `types` administer accounts and roles, and need `users.read` and
- * `user_types.read`. Keeping them as segments of one page rather than separate
- * pages means somebody who holds all three switches between them instead of
- * hunting for them; keeping them separately gated means somebody who holds one
- * is never offered the others.
+ * People is open to everyone — it shows the whole company to somebody holding
+ * `users.read` and the caller's colleagues to everybody else, which membership
+ * already discloses. Roles administers user types and needs
+ * `user_types.read`. There was briefly a third, a "Directory" that listed the
+ * same people again; it is gone.
  */
-type Segment = "directory" | "users" | "types";
+type Segment = "users" | "types";
 type ViewMode = "cards" | "table";
 
 const VIEW_STORAGE_KEY = "rectangle.team.view";
@@ -186,7 +185,6 @@ export default function TeamPage() {
   const canAddRoles = held("user_types.create");
   const canEditRoles = held("user_types.edit");
 
-  const canReadUsers = held("users.read");
   const canReadTypes = held("user_types.read");
 
   /*
@@ -195,7 +193,7 @@ export default function TeamPage() {
    * page, which is both useless and wrong: the directory below it was theirs
    * all along.
    */
-  const [segment, setSegment] = useState<Segment>(canReadUsers ? "users" : "directory");
+  const [segment, setSegment] = useState<Segment>("users");
   const [view, setView] = useState<ViewMode>(() => readStoredView());
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -209,14 +207,34 @@ export default function TeamPage() {
   const [roleOriginFilter, setRoleOriginFilter] = useState("");
   const [typeOpen, setTypeOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<AdminUserRecord | null>(null);
+  const [editingUser, setEditingUser] = useState<DirectoryPerson | null>(null);
   const [editingType, setEditingType] = useState<UserTypeRecord | null>(null);
-  const [pendingDisable, setPendingDisable] = useState<AdminUserRecord | null>(null);
+  const [pendingDisable, setPendingDisable] = useState<DirectoryPerson | null>(null);
 
   const queryClient = useQueryClient();
   const permissions = useQuery({ queryKey: ["admin", "permissions"], queryFn: adminApi.permissions });
   const userTypes = useQuery({ queryKey: ["admin", "user-types"], queryFn: adminApi.userTypes });
-  const users = useQuery({ queryKey: ["admin", "users"], queryFn: adminApi.users });
+  /*
+   * One source for the people register.
+   *
+   * This page used to run two: an administrative list of accounts and a
+   * separate directory of the same people with their projects. For anybody
+   * holding `users.read` the two showed identical rows under two headings —
+   * the duplication the owner reported. The directory answers both questions
+   * now: it returns the whole company to somebody who may read users and the
+   * caller's colleagues to everybody else, and each row carries the
+   * administrative fields the actions need.
+   */
+  const registers = useQuery({
+    queryKey: ["directory", "registers"],
+    queryFn: directoryApi.registers,
+  });
+  const showingWholeCompany = registers.data?.registers.includes("company") ?? false;
+  const users = useQuery({
+    queryKey: ["directory", showingWholeCompany ? "company" : "colleagues"],
+    queryFn: () => (showingWholeCompany ? directoryApi.company() : directoryApi.colleagues()),
+    enabled: registers.isSuccess,
+  });
 
   const typeForm = useForm<UserTypeForm>({ resolver: zodResolver(userTypeSchema), defaultValues: { name: "", key: "", description: "", permissions: [] } });
   const userForm = useForm<UserForm>({
@@ -282,7 +300,7 @@ export default function TeamPage() {
     error instanceof ApiClientError ? error.message : error ? fallback : null;
 
   const typeRows = useMemo(() => userTypes.data?.userTypes ?? [], [userTypes.data]);
-  const allUsers = useMemo(() => users.data?.users ?? [], [users.data]);
+  const allUsers = useMemo(() => users.data?.people ?? [], [users.data]);
 
   /*
    * Filtered here rather than through the API, and searched with the shared
@@ -301,7 +319,13 @@ export default function TeamPage() {
       if (typeFilter && !user.userTypes.some((type) => type.id === typeFilter)) return false;
       return true;
     });
-    return searchRecords(narrowed, search, (user) => [user.displayName, user.email]);
+    // Projects are searchable too: "who is on Nile Tower" is the question a
+    // site manager actually arrives with.
+    return searchRecords(narrowed, search, (user) => [
+      user.displayName,
+      user.email,
+      ...user.projects.flatMap((project) => [project.name, project.code]),
+    ]);
   }, [allUsers, search, statusFilter, typeFilter]);
 
   /**
@@ -345,7 +369,6 @@ export default function TeamPage() {
   }
 
   const permissionOptions = permissions.data?.permissions ?? [];
-  const showingDirectory = segment === "directory";
   const showingUsers = segment === "users";
 
   return (
@@ -368,12 +391,7 @@ export default function TeamPage() {
             onChange={setSegment}
             showLabels
             options={[
-              // Built from what the viewer holds. An option that answers with a
-              // refusal is the dead control the product does not ship.
-              { value: "directory" as const, label: t("team.segmentDirectory"), icon: <Contact size={16} strokeWidth={2} aria-hidden /> },
-              ...(canReadUsers
-                ? [{ value: "users" as const, label: t("team.segmentUsers"), icon: <Users size={16} strokeWidth={2} aria-hidden /> }]
-                : []),
+              { value: "users" as const, label: t("team.segmentUsers"), icon: <Users size={16} strokeWidth={2} aria-hidden /> },
               ...(canReadTypes
                 ? [{ value: "types" as const, label: t("team.segmentTypes"), icon: <ShieldCheck size={16} strokeWidth={2} aria-hidden /> }]
                 : []),
@@ -381,9 +399,7 @@ export default function TeamPage() {
           />
         }
         search={
-          showingDirectory
-            ? undefined
-            : showingUsers
+          showingUsers
             ? {
                 value: search,
                 onChange: setSearch,
@@ -398,9 +414,7 @@ export default function TeamPage() {
               }
         }
         filters={
-          showingDirectory
-            ? []
-            : showingUsers
+          showingUsers
             ? [
                 {
                   id: "type",
@@ -440,13 +454,11 @@ export default function TeamPage() {
               ]
         }
         onClearFilters={
-          showingDirectory
-            ? undefined
-            : showingUsers
+          showingUsers
             ? () => { setSearch(""); setTypeFilter(""); setStatusFilter(""); }
             : () => { setRoleSearch(""); setRoleOriginFilter(""); }
         }
-        view={showingDirectory ? undefined : {
+        view={{
           value: view,
           label: t("team.cardView"),
           onChange: (next: ViewMode) => { setView(next); storeView(next); },
@@ -456,7 +468,6 @@ export default function TeamPage() {
           ],
         }}
         actions={
-          showingDirectory ? null :
           (showingUsers ? canAddUsers : canAddRoles) ? (
             showingUsers ? (
               <Button
@@ -479,9 +490,7 @@ export default function TeamPage() {
         * its own two registers and its own states. The KPI row below is about
         * administering accounts, which is not what this register is for.
         */}
-      {showingDirectory ? <PeopleDirectory /> : null}
-
-      {!showingDirectory && allUsers.length > 0 ? (
+      {allUsers.length > 0 ? (
         <StatRow label={t("team.pageLabel")}>
           <StatCard
             label={t("team.kpiPeople")}
@@ -513,126 +522,21 @@ export default function TeamPage() {
               </Button>
             }
           />
-        ) : view === "cards" ? (
-          <CardGrid label={t("team.usersTitle")}>
-            {filteredUsers.map((user) => (
-              <article key={user.id} className="rect-person" role="listitem">
-                <header className="rect-person__head">
-                  <Avatar name={user.displayName} colorKey={user.id} />
-                  <span className="rect-person__identity">
-                    <span className="rect-person__name">{user.displayName}</span>
-                    <span className="rect-person__email">{user.email}</span>
-                  </span>
-                  {/* Standing is a different kind of thing from a user type,
-                      so it reads differently. It was previously invisible. */}
-                  {user.standing !== "member" ? (
-                    <Badge tone={user.standing === "owner" ? "warning" : "info"}>
-                      {t(`team.standing_${user.standing}`)}
-                    </Badge>
-                  ) : null}
-                  <Badge tone={user.status === "active" ? "success" : "neutral"}>
-                    {t(`enums.userStatus.${user.status}`)}
-                  </Badge>
-                </header>
-
-                <div className="rect-person__roles">
-                  {user.userTypes.length === 0 ? (
-                    <span className="rect-person__norole">{t("team.noRole")}</span>
-                  ) : (
-                    user.userTypes.map((type) => (
-                      <Badge key={type.id} tone="info">{roleName(type, t)}</Badge>
-                    ))
-                  )}
-                </div>
-
-                <footer className="rect-person__foot">
-                  <span className="rect-person__meta">
-                    {t("team.userProjectCount", { count: user.projectCount })}
-                  </span>
-                  {canEditUsers || canDisableUsers ? (
-                    <span className="rect-person__actions">
-                      {canEditUsers ? (
-                        <Button size="sm" variant="secondary" onClick={() => setEditingUser(user)}>{t("team.edit")}</Button>
-                      ) : null}
-                      {canDisableUsers ? (
-                        user.status === "active" ? (
-                          <Button size="sm" variant="secondary" onClick={() => setPendingDisable(user)}>{t("team.disable")}</Button>
-                        ) : (
-                          <Button size="sm" variant="secondary" onClick={() => setStatus.mutate({ userId: user.id, status: "active" })}>
-                            {t("team.enableAction")}
-                          </Button>
-                        )
-                      ) : null}
-                    </span>
-                  ) : null}
-                </footer>
-              </article>
-            ))}
-          </CardGrid>
         ) : (
-          <DataTable
-            caption={t("team.usersTitle")}
-            rows={filteredUsers}
-            getRowKey={(row) => row.id}
-            columns={[
-              {
-                id: "name",
-                header: t("team.userName"),
-                accessor: (row) => (
-                  <span className="rect-person__cell">
-                    <Avatar name={row.displayName} colorKey={row.id} size="sm" />
-                    <span>{row.displayName}</span>
-                  </span>
-                ),
-              },
-              { id: "email", header: t("team.userEmail"), accessor: (row) => row.email },
-              {
-                id: "standing",
-                header: t("team.fieldStanding"),
-                accessor: (row) => t(`team.standing_${row.standing}`),
-              },
-              {
-                id: "types",
-                header: t("team.userTypes"),
-                accessor: (row) =>
-                  row.userTypes.length === 0
-                    ? t("team.noRole")
-                    : row.userTypes.map((type) => roleName(type, t)).join(t("common.listSeparator")),
-              },
-              { id: "projects", header: t("team.userProjects"), accessor: (row) => row.projectCount },
-              {
-                id: "status",
-                header: t("team.userStatus"),
-                accessor: (row) => (
-                  <Badge tone={row.status === "active" ? "success" : "neutral"}>
-                    {t(`enums.userStatus.${row.status}`)}
-                  </Badge>
-                ),
-              },
-              ...(canEditUsers || canDisableUsers
-                ? [{
-                    id: "action",
-                    header: t("team.userAction"),
-                    accessor: (row: AdminUserRecord) => (
-                      <span className="rect-person__actions">
-                        {canEditUsers ? (
-                          <Button size="sm" variant="secondary" onClick={() => setEditingUser(row)}>{t("team.edit")}</Button>
-                        ) : null}
-                        {canDisableUsers ? (
-                          row.status === "active" ? (
-                            <Button size="sm" variant="secondary" onClick={() => setPendingDisable(row)}>{t("team.disable")}</Button>
-                          ) : (
-                            <Button size="sm" variant="secondary" onClick={() => setStatus.mutate({ userId: row.id, status: "active" })}>
-                              {t("team.enableAction")}
-                            </Button>
-                          )
-                        ) : null}
-                      </span>
-                    ),
-                  }]
-                : []),
-            ]}
-            emptyMessage={t("team.noUsers")}
+          /*
+           * One component draws both views. The page owns search, filters and
+           * the card/table switch — the same toolbar Projects, Tasks and Risks
+           * use — so this is handed rows and told which shape to draw them in.
+           */
+          <PeopleDirectory
+            people={filteredUsers}
+            view={view}
+            canEdit={canEditUsers}
+            canDisable={canDisableUsers}
+            onEdit={(person) => setEditingUser(person)}
+            onDisable={(person) => setPendingDisable(person)}
+            onEnable={(person) => setStatus.mutate({ userId: person.id, status: "active" })}
+            roleName={(type) => roleName(type, t)}
           />
         )
       ) : typeRows.length === 0 ? (

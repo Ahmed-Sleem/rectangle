@@ -4,27 +4,10 @@ import type { LocaleBundle } from "./types";
 const en = {
   pageLabel: "Team administration",
 
-  // The people register. Two views, because a company directory and the people
-  // you actually work with are different questions.
-  segmentDirectory: "Directory",
-  registerCompany: "Everyone",
-  registerColleagues: "People I work with",
-  registerCompanyHint: "Everyone in the company.",
-  registerColleaguesHint: "The people you share a project with.",
-  directorySearchLabel: "Search people",
-  directorySearchPlaceholder: "Name, email, or project",
-  directoryLoadingTitle: "Loading people",
-  directoryLoadingMessage: "Preparing the directory…",
-  directoryErrorTitle: "People could not be loaded",
-  directoryErrorMessage: "Something went wrong while loading the directory. Please try again.",
-  directoryEmptyCompanyTitle: "Nobody here yet",
-  directoryEmptyCompanyMessage: "Add your first colleague to get started.",
-  directoryEmptyColleaguesTitle: "No shared projects yet",
-  directoryEmptyColleaguesMessage:
-    "Once you are added to a project, the people on it appear here.",
-  directoryNoMatchTitle: "No matching people",
-  directoryNoMatchMessage: "No one matches your search. Try a different name or project.",
+  // The people register. One list: the whole company for somebody who may read
+  // users, the caller's colleagues for everybody else.
   directoryProjects: "Projects",
+  directoryWorkColumn: "Open work",
   directoryNoVisibleProjects: "No projects you can see",
   directoryWithYou: "With you",
   directorySharedCount_one: "{{count}} project with you",
@@ -32,7 +15,6 @@ const en = {
   directoryOpenTasks_one: "{{count}} open task",
   directoryOpenTasks_other: "{{count}} open tasks",
   directoryEmail: "Email",
-  directoryTryAgain: "Try again",
   createUserType: "Create user type",
   createUserTypeDescription:
     "Group permissions into a role you can assign to people on your team.",
@@ -162,24 +144,8 @@ const en = {
 } as const;
 
 const ar: LocaleBundle<typeof en> = {
-  segmentDirectory: "الدليل",
-  registerCompany: "الجميع",
-  registerColleagues: "من أعمل معهم",
-  registerCompanyHint: "كل من في الشركة.",
-  registerColleaguesHint: "الأشخاص الذين تشاركهم مشروعًا.",
-  directorySearchLabel: "البحث عن أشخاص",
-  directorySearchPlaceholder: "الاسم أو البريد أو المشروع",
-  directoryLoadingTitle: "جارٍ تحميل الأشخاص",
-  directoryLoadingMessage: "جارٍ تجهيز الدليل…",
-  directoryErrorTitle: "تعذّر تحميل الأشخاص",
-  directoryErrorMessage: "حدث خطأ أثناء تحميل الدليل. يرجى المحاولة مرة أخرى.",
-  directoryEmptyCompanyTitle: "لا يوجد أحد بعد",
-  directoryEmptyCompanyMessage: "أضف أول زميل للبدء.",
-  directoryEmptyColleaguesTitle: "لا توجد مشاريع مشتركة بعد",
-  directoryEmptyColleaguesMessage: "عند إضافتك إلى مشروع، سيظهر هنا من يعمل عليه.",
-  directoryNoMatchTitle: "لا يوجد أشخاص مطابقون",
-  directoryNoMatchMessage: "لا أحد يطابق بحثك. جرّب اسمًا أو مشروعًا آخر.",
   directoryProjects: "المشاريع",
+  directoryWorkColumn: "العمل المفتوح",
   directoryNoVisibleProjects: "لا توجد مشاريع يمكنك رؤيتها",
   directoryWithYou: "معك",
   directorySharedCount_one: "مشروع واحد معك",
@@ -187,7 +153,6 @@ const ar: LocaleBundle<typeof en> = {
   directoryOpenTasks_one: "مهمة مفتوحة واحدة",
   directoryOpenTasks_other: "{{count}} مهام مفتوحة",
   directoryEmail: "البريد الإلكتروني",
-  directoryTryAgain: "إعادة المحاولة",
   pageLabel: "إدارة الفريق",
   createUserType: "إنشاء نوع مستخدم",
   createUserTypeDescription: "اجمع الصلاحيات في دور يمكنك تعيينه لأفراد فريقك.",

@@ -26,11 +26,14 @@ export interface DirectoryPerson {
   displayName: string;
   email: string;
   status: "active" | "invited" | "disabled";
-  standing: string;
+  /** Exactly one company standing, never a set. */
+  standing: "owner" | "admin" | "member" | "guest";
   /** Only the projects the viewer may see. Never the subject's full list. */
   projects: DirectoryProject[];
   sharedProjectCount: number;
   openTaskCount: number;
+  /** Present for callers who may read users; empty otherwise. */
+  userTypes: Array<{ id: string; name: string; key: string }>;
 }
 
 export const directoryApi = {

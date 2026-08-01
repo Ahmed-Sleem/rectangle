@@ -24,10 +24,11 @@ interface PersonRow {
   display_name: string;
   email: string;
   status: DirectoryPerson["status"];
-  standing: string;
+  standing: DirectoryPerson["standing"];
   projects: Array<{ id: string; name: string; code: string; role: string; shared: boolean }> | null;
   shared_project_count: number;
   open_task_count: number;
+  user_types: Array<{ id: string; name: string; key: string }> | null;
 }
 
 /** Work that is neither finished nor abandoned, and so is still somebody's. */
@@ -140,7 +141,22 @@ export class PostgresDirectoryRepository implements DirectoryRepository {
                    and t.assignee_user_id = u.id
                    and t.status in ${OPEN_TASK_STATUSES}
                    and t.project_id in (select id from visible)
-              ) as open_task_count
+              ) as open_task_count,
+              (
+                -- The administrative half of the row, so the page needs one
+                -- register rather than two lists of the same people.
+                select coalesce(
+                  json_agg(
+                    json_build_object('id', ut.id, 'name', ut.name, 'key', ut.key)
+                    order by ut.name
+                  ),
+                  '[]'
+                )
+                  from user_type_assignments uta
+                  join user_types ut
+                    on ut.tenant_id = uta.tenant_id and ut.id = uta.user_type_id
+                 where uta.tenant_id = u.tenant_id and uta.user_id = u.id
+              ) as user_types
          from users u
          left join tenant_user_roles standing
            on standing.tenant_id = u.tenant_id and standing.user_id = u.id
@@ -165,6 +181,7 @@ export class PostgresDirectoryRepository implements DirectoryRepository {
       })),
       sharedProjectCount: Number(row.shared_project_count ?? 0),
       openTaskCount: Number(row.open_task_count ?? 0),
+      userTypes: row.user_types ?? [],
     }));
   }
 }
