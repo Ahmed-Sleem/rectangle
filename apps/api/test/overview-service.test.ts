@@ -51,24 +51,40 @@ class RecordingRepository implements OverviewRepository {
     } = {},
   ) {}
 
-  async countProjectsByStatus(id: string): Promise<ProjectStatusCount[]> {
+  /** Recorded so a test can assert the project blocks are scoped, not just the task ones. */
+  projectScopes: Array<"all" | "member"> = [];
+
+  async countProjectsByStatus(
+    id: string,
+    _userId: string,
+    scope: "all" | "member",
+  ): Promise<ProjectStatusCount[]> {
     this.tenantIds.push(id);
+    this.projectScopes.push(scope);
     return this.data.statuses ?? [];
   }
 
-  async sumBudgetsByCurrency(id: string): Promise<BudgetTotal[]> {
+  async sumBudgetsByCurrency(
+    id: string,
+    _userId: string,
+    scope: "all" | "member",
+  ): Promise<BudgetTotal[]> {
     this.tenantIds.push(id);
+    this.projectScopes.push(scope);
     return this.data.budgets ?? [];
   }
 
   async listProjectsNeedingAttention(
     id: string,
+    _userId: string,
     horizonDays: number,
     limit: number,
+    scope: "all" | "member",
   ): Promise<AttentionProject[]> {
     this.tenantIds.push(id);
     this.lastHorizon = horizonDays;
     this.lastAttentionLimit = limit;
+    this.projectScopes.push(scope);
     return this.data.attention ?? [];
   }
 
@@ -220,4 +236,46 @@ describe("OverviewService", () => {
   });
 
 
+});
+
+describe("the dashboard counts only what the viewer can reach", () => {
+  /*
+   * Three of this page's blocks were tenant-wide while the two beside them
+   * were scoped: project counts, budget totals and the attention list. So the
+   * headline said the company had forty projects while the register below
+   * listed the viewer's three, and the budget block disclosed the company's
+   * total commitment to somebody on one job. Two numbers describing the same
+   * thing and disagreeing is a bug even before it is a disclosure.
+   */
+  it("scopes the project blocks to membership for a plain member", async () => {
+    const repository = new RecordingRepository();
+    await new OverviewService(repository).getSummary(
+      { tenantId, userId, roles: ["member"], permissions: ["projects.read"] },
+      {},
+    );
+
+    expect(repository.projectScopes).toEqual(["member", "member", "member"]);
+  });
+
+  it("gives a company administrator the whole company", async () => {
+    const repository = new RecordingRepository();
+    await new OverviewService(repository).getSummary(
+      { tenantId, userId, roles: ["admin"], permissions: [] },
+      {},
+    );
+
+    expect(repository.projectScopes).toEqual(["all", "all", "all"]);
+  });
+
+  it("uses the same scope for the project blocks as for tasks and risks", async () => {
+    // They are one question asked five times; answering it differently in
+    // three of them is what produced the mismatch above.
+    const repository = new RecordingRepository();
+    await new OverviewService(repository).getSummary(
+      { tenantId, userId, roles: ["member"], permissions: ["projects.read"] },
+      {},
+    );
+
+    expect(new Set(repository.projectScopes)).toEqual(new Set([repository.lastTaskScope]));
+  });
 });

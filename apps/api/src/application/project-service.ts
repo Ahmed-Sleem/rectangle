@@ -32,13 +32,34 @@ export interface AuditRepository {
   append(event: AuditEventInput): Promise<void>;
 }
 
+/**
+ * Which projects a query may return.
+ *
+ * `all` is the head-office view — a company administrator or somebody holding
+ * `projects.manage_all`. Everyone else sees the projects they belong to, and
+ * `userId` is whose membership decides that.
+ *
+ * Passed explicitly rather than derived inside the repository, because the
+ * repository must not be the place that decides authority: that answer lives in
+ * `domain/auth.ts` and has to have exactly one home.
+ */
+export interface ProjectReach {
+  all: boolean;
+  userId: string;
+}
+
 export interface ProjectsRepository {
   deleteForTenant(tenantId: string, id: string): Promise<boolean>;
   /** Also enrols the creator as project administrator, in one transaction. */
   create(tenantId: string, input: CreateProjectInput, creatorUserId: string): Promise<ProjectRecord>;
   findByTenantAndCode(tenantId: string, code: string): Promise<ProjectRecord | null>;
-  findByIdForTenant(tenantId: string, id: string): Promise<ProjectRecord | null>;
-  listForTenant(tenantId: string, query: ProjectListQuery): Promise<ProjectRecord[]>;
+  /**
+   * Without `reach` this returns any project in the tenant, which is what the
+   * internal callers that have already resolved access need. Callers acting for
+   * a person must pass it.
+   */
+  findByIdForTenant(tenantId: string, id: string, reach?: ProjectReach): Promise<ProjectRecord | null>;
+  listForTenant(tenantId: string, query: ProjectListQuery, reach?: ProjectReach): Promise<ProjectRecord[]>;
   updateForTenant(tenantId: string, id: string, input: UpdateProjectInput): Promise<ProjectRecord | null>;
 }
 
@@ -85,16 +106,39 @@ export class ProjectService {
     return project;
   }
 
+  /**
+   * What this caller may see, as one answer both queries below use.
+   *
+   * Reach and capability stayed separate everywhere in this model except here,
+   * where the register and the detail endpoint asked only for the permission
+   * and then scoped by tenant. Anybody holding `projects.read` — which every
+   * seeded user type carries — listed and opened every project in the company,
+   * whether or not they were on it, while `resolveAccess` was carefully
+   * refusing exactly that a few files away.
+   */
+  private reachOf(actor: UserPrincipal): ProjectReach {
+    return { all: canReachAllProjects(actor), userId: actor.userId };
+  }
+
   async listProjects(actor: UserPrincipal, rawQuery: unknown): Promise<ProjectRecord[]> {
     requireProjectRead(actor);
     const query = parseProjectListQuery(rawQuery);
-    return this.projects.listForTenant(actor.tenantId, query);
+    return this.projects.listForTenant(actor.tenantId, query, this.reachOf(actor));
   }
 
   async getProject(actor: UserPrincipal, rawProjectId: unknown): Promise<ProjectRecord> {
     requireProjectRead(actor);
     const projectId = parseProjectId(rawProjectId);
-    const project = await this.projects.findByIdForTenant(actor.tenantId, projectId);
+    const project = await this.projects.findByIdForTenant(
+      actor.tenantId,
+      projectId,
+      this.reachOf(actor),
+    );
+    /*
+     * The same answer whether the project does not exist or is not theirs.
+     * Distinguishing them tells somebody outside a project that it exists, and
+     * a project code is often the name of a client or a bid.
+     */
     if (!project) {
       throw new DomainError("NOT_FOUND", "Project was not found.");
     }

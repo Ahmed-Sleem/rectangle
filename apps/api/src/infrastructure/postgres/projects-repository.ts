@@ -3,7 +3,7 @@
  * statement so project data cannot cross tenant boundaries by accident.
  */
 import type pg from "pg";
-import type { ProjectsRepository } from "../../application/project-service.js";
+import type { ProjectReach, ProjectsRepository } from "../../application/project-service.js";
 import type { CreateProjectInput, ProjectListQuery, ProjectRecord, UpdateProjectInput } from "../../domain/project.js";
 import { buildSearchClause, type SearchMode } from "./search-sql.js";
 
@@ -123,7 +123,28 @@ export class PostgresProjectsRepository implements ProjectsRepository {
     return result.rows[0] ? mapProject(result.rows[0]) : null;
   }
 
-  async findByIdForTenant(tenantId: string, id: string): Promise<ProjectRecord | null> {
+  async findByIdForTenant(
+    tenantId: string,
+    id: string,
+    reach?: ProjectReach,
+  ): Promise<ProjectRecord | null> {
+    const values: unknown[] = [tenantId, id];
+    /*
+     * Membership is applied here rather than by the caller checking afterwards.
+     * A row fetched and then rejected has already been read, and the shape of
+     * that code invites somebody to use it "just for the name" — which is how a
+     * project's existence leaks to someone who may not know it exists.
+     */
+    let membership = "";
+    if (reach && !reach.all) {
+      values.push(reach.userId);
+      membership = `and exists (
+             select 1 from project_members m
+              where m.tenant_id = p.tenant_id and m.project_id = p.id
+                and m.user_id = $${values.length}
+           )`;
+    }
+
     // Carries the same task counts as the list so the workspace and the card
     // that led to it can never show different progress for one project.
     const result = await this.pool.query(
@@ -136,8 +157,9 @@ export class PostgresProjectsRepository implements ProjectsRepository {
             where t.tenant_id = p.tenant_id and t.project_id = p.id
          ) as counts
         where p.tenant_id = $1 and p.id = $2
+              ${membership}
         limit 1`,
-      [tenantId, id],
+      values,
     );
     return result.rows[0] ? mapProject(result.rows[0]) : null;
   }
@@ -151,21 +173,41 @@ export class PostgresProjectsRepository implements ProjectsRepository {
    * says nothing about whether some other row matched — so one right answer
    * would still drag every near-miss in beside it.
    */
-  async listForTenant(tenantId: string, query: ProjectListQuery): Promise<ProjectRecord[]> {
-    const exact = await this.listMatching(tenantId, query, "exact");
+  async listForTenant(
+    tenantId: string,
+    query: ProjectListQuery,
+    reach?: ProjectReach,
+  ): Promise<ProjectRecord[]> {
+    const exact = await this.listMatching(tenantId, query, "exact", reach);
     if (!query.search || exact.length > 0) return exact;
-    return this.listMatching(tenantId, query, "fuzzy");
+    return this.listMatching(tenantId, query, "fuzzy", reach);
   }
 
   private async listMatching(
     tenantId: string,
     query: ProjectListQuery,
     searchMode: SearchMode,
+    reach?: ProjectReach,
   ): Promise<ProjectRecord[]> {
     const values: unknown[] = [tenantId];
     // Columns are qualified because the task-count join brings a second table
     // into scope; an unqualified `status` would be ambiguous.
     const where = ["p.tenant_id = $1"];
+
+    /*
+     * Reach is part of the WHERE clause, not a filter applied to the results.
+     * Filtering afterwards would make `limit` count rows the caller may not
+     * see, so a page of twenty could arrive holding three — and the cursor
+     * would skip the rest.
+     */
+    if (reach && !reach.all) {
+      values.push(reach.userId);
+      where.push(`exists (
+        select 1 from project_members m
+         where m.tenant_id = p.tenant_id and m.project_id = p.id
+           and m.user_id = $${values.length}
+      )`);
+    }
 
     if (query.status) {
       values.push(query.status);

@@ -28,5 +28,21 @@ export default defineConfig({
     ...devices["Desktop Chrome"],
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
+    launchOptions: {
+      /*
+       * Chromium sizes its shared-memory file for a desktop and gives each
+       * renderer its own process. On a small CI container that is enough to
+       * have the kernel kill the worker mid-run — which reports as
+       * "worker process exited unexpectedly (SIGKILL)" and looks like a flaky
+       * test rather than the memory ceiling it is.
+       *
+       * `/dev/shm` is typically 64 MB in a container, so Chromium is told to
+       * write that file to /tmp instead. Not `--single-process`: it does cut
+       * memory, and it also crashed the browser on the second navigation of
+       * every run — "Target page, context or browser has been closed" — so the
+       * saving costs the suite.
+       */
+      args: ["--disable-dev-shm-usage", "--no-sandbox"],
+    },
   },
 });

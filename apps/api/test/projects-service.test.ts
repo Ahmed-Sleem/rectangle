@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { ProjectTeamService } from "../src/application/project-team-service.js";
 import { MemoryProjectTeamRepository } from "./support/memory-project-team-repository.js";
-import { ProjectService, type AuditEventInput, type AuditRepository, type ProjectsRepository } from "../src/application/project-service.js";
+import { ProjectService, type AuditEventInput, type AuditRepository, type ProjectReach, type ProjectsRepository } from "../src/application/project-service.js";
 import type { UserPrincipal } from "../src/domain/auth.js";
 import { DomainError } from "../src/domain/errors.js";
 import type { CreateProjectInput, ProjectListQuery, ProjectRecord, UpdateProjectInput } from "../src/domain/project.js";
@@ -47,6 +47,8 @@ class MemoryProjectsRepository implements ProjectsRepository {
     };
     this.projects.set(project.id, project);
     this.enrolled.push({ projectId: project.id, userId: creatorUserId });
+    // The real repository enrols the creator in the same transaction.
+    this.addMember(project.id, creatorUserId);
     return project;
   }
 
@@ -54,14 +56,42 @@ class MemoryProjectsRepository implements ProjectsRepository {
     return [...this.projects.values()].find((project) => project.tenantId === projectTenantId && project.code === code) ?? null;
   }
 
-  async findByIdForTenant(projectTenantId: string, id: string): Promise<ProjectRecord | null> {
-    const project = this.projects.get(id);
-    return project?.tenantId === projectTenantId ? project : null;
+  /**
+   * Membership, honoured the way the SQL honours it.
+   *
+   * A double that ignored `reach` would let every test below pass while the
+   * real repository returned the whole company — which is precisely the bug
+   * these tests exist to catch, so the double has to be able to withhold a row.
+   */
+  readonly memberships = new Set<string>();
+
+  addMember(projectId: string, memberId: string): void {
+    this.memberships.add(`${projectId}:${memberId}`);
   }
 
-  async listForTenant(projectTenantId: string, query: ProjectListQuery): Promise<ProjectRecord[]> {
+  private reachable(project: ProjectRecord, reach?: ProjectReach): boolean {
+    if (!reach || reach.all) return true;
+    return this.memberships.has(`${project.id}:${reach.userId}`);
+  }
+
+  async findByIdForTenant(
+    projectTenantId: string,
+    id: string,
+    reach?: ProjectReach,
+  ): Promise<ProjectRecord | null> {
+    const project = this.projects.get(id);
+    if (project?.tenantId !== projectTenantId) return null;
+    return this.reachable(project, reach) ? project : null;
+  }
+
+  async listForTenant(
+    projectTenantId: string,
+    query: ProjectListQuery,
+    reach?: ProjectReach,
+  ): Promise<ProjectRecord[]> {
     return [...this.projects.values()]
       .filter((project) => project.tenantId === projectTenantId)
+      .filter((project) => this.reachable(project, reach))
       .filter((project) => !query.status || project.status === query.status)
       .filter((project) => !query.search || project.name.includes(query.search) || project.code.includes(query.search))
       .slice(0, query.limit);
@@ -188,5 +218,96 @@ describe("creating a project you can then open", () => {
     expect(projects.enrolled).toEqual([
       { projectId: project.id, userId: starter.userId },
     ]);
+  });
+});
+
+describe("who can see which projects", () => {
+  /*
+   * The rule: a project is visible if you are a company administrator, or hold
+   * `projects.manage_all`, or are a member of it. Nothing else.
+   *
+   * Before this, `listProjects` and `getProject` asked only for the
+   * `projects.read` permission and then scoped by tenant, so every one of these
+   * cases returned everything. `resolveAccess` a few files away was refusing
+   * exactly that, which is what made the gap so easy to miss: the model was
+   * right, and two of its entry points did not consult it.
+   */
+  const otherUserId = "55555555-5555-4555-8555-555555555555";
+
+  async function twoProjects() {
+    const { service, projects } = createService();
+    const mine = await service.createProject(
+      { tenantId, userId, roles: ["member"], permissions: ["projects.read", "projects.create"] },
+      { name: "Mine", code: "MINE-1", status: "active" },
+    );
+    const theirs = await service.createProject(
+      { tenantId, userId: otherUserId, roles: ["member"], permissions: ["projects.read", "projects.create"] },
+      { name: "Theirs", code: "THEIRS-1", status: "active" },
+    );
+    return { service, projects, mine, theirs };
+  }
+
+  it("lists only the projects a plain member belongs to", async () => {
+    const { service, mine } = await twoProjects();
+
+    const visible = await service.listProjects(
+      { tenantId, userId, roles: ["member"], permissions: ["projects.read"] },
+      {},
+    );
+
+    expect(visible.map((project) => project.code)).toEqual([mine.code]);
+  });
+
+  it("refuses a project the member is not on, without revealing it exists", async () => {
+    const { service, theirs } = await twoProjects();
+
+    // NOT_FOUND, not FORBIDDEN. "You may not see this" confirms there is
+    // something to see, and a project code is often a client or a bid.
+    await expect(
+      service.getProject(
+        { tenantId, userId, roles: ["member"], permissions: ["projects.read"] },
+        theirs.id,
+      ),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("lets a company administrator see every project", async () => {
+    const { service } = await twoProjects();
+
+    const visible = await service.listProjects(admin, {});
+
+    expect(visible.map((project) => project.code).sort()).toEqual(["MINE-1", "THEIRS-1"]);
+  });
+
+  it("lets somebody holding projects.manage_all see every project", async () => {
+    const { service, theirs } = await twoProjects();
+    const headOffice: UserPrincipal = {
+      tenantId,
+      userId,
+      roles: ["member"],
+      permissions: ["projects.read", "projects.manage_all"],
+    };
+
+    const visible = await service.listProjects(headOffice, {});
+    expect(visible.map((project) => project.code).sort()).toEqual(["MINE-1", "THEIRS-1"]);
+
+    // And can open one they are not a member of, which is the point of the
+    // permission: head office oversees work it does not staff.
+    await expect(service.getProject(headOffice, theirs.id)).resolves.toMatchObject({
+      code: "THEIRS-1",
+    });
+  });
+
+  it("lets the member open the project they do belong to", async () => {
+    const { service, mine } = await twoProjects();
+
+    // The other half of the rule. Without it, a test suite that only proves
+    // things are hidden would pass with everything hidden.
+    await expect(
+      service.getProject(
+        { tenantId, userId, roles: ["member"], permissions: ["projects.read"] },
+        mine.id,
+      ),
+    ).resolves.toMatchObject({ code: "MINE-1" });
   });
 });

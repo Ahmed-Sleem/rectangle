@@ -40,7 +40,8 @@ describe("search SQL", () => {
     const repository = new PostgresSearchRepository(fakePool(captured));
 
     // Every register, and both task scopes: the mismatch only appeared in one.
-    await repository.searchProjects(tenantId, "cairo", 5);
+    await repository.searchProjects(tenantId, userId, "cairo", 5, "member");
+    await repository.searchProjects(tenantId, userId, "cairo", 5, "all");
     await repository.searchPeople(tenantId, "cairo", 5);
     await repository.searchTasks(tenantId, userId, "cairo", 5, "member");
     await repository.searchTasks(tenantId, userId, "cairo", 5, "all");
@@ -48,12 +49,12 @@ describe("search SQL", () => {
     await repository.searchRisks(tenantId, userId, "cairo", 5, "all");
 
     /*
-     * Twelve statements from six searches: the fake pool returns no rows, so
+     * Fourteen statements from seven searches: the fake pool returns no rows, so
      * every search falls through to the forgiving stage. That is the behaviour
      * wanted — and it means both stages are checked here, which is the point,
      * since the fuzzy stage binds a different value from the precise one.
      */
-    expect(captured).toHaveLength(12);
+    expect(captured).toHaveLength(14);
     for (const { sql, values } of captured) {
       expect(placeholderCount(sql)).toBe(values.length);
     }
@@ -90,7 +91,7 @@ describe("search SQL", () => {
     const captured: Captured[] = [];
     const repository = new PostgresSearchRepository(fakePool(captured));
 
-    await repository.searchProjects(tenantId, "cairo", 5);
+    await repository.searchProjects(tenantId, userId, "cairo", 5, "all");
 
     // `ilike '%term%'` cannot use an index; the generated column can.
     expect(captured[0]!.sql).toContain("search_document @@");
@@ -101,7 +102,7 @@ describe("search SQL", () => {
     const captured: Captured[] = [];
     const repository = new PostgresSearchRepository(fakePool(captured));
 
-    await repository.searchProjects(tenantId, "cairo", 5);
+    await repository.searchProjects(tenantId, userId, "cairo", 5, "all");
 
     expect(captured[0]!.sql).toContain("ts_rank_cd");
   });

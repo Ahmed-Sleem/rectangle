@@ -36,18 +36,45 @@ export class PostgresSearchRepository implements SearchRepository {
     return run("fuzzy");
   }
 
-  async searchProjects(tenantId: string, term: string, limit: number): Promise<SearchResult[]> {
+  async searchProjects(
+    tenantId: string,
+    userId: string,
+    term: string,
+    limit: number,
+    scope: "all" | "member",
+  ): Promise<SearchResult[]> {
     return this.inTwoStages(async (mode) => {
-      const clause = buildSearchClause(term, "search_document", "coalesce(name, '')", 2, mode);
+      const clause = buildSearchClause(term, "p.search_document", "coalesce(p.name, '')", 2, mode);
       if (!clause) return [];
 
-      const values: unknown[] = [tenantId, ...clause.values, limit];
+      /*
+       * Scoped exactly as tasks and risks already were. This block was the odd
+       * one out: it took no user and no scope, so the palette returned every
+       * project in the company to anybody who could search — including the
+       * codes of jobs they had no part in, which are often a client's name.
+       * The file's own opening comment promised the opposite.
+       */
+      const values: unknown[] = [tenantId, ...clause.values];
+      let membershipFilter = "";
+
+      if (scope === "member") {
+        values.push(userId);
+        membershipFilter = `and exists (
+               select 1 from project_members m
+                where m.tenant_id = p.tenant_id
+                  and m.project_id = p.id
+                  and m.user_id = $${values.length}
+             )`;
+      }
+
+      values.push(limit);
       const result = await this.pool.query<{ id: string; name: string; code: string }>(
-        `select id, name, code
-           from projects
-          where tenant_id = $1
+        `select p.id, p.name, p.code
+           from projects p
+          where p.tenant_id = $1
             and ${clause.where}
-          order by ${clause.rank} desc, name asc
+            ${membershipFilter}
+          order by ${clause.rank} desc, p.name asc
           limit $${values.length}`,
         values,
       );

@@ -28,12 +28,22 @@ import {
 } from "../domain/overview.js";
 
 export interface OverviewRepository {
-  countProjectsByStatus(tenantId: string): Promise<ProjectStatusCount[]>;
-  sumBudgetsByCurrency(tenantId: string): Promise<BudgetTotal[]>;
+  countProjectsByStatus(
+    tenantId: string,
+    userId: string,
+    scope: "all" | "member",
+  ): Promise<ProjectStatusCount[]>;
+  sumBudgetsByCurrency(
+    tenantId: string,
+    userId: string,
+    scope: "all" | "member",
+  ): Promise<BudgetTotal[]>;
   listProjectsNeedingAttention(
     tenantId: string,
+    userId: string,
     horizonDays: number,
     limit: number,
+    scope: "all" | "member",
   ): Promise<AttentionProject[]>;
   countUsersByStatus(tenantId: string): Promise<TeamSummary>;
   summariseRisks(
@@ -62,18 +72,20 @@ export class OverviewService {
     // tenant-wide project manager can reach any project, everyone else only
     // the ones they belong to. Counting work the viewer cannot open would send
     // them from a figure to an empty list.
-    const taskScope = canReachAllProjects(actor) ? "all" : "member";
+    const scope = canReachAllProjects(actor) ? "all" : "member";
 
     const [statusCounts, budgets, attention, tasks, risks, team] = await Promise.all([
-      this.repository.countProjectsByStatus(actor.tenantId),
-      this.repository.sumBudgetsByCurrency(actor.tenantId),
+      this.repository.countProjectsByStatus(actor.tenantId, actor.userId, scope),
+      this.repository.sumBudgetsByCurrency(actor.tenantId, actor.userId, scope),
       this.repository.listProjectsNeedingAttention(
         actor.tenantId,
+        actor.userId,
         query.horizonDays,
         query.attentionLimit,
+        scope,
       ),
-      this.repository.summariseTasks(actor.tenantId, actor.userId, query.horizonDays, taskScope),
-      this.repository.summariseRisks(actor.tenantId, actor.userId, taskScope),
+      this.repository.summariseTasks(actor.tenantId, actor.userId, query.horizonDays, scope),
+      this.repository.summariseRisks(actor.tenantId, actor.userId, scope),
       canReadUsers(actor) ? this.repository.countUsersByStatus(actor.tenantId) : null,
     ]);
 

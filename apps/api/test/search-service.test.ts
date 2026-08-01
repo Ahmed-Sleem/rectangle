@@ -22,8 +22,18 @@ class RecordingRepository implements SearchRepository {
   lastScope: "all" | "member" | null = null;
   lastLimit = 0;
 
-  async searchProjects(): Promise<SearchResult[]> {
+  /** Recorded separately from the task scope, because they used to differ. */
+  lastProjectScope: "all" | "member" | null = null;
+
+  async searchProjects(
+    _tenantId: string,
+    _userId: string,
+    _term: string,
+    _limit: number,
+    scope: "all" | "member",
+  ): Promise<SearchResult[]> {
     this.projectsCalled = true;
+    this.lastProjectScope = scope;
     return [{ kind: "project", id: "p1", title: "New Cairo Tower", href: "/projects/p1" }];
   }
 
@@ -108,5 +118,41 @@ describe("SearchService", () => {
     await expect(
       new SearchService(repository).search(admin, { q: "cairo", limit: 500 }),
     ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  });
+});
+
+describe("search never reveals a project the register would hide", () => {
+  /*
+   * Projects were the one register the palette did not scope. Tasks and risks
+   * both took a userId and a scope; `searchProjects` took neither, so it
+   * returned every project in the company to anybody who could search — the
+   * codes of jobs they had no part in, which are frequently a client's name or
+   * a live bid. The file's own opening comment claimed the opposite, which is
+   * how it survived review.
+   */
+  it("scopes projects to membership for somebody without company-wide reach", async () => {
+    const repository = new RecordingRepository();
+    await new SearchService(repository).search(viewer, { q: "cairo" });
+
+    expect(repository.lastProjectScope).toBe("member");
+  });
+
+  it("lets somebody holding projects.manage_all search every project", async () => {
+    const repository = new RecordingRepository();
+    await new SearchService(repository).search(
+      { tenantId, userId, roles: ["member"], permissions: ["projects.read", "projects.manage_all"] },
+      { q: "cairo" },
+    );
+
+    expect(repository.lastProjectScope).toBe("all");
+  });
+
+  it("uses one scope for projects, tasks and risks", async () => {
+    // They answer the same question — can this person reach the project this
+    // record belongs to — so they cannot be allowed to drift apart.
+    const repository = new RecordingRepository();
+    await new SearchService(repository).search(viewer, { q: "cairo" });
+
+    expect(repository.lastProjectScope).toBe(repository.lastScope);
   });
 });

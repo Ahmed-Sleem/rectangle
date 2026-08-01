@@ -222,6 +222,61 @@ test("somebody who may create projects can open the one they just created", asyn
   await expect(page.getByText(/not found|do not have access/iu)).toHaveCount(0);
 });
 
+test("a member cannot see, search or open a project they are not on", async ({ page }) => {
+  /*
+   * The whole of C45 through the real product, in a browser.
+   *
+   * "Nile Tower Fit-Out" was created by the owner and "Alexandria Warehouse" by
+   * Mona, who is a plain member with a narrow user type. Before the fix Mona's
+   * register listed both, the palette found both, and typing the owner's
+   * project id into the address bar opened it. This asserts all three are shut,
+   * and — just as importantly — that her own project is still there, because a
+   * scoping bug that hides everything would otherwise pass.
+   */
+  await page.goto("/logout");
+  await expect(page.getByLabel("Password")).toBeVisible({ timeout: 20_000 });
+  await page.getByLabel("Email").fill(MEMBER.email);
+  await page.getByLabel("Password").fill(MEMBER.password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  // Wait for the shell before navigating. Going straight to /projects while the
+  // session is still resolving lands back on the login form, and the assertion
+  // below then fails for a reason unrelated to what it is testing.
+  await expect(page.getByRole("navigation").getByRole("link", { name: "Projects" })).toBeVisible({
+    timeout: 30_000,
+  });
+
+  await page.goto("/projects");
+  await expect(page.getByText("Alexandria Warehouse")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Nile Tower Fit-Out")).toHaveCount(0);
+
+  // The register is the UI's answer; this is the server's, and it is the one
+  // that matters. A client-side filter would satisfy the assertion above.
+  const list = await page.request.get("/v1/projects");
+  expect(list.ok()).toBeTruthy();
+  const codes = ((await list.json()) as { projects: Array<{ code: string }> }).projects.map(
+    (project) => project.code,
+  );
+  expect(codes).toContain("AW-002");
+  expect(codes).not.toContain("NT-001");
+
+  const found = await page.request.get("/v1/search?q=Nile");
+  expect(found.ok()).toBeTruthy();
+  const titles = ((await found.json()) as { results: Array<{ title: string }> }).results.map(
+    (result) => result.title,
+  );
+  expect(titles).not.toContain("Nile Tower Fit-Out");
+
+  /*
+   * Guessing the id directly. The register hiding a row means nothing if the
+   * detail endpoint still serves it — that is the difference between a filter
+   * and an authorisation rule.
+   */
+  const owners = await page.request.get("/v1/projects?search=NT-001");
+  const leaked = ((await owners.json()) as { projects: Array<{ id: string }> }).projects;
+  expect(leaked).toHaveLength(0);
+});
+
 test("an unauthenticated request is refused by the API, not answered with a page", async ({
   request,
 }) => {

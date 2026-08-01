@@ -40,7 +40,13 @@ export interface SearchResult {
 }
 
 export interface SearchRepository {
-  searchProjects(tenantId: string, term: string, limit: number): Promise<SearchResult[]>;
+  searchProjects(
+    tenantId: string,
+    userId: string,
+    term: string,
+    limit: number,
+    scope: "all" | "member",
+  ): Promise<SearchResult[]>;
   searchTasks(
     tenantId: string,
     userId: string,
@@ -68,19 +74,23 @@ export class SearchService {
     }
     const { q, limit } = parsed.data;
 
-    // Task visibility follows the same rule as the task list and the project
-    // workspace, so search can never surface work its owner cannot open.
-    const taskScope = canReachAllProjects(actor) ? "all" : "member";
+    /*
+     * One scope for every register, because they are all the same question:
+     * can this person reach the project this record belongs to. Projects were
+     * previously exempt from it, which meant the palette listed jobs the
+     * register itself would have hidden.
+     */
+    const projectScope = canReachAllProjects(actor) ? "all" : "member";
 
     const [projects, tasks, risks, people] = await Promise.all([
       canReadProjectRegistry(actor)
-        ? this.repository.searchProjects(actor.tenantId, q, limit)
+        ? this.repository.searchProjects(actor.tenantId, actor.userId, q, limit, projectScope)
         : [],
       canReadProjectRegistry(actor)
-        ? this.repository.searchTasks(actor.tenantId, actor.userId, q, limit, taskScope)
+        ? this.repository.searchTasks(actor.tenantId, actor.userId, q, limit, projectScope)
         : [],
       canReadProjectRegistry(actor)
-        ? this.repository.searchRisks(actor.tenantId, actor.userId, q, limit, taskScope)
+        ? this.repository.searchRisks(actor.tenantId, actor.userId, q, limit, projectScope)
         : [],
       canReadUsers(actor) ? this.repository.searchPeople(actor.tenantId, q, limit) : [],
     ]);

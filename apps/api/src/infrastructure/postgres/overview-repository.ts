@@ -22,37 +22,80 @@ import type {
 export class PostgresOverviewRepository implements OverviewRepository {
   constructor(private readonly pool: pg.Pool) {}
 
-  async countProjectsByStatus(tenantId: string): Promise<ProjectStatusCount[]> {
+  async countProjectsByStatus(
+    tenantId: string,
+    userId: string,
+    scope: "all" | "member",
+  ): Promise<ProjectStatusCount[]> {
+    /*
+     * Scoped like every other block on this page. It was not, so the headline
+     * figure counted the whole company while the register beneath it listed
+     * only the viewer's projects — two numbers describing the same thing and
+     * disagreeing, and the larger one disclosing how much work exists that
+     * they cannot see.
+     */
+    const values: unknown[] = [tenantId];
+    let membership = "";
+    if (scope === "member") {
+      values.push(userId);
+      membership = `and exists (
+             select 1 from project_members m
+              where m.tenant_id = p.tenant_id and m.project_id = p.id
+                and m.user_id = $${values.length}
+           )`;
+    }
+
     const result = await this.pool.query<{ status: ProjectStatusKey; count: string }>(
-      `select status, count(*)::text as count
-         from projects
-        where tenant_id = $1
-        group by status
-        order by status asc`,
-      [tenantId],
+      `select p.status, count(*)::text as count
+         from projects p
+        where p.tenant_id = $1
+          ${membership}
+        group by p.status
+        order by p.status asc`,
+      values,
     );
     return result.rows.map((row) => ({ status: row.status, count: Number(row.count) }));
   }
 
-  async sumBudgetsByCurrency(tenantId: string): Promise<BudgetTotal[]> {
+  async sumBudgetsByCurrency(
+    tenantId: string,
+    userId: string,
+    scope: "all" | "member",
+  ): Promise<BudgetTotal[]> {
     // Archived projects are excluded: they are no longer part of what the
     // company is currently funding, and including them overstates commitment.
+    //
+    // Scoped for the same reason the status counts are: budget is the most
+    // sensitive figure on the page, and a member has no business reading the
+    // company's total commitment from a project they are not on.
+    const values: unknown[] = [tenantId];
+    let membership = "";
+    if (scope === "member") {
+      values.push(userId);
+      membership = `and exists (
+             select 1 from project_members m
+              where m.tenant_id = p.tenant_id and m.project_id = p.id
+                and m.user_id = $${values.length}
+           )`;
+    }
+
     const result = await this.pool.query<{
       currency: string;
       amount: string;
       project_count: string;
     }>(
-      `select budget_currency as currency,
-              sum(budget_amount)::text as amount,
+      `select p.budget_currency as currency,
+              sum(p.budget_amount)::text as amount,
               count(*)::text as project_count
-         from projects
-        where tenant_id = $1
-          and budget_amount is not null
-          and budget_currency is not null
-          and status <> 'archived'
-        group by budget_currency
-        order by sum(budget_amount) desc`,
-      [tenantId],
+         from projects p
+        where p.tenant_id = $1
+          and p.budget_amount is not null
+          and p.budget_currency is not null
+          and p.status <> 'archived'
+          ${membership}
+        group by p.budget_currency
+        order by sum(p.budget_amount) desc`,
+      values,
     );
     return result.rows.map((row) => ({
       currency: row.currency,
@@ -63,12 +106,28 @@ export class PostgresOverviewRepository implements OverviewRepository {
 
   async listProjectsNeedingAttention(
     tenantId: string,
+    userId: string,
     horizonDays: number,
     limit: number,
+    scope: "all" | "member",
   ): Promise<AttentionProject[]> {
     // `current_date` is the database's date, so the answer does not change with
     // the timezone of whichever browser asked. Overdue work is ordered first
     // because it is already a problem, not a warning.
+    //
+    // The membership placeholder comes after the two the query already binds,
+    // so it is pushed last.
+    const values: unknown[] = [tenantId, horizonDays, limit];
+    let membership = "";
+    if (scope === "member") {
+      values.push(userId);
+      membership = `and exists (
+             select 1 from project_members m
+              where m.tenant_id = p.tenant_id and m.project_id = p.id
+                and m.user_id = $${values.length}
+           )`;
+    }
+
     const result = await this.pool.query<{
       id: string;
       name: string;
@@ -92,9 +151,10 @@ export class PostgresOverviewRepository implements OverviewRepository {
                        and planned_start_date <= current_date + make_interval(days => $2::int)
                     then 'starting_soon'
                 end as reason
-           from projects
-          where tenant_id = $1
-            and status in ('planned', 'active', 'on_hold')
+           from projects p
+          where p.tenant_id = $1
+            and p.status in ('planned', 'active', 'on_hold')
+            ${membership}
        )
        select id, name, code, status, reason,
               (case
@@ -113,7 +173,7 @@ export class PostgresOverviewRepository implements OverviewRepository {
                  coalesce(planned_finish_date, planned_start_date) asc,
                  name asc
         limit $3`,
-      [tenantId, horizonDays, limit],
+      values,
     );
 
     return result.rows.map((row) => ({

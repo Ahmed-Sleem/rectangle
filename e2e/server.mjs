@@ -85,7 +85,16 @@ export async function startStack() {
   });
   await socket.start();
 
-  const api = spawn(process.execPath, [join(ROOT, "apps/api/dist/index.js")], {
+  /*
+   * A bounded heap. Three things share this machine — a WASM PostgreSQL, a
+   * browser and this server — and Node sizes its heap from total system
+   * memory, so an idle API reserves far more than it needs and the kernel
+   * kills whichever process asks next. That surfaces as "worker process exited
+   * unexpectedly (SIGKILL)", which reads as a flaky test rather than the
+   * memory ceiling it is. 768 MB is well above anything these flows allocate
+   * and still leaves room for the other two.
+   */
+  const api = spawn(process.execPath, ["--max-old-space-size=768", join(ROOT, "apps/api/dist/index.js")], {
     env: {
       ...process.env,
       /*
