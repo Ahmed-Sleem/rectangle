@@ -20,6 +20,13 @@ function renderSettingsPage() {
   );
 }
 
+/** One JSON reply, so each mock reads as a list of routes rather than plumbing. */
+function jsonResponse(body: unknown, status = 200) {
+  return Promise.resolve(
+    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }),
+  );
+}
+
 describe("SettingsPage", () => {
   beforeEach(async () => {
     window.localStorage.clear();
@@ -134,5 +141,49 @@ describe("SettingsPage", () => {
     // and the reason is stated in plain language instead of failing silently.
     expect(screen.getByRole("button", { name: "Send test" })).toBeDisabled();
     expect(screen.getByText("Save your mail server details before sending a test.")).toBeInTheDocument();
+  });
+
+  it("sends a test to the address given, without re-validating the whole form", async () => {
+    /*
+     * The test form ran `emailForm.handleSubmit`, which validates every field
+     * on the page. A company whose mail server is already saved has those
+     * fields populated from the server, but a person who clears one — or whose
+     * saved record predates a stricter rule — could type a perfectly good
+     * address and have nothing happen at all, with the failure reported on a
+     * field they were not editing. Sending a test is its own action and
+     * validates only its own input.
+     */
+    const user = userEvent.setup();
+    const posted: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.includes("passkeys")) return jsonResponse({ passkeys: [] });
+      if (url.includes("permission-reference")) {
+        return jsonResponse({ permissions: [], projectRoles: [], standings: [], deletionRule: { requiresProjectAdmin: true, manageAllInsufficient: true } });
+      }
+      if (url.includes("separation-rules")) return jsonResponse({ rules: [] });
+      if (url.includes("/test")) {
+        posted.push(String(init?.body));
+        return jsonResponse({ ok: true });
+      }
+      return jsonResponse({
+        emailSettings: {
+          configured: true, enabled: true, hasPassword: true,
+          // Saved record with a host the current rules would reject.
+          host: "x", port: 587, secure: false, username: "mailer",
+          fromEmail: "no-reply@rectangle.test", fromName: "Rectangle",
+        },
+      });
+    });
+
+    renderSettingsPage();
+    await user.click(screen.getByRole("button", { name: /Email delivery/i }));
+
+    const recipient = await screen.findByLabelText("Send to");
+    await user.type(recipient, "site@rectangle.test");
+    await user.click(screen.getByRole("button", { name: "Send test" }));
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0]).toContain("site@rectangle.test");
   });
 });

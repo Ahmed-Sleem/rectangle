@@ -36,10 +36,21 @@ const emailSchema = z.object({
   password: z.string().max(512).optional(),
   fromEmail: z.email().max(254),
   fromName: z.string().trim().min(1).max(160),
-  testRecipient: z.email().max(254).optional().or(z.literal("")),
+});
+
+/*
+ * Sending a test is its own act, so it validates its own field and nothing
+ * else. It used to live on the credentials form and run that form's validation,
+ * which meant a company whose saved record no longer satisfies a current rule
+ * could type a perfectly good address, press the button, and have nothing
+ * happen at all — the refusal landing on a field they were not editing.
+ */
+const testEmailSchema = z.object({
+  recipient: z.email().max(254),
 });
 
 type EmailForm = z.infer<typeof emailSchema>;
+type TestEmailForm = z.infer<typeof testEmailSchema>;
 
 type SectionId = "language" | "email" | "permissions" | "separation" | "passkeys";
 
@@ -72,6 +83,11 @@ export default function SettingsPage() {
   });
   const passkeys = useQuery({ queryKey: ["auth", "passkeys"], queryFn: listPasskeys, retry: false });
 
+  const testEmailForm = useForm<TestEmailForm>({
+    resolver: zodResolver(testEmailSchema),
+    defaultValues: { recipient: "" },
+  });
+
   const emailForm = useForm<EmailForm>({
     resolver: zodResolver(emailSchema),
     defaultValues: {
@@ -83,7 +99,6 @@ export default function SettingsPage() {
       password: "",
       fromEmail: "",
       fromName: "Rectangle",
-      testRecipient: "",
     },
   });
 
@@ -99,10 +114,15 @@ export default function SettingsPage() {
       password: "",
       fromEmail: value.fromEmail ?? "",
       fromName: value.fromName ?? "Rectangle",
-      testRecipient: "",
     });
   }, [emailForm, emailSettings.data?.emailSettings]);
 
+  /*
+   * A success notice that never clears is a lie after the first edit. Both
+   * forms reset theirs the moment the person changes something, which is what
+   * the project settings page already does — the same page should not answer
+   * the same question two different ways.
+   */
   const saveEmail = useMutation({
     mutationFn: (values: EmailForm) =>
       settingsApi.saveEmail({
@@ -124,6 +144,21 @@ export default function SettingsPage() {
   const testEmail = useMutation({
     mutationFn: (recipientEmail: string) => settingsApi.testEmail(recipientEmail),
   });
+
+  /*
+   * Editing either form clears its own notice. `react-hook-form` reports the
+   * subscription's unsubscribe function, so it is returned from the effect.
+   */
+  useEffect(() => {
+    const subscription = emailForm.watch(() => saveEmail.reset());
+    return () => subscription.unsubscribe();
+  }, [emailForm, saveEmail]);
+
+  useEffect(() => {
+    const subscription = testEmailForm.watch(() => testEmail.reset());
+    return () => subscription.unsubscribe();
+  }, [testEmailForm, testEmail]);
+
 
   const addPasskey = useMutation({
     mutationFn: registerPasskey,
@@ -206,10 +241,23 @@ export default function SettingsPage() {
             className="rect-settings-form"
             onSubmit={emailForm.handleSubmit((values) => saveEmail.mutate(values))}
           >
+            {/*
+              * The row states what the setting is; the control must not repeat
+              * it. Printing "Send email from Rectangle" twice, once as the row
+              * label and again beside the box, read as a rendering fault. The
+              * checkbox keeps an accessible name — the row's label is a span,
+              * not a `label` element, so it cannot supply one.
+              */}
             <SettingRow
               label={t("settings.emailEnable")}
               description={t("settings.emailEnableHelp")}
-              control={<Checkbox label={t("settings.emailEnable")} {...emailForm.register("enabled")} />}
+              control={
+                <Checkbox
+                  label={t("settings.emailEnableToggle")}
+                  aria-label={t("settings.emailEnable")}
+                  {...emailForm.register("enabled")}
+                />
+              }
             />
 
             <SettingRow
@@ -318,19 +366,17 @@ export default function SettingsPage() {
           >
             <form
               className="rect-settings-inline"
-              onSubmit={emailForm.handleSubmit((values) =>
-                values.testRecipient ? testEmail.mutate(values.testRecipient) : undefined,
-              )}
+              onSubmit={testEmailForm.handleSubmit((values) => testEmail.mutate(values.recipient))}
             >
               <Field
                 className="rect-settings-inline__field"
                 label={t("settings.emailTestRecipient")}
-                error={emailForm.formState.errors.testRecipient?.message}
+                error={testEmailForm.formState.errors.recipient?.message}
               >
                 <Input
                   aria-label={t("settings.emailTestRecipient")}
                   type="email"
-                  {...emailForm.register("testRecipient")}
+                  {...testEmailForm.register("recipient")}
                 />
               </Field>
               <Button
@@ -341,18 +387,24 @@ export default function SettingsPage() {
                 {testEmail.isPending ? t("settings.emailTestSending") : t("settings.emailTestAction")}
               </Button>
             </form>
-          </SettingRow>
 
-          {testError ? (
-            <p className="rect-settings-message rect-settings-message--error" role="alert">
-              {testError}
-            </p>
-          ) : null}
-          {testEmail.isSuccess ? (
-            <p className="rect-settings-message rect-settings-message--success" role="status">
-              {t("settings.emailTestSent")}
-            </p>
-          ) : null}
+            {/*
+              * Inside the row it belongs to, like every other message on this
+              * page. Outside it, the notice sat against the section edge and
+              * read as a comment on the whole of email delivery rather than on
+              * the send that just happened.
+              */}
+            {testError ? (
+              <p className="rect-settings-message rect-settings-message--error" role="alert">
+                {testError}
+              </p>
+            ) : null}
+            {testEmail.isSuccess ? (
+              <p className="rect-settings-message rect-settings-message--success" role="status">
+                {t("settings.emailTestSent")}
+              </p>
+            ) : null}
+          </SettingRow>
         </SettingsSection>
       ) : null}
 
