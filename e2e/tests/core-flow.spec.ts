@@ -277,6 +277,120 @@ test("a member cannot see, search or open a project they are not on", async ({ p
   expect(leaked).toHaveLength(0);
 });
 
+test("the people register shows colleagues, and only the projects the viewer may see", async ({
+  page,
+}) => {
+  /*
+   * The directory SQL against a real PostgreSQL, which is the only thing that
+   * can show which rows it *excludes*. A fake pool proves a statement is
+   * well-formed and says nothing about whether it withholds the right records,
+   * and withholding is the whole purpose of these queries.
+   *
+   * Mona is a member of one project. The owner is on another. They share
+   * nothing, so neither should appear in the other's colleague register, and
+   * Mona's view of the owner — if she could see him at all — must not name the
+   * owner's project.
+   */
+  await page.goto("/logout");
+  await expect(page.getByLabel("Password")).toBeVisible({ timeout: 20_000 });
+  await page.getByLabel("Email").fill(MEMBER.email);
+  await page.getByLabel("Password").fill(MEMBER.password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("navigation").getByRole("link", { name: "Projects" })).toBeVisible({
+    timeout: 30_000,
+  });
+
+  // Mona holds no `users.read`, so the company register is not hers to open.
+  const registers = await page.request.get("/v1/directory/registers");
+  expect(registers.ok()).toBeTruthy();
+  expect(((await registers.json()) as { registers: string[] }).registers).toEqual(["colleagues"]);
+
+  const refused = await page.request.get("/v1/directory/company");
+  expect(refused.status()).toBe(403);
+
+  const colleagues = await page.request.get("/v1/directory/colleagues");
+  expect(colleagues.ok()).toBeTruthy();
+  const people = (
+    (await colleagues.json()) as {
+      people: Array<{ email: string; projects: Array<{ code: string }> }>;
+    }
+  ).people;
+
+  // Nobody shares a project with her yet, and she is never her own colleague.
+  expect(people.map((person) => person.email)).not.toContain(OWNER.email);
+  expect(people.map((person) => person.email)).not.toContain(MEMBER.email);
+
+  // The owner CAN see her — as an owner they reach everything — and what they
+  // see of her is her real project, which they are entitled to.
+  await page.goto("/logout");
+  await expect(page.getByLabel("Password")).toBeVisible({ timeout: 20_000 });
+  await page.getByLabel("Email").fill(OWNER.email);
+  await page.getByLabel("Password").fill(OWNER.password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("navigation").getByRole("link", { name: "Projects" })).toBeVisible({
+    timeout: 30_000,
+  });
+
+  const company = await page.request.get("/v1/directory/company");
+  expect(company.ok()).toBeTruthy();
+  const directory = (
+    (await company.json()) as {
+      people: Array<{ email: string; projects: Array<{ code: string }>; openTaskCount: number }>;
+    }
+  ).people;
+
+  const mona = directory.find((person) => person.email === MEMBER.email);
+  expect(mona, "Mona appears in the company directory").toBeTruthy();
+  expect(mona!.projects.map((project) => project.code)).toEqual(["AW-002"]);
+
+  /*
+   * The assertion that actually exercises the filter, and it took a
+   * break-test to notice it was missing: every check above is made either by
+   * an owner, who reaches everything, or about a person on a single project.
+   * Deleting the reach clause from the query left all of them green.
+   *
+   * What is needed is a viewer who shares *one* project with somebody who is
+   * on *two*. The owner is on Nile Tower and Mona is on Alexandria Warehouse,
+   * so putting the owner on Alexandria Warehouse gives Mona exactly that: she
+   * must see the owner as a colleague, see Alexandria Warehouse on his card,
+   * and never learn that Nile Tower exists.
+   */
+  const projects = await page.request.get("/v1/projects?search=AW-002");
+  const alexandria = ((await projects.json()) as { projects: Array<{ id: string; code: string }> })
+    .projects.find((project) => project.code === "AW-002");
+  expect(alexandria, "the owner can reach Alexandria Warehouse").toBeTruthy();
+
+  const monaId = directory.find((person) => person.email === MEMBER.email)!;
+  const owner = directory.find((person) => person.email === OWNER.email)!;
+  const added = await page.request.post(`/v1/projects/${alexandria!.id}/members`, {
+    data: { userId: owner.id, role: "project_manager" },
+  });
+  expect(added.status(), await added.text()).toBe(201);
+  expect(monaId).toBeTruthy();
+
+  await page.goto("/logout");
+  await expect(page.getByLabel("Password")).toBeVisible({ timeout: 20_000 });
+  await page.getByLabel("Email").fill(MEMBER.email);
+  await page.getByLabel("Password").fill(MEMBER.password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("navigation").getByRole("link", { name: "Projects" })).toBeVisible({
+    timeout: 30_000,
+  });
+
+  const shared = await page.request.get("/v1/directory/colleagues");
+  const asMonaSeesThem = (
+    (await shared.json()) as {
+      people: Array<{ email: string; projects: Array<{ code: string }>; sharedProjectCount: number }>;
+    }
+  ).people;
+
+  const ownerAsColleague = asMonaSeesThem.find((person) => person.email === OWNER.email);
+  expect(ownerAsColleague, "the owner is now Mona's colleague").toBeTruthy();
+  expect(ownerAsColleague!.sharedProjectCount).toBe(1);
+  // He is on two projects. She may know about one of them.
+  expect(ownerAsColleague!.projects.map((project) => project.code)).toEqual(["AW-002"]);
+});
+
 test("an unauthenticated request is refused by the API, not answered with a page", async ({
   request,
 }) => {

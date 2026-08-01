@@ -9,7 +9,7 @@
  */
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LayoutGrid, Rows3, ShieldCheck, Users } from "lucide-react";
+import { Contact, LayoutGrid, Rows3, ShieldCheck, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,7 @@ import {
   ViewToggle,
 } from "@/shared/ui";
 import { searchRecords } from "@/shared/search/match";
+import { PeopleDirectory } from "./PeopleDirectory";
 import { PermissionPicker } from "./PermissionPicker";
 import { adminApi, type AdminUserRecord, type UserTypeRecord } from "./admin-api";
 import "./TeamPage.css";
@@ -99,7 +100,18 @@ type EditUserTypeForm = z.infer<typeof editUserTypeSchema>;
 type UserForm = z.infer<typeof userSchema>;
 type EditUserForm = z.infer<typeof editUserSchema>;
 
-type Segment = "users" | "types";
+/**
+ * Three registers, not two.
+ *
+ * `directory` is the people register and is open to everyone — it shows the
+ * colleagues you share work with, which membership already discloses. `users`
+ * and `types` administer accounts and roles, and need `users.read` and
+ * `user_types.read`. Keeping them as segments of one page rather than separate
+ * pages means somebody who holds all three switches between them instead of
+ * hunting for them; keeping them separately gated means somebody who holds one
+ * is never offered the others.
+ */
+type Segment = "directory" | "users" | "types";
 type ViewMode = "cards" | "table";
 
 const VIEW_STORAGE_KEY = "rectangle.team.view";
@@ -179,7 +191,16 @@ export default function TeamPage() {
   const canAddRoles = held("user_types.create");
   const canEditRoles = held("user_types.edit");
 
-  const [segment, setSegment] = useState<Segment>("users");
+  const canReadUsers = held("users.read");
+  const canReadTypes = held("user_types.read");
+
+  /*
+   * Opens on the register the viewer can actually use. Defaulting to `users`
+   * showed a permission refusal as the first thing a site engineer saw on the
+   * page, which is both useless and wrong: the directory below it was theirs
+   * all along.
+   */
+  const [segment, setSegment] = useState<Segment>(canReadUsers ? "users" : "directory");
   const [view, setView] = useState<ViewMode>(() => readStoredView());
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -329,6 +350,7 @@ export default function TeamPage() {
   }
 
   const permissionOptions = permissions.data?.permissions ?? [];
+  const showingDirectory = segment === "directory";
   const showingUsers = segment === "users";
 
   return (
@@ -351,13 +373,22 @@ export default function TeamPage() {
             onChange={setSegment}
             showLabels
             options={[
-              { value: "users", label: t("team.segmentUsers"), icon: <Users size={16} strokeWidth={2} aria-hidden /> },
-              { value: "types", label: t("team.segmentTypes"), icon: <ShieldCheck size={16} strokeWidth={2} aria-hidden /> },
+              // Built from what the viewer holds. An option that answers with a
+              // refusal is the dead control the product does not ship.
+              { value: "directory" as const, label: t("team.segmentDirectory"), icon: <Contact size={16} strokeWidth={2} aria-hidden /> },
+              ...(canReadUsers
+                ? [{ value: "users" as const, label: t("team.segmentUsers"), icon: <Users size={16} strokeWidth={2} aria-hidden /> }]
+                : []),
+              ...(canReadTypes
+                ? [{ value: "types" as const, label: t("team.segmentTypes"), icon: <ShieldCheck size={16} strokeWidth={2} aria-hidden /> }]
+                : []),
             ]}
           />
         }
         search={
-          showingUsers
+          showingDirectory
+            ? undefined
+            : showingUsers
             ? {
                 value: search,
                 onChange: setSearch,
@@ -372,7 +403,9 @@ export default function TeamPage() {
               }
         }
         filters={
-          showingUsers
+          showingDirectory
+            ? []
+            : showingUsers
             ? [
                 {
                   id: "type",
@@ -412,11 +445,13 @@ export default function TeamPage() {
               ]
         }
         onClearFilters={
-          showingUsers
+          showingDirectory
+            ? undefined
+            : showingUsers
             ? () => { setSearch(""); setTypeFilter(""); setStatusFilter(""); }
             : () => { setRoleSearch(""); setRoleOriginFilter(""); }
         }
-        view={{
+        view={showingDirectory ? undefined : {
           value: view,
           label: t("team.cardView"),
           onChange: (next: ViewMode) => { setView(next); storeView(next); },
@@ -426,6 +461,7 @@ export default function TeamPage() {
           ],
         }}
         actions={
+          showingDirectory ? null :
           (showingUsers ? canAddUsers : canAddRoles) ? (
             showingUsers ? (
               <Button
@@ -443,7 +479,14 @@ export default function TeamPage() {
         }
       />
 
-      {allUsers.length > 0 ? (
+      {/*
+        * The directory answers for itself from here: it has its own search,
+        * its own two registers and its own states. The KPI row below is about
+        * administering accounts, which is not what this register is for.
+        */}
+      {showingDirectory ? <PeopleDirectory /> : null}
+
+      {!showingDirectory && allUsers.length > 0 ? (
         <StatRow label={t("team.pageLabel")}>
           <StatCard
             label={t("team.kpiPeople")}

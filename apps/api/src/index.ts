@@ -16,6 +16,7 @@ import { ProjectService } from "./application/project-service.js";
 import { ProjectTeamService } from "./application/project-team-service.js";
 import { RiskService } from "./application/risk-service.js";
 import { SearchService } from "./application/search-service.js";
+import { DirectoryService } from "./application/directory-service.js";
 import { SetupService } from "./application/setup-service.js";
 import { TaskService } from "./application/task-service.js";
 import { loadConfig, resolveAppBaseUrl } from "./config.js";
@@ -37,6 +38,7 @@ import { PostgresProjectsRepository } from "./infrastructure/postgres/projects-r
 import { PostgresProjectTeamRepository } from "./infrastructure/postgres/project-team-repository.js";
 import { PostgresRiskRepository } from "./infrastructure/postgres/risk-repository.js";
 import { PostgresSearchRepository } from "./infrastructure/postgres/search-repository.js";
+import { PostgresDirectoryRepository } from "./infrastructure/postgres/directory-repository.js";
 import { PostgresSetupRepository } from "./infrastructure/postgres/setup-repository.js";
 import { PostgresTaskRepository } from "./infrastructure/postgres/task-repository.js";
 
@@ -68,6 +70,7 @@ const riskService = new RiskService(
   auditRepository,
 );
 const searchService = new SearchService(new PostgresSearchRepository(pool));
+const directoryService = new DirectoryService(new PostgresDirectoryRepository(pool));
 const loginThrottle = new InMemoryLoginThrottle();
 const passwordHasher = new ScryptPasswordHasher();
 const authRepository = new PostgresAuthRepository(pool);
@@ -128,6 +131,7 @@ const server = await createServer({
   taskService,
   riskService,
   searchService,
+  directoryService,
   profileService,
   authLifecycleService,
   authService,

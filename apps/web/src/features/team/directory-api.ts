@@ -1,0 +1,41 @@
+/**
+ * The people register, as the server answers it.
+ *
+ * Separate from `admin-api.ts` because the two describe different things: that
+ * file administers accounts, this one reads the directory. A person appears
+ * here with only what the viewer is entitled to know about them, which is a
+ * server decision — nothing in this file filters or hides anything, and it must
+ * stay that way, or the rule would exist in two places and eventually disagree.
+ */
+import { apiRequest } from "@/shared/api/client";
+
+export type DirectoryRegister = "company" | "colleagues";
+
+export interface DirectoryProject {
+  id: string;
+  name: string;
+  code: string;
+  /** The subject's role on that project, e.g. `project_admin`. */
+  role: string;
+  /** Whether the viewer is on it too. */
+  sharedWithViewer: boolean;
+}
+
+export interface DirectoryPerson {
+  id: string;
+  displayName: string;
+  email: string;
+  status: "active" | "invited" | "disabled";
+  standing: string;
+  /** Only the projects the viewer may see. Never the subject's full list. */
+  projects: DirectoryProject[];
+  sharedProjectCount: number;
+  openTaskCount: number;
+}
+
+export const directoryApi = {
+  registers: () =>
+    apiRequest<{ registers: DirectoryRegister[] }>("/v1/directory/registers"),
+  company: () => apiRequest<{ people: DirectoryPerson[] }>("/v1/directory/company"),
+  colleagues: () => apiRequest<{ people: DirectoryPerson[] }>("/v1/directory/colleagues"),
+};

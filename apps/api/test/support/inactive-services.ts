@@ -32,6 +32,12 @@ export const inactiveSearchService = {
   search(): never { throw new Error("not used"); },
 };
 
+export const inactiveDirectoryService = {
+  listCompanyDirectory(): never { throw new Error("not used"); },
+  listColleagues(): never { throw new Error("not used"); },
+  availableRegisters(): never { throw new Error("not used"); },
+};
+
 export const inactiveProfileService = {
   getProfile(): never { throw new Error("not used"); },
   updateProfile(): never { throw new Error("not used"); },

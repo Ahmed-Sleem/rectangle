@@ -32,7 +32,35 @@ const PAGES = [
   { id: "projects.settings", file: "features/projects/ProjectSettingsPage.tsx", tests: ["features/projects/ProjectSettingsPage.test.tsx"] },
   { id: "tasks", file: "features/tasks/TasksPage.tsx", tests: ["features/tasks/TasksPage.test.tsx"] },
   { id: "risks", file: "features/risks/RisksPage.tsx", tests: ["features/risks/RisksPage.test.tsx"] },
-  { id: "team", file: "features/team/TeamPage.tsx", tests: ["features/team/TeamPage.test.tsx"] },
+  {
+    id: "team",
+    file: "features/team/TeamPage.tsx",
+    tests: ["features/team/TeamPage.test.tsx"],
+    /*
+     * The page is deliberately open and gated in parts, so it declares no
+     * `requiredPermission` for the route guard to act on.
+     *
+     * The people directory is everyone's: it lists the colleagues you share a
+     * project with, which membership already discloses. The account and role
+     * registers need `users.read` and `user_types.read`, and each is absent
+     * from the segment control rather than disabled for anybody without them —
+     * so the refusal is expressed by the option not existing, which is the
+     * house rule, rather than by a state this check can match on.
+     */
+    selfService: true,
+  },
+  {
+    id: "team.directory",
+    file: "features/team/PeopleDirectory.tsx",
+    tests: ["features/team/PeopleDirectory.test.tsx"],
+    /*
+     * Its own entry rather than being covered by the page that hosts it. It
+     * reads two registers through its own endpoints and carries its own empty,
+     * loading and error states, and it is the surface where the visibility
+     * rule is actually visible to a person.
+     */
+    selfService: true,
+  },
   {
     id: "profile",
     file: "features/profile/ProfilePage.tsx",

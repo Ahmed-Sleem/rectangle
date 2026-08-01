@@ -72,13 +72,21 @@ describe("navigation", () => {
     await setRectangleLanguage("en");
   });
 
-  it("hides Team from someone who may not read users", () => {
+  it("offers Team to everyone, because the people directory is everyone's", () => {
+    /*
+     * Team used to be gated on `users.read`. It is not any more, and the change
+     * is deliberate: the page now holds a people directory showing the
+     * colleagues you share a project with, which membership already discloses
+     * — the project workspace lists them. Hiding the page would leave somebody
+     * unable to name the person they work beside while protecting nothing.
+     *
+     * The administrative registers inside it are still gated, and
+     * `TeamPage.test.tsx` is where that is asserted.
+     */
     renderNav(viewer);
 
     const nav = screen.getByRole("navigation", { name: /main|primary/iu });
-    expect(within(nav).queryByRole("link", { name: "Team" })).not.toBeInTheDocument();
-    // The pages they can open are still offered.
-    expect(within(nav).getByRole("link", { name: "Projects" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Team" })).toBeInTheDocument();
   });
 
   it("shows Team to an administrator", () => {

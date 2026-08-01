@@ -1,0 +1,159 @@
+/**
+ * The people register.
+ *
+ * A card per person rather than a table row, because a row cannot carry a list
+ * of projects without either truncating it to uselessness or forcing a column
+ * so wide the rest of the table collapses. The unit of interest here is the
+ * person and their context, not a field-by-field comparison across people.
+ *
+ * Every value comes from a design token. Logical properties throughout, so the
+ * Arabic layout mirrors without a second stylesheet.
+ */
+
+.rect-directory {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-4);
+}
+
+.rect-directory__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--rect-space-3);
+}
+
+.rect-directory__search {
+  flex: 1 1 16rem;
+  display: flex;
+}
+
+.rect-directory__search input {
+  inline-size: 100%;
+  block-size: var(--rect-control-standard);
+  padding-inline: var(--rect-space-3);
+  font: inherit;
+  font-size: var(--rect-text-body);
+  color: var(--rect-color-ink);
+  background: var(--rect-color-paper);
+  border: 1px solid var(--rect-color-line);
+  border-radius: var(--rect-radius-md);
+}
+
+.rect-directory__search input:focus-visible {
+  outline: none;
+  border-color: var(--rect-border-active);
+  box-shadow: var(--rect-shadow-focus);
+}
+
+.rect-directory__hint {
+  margin: 0;
+  font-size: var(--rect-text-micro);
+  color: var(--rect-color-muted);
+}
+
+.rect-directory__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  gap: var(--rect-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rect-person {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-3);
+  padding: var(--rect-space-4);
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-card-radius);
+}
+
+.rect-person__head {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-3);
+}
+
+.rect-person__identity {
+  /* Allows the name and email to truncate instead of widening the card. */
+  min-inline-size: 0;
+  flex: 1;
+}
+
+.rect-person__name,
+.rect-person__email {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rect-person__name {
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  color: var(--rect-color-ink-strong);
+}
+
+.rect-person__email {
+  font-size: var(--rect-text-micro);
+  color: var(--rect-color-muted);
+}
+
+.rect-person__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+}
+
+.rect-person__facts:empty {
+  display: none;
+}
+
+.rect-person__projects {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-2);
+  padding-block-start: var(--rect-space-3);
+  border-block-start: 1px solid var(--rect-color-line);
+}
+
+.rect-person__projects-label {
+  margin: 0;
+  font-size: var(--rect-text-micro);
+  font-weight: var(--rect-weight-semibold);
+  color: var(--rect-color-muted);
+}
+
+.rect-person__projects-empty {
+  margin: 0;
+  font-size: var(--rect-text-micro);
+  color: var(--rect-color-faint);
+}
+
+.rect-person__project-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rect-person__project {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--rect-space-2);
+  font-size: var(--rect-text-micro);
+}
+
+.rect-person__project-name {
+  color: var(--rect-color-ink);
+}
+
+.rect-person__project-role {
+  color: var(--rect-color-muted);
+}

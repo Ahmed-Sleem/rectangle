@@ -46,6 +46,12 @@ const FEATURES = join(WEB, "features");
  */
 const OPEN_TO_EVERYONE = {
   profile: "The caller is the subject. Nobody needs permission to read their own account.",
+  team:
+    "Holds three registers with three answers. The people directory is open to everyone — it " +
+    "shows the colleagues you share a project with, which membership already discloses, so " +
+    "hiding it would leave somebody unable to name the person they work beside while " +
+    "protecting nothing. The account and role registers inside the page need `users.read` and " +
+    "`user_types.read`, and are absent rather than disabled without them.",
   logout: "Ending your own session cannot require a permission.",
   activity:
     "Everyone may audit themselves. The service returns the `self` scope to all callers and " +

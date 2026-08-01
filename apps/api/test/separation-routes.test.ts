@@ -22,6 +22,7 @@ import {
   inactiveSearchService,
   inactiveTaskService,
   inactiveActivityService,
+  inactiveDirectoryService,
 } from "./support/inactive-services.js";
 
 const jwtSecret = "rectangle-test-secret-must-be-at-least-32-chars";
@@ -125,6 +126,7 @@ async function createTestServer() {
     overviewService: inactiveOverviewService,
     taskService: inactiveTaskService,
     searchService: inactiveSearchService,
+    directoryService: inactiveDirectoryService,
     riskService: inactiveRiskService,
     profileService: inactiveProfileService,
     authLifecycleService: inactiveAuthLifecycleService,

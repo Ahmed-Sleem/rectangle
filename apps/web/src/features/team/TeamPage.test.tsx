@@ -219,11 +219,21 @@ describe("TeamPage", () => {
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/v1/admin/users/"), expect.objectContaining({ method: "PATCH" }));
   });
 
-  it("hides every administrative action from someone who cannot manage users", async () => {
+  it("gives someone with no administrative permission the directory and nothing else", async () => {
     mockReads();
     renderTeam(viewerAuth);
 
-    await screen.findByText("Mona Adel");
+    /*
+     * They do not see the account register at all now, so they never see the
+     * people in it — which is why this no longer waits for a name from that
+     * list. The page opens on the directory, which is theirs, and the two
+     * administrative segments are absent rather than present-and-refusing.
+     */
+    const segments = await screen.findByRole("radiogroup", { name: "Team register" });
+    expect(within(segments).getByRole("radio", { name: /Directory/u })).toBeInTheDocument();
+    expect(within(segments).queryByRole("radio", { name: /People/u })).not.toBeInTheDocument();
+    expect(within(segments).queryByRole("radio", { name: /Roles/u })).not.toBeInTheDocument();
+
     expect(screen.queryByRole("button", { name: "Create user" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Disable" })).not.toBeInTheDocument();
@@ -249,17 +259,25 @@ describe("TeamPage", () => {
     expect(screen.getAllByText("معطّل").length).toBeGreaterThan(0);
   });
 
-  it("labels the people and roles segments with visible text and icons", async () => {
+  it("labels every register segment with visible text and an icon", async () => {
     mockReads();
     renderTeam();
 
     await screen.findByText("Mona Adel");
     const segments = screen.getByRole("radiogroup", { name: "Team register" });
-    // The words must be rendered, not only announced, or the control is a
-    // pair of unlabelled squares.
+    // The words must be rendered, not only announced, or the control is a row
+    // of unlabelled squares.
+    expect(within(segments).getByText("Directory")).toBeInTheDocument();
     expect(within(segments).getByText("People")).toBeInTheDocument();
     expect(within(segments).getByText("Roles")).toBeInTheDocument();
-    expect(segments.querySelectorAll("svg").length).toBe(2);
+    /*
+     * One icon per option, counted from the options rather than hard-coded, so
+     * adding a fourth register cannot leave it iconless while this still
+     * passes — which is what a literal 3 here would allow.
+     */
+    const options = within(segments).getAllByRole("radio");
+    expect(options).toHaveLength(3);
+    expect(segments.querySelectorAll("svg").length).toBe(options.length);
   });
 
   it("keeps the toolbar intact when the register changes", async () => {
@@ -358,7 +376,6 @@ describe("TeamPage", () => {
   });
 
   it("hides role actions from someone who may manage people but not roles", async () => {
-    const user = userEvent.setup();
     mockReads();
     renderTeam({
       ...adminAuth,
@@ -372,10 +389,17 @@ describe("TeamPage", () => {
     // People actions are allowed for this principal.
     expect(screen.getByRole("button", { name: "Create user" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("radio", { name: /Roles/u }));
-    // Roles need user_types.create/edit, which this principal does not hold.
+    /*
+     * The register itself is gone, not merely its buttons. This principal
+     * holds no `user_types.read`, and the rule is that a thing you may not do
+     * is absent rather than offered and then refused — so there is no Roles
+     * segment to open. Stricter than the behaviour this test was written
+     * against, which showed the segment and hid the buttons inside it.
+     */
+    const segments = screen.getByRole("radiogroup", { name: "Team register" });
+    expect(within(segments).queryByRole("radio", { name: /Roles/u })).not.toBeInTheDocument();
+    expect(within(segments).getByRole("radio", { name: /People/u })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create user type" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 
   /*
