@@ -35,3 +35,7 @@ Thumbs.db
 .vscode
 *.swp
 *.log
+
+# End-to-end tests never enter the image: they exist to drive the built image
+# from outside, and they pull in a browser and a WASM database.
+e2e

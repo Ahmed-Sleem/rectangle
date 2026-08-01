@@ -1,0 +1,16 @@
+{
+  "name": "rectangle-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "description": "End-to-end tests: a real browser signing in to the real product",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "install:browser": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.4",
+    "@electric-sql/pglite-socket": "0.2.7",
+    "@playwright/test": "1.62.1"
+  }
+}

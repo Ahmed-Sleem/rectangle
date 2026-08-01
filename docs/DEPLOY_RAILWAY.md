@@ -25,6 +25,13 @@ In Railway:
 New -> Database -> PostgreSQL
 ```
 
+Then open the service's **Backups** tab and enable point-in-time recovery. A
+deployment without it has no way back from a bad migration or a mistaken
+delete, and the window it opens is not retroactive — it starts the day you
+switch it on, so switching it on late is the same as not having it for
+everything that came before. `docs/DISASTER_RECOVERY.md` covers what it
+protects against, how to restore, and the drill that proves the restore works.
+
 ## 2. Rectangle App service
 
 Use the existing GitHub repo service or create one from:

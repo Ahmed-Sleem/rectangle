@@ -15,7 +15,7 @@ const statusByCode = {
   RATE_LIMITED: 429,
 } as const;
 
-export async function errorHandler(error: FastifyError | Error, _request: FastifyRequest, reply: FastifyReply) {
+export async function errorHandler(error: FastifyError | Error, request: FastifyRequest, reply: FastifyReply) {
   if (isDomainError(error)) {
     const statusCode = statusByCode[error.code];
 
@@ -54,6 +54,22 @@ export async function errorHandler(error: FastifyError | Error, _request: Fastif
       },
     });
   }
+
+  /*
+   * Logged before it is answered, because until now it was not logged at all.
+   *
+   * The caller is deliberately told nothing — an unexpected fault is the one
+   * case where the message could carry a table name, a query or a stack — but
+   * the operator has to be told everything, and this handler was discarding
+   * the error object entirely. A 500 in production left no trace anywhere: the
+   * request log recorded the status and nothing about the cause, so the only
+   * way to learn why was to reproduce it. Found by an end-to-end test that hit
+   * a 500 and could not say why.
+   */
+  request.log.error(
+    { err: error, method: request.method, url: request.url },
+    "unhandled error while serving a request",
+  );
 
   return reply.status(500).send({
     error: {

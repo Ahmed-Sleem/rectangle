@@ -38,3 +38,8 @@ apps/*/node_modules/
 *.tsbuildinfo
 .vite/
 coverage/
+
+# End-to-end run output. Traces and screenshots are diagnosis for one run and
+# can contain a rendered page; they are never a repository artefact.
+e2e/test-results/
+e2e/playwright-report/

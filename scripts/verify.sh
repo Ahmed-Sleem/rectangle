@@ -53,4 +53,9 @@ run_step "deploy build context" node scripts/checks/deploy-context.mjs
 run_step "dependency advisories" node scripts/checks/dependency-audit.mjs
 run_step "docker build simulation" ./scripts/checks/docker-build-sim.sh
 
+# Last, because it is the only step that needs the built output of the two
+# steps above: it starts the real API serving the real bundle against a real
+# PostgreSQL and drives a browser through it.
+run_step "end-to-end sign-in flows" ./scripts/checks/e2e.sh
+
 echo "\n[verify] All checks passed"

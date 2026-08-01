@@ -64,10 +64,19 @@ export class PostgresProjectsRepository implements ProjectsRepository {
     try {
       await client.query("begin");
       const created = await this.insertProject(client, tenantId, input);
+      /*
+       * The conflict target must name the primary key exactly, which is
+       * `(project_id, user_id)` — tenant_id is carried on the row and enforced
+       * by a composite foreign key, but it is not part of the key. Naming all
+       * three matched no constraint, and PostgreSQL rejects that outright, so
+       * every project creation failed. It was invisible to the suite because
+       * the repository tests are the only ones that execute this statement and
+       * none of them called `create`.
+       */
       await client.query(
         `insert into project_members (tenant_id, project_id, user_id, role)
          values ($1, $2, $3, 'project_admin')
-         on conflict (tenant_id, project_id, user_id) do nothing`,
+         on conflict (project_id, user_id) do nothing`,
         [tenantId, created.id, creatorUserId],
       );
       await client.query("commit");
