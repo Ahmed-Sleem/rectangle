@@ -42,13 +42,12 @@ const REFERENCE = {
     },
   ],
   projectRoles: [
-    { role: "project_admin", grants: ["projects.read", "users.edit"] },
-    { role: "external_collaborator", grants: [] },
+    { role: "owner", grants: ["projects.read", "users.edit"] },
+    { role: "viewer", grants: [] },
   ],
   standings: [
-    { standing: "owner", holdsEverything: true, refusedCompanyWide: false },
-    { standing: "member", holdsEverything: false, refusedCompanyWide: false },
-    { standing: "guest", holdsEverything: false, refusedCompanyWide: true },
+    { standing: "owner", holdsEverything: true },
+    { standing: "none", holdsEverything: false },
   ],
   deletionRule: { requiresProjectAdmin: true, manageAllInsufficient: true },
 };
@@ -57,7 +56,7 @@ const admin: AuthContextValue = {
   setupRequired: false,
   loading: false,
   refresh: async () => undefined,
-  user: { tenantId: "1", userId: "2", roles: ["member"], permissions: ["settings.manage"] },
+  user: { tenantId: "1", userId: "2", roles: ["none"], permissions: ["settings.manage"] },
 };
 
 function json(body: unknown, status = 200) {
@@ -100,7 +99,7 @@ describe("PermissionReference", () => {
     const fetchMock = mockApi();
     renderReference({
       ...admin,
-      user: { tenantId: "1", userId: "3", roles: ["member"], permissions: ["user_types.read"] },
+      user: { tenantId: "1", userId: "3", roles: ["none"], permissions: ["user_types.read"] },
     });
 
     expect(await screen.findByText(/do not have access/iu)).toBeInTheDocument();
@@ -171,26 +170,25 @@ describe("PermissionReference", () => {
     renderReference();
 
     const roles = await screen.findByRole("region", { name: /What a project role grants/iu });
-    expect(within(roles).getByText("Project admin")).toBeInTheDocument();
+    expect(within(roles).getByText("Project owner")).toBeInTheDocument();
     expect(within(roles).getByText(/Grants nothing on its own/iu)).toBeInTheDocument();
   });
 
-  it("distinguishes the three kinds of standing", async () => {
+  it("distinguishes owning the company from being granted permissions", async () => {
     mockApi();
     renderReference();
 
     const standings = await screen.findByRole("region", { name: /Company standing/iu });
     expect(within(standings).getByText(/Holds every permission/iu)).toBeInTheDocument();
-    expect(within(standings).getByText(/Refused every company-wide/iu)).toBeInTheDocument();
-    expect(within(standings).getByText(/comes from their user types/iu)).toBeInTheDocument();
+    expect(within(standings).getByText(/Only the permissions granted to them/iu)).toBeInTheDocument();
   });
 
   it("names a project role the same way the project team table does", async () => {
-    // 'project_admin' rendered raw would mean the translation is missing and
-    // nobody noticed, which a defaultValue would have hidden.
+    // A raw key rendered here would mean the translation is missing and nobody
+    // noticed, which a defaultValue would have hidden.
     mockApi();
     renderReference();
     const roles = await screen.findByRole("region", { name: /What a project role grants/iu });
-    expect(within(roles).queryByText("project_admin")).not.toBeInTheDocument();
+    expect(within(roles).queryByText("owner")).not.toBeInTheDocument();
   });
 });

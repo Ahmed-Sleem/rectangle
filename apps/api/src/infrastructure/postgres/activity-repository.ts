@@ -107,7 +107,7 @@ function buildPredicate(
                where m.tenant_id = a.tenant_id
                  and m.project_id = a.project_id
                  and m.user_id = ${bind(userId)}
-                 and m.role in ('project_admin', 'project_manager')
+                 and m.role in ('owner', 'manager')
             )
           )
         )`);

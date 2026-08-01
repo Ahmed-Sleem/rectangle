@@ -19,25 +19,18 @@ export class PostgresProfileRepository implements ProfileRepository {
       status: string;
       roles: string[];
       permissions: string[];
-      user_types: Array<{ id: string; name: string; key: string }>;
+
       passkey_count: number;
       created_at: Date;
     }>(
       `select u.id as user_id, u.tenant_id, u.display_name, u.email, u.status, u.created_at,
-              coalesce(array_agg(distinct r.role) filter (where r.role is not null), '{}') as roles,
-              coalesce(array_agg(distinct permission_value) filter (where permission_value is not null), '{}') as permissions,
-              coalesce(
-                json_agg(distinct jsonb_build_object('id', t.id, 'name', t.name, 'key', t.key))
-                  filter (where t.id is not null),
-                '[]'
-              ) as user_types,
+              array[coalesce(max(r.role), 'none')] as roles,
+              coalesce(array_agg(distinct p.permission) filter (where p.permission is not null), '{}') as permissions,
               (select count(*) from webauthn_credentials c
                 where c.tenant_id = u.tenant_id and c.user_id = u.id)::int as passkey_count
          from users u
          left join tenant_user_roles r on r.tenant_id = u.tenant_id and r.user_id = u.id
-         left join user_type_assignments a on a.tenant_id = u.tenant_id and a.user_id = u.id
-         left join user_types t on t.id = a.user_type_id
-         left join lateral unnest(t.permissions) as permission_value on true
+         left join user_permissions p on p.tenant_id = u.tenant_id and p.user_id = u.id
         where u.tenant_id = $1 and u.id = $2
         group by u.id, u.tenant_id, u.display_name, u.email, u.status, u.created_at
         limit 1`,
@@ -54,8 +47,10 @@ export class PostgresProfileRepository implements ProfileRepository {
       email: row.email,
       status: row.status,
       roles: Array.isArray(row.roles) ? row.roles.map(String) : [],
+      // Filled in by the service from the permission catalogue, which is
+      // domain knowledge rather than anything the database holds.
+      permissionLabels: [],
       permissions: Array.isArray(row.permissions) ? row.permissions.map(String) : [],
-      userTypes: Array.isArray(row.user_types) ? row.user_types : [],
       passkeyCount: Number(row.passkey_count ?? 0),
       createdAt: row.created_at.toISOString(),
     };

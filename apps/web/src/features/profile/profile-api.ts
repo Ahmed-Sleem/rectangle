@@ -9,7 +9,14 @@ export interface ProfileRecord {
   status: string;
   roles: string[];
   permissions: string[];
-  userTypes: Array<{ id: string; name: string; key: string }>;
+  /**
+   * The same permissions with the catalogue's wording, sent by the server.
+   *
+   * The catalogue itself needs `user_types.read`, which this page must not
+   * require — so the labels come attached to the profile rather than being
+   * fetched separately.
+   */
+  permissionLabels: Array<{ key: string; label: string }>;
   passkeyCount: number;
   createdAt: string;
 }

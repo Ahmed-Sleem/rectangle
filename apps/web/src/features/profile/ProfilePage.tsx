@@ -284,27 +284,34 @@ export default function ProfilePage() {
           onToggle={() => toggle("access")}
         >
           <SettingRow
-            label={t("profile.roles")}
+            label={t("profile.standing")}
             control={
               <span className="rect-profile__badges">
                 {record.roles.map((role) => (
-                  <Badge key={role} tone="info">
-                    {t(`enums.memberRole.${role}`, { defaultValue: role })}
+                  <Badge key={role} tone={role === "owner" ? "warning" : "neutral"}>
+                    {t(`team.standing_${role}`, { defaultValue: role })}
                   </Badge>
                 ))}
               </span>
             }
           />
+          {/*
+            * Their actual permissions, named. This used to list the bundles
+            * they had been assigned, which answered a different question and
+            * stopped being true at all once bundles stopped granting anything.
+            */}
           <SettingRow
-            label={t("profile.userTypes")}
+            label={t("profile.permissions")}
             control={
               <span className="rect-profile__badges">
-                {record.userTypes.length === 0 ? (
-                  <span className="rect-profile__muted">{t("profile.noUserTypes")}</span>
+                {record.roles.includes("owner") ? (
+                  <Badge tone="warning">{t("team.permissionsEverything")}</Badge>
+                ) : record.permissionLabels.length === 0 ? (
+                  <span className="rect-profile__muted">{t("profile.noPermissions")}</span>
                 ) : (
-                  record.userTypes.map((type) => (
-                    <Badge key={type.id} tone="neutral">
-                      {t(`enums.systemUserType.${type.key}`, { defaultValue: type.name })}
+                  record.permissionLabels.map((permission) => (
+                    <Badge key={permission.key} tone="neutral">
+                      {permission.label}
                     </Badge>
                   ))
                 )}

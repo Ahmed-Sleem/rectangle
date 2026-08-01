@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { DomainError } from "./errors.js";
 import { companyStandingSchema } from "./auth.js";
-import { permissionSchema } from "./permissions.js";
+import { allPermissions, permissionSchema } from "./permissions.js";
 
 const roleKeySchema = z.string().trim().toLowerCase().min(2).max(64).regex(/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/u);
 
@@ -19,28 +19,6 @@ export const updateUserTypeSchema = z.object({
   permissions: z.array(permissionSchema).min(1).max(50).optional(),
 }).refine((value) => Object.keys(value).length > 0, "At least one field is required.");
 
-/**
- * Access has to come from somewhere.
- *
- * Owners and administrators hold everything by standing. For everyone else a
- * user type is the only source of company-wide permission, so a person created
- * without one could sign in and reach nothing — an account that looks real and
- * is not.
- */
-function requireTypesUnlessAdministering(
-  value: { standing: string; userTypeIds: string[] },
-  context: z.RefinementCtx,
-): void {
-  if (value.standing === "owner" || value.standing === "admin") return;
-  if (value.userTypeIds.length === 0) {
-    context.addIssue({
-      code: "custom",
-      path: ["userTypeIds"],
-      message: "At least one user type is required.",
-    });
-  }
-}
-
 export const createUserSchema = z.object({
   displayName: z.string().trim().min(2).max(160),
   email: z.email().trim().toLowerCase().max(254),
@@ -54,19 +32,21 @@ export const createUserSchema = z.object({
    */
   password: z.string().min(12).max(256).regex(/[a-z]/u).regex(/[A-Z]/u).regex(/[0-9]/u).optional(),
   /**
-   * Company standing. Defaults to member, which is what almost everyone is.
-   * Previously hardcoded with no way to change it, so an owner could not
-   * promote anybody through any screen.
+   * Company standing. Almost nobody is an owner, so `none` is the default and
+   * ownership has to be asked for deliberately.
    */
-  standing: companyStandingSchema.default("member"),
+  standing: companyStandingSchema.default("none"),
   /*
-   * Not `min(1)`. An owner or administrator holds every permission by standing,
-   * so demanding a user type of them was a required choice that changed
-   * nothing. Everyone else must still have one, which is asserted below where
-   * the standing is in scope.
+   * What this person may do, in full. Deliberately not `min(1)`: somebody added
+   * so they can be put on a project holds no company-wide permission at all,
+   * and their project membership is what gives them work to do. Forcing a tick
+   * would mean granting access nobody asked for.
+   *
+   * The ceiling is the size of the catalogue, because granting every permission
+   * is a legitimate thing to do and any lower number would refuse it.
    */
-  userTypeIds: z.array(z.uuid()).max(10),
-}).superRefine(requireTypesUnlessAdministering);
+  permissions: z.array(permissionSchema).max(allPermissions.length),
+});
 
 export const updateUserSchema = z.object({
   displayName: z.string().trim().min(2).max(160).optional(),
@@ -74,20 +54,12 @@ export const updateUserSchema = z.object({
   password: z.string().min(12).max(256).regex(/[a-z]/u).regex(/[A-Z]/u).regex(/[0-9]/u).optional(),
   standing: companyStandingSchema.optional(),
   /*
-   * An edit may set an empty list only when it is also making the person an
-   * owner or administrator, who need none. Left undefined the field is simply
-   * not being changed.
+   * The complete set the person should hold afterwards, not a delta. An empty
+   * array is a meaningful instruction — take everything away — and is
+   * distinguishable from `undefined`, which leaves the grants untouched.
    */
-  userTypeIds: z.array(z.uuid()).max(10).optional(),
-})
-  .refine((value) => Object.keys(value).length > 0, "At least one field is required.")
-  .superRefine((value, context) => {
-    if (value.userTypeIds === undefined) return;
-    requireTypesUnlessAdministering(
-      { standing: value.standing ?? "member", userTypeIds: value.userTypeIds },
-      context,
-    );
-  });
+  permissions: z.array(permissionSchema).max(allPermissions.length).optional(),
+}).refine((value) => Object.keys(value).length > 0, "At least one field is required.");
 
 /**
  * A pair this company declares one person may never hold at once.

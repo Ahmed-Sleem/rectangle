@@ -20,14 +20,14 @@ const MONA: DirectoryPerson = {
   displayName: "Mona Adel",
   email: "mona@example.test",
   status: "active",
-  standing: "member",
+  standing: "none",
   projects: [
-    { id: "p1", name: "Nile Tower", code: "NT-001", role: "project_admin", sharedWithViewer: true },
+    { id: "p1", name: "Nile Tower", code: "NT-001", role: "owner", sharedWithViewer: true },
     { id: "p2", name: "Delta Depot", code: "DD-002", role: "viewer", sharedWithViewer: false },
   ],
   sharedProjectCount: 1,
   openTaskCount: 3,
-  userTypes: [{ id: "t1", name: "Project office", key: "project_manager" }],
+  permissions: ["projects.read", "projects.create", "tasks.read"],
 };
 
 /** On projects, but none this viewer is entitled to know about. */
@@ -36,11 +36,11 @@ const HIDDEN: DirectoryPerson = {
   displayName: "Karim Fouad",
   email: "karim@example.test",
   status: "active",
-  standing: "member",
+  standing: "none",
   projects: [],
   sharedProjectCount: 0,
   openTaskCount: 0,
-  userTypes: [],
+  permissions: [],
 };
 
 function renderDirectory(overrides: Partial<Parameters<typeof PeopleDirectory>[0]> = {}) {
@@ -52,7 +52,7 @@ function renderDirectory(overrides: Partial<Parameters<typeof PeopleDirectory>[0
     onEdit: vi.fn(),
     onDisable: vi.fn(),
     onEnable: vi.fn(),
-    roleName: (type: { name: string }) => type.name,
+    permissionLabel: (key: string) => `Label for ${key}`,
     ...overrides,
   };
   render(
@@ -97,12 +97,33 @@ describe("what a person's row says", () => {
     expect(screen.queryByText(/^No projects$/u)).not.toBeInTheDocument();
   });
 
-  it("names the user types a person holds", () => {
+  it("names the permissions a person holds", () => {
     // The administrative half of the row, which used to live in a separate
     // list of the same people.
     renderDirectory();
 
-    expect(screen.getByText("Project office")).toBeInTheDocument();
+    expect(screen.getByText("Label for projects.read")).toBeInTheDocument();
+    expect(screen.getByText("Label for projects.create")).toBeInTheDocument();
+  });
+
+  it("collapses a long list into a count rather than wrapping the row", () => {
+    /*
+     * Somebody holding twenty permissions would otherwise turn one row into a
+     * paragraph, and a register nobody can scan is a register nobody reads.
+     */
+    renderDirectory({
+      people: [{ ...MONA, permissions: ["a.read", "b.read", "c.read", "d.read", "e.read"] }],
+    });
+
+    expect(screen.getByText("+2 more")).toBeInTheDocument();
+  });
+
+  it("says an owner holds everything rather than listing nothing", () => {
+    // Their permission list is empty in the database, because ownership is
+    // what grants their access. Rendering the list would say the opposite.
+    renderDirectory({ people: [{ ...MONA, standing: "owner", permissions: [] }] });
+
+    expect(screen.getAllByText("Everything").length).toBeGreaterThan(0);
   });
 });
 
@@ -152,7 +173,7 @@ describe("the table view", () => {
 
     const table = screen.getByRole("table");
     expect(within(table).getByText("Mona Adel")).toBeInTheDocument();
-    expect(within(table).getByText("Project office")).toBeInTheDocument();
+    expect(within(table).getByText("3 permissions")).toBeInTheDocument();
     // Projects are shown by code in the table, where space is tighter.
     expect(within(table).getByText(/NT-001/u)).toBeInTheDocument();
   });

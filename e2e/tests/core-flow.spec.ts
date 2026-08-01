@@ -135,7 +135,7 @@ test("the project the owner created is theirs to open", async ({ page }) => {
    * Guards the bug that shipped in session 39: a creator with `projects.create`
    * but not `projects.manage_all` had no membership row, so opening the project
    * they had just made answered "not found". They are enrolled as
-   * `project_admin` in the same transaction now, and this is the only test that
+   * its owner in the same transaction now, and this is the only test that
    * would notice if that enrolment were removed.
    */
   await expect(page.getByText("NT-001").first()).toBeVisible({ timeout: 20_000 });
@@ -170,33 +170,24 @@ test("somebody who may create projects can open the one they just created", asyn
   });
 
   /*
-   * A purpose-made user type, not the seeded "Project office" one. That type
-   * carries `projects.manage_all`, which reaches every project in the company
-   * regardless of membership — so it hides exactly the fault being tested, and
-   * did: with it, deleting the creator's enrolment left this test green.
+   * The narrowest person who can hit the bug: may create a project, may not
+   * manage all of them. `projects.manage_all` is deliberately withheld, because
+   * it reaches every project in the company regardless of membership and so
+   * hides exactly the fault being tested — with it, deleting the creator's
+   * enrolment left this test green.
    *
-   * What is needed is the narrowest person who can hit the bug: may create a
-   * project, may not manage all of them.
+   * Granted directly rather than through a saved list. A list grants nothing at
+   * runtime now, so creating one and pointing at it would produce somebody who
+   * cannot sign in and do anything at all.
    */
-  const siteEngineer = await page.request.post("/v1/admin/user-types", {
-    data: {
-      name: "Site engineer",
-      key: "site-engineer",
-      description: "Creates and runs their own projects, reaches nobody else's.",
-      permissions: ["projects.read", "projects.create", "projects.edit", "project_team.read"],
-    },
-  });
-  expect(siteEngineer.status(), await siteEngineer.text()).toBe(201);
-  const typeId = ((await siteEngineer.json()) as { userType: { id: string } }).userType.id;
-
   const created = await page.request.post("/v1/admin/users", {
     data: {
       displayName: "Mona Planner",
       email: MEMBER.email,
       password: MEMBER.password,
       invite: false,
-      standing: "member",
-      userTypeIds: [typeId],
+      standing: "none",
+      permissions: ["projects.read", "projects.create", "projects.edit", "project_team.read"],
     },
   });
   expect(created.status(), await created.text()).toBe(201);
@@ -363,7 +354,7 @@ test("the people register shows colleagues, and only the projects the viewer may
   const monaId = directory.find((person) => person.email === MEMBER.email)!;
   const owner = directory.find((person) => person.email === OWNER.email)!;
   const added = await page.request.post(`/v1/projects/${alexandria!.id}/members`, {
-    data: { userId: owner.id, role: "project_manager" },
+    data: { userId: owner.id, role: "manager" },
   });
   expect(added.status(), await added.text()).toBe(201);
   expect(monaId).toBeTruthy();
@@ -396,7 +387,7 @@ test("a project manager is offered the actions their project role grants", async
    * The mismatch the owner reported, end to end.
    *
    * Mona holds a narrow user type: she may create and edit projects and holds
-   * no company-wide task or risk permission at all. She is `project_admin` of
+   * no company-wide task or risk permission at all. She is the owner of
    * Alexandria Warehouse because she created it. The server has always allowed
    * her to add tasks there — her project role grants it — and the interface
    * used to show her no Create button, because it asked only whether she held

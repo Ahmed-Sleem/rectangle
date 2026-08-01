@@ -9,8 +9,8 @@ import type { CreateProjectInput, ProjectListQuery, ProjectRecord, UpdateProject
 
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
-const admin: UserPrincipal = { tenantId, userId, roles: ["admin"], permissions: [] };
-const viewer: UserPrincipal = { tenantId, userId, roles: ["member"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId, roles: ["owner"], permissions: [] };
+const viewer: UserPrincipal = { tenantId, userId, roles: ["none"], permissions: [] };
 
 class MemoryProjectsRepository implements ProjectsRepository {
   async deleteForTenant(): Promise<boolean> {
@@ -205,7 +205,7 @@ describe("creating a project you can then open", () => {
     const starter: UserPrincipal = {
       tenantId,
       userId: "44444444-4444-4444-8444-444444444444",
-      roles: ["member"],
+      roles: ["none"],
       permissions: ["projects.read", "projects.create"],
     };
 
@@ -237,11 +237,11 @@ describe("who can see which projects", () => {
   async function twoProjects() {
     const { service, projects } = createService();
     const mine = await service.createProject(
-      { tenantId, userId, roles: ["member"], permissions: ["projects.read", "projects.create"] },
+      { tenantId, userId, roles: ["none"], permissions: ["projects.read", "projects.create"] },
       { name: "Mine", code: "MINE-1", status: "active" },
     );
     const theirs = await service.createProject(
-      { tenantId, userId: otherUserId, roles: ["member"], permissions: ["projects.read", "projects.create"] },
+      { tenantId, userId: otherUserId, roles: ["none"], permissions: ["projects.read", "projects.create"] },
       { name: "Theirs", code: "THEIRS-1", status: "active" },
     );
     return { service, projects, mine, theirs };
@@ -251,7 +251,7 @@ describe("who can see which projects", () => {
     const { service, mine } = await twoProjects();
 
     const visible = await service.listProjects(
-      { tenantId, userId, roles: ["member"], permissions: ["projects.read"] },
+      { tenantId, userId, roles: ["none"], permissions: ["projects.read"] },
       {},
     );
 
@@ -265,7 +265,7 @@ describe("who can see which projects", () => {
     // something to see, and a project code is often a client or a bid.
     await expect(
       service.getProject(
-        { tenantId, userId, roles: ["member"], permissions: ["projects.read"] },
+        { tenantId, userId, roles: ["none"], permissions: ["projects.read"] },
         theirs.id,
       ),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
@@ -284,7 +284,7 @@ describe("who can see which projects", () => {
     const headOffice: UserPrincipal = {
       tenantId,
       userId,
-      roles: ["member"],
+      roles: ["none"],
       permissions: ["projects.read", "projects.manage_all"],
     };
 
@@ -305,7 +305,7 @@ describe("who can see which projects", () => {
     // things are hidden would pass with everything hidden.
     await expect(
       service.getProject(
-        { tenantId, userId, roles: ["member"], permissions: ["projects.read"] },
+        { tenantId, userId, roles: ["none"], permissions: ["projects.read"] },
         mine.id,
       ),
     ).resolves.toMatchObject({ code: "MINE-1" });

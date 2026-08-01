@@ -32,7 +32,7 @@ const sessionId = "33333333-3333-4333-8333-333333333333";
 const ruleId = "44444444-4444-4444-8444-444444444444";
 
 async function token(): Promise<string> {
-  return new SignJWT({ tenant_id: tenantId, roles: ["admin"], sid: sessionId })
+  return new SignJWT({ tenant_id: tenantId, roles: ["owner"], sid: sessionId })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(userId)
     .setIssuedAt()
@@ -51,7 +51,7 @@ class MemoryAuthRepository implements AuthRepository {
       tenantId,
       userId,
       expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
-      roles: ["admin"] as never,
+      roles: ["owner"] as never,
       permissions: [],
     };
   }

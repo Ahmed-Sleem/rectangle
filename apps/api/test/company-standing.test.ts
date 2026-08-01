@@ -19,7 +19,6 @@ import {
   companyStandingSchema,
   hasPermission,
   isCompanyAdministrator,
-  isGuest,
   rolePermissions,
   standingOf,
   userPrincipalSchema,
@@ -35,10 +34,15 @@ function principal(standing: string, permissions: string[] = []): UserPrincipal 
 }
 
 describe("company standing", () => {
-  it("offers exactly the four standings and no project roles", () => {
-    // project_manager and friends belong on a project. Holding one company-wide
-    // silently granted it on every project, which is the fault this replaced.
-    expect(companyStandingSchema.options).toEqual(["owner", "admin", "member", "guest"]);
+  it("offers exactly two standings and no project roles", () => {
+    /*
+     * project_manager and friends belong on a project. Holding one
+     * company-wide silently granted it on every project, which is one fault
+     * this replaced. `admin`, `member` and `guest` were the other: each
+     * granted or cancelled access invisibly, so what somebody could do was not
+     * visible on the screen where it was decided.
+     */
+    expect(companyStandingSchema.options).toEqual(["owner", "none"]);
   });
 
   it("refuses more than one standing", () => {
@@ -47,7 +51,7 @@ describe("company standing", () => {
     const twoStandings = userPrincipalSchema.safeParse({
       tenantId,
       userId,
-      roles: ["owner", "member"],
+      roles: ["owner", "none"],
       permissions: [],
     });
 
@@ -55,63 +59,46 @@ describe("company standing", () => {
   });
 
   it("refuses a retired role name outright", () => {
-    for (const retired of ["tenant_owner", "tenant_admin", "project_manager", "viewer", "external_collaborator"]) {
+    for (const retired of ["tenant_owner", "tenant_admin", "admin", "member", "guest", "manager", "viewer"]) {
       expect(userPrincipalSchema.safeParse({ tenantId, userId, roles: [retired], permissions: [] }).success).toBe(false);
     }
   });
 
-  it("grants everything to owners and admins, and nothing to anyone else by standing alone", () => {
+  it("grants everything to the owner and nothing to anyone else by standing alone", () => {
     expect(rolePermissions(["owner"])).toEqual(allPermissions);
-    expect(rolePermissions(["admin"])).toEqual(allPermissions);
-    // A member's access comes from their user types, a guest's from the
-    // projects they belong to. Neither is granted anything company-wide.
-    expect(rolePermissions(["member"])).toEqual([]);
-    expect(rolePermissions(["guest"])).toEqual([]);
+    // Everybody else's access is exactly what was granted to them, so standing
+    // contributes nothing at all.
+    expect(rolePermissions(["none"])).toEqual([]);
   });
 
   it("reads the single standing back", () => {
     expect(standingOf(principal("owner"))).toBe("owner");
-    expect(isCompanyAdministrator(principal("admin"))).toBe(true);
-    expect(isCompanyAdministrator(principal("member"))).toBe(false);
-    expect(isGuest(principal("guest"))).toBe(true);
+    expect(isCompanyAdministrator(principal("owner"))).toBe(true);
+    expect(isCompanyAdministrator(principal("none"))).toBe(false);
   });
 
-  it("lets a member reach the register only through a granted permission", () => {
-    expect(canReadProjectRegistry(principal("member"))).toBe(false);
-    expect(canReadProjectRegistry(principal("member", ["projects.read"]))).toBe(true);
+  it("reaches the register only through a granted permission", () => {
+    expect(canReadProjectRegistry(principal("none"))).toBe(false);
+    expect(canReadProjectRegistry(principal("none", ["projects.read"]))).toBe(true);
   });
 
-  it("keeps a guest out of the company-wide register whatever they are granted", () => {
-    // A guest is external. Even a user type carrying projects.read must not
-    // hand them the whole company's project list; they see what they are added
-    // to, which membership decides.
-    expect(canReadProjectRegistry(principal("guest", ["projects.read"]))).toBe(false);
-    expect(canReachAllProjects(principal("guest", ["projects.manage_all"]))).toBe(false);
+  it("gives head-office reach only to the person granted it", () => {
+    expect(canReachAllProjects(principal("none"))).toBe(false);
+    expect(canReachAllProjects(principal("none", ["projects.manage_all"]))).toBe(true);
+    // The owner reaches everything without being granted it one key at a time.
+    expect(canReachAllProjects(principal("owner"))).toBe(true);
   });
 
-  it("refuses a guest every company-wide capability, whatever their types say", () => {
-    /*
-     * The gap this closes: the web helper already refused this, but the server
-     * — which is the one that decides — did not. A guest assigned a type
-     * carrying settings.manage could have opened the company's mail
-     * configuration, which is the opposite of what "guest" means.
-     */
-    expect(hasPermission(principal("guest", ["settings.manage"]), "settings.manage")).toBe(false);
-    expect(hasPermission(principal("guest", ["users.edit"]), "users.edit")).toBe(false);
-    expect(hasPermission(principal("guest", ["activity.read_all"]), "activity.read_all")).toBe(false);
-    // A member with the same type keeps it: the refusal is about standing.
-    expect(hasPermission(principal("member", ["settings.manage"]), "settings.manage")).toBe(true);
+  it("honours a granted permission and only that one", () => {
+    expect(hasPermission(principal("none", ["users.read"]), "users.read")).toBe(true);
+    expect(hasPermission(principal("none", ["users.read"]), "users.edit")).toBe(false);
   });
 
-  it("still lets a user type carry a permission a member needs", () => {
-    expect(hasPermission(principal("member", ["users.read"]), "users.read")).toBe(true);
-    expect(hasPermission(principal("member", ["users.read"]), "users.edit")).toBe(false);
-  });
-
-  it("does not let a member reach administration by standing", () => {
-    // The seeded full-access user type can still grant this deliberately; what
-    // must not happen is standing quietly conferring it.
-    expect(hasPermission(principal("member"), "settings.manage")).toBe(false);
+  it("does not let anybody reach administration by standing", () => {
+    // `settings.manage` can still be granted deliberately; what must not
+    // happen is standing quietly conferring it.
+    expect(hasPermission(principal("none"), "settings.manage")).toBe(false);
+    expect(hasPermission(principal("none", ["settings.manage"]), "settings.manage")).toBe(true);
     expect(hasPermission(principal("owner"), "settings.manage")).toBe(true);
   });
 });

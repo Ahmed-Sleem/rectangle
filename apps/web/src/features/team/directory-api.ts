@@ -8,6 +8,7 @@
  * stay that way, or the rule would exist in two places and eventually disagree.
  */
 import { apiRequest } from "@/shared/api/client";
+import type { CompanyStanding } from "./admin-api";
 
 export type DirectoryRegister = "company" | "colleagues";
 
@@ -15,7 +16,7 @@ export interface DirectoryProject {
   id: string;
   name: string;
   code: string;
-  /** The subject's role on that project, e.g. `project_admin`. */
+  /** The subject's role on that project: owner, manager, member or viewer. */
   role: string;
   /** Whether the viewer is on it too. */
   sharedWithViewer: boolean;
@@ -27,13 +28,13 @@ export interface DirectoryPerson {
   email: string;
   status: "active" | "invited" | "disabled";
   /** Exactly one company standing, never a set. */
-  standing: "owner" | "admin" | "member" | "guest";
+  standing: CompanyStanding;
   /** Only the projects the viewer may see. Never the subject's full list. */
   projects: DirectoryProject[];
   sharedProjectCount: number;
   openTaskCount: number;
   /** Present for callers who may read users; empty otherwise. */
-  userTypes: Array<{ id: string; name: string; key: string }>;
+  permissions: string[];
 }
 
 export const directoryApi = {

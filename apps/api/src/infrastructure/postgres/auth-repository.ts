@@ -48,14 +48,20 @@ export class PostgresAuthRepository implements AuthRepository {
         users.display_name,
         users.password_hash,
         users.status,
-        coalesce(array_agg(distinct tenant_user_roles.role) filter (where tenant_user_roles.role is not null), '{}') as roles,
-        coalesce(array_agg(distinct permission_value) filter (where permission_value is not null), '{}') as permissions
+        -- Standing is a single row or no row at all, and no row means the
+        -- person simply has none. Defaulted here rather than left empty so the
+        -- principal always carries exactly one, and a token that somehow
+        -- arrives with none is still rejected as malformed.
+        array[coalesce(max(tenant_user_roles.role), 'none')] as roles,
+        coalesce(array_agg(distinct user_permissions.permission) filter (where user_permissions.permission is not null), '{}') as permissions
       from tenants
       join users on users.tenant_id = tenants.id
       left join tenant_user_roles on tenant_user_roles.tenant_id = tenants.id and tenant_user_roles.user_id = users.id
-      left join user_type_assignments on user_type_assignments.tenant_id = tenants.id and user_type_assignments.user_id = users.id
-      left join user_types on user_types.id = user_type_assignments.user_type_id
-      left join lateral unnest(user_types.permissions) as permission_value on true
+      -- Granted to the person. Bundles are a form-filling convenience and are
+      -- deliberately not consulted: a saved list that quietly kept granting
+      -- access after somebody edited a person's permissions would make the
+      -- screen that shows those permissions a lie.
+      left join user_permissions on user_permissions.tenant_id = tenants.id and user_permissions.user_id = users.id
       where ($1 = '' or tenants.slug = $1) and lower(users.email) = lower($2) and users.status = 'active'
       group by tenants.id, tenants.slug, users.id, users.email, users.display_name, users.password_hash, users.status
       limit 1`,
@@ -109,14 +115,12 @@ export class PostgresAuthRepository implements AuthRepository {
       // or revoking access does not take effect until then either.
       `select s.id, s.tenant_id, s.user_id, s.expires_at, s.absolute_expires_at,
               u.display_name, u.email,
-              coalesce(array_agg(distinct r.role) filter (where r.role is not null), '{}') as roles,
-              coalesce(array_agg(distinct permission_value) filter (where permission_value is not null), '{}') as permissions
+              array[coalesce(max(r.role), 'none')] as roles,
+              coalesce(array_agg(distinct up.permission) filter (where up.permission is not null), '{}') as permissions
          from auth_sessions s
          join users u on u.id = s.user_id and u.tenant_id = s.tenant_id
          left join tenant_user_roles r on r.tenant_id = u.tenant_id and r.user_id = u.id
-         left join user_type_assignments a on a.tenant_id = u.tenant_id and a.user_id = u.id
-         left join user_types t on t.id = a.user_type_id
-         left join lateral unnest(t.permissions) as permission_value on true
+         left join user_permissions up on up.tenant_id = u.tenant_id and up.user_id = u.id
         where s.id = $1 and s.tenant_id = $2 and s.user_id = $3
           and s.revoked_at is null
           -- Both deadlines, and the earlier one wins. Checking only the idle

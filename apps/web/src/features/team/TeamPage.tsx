@@ -13,12 +13,11 @@ import { LayoutGrid, Rows3, ShieldCheck, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, type UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import { useOptionalAuth } from "@/shared/auth";
 import {
-  Badge, Button, CardGrid, Checkbox, ConfirmDialog, DataTable, EmptyState,
+  Button, CardGrid, Checkbox, ConfirmDialog, DataTable, EmptyState,
   ErrorState, Field, FormDialog, Input, LoadingState, PageToolbar, StatCard, StatRow,
   ViewToggle,
 } from "@/shared/ui";
@@ -51,14 +50,13 @@ const userFields = z.object({
   password: z.string().max(256).optional(),
   invite: z.boolean(),
   /** Company standing. One value, never a set. */
-  standing: z.enum(["owner", "admin", "member", "guest"]),
+  standing: z.enum(["owner", "none"]),
   /*
-   * Not `min(1)`. An owner or administrator holds every permission by standing,
-   * so requiring a user type of them demanded a choice that changed nothing —
-   * the redundancy the owner reported. The rule that a *member* needs at least
-   * one is expressed below, where the standing is in scope.
+   * Deliberately not `min(1)`. Somebody added so they can be put on a project
+   * holds nothing company-wide, and their membership is what gives them their
+   * work — demanding a tick here would grant access nobody asked for.
    */
-  userTypeIds: z.array(z.string()),
+  permissions: z.array(z.string()),
 });
 
 /**
@@ -66,19 +64,7 @@ const userFields = z.object({
  * It lives on a separate schema because a refined object cannot be narrowed,
  * and the edit form needs to narrow this one.
  */
-/** Everyone whose access comes from user types must be given at least one. */
-function requireTypesUnlessAdministering(
-  value: { standing: string; userTypeIds: string[] },
-  context: z.RefinementCtx,
-): void {
-  if (value.standing === "owner" || value.standing === "admin") return;
-  if (value.userTypeIds.length === 0) {
-    context.addIssue({ code: "custom", path: ["userTypeIds"], message: "required" });
-  }
-}
-
 const userSchema = userFields.superRefine((value, context) => {
-  requireTypesUnlessAdministering(value, context);
   if (value.invite) return;
   const password = value.password ?? "";
   const strong =
@@ -92,9 +78,7 @@ const userSchema = userFields.superRefine((value, context) => {
 });
 
 /** Email is the sign-in identity; a password is not reset by editing a profile. */
-const editUserSchema = userFields
-  .omit({ email: true, password: true, invite: true })
-  .superRefine(requireTypesUnlessAdministering);
+const editUserSchema = userFields.omit({ email: true, password: true, invite: true });
 
 type UserTypeForm = z.infer<typeof userTypeSchema>;
 type EditUserTypeForm = z.infer<typeof editUserTypeSchema>;
@@ -134,35 +118,20 @@ function storeView(value: ViewMode): void {
 }
 
 /**
- * The permissions a set of user types would actually grant, together.
+ * A bundle's name.
  *
- * Shown live while the boxes are ticked. Without it an administrator sees the
- * types they chose but never the combination those types produce, which is how
- * somebody quietly ends up with `settings.manage` from two innocuous-looking
- * roles.
+ * Every bundle is now a company's own, so there is nothing to translate: the
+ * product no longer ships any. Kept as a function because the name is read in
+ * several places and a company later importing a standard set would want one
+ * place to change.
  */
-function effectivePermissions(
-  selectedIds: string[],
-  types: UserTypeRecord[],
-): Array<{ key: string; from: string[] }> {
-  const byPermission = new Map<string, string[]>();
-
-  for (const type of types.filter((candidate) => selectedIds.includes(candidate.id))) {
-    for (const permission of type.permissions) {
-      const sources = byPermission.get(permission) ?? [];
-      sources.push(type.name);
-      byPermission.set(permission, sources);
-    }
-  }
-
-  return [...byPermission.entries()]
-    .map(([key, from]) => ({ key, from }))
-    .sort((a, b) => a.key.localeCompare(b.key));
+function roleName(type: { name: string }): string {
+  return type.name;
 }
 
-/** A built-in role keeps its translated name; a company's own role keeps its own. */
-function roleName(type: { name: string; key: string; systemType?: boolean }, t: TFunction): string {
-  return type.systemType ? t(`enums.systemUserType.${type.key}`, { defaultValue: type.name }) : type.name;
+/** Owners hold every permission by standing, so the list alone is not the answer. */
+function holds(person: DirectoryPerson, permission: string): boolean {
+  return person.standing === "owner" || person.permissions.includes(permission);
 }
 
 export default function TeamPage() {
@@ -175,10 +144,8 @@ export default function TeamPage() {
    * is broken.
    */
   const isOwner = auth?.user?.roles.includes("owner") ?? false;
-  const isTenantAdmin =
-    auth?.user?.roles.some((role) => ["owner", "admin"].includes(role)) ?? false;
   const held = (permission: string) =>
-    isTenantAdmin || (auth?.user?.permissions.includes(permission) ?? false);
+    isOwner || (auth?.user?.permissions.includes(permission) ?? false);
   const canAddUsers = held("users.create");
   const canEditUsers = held("users.edit");
   const canDisableUsers = held("users.disable");
@@ -196,7 +163,7 @@ export default function TeamPage() {
   const [segment, setSegment] = useState<Segment>("users");
   const [view, setView] = useState<ViewMode>(() => readStoredView());
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
+  const [permissionFilter, setPermissionFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   /**
    * Roles keep their own search and filter, rather than sharing the people
@@ -204,7 +171,6 @@ export default function TeamPage() {
    * it means nothing in, and silently narrow it.
    */
   const [roleSearch, setRoleSearch] = useState("");
-  const [roleOriginFilter, setRoleOriginFilter] = useState("");
   const [typeOpen, setTypeOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<DirectoryPerson | null>(null);
@@ -239,9 +205,9 @@ export default function TeamPage() {
   const typeForm = useForm<UserTypeForm>({ resolver: zodResolver(userTypeSchema), defaultValues: { name: "", key: "", description: "", permissions: [] } });
   const userForm = useForm<UserForm>({
     resolver: zodResolver(userSchema),
-    defaultValues: { displayName: "", email: "", password: "", invite: true, standing: "member", userTypeIds: [] },
+    defaultValues: { displayName: "", email: "", password: "", invite: true, standing: "none", permissions: [] },
   });
-  const editUserForm = useForm<EditUserForm>({ resolver: zodResolver(editUserSchema), defaultValues: { displayName: "", standing: "member", userTypeIds: [] } });
+  const editUserForm = useForm<EditUserForm>({ resolver: zodResolver(editUserSchema), defaultValues: { displayName: "", standing: "none", permissions: [] } });
   const editTypeForm = useForm<EditUserTypeForm>({ resolver: zodResolver(editUserTypeSchema), defaultValues: { name: "", description: "", permissions: [] } });
 
   // The edit forms are filled from the record being edited rather than from the
@@ -251,7 +217,7 @@ export default function TeamPage() {
       editUserForm.reset({
         displayName: editingUser.displayName,
         standing: editingUser.standing,
-        userTypeIds: editingUser.userTypes.map((type) => type.id),
+        permissions: [...editingUser.permissions],
       });
     }
   }, [editingUser, editUserForm]);
@@ -277,7 +243,7 @@ export default function TeamPage() {
       adminApi.createUser({
         displayName: values.displayName,
         email: values.email,
-        userTypeIds: values.userTypeIds,
+        permissions: values.permissions,
         standing: values.standing,
         ...(values.invite ? {} : { password: values.password ?? "" }),
       }),
@@ -316,7 +282,12 @@ export default function TeamPage() {
   const filteredUsers = useMemo(() => {
     const narrowed = allUsers.filter((user) => {
       if (statusFilter && user.status !== statusFilter) return false;
-      if (typeFilter && !user.userTypes.some((type) => type.id === typeFilter)) return false;
+      /*
+       * By permission, not by bundle. "Who can delete a project" is the
+       * question an access review actually arrives with, and a bundle filter
+       * could not answer it once bundles stopped granting anything.
+       */
+      if (permissionFilter && !holds(user, permissionFilter)) return false;
       return true;
     });
     // Projects are searchable too: "who is on Nile Tower" is the question a
@@ -326,7 +297,7 @@ export default function TeamPage() {
       user.email,
       ...user.projects.flatMap((project) => [project.name, project.code]),
     ]);
-  }, [allUsers, search, statusFilter, typeFilter]);
+  }, [allUsers, search, statusFilter, permissionFilter]);
 
   /**
    * Roles are searched in the browser for the same reason people are: the whole
@@ -334,21 +305,30 @@ export default function TeamPage() {
    * the shared ones, so a role is found the same way a project is.
    */
   const filteredTypes = useMemo(() => {
-    const narrowed = typeRows.filter((type) => {
-      if (roleOriginFilter === "system" && !type.systemType) return false;
-      if (roleOriginFilter === "custom" && type.systemType) return false;
-      return true;
-    });
-    return searchRecords(narrowed, roleSearch, (type) => [
-      roleName(type, t),
+    /*
+     * No origin filter any more. Every saved list belongs to the company that
+     * made it — the product seeds none — so a "built in / created here" choice
+     * had exactly one possible answer, which is a control that cannot do
+     * anything.
+     */
+    return searchRecords(typeRows, roleSearch, (type) => [
+      roleName(type),
       type.key,
       type.description ?? "",
     ]);
-  }, [typeRows, roleSearch, roleOriginFilter, t]);
+  }, [typeRows, roleSearch]);
 
   const activeCount = allUsers.filter((user) => user.status === "active").length;
   const disabledCount = allUsers.filter((user) => user.status === "disabled").length;
-  const withoutRole = allUsers.filter((user) => user.userTypes.length === 0).length;
+  /*
+   * An account nobody has granted anything to and who is on no project can
+   * sign in and reach nothing. That is a real state — somebody was added and
+   * the second half of the job was forgotten — and it is worth surfacing.
+   */
+  const withoutRole = allUsers.filter(
+    (user) =>
+      user.standing !== "owner" && user.permissions.length === 0 && user.projects.length === 0,
+  ).length;
 
   if (userTypes.isLoading || users.isLoading) {
     return <LoadingState title={t("team.loadingTitle")} message={t("team.loadingMessage")} />;
@@ -369,6 +349,17 @@ export default function TeamPage() {
   }
 
   const permissionOptions = permissions.data?.permissions ?? [];
+
+  /*
+   * What this administrator may pass on. The server refuses a grant the
+   * granter does not hold themselves, so offering more would be offering a
+   * choice that always ends in a refusal. An owner holds everything.
+   */
+  const grantable = isOwner
+    ? permissionOptions.map((option) => option.key)
+    : permissionOptions
+        .map((option) => option.key)
+        .filter((key) => auth?.user?.permissions.includes(key) ?? false);
   const showingUsers = segment === "users";
 
   return (
@@ -417,13 +408,16 @@ export default function TeamPage() {
           showingUsers
             ? [
                 {
-                  id: "type",
+                  id: "permission",
                   type: "select" as const,
-                  label: t("team.filterType"),
-                  anyLabel: t("team.allTypes"),
-                  value: typeFilter,
-                  options: typeRows.map((type) => ({ value: type.id, label: roleName(type, t) })),
-                  onChange: setTypeFilter,
+                  label: t("team.filterPermission"),
+                  anyLabel: t("team.allPermissions"),
+                  value: permissionFilter,
+                  options: permissionOptions.map((option) => ({
+                    value: option.key,
+                    label: option.label,
+                  })),
+                  onChange: setPermissionFilter,
                 },
                 {
                   id: "status",
@@ -438,25 +432,12 @@ export default function TeamPage() {
                   onChange: setStatusFilter,
                 },
               ]
-            : [
-                {
-                  id: "origin",
-                  type: "select" as const,
-                  label: t("team.filterOrigin"),
-                  anyLabel: t("team.allOrigins"),
-                  value: roleOriginFilter,
-                  options: [
-                    { value: "system", label: t("team.originSystem") },
-                    { value: "custom", label: t("team.originCustom") },
-                  ],
-                  onChange: setRoleOriginFilter,
-                },
-              ]
+            : []
         }
         onClearFilters={
           showingUsers
-            ? () => { setSearch(""); setTypeFilter(""); setStatusFilter(""); }
-            : () => { setRoleSearch(""); setRoleOriginFilter(""); }
+            ? () => { setSearch(""); setPermissionFilter(""); setStatusFilter(""); }
+            : () => setRoleSearch("")
         }
         view={{
           value: view,
@@ -517,7 +498,7 @@ export default function TeamPage() {
             title={t("team.noMatchTitle")}
             message={t("team.noMatchMessage")}
             action={
-              <Button variant="secondary" onClick={() => { setSearch(""); setTypeFilter(""); setStatusFilter(""); }}>
+              <Button variant="secondary" onClick={() => { setSearch(""); setPermissionFilter(""); setStatusFilter(""); }}>
                 {t("team.clearFilters")}
               </Button>
             }
@@ -536,7 +517,9 @@ export default function TeamPage() {
             onEdit={(person) => setEditingUser(person)}
             onDisable={(person) => setPendingDisable(person)}
             onEnable={(person) => setStatus.mutate({ userId: person.id, status: "active" })}
-            roleName={(type) => roleName(type, t)}
+            permissionLabel={(key) =>
+              permissionOptions.find((option) => option.key === key)?.label ?? key
+            }
           />
         )
       ) : typeRows.length === 0 ? (
@@ -552,7 +535,7 @@ export default function TeamPage() {
           title={t("team.noRoleMatchTitle")}
           message={t("team.noRoleMatchMessage")}
           action={
-            <Button variant="secondary" onClick={() => { setRoleSearch(""); setRoleOriginFilter(""); }}>
+            <Button variant="secondary" onClick={() => setRoleSearch("")}>
               {t("team.clearFilters")}
             </Button>
           }
@@ -563,7 +546,7 @@ export default function TeamPage() {
           rows={filteredTypes}
           getRowKey={(row) => row.id}
           columns={[
-            { id: "name", header: t("team.userTypeName"), accessor: (row) => roleName(row, t) },
+            { id: "name", header: t("team.userTypeName"), accessor: (row) => roleName(row) },
             { id: "key", header: t("team.userTypeKey"), accessor: (row) => row.key },
             {
               id: "permissions",
@@ -572,13 +555,6 @@ export default function TeamPage() {
                 row.permissions
                   .map((permission) => permissionOptions.find((option) => option.key === permission)?.label ?? permission)
                   .join(t("common.listSeparator")),
-            },
-            {
-              id: "origin",
-              header: t("team.filterOrigin"),
-              accessor: (row) => (
-                <Badge tone="neutral">{row.systemType ? t("team.originSystem") : t("team.originCustom")}</Badge>
-              ),
             },
             ...(canEditRoles
               ? [{
@@ -597,8 +573,7 @@ export default function TeamPage() {
           {filteredTypes.map((type) => (
             <article key={type.id} className="rect-role" role="listitem">
               <header className="rect-role__head">
-                <span className="rect-role__name">{roleName(type, t)}</span>
-                {type.systemType ? <Badge tone="neutral">{t("team.systemRole")}</Badge> : null}
+                <span className="rect-role__name">{roleName(type)}</span>
               </header>
               {type.description ? <p className="rect-role__description">{type.description}</p> : null}
               <div className="rect-role__permissions">
@@ -737,11 +712,10 @@ export default function TeamPage() {
            * Those names stay checked; see AccessFieldsProps.
            */
           form={(editingUser ? editUserForm : userForm) as unknown as UseFormReturn<AccessFormValues>}
-          types={typeRows}
+          bundles={typeRows}
           permissionOptions={permissionOptions}
           isOwner={isOwner}
-          effectivePermissions={effectivePermissions}
-          roleName={roleName}
+          grantable={grantable}
         />
       </FormDialog>
 

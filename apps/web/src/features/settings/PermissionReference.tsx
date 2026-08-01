@@ -126,9 +126,7 @@ export function PermissionReference() {
               <span className="rect-permref__standing-effect">
                 {standing.holdsEverything
                   ? t("permissionReference.standingEverything")
-                  : standing.refusedCompanyWide
-                    ? t("permissionReference.standingGuest")
-                    : t("permissionReference.standingFromTypes")}
+                  : t("permissionReference.standingFromGrants")}
               </span>
             </li>
           ))}

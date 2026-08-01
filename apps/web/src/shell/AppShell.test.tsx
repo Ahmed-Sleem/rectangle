@@ -13,7 +13,7 @@ const shellAuth: AuthContextValue = {
   setupRequired: false,
   loading: false,
   refresh: async () => undefined,
-  user: { tenantId: "1", userId: "2", roles: ["admin"], permissions: [] },
+  user: { tenantId: "1", userId: "2", roles: ["owner"], permissions: [] },
 };
 
 function renderApp(initialPath = "/") {

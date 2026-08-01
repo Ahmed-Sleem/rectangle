@@ -200,44 +200,36 @@ describe("company standing migration", () => {
 
   it("folds a company that already held the admin standing into owner", async () => {
     /*
-     * A separate database, because the shared fixture predates the standing
-     * table's final shape and cannot hold an `admin` row before 012 runs.
-     *
      * This is the case migration 018 must not miss: a company that upgraded at
      * some earlier point holds `admin`, which 018's closing constraint does not
      * permit. Folding it into owner loses nothing — both granted every
      * permission — and leaving it behind makes the migration fail outright
      * against that company's database.
+     *
+     * The constraint is dropped and the legacy row inserted beneath it, which
+     * is precisely the state such a database is in when 018 reaches it, so the
+     * shared instance can carry this rather than a second PostgreSQL being
+     * compiled into memory for one assertion. Removing the fold makes the
+     * re-application below throw, because the closing constraint permits only
+     * `owner` and Postgres validates it against the rows already present.
      */
-    const fresh = new PGlite({ extensions: { pg_trgm, fuzzystrmatch } });
-    try {
-      await migrateUpTo(fresh, "018_direct_user_permissions.sql");
-      await fresh.exec(`
-        insert into tenants (id, name, slug) values
-          ('44444444-4444-4444-8444-444444444444','Upgraded Co','upgraded');
-        insert into users (id, tenant_id, email, display_name, status) values
-          ('44444444-1111-4111-8111-111111111111','44444444-4444-4444-8444-444444444444','a@up.co','Admin Person','active');
-        insert into tenant_user_roles (tenant_id, user_id, role) values
-          ('44444444-4444-4444-8444-444444444444','44444444-1111-4111-8111-111111111111','admin');
-      `);
+    await db.exec(`
+      alter table tenant_user_roles drop constraint if exists tenant_user_roles_role_check;
+      insert into tenants (id, name, slug) values
+        ('44444444-4444-4444-8444-444444444444','Upgraded Co','upgraded');
+      insert into users (id, tenant_id, email, display_name, status) values
+        ('44444444-1111-4111-8111-111111111111','44444444-4444-4444-8444-444444444444','a@up.co','Admin Person','active');
+      insert into tenant_user_roles (tenant_id, user_id, role) values
+        ('44444444-4444-4444-8444-444444444444','44444444-1111-4111-8111-111111111111','admin');
+    `);
 
-      /*
-       * Applied on its own rather than through `migrateUpTo`, which replays
-       * from the first file and would re-run the earlier migrations against a
-       * database that already has them. Removing the fold makes this throw:
-       * the closing constraint permits only `owner`, and Postgres validates it
-       * against the rows already present.
-       */
-      await expect(applyMigration(fresh, "018_direct_user_permissions.sql")).resolves.toBeUndefined();
+    await expect(applyMigration(db, "018_direct_user_permissions.sql")).resolves.toBeUndefined();
 
-      const result = await fresh.query<{ role: string }>(
-        `select role from tenant_user_roles
-          where user_id = '44444444-1111-4111-8111-111111111111'`,
-      );
-      expect(result.rows[0]?.role).toBe("owner");
-    } finally {
-      await fresh.close();
-    }
+    const result = await db.query<{ role: string }>(
+      `select role from tenant_user_roles
+        where user_id = '44444444-1111-4111-8111-111111111111'`,
+    );
+    expect(result.rows[0]?.role).toBe("owner");
   }, 60_000);
 
   it("stops treating any bundle as a system object", async () => {
@@ -315,8 +307,10 @@ describe("company standing migration", () => {
 
     // The owner holds both 'owner' and 'admin' rows in the legacy fixture and
     // is collapsed to one standing by migration 012, so they appear once.
+    // `project_admin` became `owner` in migration 019, which is the same
+    // authority under the name people actually use for it.
     expect(result.rows).toEqual([
-      { user_id: "aaaaaaaa-1111-4111-8111-111111111111", role: "project_admin" },
+      { user_id: "aaaaaaaa-1111-4111-8111-111111111111", role: "owner" },
     ]);
   });
 
@@ -331,8 +325,14 @@ describe("company standing migration", () => {
         where project_id = 'cccccccc-2222-4222-8222-222222222222'`,
     );
 
+    /*
+     * Migration 019 then promotes them, because a project whose whole team is
+     * one viewer has nobody who may delete it or add anyone to it. That is 019
+     * doing its job, not 017 enrolling anybody: the person on the project is
+     * still the only person on it.
+     */
     expect(result.rows).toEqual([
-      { user_id: "aaaaaaaa-2222-4222-8222-222222222222", role: "viewer" },
+      { user_id: "aaaaaaaa-2222-4222-8222-222222222222", role: "owner" },
     ]);
   });
 
@@ -372,6 +372,79 @@ describe("company standing migration", () => {
     expect(disabled.rows[0]?.c).toBe(0);
   });
 
+  it("maps every legacy project role onto the four that remain", async () => {
+    /*
+     * The whole point of 019: no row may survive carrying a name the new
+     * constraint does not permit, and the mapping is by authority rather than
+     * by name. A controls manager could create and edit work, which is what a
+     * member does; an external collaborator could only read, which is a viewer.
+     *
+     * Run against the shared database rather than a fresh one. Standing up
+     * another PGlite costs a whole PostgreSQL compiled to WASM whose pages are
+     * never returned, and the constraint is dropped and re-added here exactly
+     * as 019 itself does it — so this replays a real upgrade rather than
+     * simulating one.
+     */
+    await db.exec(`
+      alter table project_members drop constraint if exists project_members_role_check;
+      insert into tenants (id, name, slug) values
+        ('55555555-5555-4555-8555-555555555555','Legacy Co','legacy');
+      insert into users (id, tenant_id, email, display_name, status) values
+        ('55555555-1111-4111-8111-111111111111','55555555-5555-4555-8555-555555555555','a@l.co','Ali Hassan','active'),
+        ('55555555-2222-4222-8222-222222222222','55555555-5555-4555-8555-555555555555','b@l.co','Basma Nour','active'),
+        ('55555555-3333-4333-8333-333333333333','55555555-5555-4555-8555-555555555555','c@l.co','Cairo Fahmy','active'),
+        ('55555555-4444-4444-8444-444444444444','55555555-5555-4555-8555-555555555555','d@l.co','Dina Salah','active');
+      insert into projects (id, tenant_id, name, code, status) values
+        ('55555555-9999-4999-8999-999999999999','55555555-5555-4555-8555-555555555555','Legacy Tower','LT-001','active');
+      insert into project_members (tenant_id, project_id, user_id, role) values
+        ('55555555-5555-4555-8555-555555555555','55555555-9999-4999-8999-999999999999','55555555-1111-4111-8111-111111111111','project_admin'),
+        ('55555555-5555-4555-8555-555555555555','55555555-9999-4999-8999-999999999999','55555555-2222-4222-8222-222222222222','project_manager'),
+        ('55555555-5555-4555-8555-555555555555','55555555-9999-4999-8999-999999999999','55555555-3333-4333-8333-333333333333','controls_manager'),
+        ('55555555-5555-4555-8555-555555555555','55555555-9999-4999-8999-999999999999','55555555-4444-4444-8444-444444444444','external_collaborator');
+    `);
+
+    await expect(applyMigration(db, "019_project_roles.sql")).resolves.toBeUndefined();
+
+    const result = await db.query<{ email: string; role: string }>(
+      `select u.email, m.role
+         from project_members m
+         join users u on u.id = m.user_id
+        where m.project_id = '55555555-9999-4999-8999-999999999999'
+        order by u.email`,
+    );
+    expect(result.rows).toEqual([
+      { email: "a@l.co", role: "owner" },
+      { email: "b@l.co", role: "owner" },
+      { email: "c@l.co", role: "member" },
+      { email: "d@l.co", role: "viewer" },
+    ]);
+  }, 60_000);
+
+  it("leaves no project without an owner", async () => {
+    // A project whose whole team are viewers has nobody who may delete it or
+    // add anyone to it, which is a project its own team cannot run.
+    const ownerless = await db.query<{ c: number }>(
+      `select count(*)::int as c from projects p
+        where not exists (
+          select 1 from project_members m
+           where m.tenant_id = p.tenant_id and m.project_id = p.id and m.role = 'owner'
+        )`,
+    );
+    expect(ownerless.rows[0]?.c).toBe(0);
+  });
+
+  it("refuses a legacy project role afterwards", async () => {
+    // The constraint is what stops the old names coming back through a code
+    // path nobody updated.
+    await expect(
+      db.exec(`
+        insert into project_members (tenant_id, project_id, user_id, role) values
+          ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','cccccccc-1111-4111-8111-111111111111',
+           'aaaaaaaa-1111-4111-8111-111111111111','controls_manager');
+      `),
+    ).rejects.toThrow();
+  });
+
   it("falls back to the longest-standing active person when every admin is disabled", async () => {
     // The company where skipping disabled accounts would otherwise leave the
     // project exactly where it started.
@@ -382,6 +455,6 @@ describe("company standing migration", () => {
         where m.project_id = 'cccccccc-3333-4333-8333-333333333333'`,
     );
 
-    expect(result.rows).toEqual([{ email: "worker@c.co", role: "project_admin" }]);
+    expect(result.rows).toEqual([{ email: "worker@c.co", role: "owner" }]);
   });
 });

@@ -12,7 +12,7 @@ function renderSettingsPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <RectangleI18nProvider>
-        <AuthContext.Provider value={{ setupRequired: false, user: { tenantId: "1", userId: "2", roles: ["admin"], permissions: ["settings.manage"] }, loading: false, refresh: async () => undefined }}>
+        <AuthContext.Provider value={{ setupRequired: false, user: { tenantId: "1", userId: "2", roles: ["owner"], permissions: ["settings.manage"] }, loading: false, refresh: async () => undefined }}>
           <SettingsPage />
         </AuthContext.Provider>
       </RectangleI18nProvider>

@@ -24,7 +24,7 @@ const tenantId = "11111111-1111-4111-8111-111111111111";
 const settingsAdmin: UserPrincipal = {
   tenantId,
   userId: "22222222-2222-4222-8222-222222222222",
-  roles: ["member"],
+  roles: ["none"],
   permissions: ["settings.manage"],
 };
 
@@ -32,7 +32,7 @@ const settingsAdmin: UserPrincipal = {
 const outsider: UserPrincipal = {
   tenantId,
   userId: "33333333-3333-4333-8333-333333333333",
-  roles: ["member"],
+  roles: ["none"],
   permissions: ["users.read", "user_types.read"],
 };
 
@@ -62,7 +62,7 @@ class MemoryRepository {
     return type;
   }
 
-  addUser(displayName: string, types: UserTypeRecord[], standing: AdminUserRecord["standing"] = "member"): AdminUserRecord {
+  addUser(displayName: string, permissions: Permission[], standing: AdminUserRecord["standing"] = "none"): AdminUserRecord {
     const user: AdminUserRecord = {
       id: randomUUID(),
       tenantId,
@@ -70,7 +70,7 @@ class MemoryRepository {
       displayName,
       status: "active",
       standing,
-      userTypes: types.map((type) => ({ id: type.id, name: type.name, key: type.key })),
+      permissions: [...permissions],
       projectCount: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -84,30 +84,17 @@ class MemoryRepository {
   }
 
   async findSeparationViolators(_tenant: string, a: string, b: string) {
-    const carrying = (user: AdminUserRecord, permission: string) =>
-      user.userTypes
-        .map((assigned) => this.userTypes.find((type) => type.id === assigned.id))
-        .filter((type): type is UserTypeRecord =>
-          Boolean(type?.permissions.includes(permission as Permission)))
-        .map((type) => ({ id: type.id, name: type.name }));
-
     return this.users
-      .filter((user) => user.standing !== "owner" && user.standing !== "admin")
-      .map((user) => ({
-        userId: user.id,
-        displayName: user.displayName,
-        email: user.email,
-        typesGrantingA: carrying(user, a),
-        typesGrantingB: carrying(user, b),
-        totalTypes: user.userTypes.length,
-      }))
-      .filter((row) => row.typesGrantingA.length > 0 && row.typesGrantingB.length > 0);
+      .filter((user) => user.standing !== "owner")
+      .filter((user) =>
+        user.permissions.includes(a as Permission) && user.permissions.includes(b as Permission))
+      .map((user) => ({ userId: user.id, displayName: user.displayName, email: user.email }));
   }
 
   async createSeparationRule(
     _tenant: string,
     input: { a: string; b: string; reason: string },
-    strip: Array<{ userId: string; userTypeIds: string[] }>,
+    revoke: { permission: string; userIds: string[] },
   ): Promise<SeparationRule> {
     const rule: SeparationRule = {
       id: randomUUID(),
@@ -116,10 +103,10 @@ class MemoryRepository {
       reason: input.reason,
     };
     this.rules.push(rule);
-    for (const person of strip) {
-      const user = this.users.find((candidate) => candidate.id === person.userId);
+    for (const userId of revoke.userIds) {
+      const user = this.users.find((candidate) => candidate.id === userId);
       if (!user) continue;
-      user.userTypes = user.userTypes.filter((type) => !person.userTypeIds.includes(type.id));
+      user.permissions = user.permissions.filter((permission) => permission !== revoke.permission);
     }
     return rule;
   }
@@ -221,9 +208,9 @@ describe("declaring a rule", () => {
 
   it("records who lost what, because that is what somebody reconstructs later", async () => {
     const { service, repo, audit } = createService();
-    const assigner = repo.addType("People Admin", ["users.read", "users.edit"]);
-    const author = repo.addType("Role Author", ["user_types.read", "user_types.create"]);
-    const person = repo.addUser("Mona Adel", [assigner, author]);
+    const person = repo.addUser("Mona Adel", [
+      "users.read", "users.edit", "user_types.read", "user_types.create",
+    ]);
 
     await service.createSeparationRule(settingsAdmin, {
       a: "users.edit", b: "user_types.create", reason: REASON, losing: "users.edit",
@@ -239,10 +226,8 @@ describe("declaring a rule", () => {
 describe("what a rule would cost, before it is declared", () => {
   it("names the people who already hold both halves", async () => {
     const { service, repo } = createService();
-    const assigner = repo.addType("People Admin", ["users.read", "users.edit"]);
-    const author = repo.addType("Role Author", ["user_types.read", "user_types.create"]);
-    repo.addUser("Mona Adel", [assigner, author]);
-    repo.addUser("Omar Fathy", [assigner]);
+    repo.addUser("Mona Adel", ["users.read", "users.edit", "user_types.read", "user_types.create"]);
+    repo.addUser("Omar Fathy", ["users.read", "users.edit"]);
 
     const preview = await service.previewSeparationRule(settingsAdmin, {
       a: "users.edit", b: "user_types.create",
@@ -253,25 +238,22 @@ describe("what a rule would cost, before it is declared", () => {
   it("changes nothing", async () => {
     // A preview that quietly applied would be the opposite of what it is for.
     const { service, repo } = createService();
-    const assigner = repo.addType("People Admin", ["users.read", "users.edit"]);
-    const author = repo.addType("Role Author", ["user_types.read", "user_types.create"]);
-    const person = repo.addUser("Mona Adel", [assigner, author]);
+    const person = repo.addUser("Mona Adel", [
+      "users.read", "users.edit", "user_types.read", "user_types.create",
+    ]);
 
     await service.previewSeparationRule(settingsAdmin, { a: "users.edit", b: "user_types.create" });
-    expect(person.userTypes).toHaveLength(2);
+    expect(person.permissions).toHaveLength(4);
     expect(repo.rules).toHaveLength(0);
   });
 
-  it("exempts owners and administrators, who hold everything by standing", async () => {
+  it("exempts the owner, who holds everything by standing", async () => {
     /*
-     * Otherwise every rule names every administrator and the list is noise
-     * hiding the violations that can actually be acted on.
+     * Otherwise every rule names the owner and the list is noise hiding the
+     * violations that can actually be acted on.
      */
     const { service, repo } = createService();
-    const assigner = repo.addType("People Admin", ["users.read", "users.edit"]);
-    const author = repo.addType("Role Author", ["user_types.read", "user_types.create"]);
-    repo.addUser("An Owner", [assigner, author], "owner");
-    repo.addUser("An Admin", [assigner, author], "admin");
+    repo.addUser("An Owner", ["users.edit", "user_types.create"], "owner");
 
     const preview = await service.previewSeparationRule(settingsAdmin, {
       a: "users.edit", b: "user_types.create",
@@ -279,93 +261,52 @@ describe("what a rule would cost, before it is declared", () => {
     expect(preview.violators).toHaveLength(0);
   });
 
-  it("says which side cannot be given up without emptying somebody", async () => {
-    // Flagged per side so the screen can rule out a choice before it is made,
-    // rather than refusing after the administrator has committed to one.
-    const { service, repo } = createService();
-    const both = repo.addType("Office Manager", [
-      "users.read", "users.edit", "user_types.read", "user_types.create",
-    ]);
-    repo.addUser("Sole Type", [both]);
-
-    const preview = await service.previewSeparationRule(settingsAdmin, {
-      a: "users.edit", b: "user_types.create",
-    });
-    expect(preview.violators[0]?.losesEverythingIfA).toBe(true);
-    expect(preview.violators[0]?.losesEverythingIfB).toBe(true);
-  });
 });
 
 describe("resolving the people who already break it", () => {
-  it("takes the losing type off the violator and leaves their other access", async () => {
+  it("revokes the losing permission and leaves their other access", async () => {
     const { service, repo } = createService();
-    const assigner = repo.addType("People Admin", ["users.read", "users.edit"]);
-    const author = repo.addType("Role Author", ["user_types.read", "user_types.create"]);
-    const person = repo.addUser("Mona Adel", [assigner, author]);
+    const person = repo.addUser("Mona Adel", [
+      "users.read", "users.edit", "user_types.read", "user_types.create",
+    ]);
 
     const result = await service.createSeparationRule(settingsAdmin, {
       a: "users.edit", b: "user_types.create", reason: REASON, losing: "users.edit",
     });
 
     expect(result.strippedFrom).toBe(1);
-    expect(person.userTypes.map((type) => type.name)).toEqual(["Role Author"]);
+    expect(person.permissions).toEqual(["users.read", "user_types.read", "user_types.create"]);
   });
 
   it("gives up the other side when that is what was chosen", async () => {
     const { service, repo } = createService();
-    const assigner = repo.addType("People Admin", ["users.read", "users.edit"]);
-    const author = repo.addType("Role Author", ["user_types.read", "user_types.create"]);
-    const person = repo.addUser("Mona Adel", [assigner, author]);
+    const person = repo.addUser("Mona Adel", [
+      "users.read", "users.edit", "user_types.read", "user_types.create",
+    ]);
 
     await service.createSeparationRule(settingsAdmin, {
       a: "users.edit", b: "user_types.create", reason: REASON, losing: "user_types.create",
     });
-    expect(person.userTypes.map((type) => type.name)).toEqual(["People Admin"]);
+    expect(person.permissions).toEqual(["users.read", "users.edit", "user_types.read"]);
   });
 
-  it("never edits the user type itself", async () => {
+  it("touches nobody who was not in violation", async () => {
     /*
-     * The whole reason removal is per person. Editing "People Admin" to drop
-     * the permission would change access for everybody holding it, including
-     * people who were never in violation — a far larger act than the one being
-     * asked for, and one that already has its own screen.
+     * The whole reason revocation is per person. Somebody holding one half of
+     * the pair was never in violation, and a control that takes access from
+     * them is doing something nobody asked for.
      */
     const { service, repo } = createService();
-    const assigner = repo.addType("People Admin", ["users.read", "users.edit"]);
-    const author = repo.addType("Role Author", ["user_types.read", "user_types.create"]);
-    repo.addUser("Mona Adel", [assigner, author]);
-    const bystander = repo.addUser("Omar Fathy", [assigner]);
+    repo.addUser("Mona Adel", [
+      "users.read", "users.edit", "user_types.read", "user_types.create",
+    ]);
+    const bystander = repo.addUser("Omar Fathy", ["users.read", "users.edit"]);
 
     await service.createSeparationRule(settingsAdmin, {
       a: "users.edit", b: "user_types.create", reason: REASON, losing: "users.edit",
     });
 
-    expect(assigner.permissions).toContain("users.edit");
-    expect(bystander.userTypes).toHaveLength(1);
-  });
-
-  it("refuses when somebody would be left with no user type at all", async () => {
-    /*
-     * They could still sign in and would reach nothing — an account that looks
-     * real and is not, created as a side effect of switching a control on. The
-     * names come back so the administrator can give them another type first,
-     * which is a thing they can actually do.
-     */
-    const { service, repo } = createService();
-    const both = repo.addType("Office Manager", [
-      "users.read", "users.edit", "user_types.read", "user_types.create",
-    ]);
-    const person = repo.addUser("Sole Type", [both]);
-
-    await expect(
-      service.createSeparationRule(settingsAdmin, {
-        a: "users.edit", b: "user_types.create", reason: REASON, losing: "users.edit",
-      }),
-    ).rejects.toThrow(/no access at all/iu);
-
-    // Nothing half-applied: no rule, and the person keeps what they had.
-    expect(repo.rules).toHaveLength(0);
-    expect(person.userTypes).toHaveLength(1);
+    expect(bystander.permissions).toEqual(["users.read", "users.edit"]);
   });
 
   it("refuses a pair that is already separated, whichever way round", async () => {
@@ -387,7 +328,7 @@ describe("resolving the people who already break it", () => {
 
   it("saves cleanly when nobody is in violation", async () => {
     const { service, repo } = createService();
-    repo.addUser("Nobody Special", [repo.addType("Read Only", ["projects.read"])]);
+    repo.addUser("Nobody Special", ["projects.read"]);
 
     const result = await service.createSeparationRule(settingsAdmin, {
       a: "users.edit", b: "user_types.create", reason: REASON, losing: "users.edit",
@@ -416,16 +357,16 @@ describe("retiring a rule", () => {
      * also be guesswork: the person may have been given something else since.
      */
     const { service, repo } = createService();
-    const assigner = repo.addType("People Admin", ["users.read", "users.edit"]);
-    const author = repo.addType("Role Author", ["user_types.read", "user_types.create"]);
-    const person = repo.addUser("Mona Adel", [assigner, author]);
+    const person = repo.addUser("Mona Adel", [
+      "users.read", "users.edit", "user_types.read", "user_types.create",
+    ]);
 
     const { rule } = await service.createSeparationRule(settingsAdmin, {
       a: "users.edit", b: "user_types.create", reason: REASON, losing: "users.edit",
     });
     await service.deleteSeparationRule(settingsAdmin, String(rule.id));
 
-    expect(person.userTypes.map((type) => type.name)).toEqual(["Role Author"]);
+    expect(person.permissions).not.toContain("users.edit");
   });
 
   it("reports a rule that was never there rather than succeeding quietly", async () => {

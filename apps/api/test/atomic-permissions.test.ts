@@ -34,7 +34,7 @@ const PROJECT = "22222222-2222-4222-8222-222222222222";
 function person(
   userId: string,
   permissions: Permission[],
-  standing: "owner" | "admin" | "member" | "guest" = "member",
+  standing: "owner" | "none" = "none",
 ): UserPrincipal {
   return { tenantId: TENANT, userId, roles: [standing], permissions };
 }
@@ -160,7 +160,7 @@ describe("reach is separate from capability", () => {
      * run a project has to mean.
      */
     const controls = person("aaaaaaaa-4444-4444-8444-444444444444", ["projects.read"]);
-    const { service } = await buildWith([[controls.userId, "controls_manager"]]);
+    const { service } = await buildWith([[controls.userId, "member"]]);
     await expect(service.updateProject(controls, PROJECT, { name: "Renamed" })).rejects.toThrow(
       DomainError,
     );
@@ -194,13 +194,13 @@ describe("deleting a project is stricter than changing one", () => {
   });
 
   it("refuses a project manager on that very project", async () => {
-    const { service, projects } = await buildWith([[SITE_ADMIN.userId, "project_manager"]]);
-    await expect(service.deleteProject(SITE_ADMIN, PROJECT)).rejects.toThrow(/project administrator/iu);
+    const { service, projects } = await buildWith([[SITE_ADMIN.userId, "manager"]]);
+    await expect(service.deleteProject(SITE_ADMIN, PROJECT)).rejects.toThrow(/owning it/iu);
     expect(projects.deleted).toBe(false);
   });
 
   it("allows the project's own administrator holding the permission", async () => {
-    const { service, projects } = await buildWith([[SITE_ADMIN.userId, "project_admin"]]);
+    const { service, projects } = await buildWith([[SITE_ADMIN.userId, "owner"]]);
     await expect(service.deleteProject(SITE_ADMIN, PROJECT)).resolves.toBeUndefined();
     expect(projects.deleted).toBe(true);
   });
@@ -209,7 +209,7 @@ describe("deleting a project is stricter than changing one", () => {
     // Appointment alone must not carry the power to destroy, or the strict rule
     // is only as strict as who can edit a project's team.
     const appointed = person("aaaaaaaa-6666-4666-8666-666666666666", ["projects.read"]);
-    const { service, projects } = await buildWith([[appointed.userId, "project_admin"]]);
+    const { service, projects } = await buildWith([[appointed.userId, "owner"]]);
     await expect(service.deleteProject(appointed, PROJECT)).rejects.toThrow(DomainError);
     expect(projects.deleted).toBe(false);
   });
@@ -226,14 +226,14 @@ describe("a project role means something on its own project", () => {
   it("lets a project administrator run their own team without a company grant", () => {
     // Otherwise the appointment is decorative: a site team would have to ask
     // head office before adding its own people.
-    expect(roleGrantsOnProject("project_admin", "project_team.manage")).toBe(true);
-    expect(roleGrantsOnProject("project_admin", "tasks.create")).toBe(true);
+    expect(roleGrantsOnProject("owner", "project_team.manage")).toBe(true);
+    expect(roleGrantsOnProject("owner", "tasks.create")).toBe(true);
   });
 
   it("never lets a project role carry the power to destroy the project", () => {
     // Deletion is checked separately and needs the company grant as well, so
     // this must not be reachable by appointment.
-    for (const role of ["project_admin", "project_manager", "controls_manager", "viewer", "external_collaborator"] as const) {
+    for (const role of ["owner", "manager", "member", "viewer", "viewer"] as const) {
       expect(roleGrantsOnProject(role, "projects.delete")).toBe(false);
     }
   });
@@ -246,7 +246,7 @@ describe("a project role means something on its own project", () => {
 
   it("keeps a project role from granting anything company-wide", () => {
     // A role held on one project must never reach company administration.
-    for (const role of ["project_admin", "project_manager"] as const) {
+    for (const role of ["owner", "manager"] as const) {
       for (const companyWide of ["settings.manage", "users.create", "user_types.create", "activity.read_all"]) {
         expect(roleGrantsOnProject(role, companyWide)).toBe(false);
       }
@@ -254,18 +254,21 @@ describe("a project role means something on its own project", () => {
   });
 });
 
-describe("guests stay external whatever they are granted", () => {
-  it("refuses a guest the head-office reach even if a user type carries it", () => {
-    expect(canReachAllProjects(person("aaaaaaaa-8888-4888-8888-888888888888", ["projects.manage_all"], "guest")))
-      .toBe(false);
+describe("somebody with no standing holds only what was granted to them", () => {
+  it("gives head-office reach only to the person actually granted it", () => {
+    // The reach that used to be cancelled by being a "guest" is now simply not
+    // held, because nothing grants it invisibly.
+    expect(canReachAllProjects(person("aaaaaaaa-8888-4888-8888-888888888888", []))).toBe(false);
+    expect(canReachAllProjects(person("aaaaaaaa-8888-4888-8888-888888888888", ["projects.manage_all"])))
+      .toBe(true);
   });
 
-  it("refuses a guest every one of the new keys", () => {
+  it("refuses every permission to somebody granted none of them", () => {
     // Written as a loop over the whole set so a permission added later cannot
-    // quietly become the one a guest is allowed to hold.
-    const guest = person("aaaaaaaa-9999-4999-8999-999999999999", [...allPermissions], "guest");
+    // quietly become the one that is held without being granted.
+    const nobody = person("aaaaaaaa-9999-4999-8999-999999999999", []);
     for (const permission of allPermissions) {
-      expect(hasPermission(guest, permission)).toBe(false);
+      expect(hasPermission(nobody, permission)).toBe(false);
     }
   });
 });

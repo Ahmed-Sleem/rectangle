@@ -22,10 +22,10 @@ const tenantId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
 
 const owner: UserPrincipal = { tenantId, userId, roles: ["owner"], permissions: [] };
-const admin: UserPrincipal = { tenantId, userId, roles: ["admin"], permissions: [] };
-const reader: UserPrincipal = { tenantId, userId, roles: ["member"], permissions: ["users.read"] };
-const member: UserPrincipal = { tenantId, userId, roles: ["member"], permissions: ["projects.read"] };
-const guest: UserPrincipal = { tenantId, userId, roles: ["guest"], permissions: ["users.read"] };
+const admin: UserPrincipal = { tenantId, userId, roles: ["owner"], permissions: [] };
+const reader: UserPrincipal = { tenantId, userId, roles: ["none"], permissions: ["users.read"] };
+const member: UserPrincipal = { tenantId, userId, roles: ["none"], permissions: ["projects.read"] };
+const outsider: UserPrincipal = { tenantId, userId, roles: ["none"], permissions: [] };
 
 class RecordingRepository implements DirectoryRepository {
   companyCalled = false;
@@ -68,11 +68,11 @@ describe("which register a caller may open", () => {
     expect(service.availableRegisters(member)).toEqual(["colleagues"]);
   });
 
-  it("offers only colleagues to a guest, whatever their user types grant", () => {
-    // The guest above is deliberately given `users.read`. Standing overrides
+  it("offers only colleagues to a outsider, whatever their user types grant", () => {
+    // The outsider above is deliberately given `users.read`. Standing overrides
     // it at the server, and this is the assertion that says so.
     const service = new DirectoryService(new RecordingRepository());
-    expect(service.availableRegisters(guest)).toEqual(["colleagues"]);
+    expect(service.availableRegisters(outsider)).toEqual(["colleagues"]);
   });
 });
 
@@ -82,9 +82,9 @@ describe("the company register is an administrative view", () => {
     await expect(service.listCompanyDirectory(member)).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
-  it("refuses a guest holding users.read", async () => {
+  it("refuses a outsider holding users.read", async () => {
     const repository = new RecordingRepository();
-    await expect(new DirectoryService(repository).listCompanyDirectory(guest)).rejects.toMatchObject({
+    await expect(new DirectoryService(repository).listCompanyDirectory(outsider)).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
     // Refused before the query, not after: a repository that ran and had its
@@ -106,14 +106,14 @@ describe("the colleague register is open to everyone", () => {
     expect(repository.colleaguesCalled).toBe(true);
   });
 
-  it("is available to a guest", async () => {
+  it("is available to a outsider", async () => {
     /*
      * Membership already discloses who else is on a project — the workspace
      * lists them — so withholding this would protect nothing while leaving a
      * person unable to name the colleague they are working beside.
      */
     const repository = new RecordingRepository();
-    await new DirectoryService(repository).listColleagues(guest);
+    await new DirectoryService(repository).listColleagues(outsider);
     expect(repository.colleaguesCalled).toBe(true);
   });
 });
@@ -130,7 +130,7 @@ describe("rows are bounded by the viewer's reach", () => {
     await new DirectoryService(repository).listCompanyDirectory({
       tenantId,
       userId,
-      roles: ["member"],
+      roles: ["none"],
       permissions: ["users.read", "projects.manage_all"],
     });
     expect(repository.lastReach).toEqual({ all: true, userId });
@@ -142,13 +142,13 @@ describe("rows are bounded by the viewer's reach", () => {
     expect(repository.lastReach).toEqual({ all: true, userId });
   });
 
-  it("never gives a guest full reach", async () => {
+  it("gives full reach only to somebody actually granted it", async () => {
     const repository = new RecordingRepository();
     await new DirectoryService(repository).listColleagues({
       tenantId,
       userId,
-      roles: ["guest"],
-      permissions: ["projects.manage_all"],
+      roles: ["none"],
+      permissions: [],
     });
     expect(repository.lastReach).toEqual({ all: false, userId });
   });

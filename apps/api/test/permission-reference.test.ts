@@ -29,39 +29,30 @@ const tenantId = "11111111-1111-4111-8111-111111111111";
 const reader: UserPrincipal = {
   tenantId,
   userId: "22222222-2222-4222-8222-222222222222",
-  roles: ["member"],
+  roles: ["none"],
   permissions: ["settings.manage"],
 };
 
 const outsider: UserPrincipal = {
   tenantId,
   userId: "33333333-3333-4333-8333-333333333333",
-  roles: ["member"],
+  roles: ["none"],
   // Enough to edit roles, deliberately not enough to read the whole model.
   permissions: ["user_types.read", "user_types.edit", "users.read"],
 };
 
 class MemoryRepository {
-  userTypes: UserTypeRecord[] = [];
+  people: Array<{ id: string; name: string; permissions: Permission[] }> = [];
 
-  addType(name: string, permissions: Permission[]): UserTypeRecord {
-    const type: UserTypeRecord = {
-      id: randomUUID(),
-      tenantId,
-      name,
-      key: name.toLowerCase().replace(/\s+/gu, "_"),
-      permissions,
-      systemType: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    this.userTypes.push(type);
-    return type;
+  addPerson(name: string, permissions: Permission[]) {
+    const person = { id: randomUUID(), name, permissions };
+    this.people.push(person);
+    return person;
   }
 
-  async ensureSystemUserTypes(): Promise<void> {}
-  async listUserTypes(): Promise<UserTypeRecord[]> {
-    return this.userTypes;
+  async listPermissionHolders(): Promise<Array<{ permission: string; id: string; name: string }>> {
+    return this.people.flatMap((person) =>
+      person.permissions.map((permission) => ({ permission, id: person.id, name: person.name })));
   }
 }
 
@@ -117,31 +108,31 @@ describe("the permission list", () => {
     }
   });
 
-  it("names the user types that grant each permission", async () => {
+  it("names the people who hold each permission", async () => {
     const { service, repo } = createService();
-    repo.addType("People Admin", ["users.read", "users.edit"]);
-    repo.addType("Read Only", ["projects.read"]);
+    repo.addPerson("Mona Adel", ["users.read", "users.edit"]);
+    repo.addPerson("Sara Fouad", ["projects.read"]);
 
     const reference = await service.getPermissionReference(reader);
     const usersEdit = reference.permissions.find((entry) => entry.key === "users.edit");
-    expect(usersEdit?.heldBy.map((type) => type.name)).toEqual(["People Admin"]);
+    expect(usersEdit?.heldBy.map((person) => person.name)).toEqual(["Mona Adel"]);
 
     const settings = reference.permissions.find((entry) => entry.key === "settings.manage");
     expect(settings?.heldBy).toEqual([]);
   });
 
-  it("does not claim a type grants something it does not", async () => {
+  it("does not claim somebody holds a permission they do not", async () => {
     /*
      * Checked against every permission rather than a sample: the holding list
      * is the part somebody will read to answer "who can do this", and being
      * wrong in one row is enough to make the page untrustworthy.
      */
     const { service, repo } = createService();
-    const office = repo.addType("Project Office", ["projects.read", "projects.create"]);
+    const office = repo.addPerson("Karim Adel", ["projects.read", "projects.create"]);
 
     const reference = await service.getPermissionReference(reader);
     for (const entry of reference.permissions) {
-      const claimed = entry.heldBy.some((type) => type.id === office.id);
+      const claimed = entry.heldBy.some((person) => person.id === office.id);
       expect(claimed).toBe(office.permissions.includes(entry.key));
     }
   });
@@ -150,9 +141,9 @@ describe("the permission list", () => {
 describe("standings, read from the guards rather than restated", () => {
   it("agrees with rolePermissions about who holds everything", async () => {
     /*
-     * The rule a matrix cannot show. An owner with no user types holds all
-     * twenty-seven permissions, so a table of type-to-permission would render
-     * them as having nothing.
+     * The rule a matrix cannot show. An owner holds every permission without a
+     * single grant recorded against them, so a table built from grants alone
+     * would render them as having nothing.
      */
     const { service } = createService();
     const reference = await service.getPermissionReference(reader);
@@ -164,22 +155,25 @@ describe("standings, read from the guards rather than restated", () => {
     }
   });
 
-  it("agrees with hasPermission about guests being refused", async () => {
-    // A guest holding a type carrying `settings.manage` is still refused it.
-    // The reference has to say so or it describes access the product denies.
+  it("does not claim a standing grants what the guard refuses", async () => {
+    /*
+     * Stated as the property rather than as two expected rows: whatever the
+     * standings are, the reference must agree with the guard about each one, so
+     * adding a standing later cannot make the page describe access the product
+     * denies.
+     */
     const { service } = createService();
     const reference = await service.getPermissionReference(reader);
 
     for (const standing of companyStandingSchema.options) {
-      const principal: UserPrincipal = {
+      const withoutGrants: UserPrincipal = {
         tenantId,
         userId: reader.userId,
         roles: [standing],
-        permissions: ["settings.manage"],
+        permissions: [],
       };
-      const refused = !hasPermission(principal, "settings.manage");
       const entry = reference.standings.find((row) => row.standing === standing);
-      expect(entry?.refusedCompanyWide).toBe(refused);
+      expect(entry?.holdsEverything).toBe(hasPermission(withoutGrants, "settings.manage"));
     }
   });
 });

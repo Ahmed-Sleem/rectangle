@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 import type { UserPrincipal } from "../domain/auth.js";
+import { permissionDescriptions } from "../domain/permissions.js";
 import { DomainError } from "../domain/errors.js";
 import type { LoginThrottle } from "../domain/login-throttle.js";
 import type { PasswordHasher } from "../infrastructure/password.js";
@@ -46,7 +47,15 @@ export interface ProfileRecord {
   status: string;
   roles: string[];
   permissions: string[];
-  userTypes: Array<{ id: string; name: string; key: string }>;
+  /**
+   * The permissions again, with the words the catalogue uses for them.
+   *
+   * Sent rather than looked up in the browser because the profile page is
+   * open to everyone, and the permission catalogue is not: reading it needs
+   * `user_types.read`. Without this a person with no administrative access
+   * would see their own permissions rendered as raw keys.
+   */
+  permissionLabels: Array<{ key: string; label: string }>;
   passkeyCount: number;
   createdAt: string;
 }
@@ -81,7 +90,23 @@ export class ProfileService {
     if (!profile) {
       throw new DomainError("NOT_FOUND", "Your profile could not be loaded.");
     }
-    return profile;
+    return this.withLabels(profile);
+  }
+
+  /**
+   * Attaches the catalogue's words to whatever the person holds.
+   *
+   * Read from `permissionDescriptions`, the same list the picker and the
+   * reference page are built from, so one rename changes every screen.
+   */
+  private withLabels(profile: ProfileRecord): ProfileRecord {
+    return {
+      ...profile,
+      permissionLabels: profile.permissions.map((key) => ({
+        key,
+        label: permissionDescriptions.find((entry) => entry.key === key)?.label ?? key,
+      })),
+    };
   }
 
   async updateProfile(actor: UserPrincipal, rawInput: unknown): Promise<ProfileRecord> {

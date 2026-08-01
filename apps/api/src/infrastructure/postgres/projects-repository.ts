@@ -75,7 +75,7 @@ export class PostgresProjectsRepository implements ProjectsRepository {
        */
       await client.query(
         `insert into project_members (tenant_id, project_id, user_id, role)
-         values ($1, $2, $3, 'project_admin')
+         values ($1, $2, $3, 'owner')
          on conflict (project_id, user_id) do nothing`,
         [tenantId, created.id, creatorUserId],
       );

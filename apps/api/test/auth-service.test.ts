@@ -63,7 +63,7 @@ async function createService() {
     displayName: "Project Owner",
     passwordHash,
     status: "active",
-    roles: ["admin"],
+    roles: ["owner"],
     permissions: [],
   });
   const throttle = new InMemoryLoginThrottle({ maxAttempts: 3, windowSeconds: 60, lockoutSeconds: 120 });
@@ -80,7 +80,7 @@ describe("AuthService", () => {
       password: "VeryStrongPassword123!",
     });
 
-    expect(result.user.roles).toContain("admin");
+    expect(result.user.roles).toContain("owner");
     expect(audit.events).toHaveLength(1);
     expect(audit.events[0]).toMatchObject({ action: "auth.login", result: "success", entityId: userId });
 

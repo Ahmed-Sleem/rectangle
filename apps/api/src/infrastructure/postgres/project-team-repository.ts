@@ -241,11 +241,17 @@ export class PostgresProjectTeamRepository {
     }
   }
 
-  /** Number of remaining project administrators, used to keep at least one in place. */
-  async countAdmins(tenantId: string, projectId: string): Promise<number> {
+  /**
+   * Owners still on the project, used to keep at least one in place.
+   *
+   * Owners specifically, not anybody who can manage. A project left with only
+   * managers has nobody who may delete it or appoint anyone, so it cannot be
+   * wound up or restaffed without a company owner intervening.
+   */
+  async countOwners(tenantId: string, projectId: string): Promise<number> {
     const result = await this.pool.query<{ count: string }>(
       `select count(*)::text as count from project_members
-        where tenant_id = $1 and project_id = $2 and role in ('project_admin','project_manager')`,
+        where tenant_id = $1 and project_id = $2 and role = 'owner'`,
       [tenantId, projectId],
     );
     return Number(result.rows[0]?.count ?? "0");

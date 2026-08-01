@@ -5,7 +5,7 @@ import type { UserPrincipal } from "../src/domain/auth.js";
 import type { AuditEventInput, AuditRepository } from "../src/application/project-service.js";
 
 const tenantId = "11111111-1111-4111-8111-111111111111";
-const admin: UserPrincipal = { tenantId, userId: "22222222-2222-4222-8222-222222222222", roles: ["admin"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId: "22222222-2222-4222-8222-222222222222", roles: ["owner"], permissions: [] };
 
 class MemoryAuditRepository implements AuditRepository {
   readonly events: AuditEventInput[] = [];

@@ -93,7 +93,7 @@ async function createTestServer() {
     displayName: "Project Owner",
     passwordHash,
     status: "active",
-    roles: ["admin"],
+    roles: ["owner"],
     permissions: [],
   };
   const projectTeamService = new ProjectTeamService(new EmptyProjectsRepository(), new MemoryProjectTeamRepository(), audit);
@@ -136,7 +136,7 @@ describe("Auth routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().accessToken).toEqual(expect.any(String));
-    expect(response.json().user).toMatchObject({ email: "owner@rectangle.test", tenantId, roles: ["admin"] });
+    expect(response.json().user).toMatchObject({ email: "owner@rectangle.test", tenantId, roles: ["owner"] });
     expect(audit.events).toHaveLength(1);
     await app.close();
   });

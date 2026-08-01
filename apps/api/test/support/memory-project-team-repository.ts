@@ -163,12 +163,12 @@ export class MemoryProjectTeamRepository implements ProjectTeamRepository {
     return { removed: true, unassignedTasks, unassignedRisks };
   }
 
-  async countAdmins(tenantId: string, projectId: string): Promise<number> {
+  async countOwners(tenantId: string, projectId: string): Promise<number> {
     return this.members.filter(
       (member) =>
         member.tenantId === tenantId &&
         member.projectId === projectId &&
-        (member.role === "project_admin" || member.role === "project_manager"),
+        member.role === "owner",
     ).length;
   }
 

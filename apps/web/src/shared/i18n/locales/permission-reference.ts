@@ -25,8 +25,7 @@ const en = {
   standingsTitle: "Company standing",
   standingsNote: "Everyone has exactly one. It is decided before any user type is considered.",
   standingEverything: "Holds every permission",
-  standingGuest: "Refused every company-wide permission",
-  standingFromTypes: "Access comes from their user types",
+  standingFromGrants: "Only the permissions granted to them",
 
   matrixTitle: "Every permission",
   matrixNote:
@@ -63,8 +62,7 @@ const ar: LocaleBundle<typeof en> = {
   standingsTitle: "الصفة في الشركة",
   standingsNote: "لكل شخص صفة واحدة فقط، وتُحسم قبل النظر في أي نوع مستخدم.",
   standingEverything: "يملك كل الصلاحيات",
-  standingGuest: "تُرفض له كل صلاحيات الشركة",
-  standingFromTypes: "صلاحياته تأتي من أنواع المستخدم",
+  standingFromGrants: "فقط الصلاحيات الممنوحة له",
 
   matrixTitle: "كل الصلاحيات",
   matrixNote:

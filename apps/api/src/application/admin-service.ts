@@ -1,6 +1,6 @@
 /** Tenant admin service manages user types and users through real permissions. */
 import { parseCreateSeparationRule, parsePreviewSeparationRule, parseCreateUser, parseCreateUserType, parseUpdateUser, parseUpdateUserType, type CreateUserInput, type CreateUserTypeInput, type UpdateUserInput, type UpdateUserTypeInput } from "../domain/admin.js";
-import { companyStandingSchema, isGuest, requirePermission, rolePermissions, standingOf, type CompanyStanding, type UserPrincipal } from "../domain/auth.js";
+import { companyStandingSchema, hasPermission, requirePermission, rolePermissions, standingOf, type CompanyStanding, type UserPrincipal } from "../domain/auth.js";
 import { allPermissions, findSeparationConflict, orderSeparationPair, permissionDescriptions, type Permission, type PermissionDescriptor, type SeparationRule } from "../domain/permissions.js";
 import { projectRoleGrants } from "../domain/project-team.js";
 import { DomainError } from "../domain/errors.js";
@@ -27,7 +27,8 @@ export interface AdminUserRecord {
   email: string;
   displayName: string;
   status: "active" | "invited" | "disabled";
-  userTypes: Array<{ id: string; name: string; key: string }>;
+  /** Everything this person may do company-wide. The whole truth, not a hint. */
+  permissions: Permission[];
   /** How many projects this person is a member of. Real membership, not a guess. */
   projectCount: number;
   createdAt: string;
@@ -57,19 +58,21 @@ export interface SessionRevoker {
   revokeAllSessionsForUser(tenantId: string, userId: string): Promise<void>;
 }
 
-/** Somebody holding both halves of a proposed rule, and what carries each. */
+/**
+ * Somebody who holds both halves of a proposed rule.
+ *
+ * Which bundle carried each half used to be part of this, because a bundle was
+ * the only way to hold anything and the fix was to take the bundle away. Now
+ * that grants are made to the person, the half being given up is simply
+ * revoked from them, so there is nothing further to name.
+ */
 export interface SeparationViolator {
   userId: string;
   displayName: string;
   email: string;
-  typesGrantingA: Array<{ id: string; name: string }>;
-  typesGrantingB: Array<{ id: string; name: string }>;
-  /** How many types they hold in total, so a strip that empties them is visible. */
-  totalTypes: number;
 }
 
 export interface AdminRepository {
-  ensureSystemUserTypes(tenantId: string): Promise<void>;
   /**
    * How many people can still administer this company, excluding one user.
    * Used to refuse the change that would leave nobody able to administer it.
@@ -83,11 +86,13 @@ export interface AdminRepository {
     a: string,
     b: string,
   ): Promise<SeparationViolator[]>;
-  /** Saves a rule and strips the losing types from violators, atomically. */
+  /** Who holds each permission directly, for the reference page. */
+  listPermissionHolders(tenantId: string): Promise<Array<{ permission: string; id: string; name: string }>>;
+  /** Saves a rule and revokes the losing permission from violators, atomically. */
   createSeparationRule(
     tenantId: string,
     input: { a: string; b: string; reason: string },
-    strip: Array<{ userId: string; userTypeIds: string[] }>,
+    revoke: { permission: string; userIds: string[] },
   ): Promise<SeparationRule>;
   deleteSeparationRule(tenantId: string, ruleId: string): Promise<boolean>;
   /** Someone's current standing, so a change can be judged against it. */
@@ -104,8 +109,15 @@ export interface AdminRepository {
   createUser(
     tenantId: string,
     input: Omit<CreateUserInput, "password"> & { passwordHash: string | null; status: "active" | "invited" },
+    /** Recorded against each grant, so an access review can ask who gave it. */
+    actorUserId: string,
   ): Promise<AdminUserRecord>;
-  updateUser(tenantId: string, userId: string, input: Omit<UpdateUserInput, "password"> & { passwordHash?: string }): Promise<AdminUserRecord | null>;
+  updateUser(
+    tenantId: string,
+    userId: string,
+    input: Omit<UpdateUserInput, "password"> & { passwordHash?: string },
+    actorUserId: string,
+  ): Promise<AdminUserRecord | null>;
 }
 
 export class AdminService {
@@ -125,7 +137,6 @@ export class AdminService {
 
   async listUserTypes(actor: UserPrincipal): Promise<{ userTypes: UserTypeRecord[] }> {
     requirePermission(actor, "user_types.read");
-    await this.repository.ensureSystemUserTypes(actor.tenantId);
     return { userTypes: await this.repository.listUserTypes(actor.tenantId) };
   }
 
@@ -152,7 +163,6 @@ export class AdminService {
 
   async listUsers(actor: UserPrincipal): Promise<{ users: AdminUserRecord[] }> {
     requirePermission(actor, "users.read");
-    await this.repository.ensureSystemUserTypes(actor.tenantId);
     return { users: await this.repository.listUsers(actor.tenantId) };
   }
 
@@ -161,14 +171,18 @@ export class AdminService {
     const input = parseCreateUser(rawInput);
     const existing = await this.repository.findUserByEmail(actor.tenantId, input.email);
     if (existing) throw new DomainError("CONFLICT", "A user with this email already exists.");
-    const userTypes = await this.repository.findUserTypesByIds(actor.tenantId, input.userTypeIds);
-    if (userTypes.length !== input.userTypeIds.length) throw new DomainError("VALIDATION_FAILED", "One or more user types are invalid.");
-
     if (input.standing === "owner" && standingOf(actor) !== "owner") {
       throw new DomainError("FORBIDDEN", "Only an owner can create another owner.");
     }
 
-    await this.assertSeparationOfDuties(actor, input.standing, input.userTypeIds);
+    /*
+     * Nobody may grant what they do not themselves hold. Without this, anyone
+     * with `users.create` could make an account carrying `settings.manage`,
+     * sign into it, and hold a permission the company never gave them —
+     * privilege escalation dressed up as administration.
+     */
+    this.assertGrantable(actor, input.permissions);
+    await this.assertSeparationOfDuties(actor, input.standing, input.permissions);
     // No password means the person is being invited to choose one. They stay
     // `invited` until they do, and login already refuses anyone not active.
     const invited = !input.password;
@@ -177,9 +191,9 @@ export class AdminService {
       ...input,
       passwordHash,
       status: invited ? "invited" : "active",
-    });
+    }, actor.userId);
 
-    await this.audit.append({ tenantId: actor.tenantId, actorUserId: actor.userId, action: "user.create", entityType: "user", entityId: user.id, result: "success", metadata: { email: user.email, userTypeIds: input.userTypeIds, invited } });
+    await this.audit.append({ tenantId: actor.tenantId, actorUserId: actor.userId, action: "user.create", entityType: "user", entityId: user.id, result: "success", metadata: { email: user.email, permissions: input.permissions, invited } });
 
     if (invited) {
       if (!this.invitations) {
@@ -229,7 +243,7 @@ export class AdminService {
   async getPermissionReference(actor: UserPrincipal): Promise<{
     permissions: Array<PermissionDescriptor & { heldBy: Array<{ id: string; name: string }> }>;
     projectRoles: Array<{ role: string; grants: string[] }>;
-    standings: Array<{ standing: string; holdsEverything: boolean; refusedCompanyWide: boolean }>;
+    standings: Array<{ standing: string; holdsEverything: boolean }>;
     deletionRule: { requiresProjectAdmin: boolean; manageAllInsufficient: boolean };
   }> {
     /*
@@ -240,15 +254,20 @@ export class AdminService {
      */
     requirePermission(actor, "settings.manage");
 
-    await this.repository.ensureSystemUserTypes(actor.tenantId);
-    const userTypes = await this.repository.listUserTypes(actor.tenantId);
+    const holders = await this.repository.listPermissionHolders(actor.tenantId);
 
     return {
+      /*
+       * Who actually holds each permission, person by person. This used to name
+       * the bundles carrying it, which answered a question nobody was asking:
+       * an access review needs to know which people can do a thing, and a
+       * bundle grants nothing.
+       */
       permissions: permissionDescriptions.map((descriptor) => ({
         ...descriptor,
-        heldBy: userTypes
-          .filter((type) => type.permissions.includes(descriptor.key))
-          .map((type) => ({ id: type.id, name: type.name })),
+        heldBy: holders
+          .filter((holder) => holder.permission === descriptor.key)
+          .map((holder) => ({ id: holder.id, name: holder.name })),
       })),
 
       /*
@@ -266,12 +285,6 @@ export class AdminService {
         // Both derived from the domain rather than asserted, so the page cannot
         // describe a standing the guards treat differently.
         holdsEverything: rolePermissions([standing]).length === allPermissions.length,
-        refusedCompanyWide: isGuest({
-          tenantId: actor.tenantId,
-          userId: actor.userId,
-          roles: [standing],
-          permissions: [],
-        }),
       })),
 
       /*
@@ -306,25 +319,13 @@ export class AdminService {
     actor: UserPrincipal,
     rawInput: unknown,
   ): Promise<{
-    violators: Array<SeparationViolator & { losesEverythingIfA: boolean; losesEverythingIfB: boolean }>;
+    violators: SeparationViolator[];
   }> {
     requirePermission(actor, "settings.manage");
     const input = parsePreviewSeparationRule(rawInput);
     const { a, b } = orderSeparationPair(input.a, input.b);
 
-    const violators = await this.repository.findSeparationViolators(actor.tenantId, a, b);
-    return {
-      violators: violators.map((violator) => ({
-        ...violator,
-        /*
-         * Flagged per side so the screen can say which choice is impossible
-         * before it is made, rather than refusing after the administrator has
-         * committed to one.
-         */
-        losesEverythingIfA: violator.typesGrantingA.length >= violator.totalTypes,
-        losesEverythingIfB: violator.typesGrantingB.length >= violator.totalTypes,
-      })),
-    };
+    return { violators: await this.repository.findSeparationViolators(actor.tenantId, a, b) };
   }
 
   /**
@@ -334,11 +335,10 @@ export class AdminService {
    * rule, because it reads as enforced and is not. So the two happen together
    * or not at all.
    *
-   * Removal is per person. The user types carrying the losing permission come
-   * off the people in violation and off nobody else; the type definitions are
-   * untouched. Editing a definition would change access for everybody holding
-   * it, including people who were never in violation, which is a far larger act
-   * than the one being asked for and has its own screen.
+   * Removal is per person: the losing permission is revoked from the people in
+   * violation and from nobody else. Saved permission lists are not touched,
+   * because a list grants nothing and editing one would change nothing about
+   * who currently holds what.
    */
   async createSeparationRule(
     actor: UserPrincipal,
@@ -359,37 +359,12 @@ export class AdminService {
     }
 
     const violators = await this.repository.findSeparationViolators(actor.tenantId, a, b);
-
-    const strip = violators.map((violator) => ({
-      userId: violator.userId,
-      displayName: violator.displayName,
-      // The types carrying whichever half is being given up.
-      userTypeIds: (input.losing === a ? violator.typesGrantingA : violator.typesGrantingB).map(
-        (type) => type.id,
-      ),
-      totalTypes: violator.totalTypes,
-    }));
-
-    /*
-     * Refused rather than half-applied. Somebody stripped of their only user
-     * type can still sign in and can reach nothing — an account that looks
-     * real and is not, created as a side effect of a control being switched
-     * on. The people are named so the administrator can give them another type
-     * first, which is a thing they can actually do.
-     */
-    const emptied = strip.filter((person) => person.userTypeIds.length >= person.totalTypes);
-    if (emptied.length > 0) {
-      throw new DomainError(
-        "VALIDATION_FAILED",
-        "This would leave some people with no access at all. Give them another user type first.",
-        { wouldEmpty: emptied.map((person) => person.displayName) },
-      );
-    }
+    const userIds = violators.map((violator) => violator.userId);
 
     const rule = await this.repository.createSeparationRule(
       actor.tenantId,
       { a, b, reason: input.reason },
-      strip.map((person) => ({ userId: person.userId, userTypeIds: person.userTypeIds })),
+      { permission: input.losing, userIds },
     );
 
     await this.audit.append({
@@ -403,11 +378,11 @@ export class AdminService {
       metadata: {
         pair: [a, b],
         losing: input.losing,
-        strippedFrom: strip.filter((person) => person.userTypeIds.length > 0).map((person) => person.userId),
+        strippedFrom: userIds,
       },
     });
 
-    return { rule, strippedFrom: strip.filter((person) => person.userTypeIds.length > 0).length };
+    return { rule, strippedFrom: userIds.length };
   }
 
   /**
@@ -432,20 +407,45 @@ export class AdminService {
     });
   }
 
+  /**
+   * Refuses a grant the actor does not hold themselves.
+   *
+   * Administration is delegation, and nobody can delegate what they were never
+   * given. An owner holds everything, so this never obstructs them; anybody
+   * else is bounded by their own access, which is what stops `users.create`
+   * from quietly being every permission in the product.
+   */
+  private assertGrantable(actor: UserPrincipal, permissions: Permission[]): void {
+    const beyond = permissions.filter((permission) => !hasPermission(actor, permission));
+    if (beyond.length > 0) {
+      throw new DomainError(
+        "FORBIDDEN",
+        "You cannot grant permissions you do not hold yourself.",
+        { permissions: beyond },
+      );
+    }
+  }
+
+  /**
+   * Refuses a set of permissions that breaks a pair the company separated.
+   *
+   * Checked against the whole set the person will hold, because the control
+   * exists precisely for two individually reasonable permissions that must not
+   * meet on one person. An owner is exempt: they hold everything by standing,
+   * so enforcing it against them would lock the company out of its own
+   * administration rather than separating anything.
+   */
   private async assertSeparationOfDuties(
     actor: UserPrincipal,
     standing: string,
-    userTypeIds: string[],
+    permissions: Permission[],
   ): Promise<void> {
-    if (standing === "owner" || standing === "admin") return;
+    if (standing === "owner") return;
 
     const rules = await this.repository.listSeparationRules(actor.tenantId);
     if (rules.length === 0) return;
 
-    const types = await this.repository.findUserTypesByIds(actor.tenantId, userTypeIds);
-    const combined = [...new Set(types.flatMap((type) => type.permissions))] as Permission[];
-
-    const conflict = findSeparationConflict(combined, rules);
+    const conflict = findSeparationConflict(permissions, rules);
     if (conflict) {
       throw new DomainError("VALIDATION_FAILED", conflict.reason, {
         conflict: [conflict.a, conflict.b],
@@ -507,23 +507,24 @@ export class AdminService {
       }
     }
 
-    if (input.userTypeIds) {
-      const userTypes = await this.repository.findUserTypesByIds(actor.tenantId, input.userTypeIds);
-      if (userTypes.length !== input.userTypeIds.length) throw new DomainError("VALIDATION_FAILED", "One or more user types are invalid.");
+    if (input.permissions) {
+      this.assertGrantable(actor, input.permissions);
 
       // Against the standing the person will have after this change, not the
       // one they had before it.
-      const standing = input.standing ?? (await this.repository.findStanding(actor.tenantId, userId)) ?? "member";
-      await this.assertSeparationOfDuties(actor, standing, input.userTypeIds);
+      const standing = input.standing ?? (await this.repository.findStanding(actor.tenantId, userId)) ?? "none";
+      await this.assertSeparationOfDuties(actor, standing, input.permissions);
     }
     const passwordHash = input.password ? await this.passwordHasher.hash(input.password) : undefined;
     const user = await this.repository.updateUser(actor.tenantId, userId, {
       ...(input.displayName ? { displayName: input.displayName } : {}),
       ...(input.status ? { status: input.status } : {}),
       ...(input.standing ? { standing: input.standing } : {}),
-      ...(input.userTypeIds ? { userTypeIds: input.userTypeIds } : {}),
+      // Presence, not truthiness: an empty array means "take everything away"
+      // and must reach the repository, where `[]` and `undefined` differ.
+      ...(input.permissions !== undefined ? { permissions: input.permissions } : {}),
       ...(passwordHash ? { passwordHash } : {}),
-    });
+    }, actor.userId);
     if (!user) throw new DomainError("NOT_FOUND", "User was not found.");
 
     // Access is withdrawn immediately rather than whenever the token expires.

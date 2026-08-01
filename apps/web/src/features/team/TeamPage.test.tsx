@@ -10,12 +10,12 @@ const adminAuth: AuthContextValue = {
   setupRequired: false,
   loading: false,
   refresh: async () => undefined,
-  user: { tenantId: "1", userId: "2", roles: ["admin"], permissions: [] },
+  user: { tenantId: "1", userId: "2", roles: ["owner"], permissions: [] },
 };
 
 const viewerAuth: AuthContextValue = {
   ...adminAuth,
-  user: { tenantId: "1", userId: "3", roles: ["member"], permissions: [] },
+  user: { tenantId: "1", userId: "3", roles: ["none"], permissions: [] },
 };
 
 import TeamPage from "./TeamPage";
@@ -47,7 +47,7 @@ const ownerTypeId = "11111111-1111-4111-8111-111111111111";
 const viewerTypeId = "44444444-4444-4444-8444-444444444444";
 
 const userTypes = { userTypes: [
-  { id: ownerTypeId, name: "Owner", key: "owner", permissions: ["projects.read", "users.read", "users.edit"], systemType: true },
+  { id: ownerTypeId, name: "Office bundle", key: "office", permissions: ["projects.read", "users.read", "users.edit"], systemType: false },
   { id: viewerTypeId, name: "Site Viewer", key: "site_viewer", description: "Read-only site access.", permissions: ["projects.read"], systemType: false },
 ] };
 
@@ -64,22 +64,22 @@ const people = { people: [
     status: "active",
     standing: "owner",
     projects: [
-      { id: "p1", name: "Nile Tower", code: "NT-001", role: "project_admin", sharedWithViewer: true },
+      { id: "p1", name: "Nile Tower", code: "NT-001", role: "owner", sharedWithViewer: true },
     ],
     sharedProjectCount: 1,
     openTaskCount: 2,
-    userTypes: [{ id: ownerTypeId, name: "Owner", key: "owner" }],
+    permissions: [],
   },
   {
     id: "55555555-5555-4555-8555-555555555555",
     displayName: "Mona Adel",
     email: "mona@rectangle.test",
     status: "disabled",
-    standing: "member",
+    standing: "none",
     projects: [],
     sharedProjectCount: 0,
     openTaskCount: 0,
-    userTypes: [{ id: viewerTypeId, name: "Site Viewer", key: "site_viewer" }],
+    permissions: ["projects.read"],
   },
 ] };
 
@@ -303,11 +303,15 @@ describe("TeamPage", () => {
 
     await user.click(screen.getByRole("radio", { name: /Roles/u }));
 
-    // Withdrawing these on Roles rebuilt the row on every switch, and is the
-    // fault this test exists to prevent coming back.
+    /*
+     * Withdrawing these on Roles rebuilt the row on every switch, and is the
+     * fault this test exists to prevent coming back. The Filters button is
+     * deliberately not asserted: saved lists have nothing left to filter by
+     * now that the product seeds none, and a button that opens an empty panel
+     * is worse than no button.
+     */
     expect(screen.getByRole("textbox", { name: "Search roles" })).toBeInTheDocument();
     expect(screen.getByRole("radiogroup", { name: "Card view" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Filters/u })).toBeInTheDocument();
   });
 
   it("puts the register picker after search so the keyboard path matches the layout", async () => {
@@ -353,7 +357,7 @@ describe("TeamPage", () => {
     // nothing in.
     expect(screen.getByRole("textbox", { name: "Search roles" })).toHaveValue("");
     expect(screen.getByText("Site Viewer")).toBeInTheDocument();
-    expect(screen.getByText("Owner")).toBeInTheDocument();
+    expect(screen.getByText("Office bundle")).toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: /People/u }));
     expect(screen.getByRole("textbox", { name: "Search people" })).toHaveValue("Mona");
@@ -370,7 +374,7 @@ describe("TeamPage", () => {
 
     const table = screen.getByRole("table", { name: /User types/u });
     expect(within(table).getByText("site_viewer")).toBeInTheDocument();
-    expect(within(table).getByText("Created here")).toBeInTheDocument();
+    expect(within(table).getByText("Site Viewer")).toBeInTheDocument();
   });
 
   it("offers a way out when no role matches", async () => {
@@ -392,7 +396,7 @@ describe("TeamPage", () => {
     renderTeam({
       ...adminAuth,
       user: {
-        tenantId: "1", userId: "4", roles: ["member"],
+        tenantId: "1", userId: "4", roles: ["none"],
         permissions: ["users.read", "users.create", "users.edit"],
       },
     });
@@ -423,7 +427,7 @@ describe("TeamPage", () => {
    * screen actually offers rather than from internal state.
    */
   describe("the create-user form asks only what matters", () => {
-    it("stops asking for a user type once the standing already grants everything", async () => {
+    it("stops asking what somebody may do once they own the company", async () => {
       const user = userEvent.setup();
       mockReads();
       renderTeam();
@@ -432,22 +436,59 @@ describe("TeamPage", () => {
       await user.click(screen.getByRole("button", { name: "Create user" }));
       const dialog = await screen.findByRole("dialog", { name: "Create user" });
 
-      // A member's access comes entirely from their types, so it is asked for.
-      expect(within(dialog).getByText("User types")).toBeInTheDocument();
+      // Ordinary people are described entirely by what is ticked for them.
+      expect(within(dialog).getByText("What this person can do")).toBeInTheDocument();
+      expect(within(dialog).getByText("Start from a saved list")).toBeInTheDocument();
 
-      // An administrator holds everything by standing, so the question is moot
-      // and asking it was the contradiction: a required choice that changes
-      // nothing, beside a panel correctly reporting it changed nothing.
-      await user.selectOptions(within(dialog).getByLabelText("Company standing"), "admin");
-      expect(within(dialog).queryByText("User types")).not.toBeInTheDocument();
+      // An owner holds everything by standing, so the ticks would be a second
+      // answer to a question already answered.
+      await user.selectOptions(within(dialog).getByLabelText("Company standing"), "owner");
+      expect(within(dialog).queryByText("Start from a saved list")).not.toBeInTheDocument();
       expect(
-        within(dialog).getByText("Every permission, because of their company standing."),
+        within(dialog).getByText("Every permission, because they own the company."),
       ).toBeInTheDocument();
     });
 
-    it("still refuses to create a member with no source of access", async () => {
+    it("fills the boxes from a saved list without that list granting anything", async () => {
+      /*
+       * The whole point of demoting bundles. Applying one ticks boxes; what is
+       * sent is the permissions themselves, so the person's access no longer
+       * depends on a list somebody may edit later.
+       */
       const user = userEvent.setup();
-      mockReads();
+      const fetchMock = mockReads();
+      renderTeam();
+
+      await screen.findByText("Mona Adel");
+      await user.click(screen.getByRole("button", { name: "Create user" }));
+      const dialog = await screen.findByRole("dialog", { name: "Create user" });
+      await user.type(within(dialog).getByLabelText("Name"), "Nadia Samir");
+      await user.type(within(dialog).getByLabelText("Email"), "nadia@example.com");
+      await user.selectOptions(
+        within(dialog).getByLabelText("Start from a saved list"),
+        ownerTypeId,
+      );
+      await user.click(within(dialog).getByRole("button", { name: "Create user" }));
+
+      await waitFor(() => {
+        const call = fetchMock.mock.calls.find(
+          ([url, init]) => String(url).endsWith("/v1/admin/users") && init?.method === "POST",
+        );
+        expect(call).toBeDefined();
+        const body = JSON.parse(String(call?.[1]?.body));
+        expect(body.permissions).toEqual(["projects.read", "users.read", "users.edit"]);
+        expect(body.userTypeIds).toBeUndefined();
+      });
+    });
+
+    it("allows somebody who will get their work from a project instead", async () => {
+      /*
+       * No company-wide permission at all is a legitimate answer: somebody
+       * added so they can be put on a project. Refusing it would grant access
+       * nobody asked for.
+       */
+      const user = userEvent.setup();
+      const fetchMock = mockReads();
       renderTeam();
 
       await screen.findByText("Mona Adel");
@@ -457,10 +498,12 @@ describe("TeamPage", () => {
       await user.type(within(dialog).getByLabelText("Email"), "nadia@example.com");
       await user.click(within(dialog).getByRole("button", { name: "Create user" }));
 
-      // Relaxing the rule for administrators must not relax it for everyone:
-      // a member with no user type could sign in and reach nothing.
       await waitFor(() => {
-        expect(screen.getByRole("dialog", { name: "Create user" })).toBeInTheDocument();
+        const call = fetchMock.mock.calls.find(
+          ([url, init]) => String(url).endsWith("/v1/admin/users") && init?.method === "POST",
+        );
+        expect(call).toBeDefined();
+        expect(JSON.parse(String(call?.[1]?.body)).permissions).toEqual([]);
       });
     });
   });

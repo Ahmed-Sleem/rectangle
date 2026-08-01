@@ -18,8 +18,8 @@ import type { UserPrincipal } from "../src/domain/auth.js";
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
 
-const viewer: UserPrincipal = { tenantId, userId, roles: ["member"], permissions: [] };
-const admin: UserPrincipal = { tenantId, userId, roles: ["admin"], permissions: [] };
+const viewer: UserPrincipal = { tenantId, userId, roles: ["none"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId, roles: ["owner"], permissions: [] };
 
 interface Captured {
   sql: string;
@@ -132,7 +132,7 @@ describe("activity SQL", () => {
     // Being on a job does not entitle you to a colleague's history there;
     // running it does. Without this clause a junior saw every action their
     // colleagues took on every project they were added to.
-    expect(sql).toContain("m.role in ('project_admin', 'project_manager')");
+    expect(sql).toContain("m.role in ('owner', 'manager')");
   });
 
   it("never lets the team scope reach personal or security entries", async () => {
@@ -297,7 +297,7 @@ describe("activity summary", () => {
     const { sql } = captured[0]!;
     const scoped = sql.slice(sql.indexOf("with scoped"), sql.indexOf("days as"));
     expect(scoped).toContain("project_members");
-    expect(scoped).toContain("m.role in ('project_admin', 'project_manager')");
+    expect(scoped).toContain("m.role in ('owner', 'manager')");
     // Every tally reads from `scoped`, not from audit_events directly.
     const tallies = sql.slice(sql.indexOf("actors as"));
     expect(tallies).not.toContain("from audit_events");

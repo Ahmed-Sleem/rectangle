@@ -9,39 +9,38 @@ import { allPermissions, permissionSchema, type Permission } from "./permissions
 /**
  * A person's standing in the company. Exactly one, never a set.
  *
- * This replaced a table that allowed several company roles at once, which let
- * somebody be a viewer and an owner simultaneously and resolved to full access.
- * The single value is enforced by the primary key in migration 012, so the
- * contradiction is unrepresentable rather than merely discouraged.
+ * There are only two, and only one of them grants anything. The account that
+ * sets a company up owns it and holds every permission, because a company that
+ * can be edited into having nobody able to administer it is a company locked
+ * out of its own data with no way back. Everybody else holds exactly the
+ * permissions somebody ticked for them, and `none` is that fact stated rather
+ * than inferred from a missing row.
  *
- * Project roles — manager, controls manager and so on — are deliberately absent
- * here. They live on `project_members` and apply to one project. Holding them
+ * `admin`, `member` and `guest` were removed in migration 018. Each of them
+ * granted or withheld access invisibly: choosing "member" silently meant
+ * "whatever their bundles happen to carry", and choosing "guest" silently
+ * cancelled every company permission they had been given. Authority that is
+ * not visible where it is granted is authority nobody can audit.
+ *
+ * Project roles — manager, viewer and so on — are deliberately absent here.
+ * They live on `project_members` and apply to one project. Holding them
  * company-wide silently granted them on every project, which is exactly the
  * fault this replaced.
  */
 export const companyStandingSchema = z.enum([
   /** Everything, including transferring ownership. At least one always exists. */
   "owner",
-  /** Everything except transferring ownership. */
-  "admin",
-  /** A normal employee. Access comes from user types and project membership. */
-  "member",
-  /** External. Only the projects they are explicitly added to. */
-  "guest",
+  /** No standing. Access is the permissions granted to them, and nothing else. */
+  "none",
 ]);
 
 export type CompanyStanding = z.infer<typeof companyStandingSchema>;
 
-/**
- * Retained as an alias because the principal still carries `roles` as an array
- * on the wire, and every issued token does too. The array now holds exactly one
- * standing; widening it again would reintroduce the fault.
- */
 export const tenantRoleSchema = companyStandingSchema;
 export type TenantRole = CompanyStanding;
 
-/** Standings that administer the company and therefore hold every permission. */
-const fullAccessStandings = new Set<CompanyStanding>(["owner", "admin"]);
+/** The standing that owns the company and therefore holds every permission. */
+const fullAccessStandings = new Set<CompanyStanding>(["owner"]);
 
 export const userPrincipalSchema = z.object({
   tenantId: z.uuid(),
@@ -68,7 +67,7 @@ export type UserPrincipal = z.infer<typeof userPrincipalSchema>;
 
 /** The one standing a principal holds. */
 export function standingOf(principal: UserPrincipal): CompanyStanding {
-  return principal.roles[0] ?? "member";
+  return principal.roles[0] ?? "none";
 }
 
 export function isCompanyAdministrator(principal: UserPrincipal): boolean {
@@ -77,32 +76,15 @@ export function isCompanyAdministrator(principal: UserPrincipal): boolean {
 
 export function rolePermissions(roles: CompanyStanding[]): Permission[] {
   /*
-   * Only owners and admins gain permissions from standing alone. A member's
-   * access comes entirely from their user types, and a guest's from the
-   * projects they belong to — neither is granted anything company-wide by
-   * being a member or a guest.
+   * Ownership is the only standing that grants anything at all. Everybody
+   * else's access is the set of permissions granted to them directly, which is
+   * the whole point of the model: what somebody may do is visible on the screen
+   * where it was decided, not buried in the meaning of a word.
    */
   return roles.some((role) => fullAccessStandings.has(role)) ? allPermissions : [];
 }
 
-/**
- * A guest reaches only the projects they were added to, so no company-wide
- * capability applies to them however their user types are configured.
- */
-export function isGuest(principal: UserPrincipal): boolean {
-  return standingOf(principal) === "guest";
-}
-
 export function hasPermission(principal: UserPrincipal, permission: Permission): boolean {
-  /*
-   * A guest holds no company-wide capability, whatever their user types say.
-   * They are external: they reach the projects they were added to and nothing
-   * else. Without this a guest assigned a type carrying `settings.manage` could
-   * open the company's mail configuration, which is the opposite of what
-   * "guest" is for. The web helper already refused this; the server did not,
-   * and the server is the one that decides.
-   */
-  if (isGuest(principal)) return false;
   return principal.permissions.includes(permission) || rolePermissions(principal.roles).includes(permission);
 }
 
@@ -116,27 +98,25 @@ export function hasPermission(principal: UserPrincipal, permission: Permission):
  * now separate questions, and this one answers only reach.
  */
 export function canReachAllProjects(principal: UserPrincipal): boolean {
-  if (isGuest(principal)) return false;
   return isCompanyAdministrator(principal) || hasPermission(principal, "projects.manage_all");
 }
 
 /**
  * May this person open the company-wide project register?
  *
- * Distinct from reaching one project. A guest, and a member with no user type
- * granting `projects.read`, still reach the projects they belong to — see
- * `canReachProjects`. Conflating the two would either lock members out of their
- * own work or hand guests the whole register.
+ * Distinct from reaching one project. Somebody who was never granted
+ * `projects.read` still reaches the projects they are a member of — see
+ * `canReachProjects`. Conflating the two would either hide people's own work
+ * from them or hand the whole register to anybody added to one project.
  */
 export function canReadProjectRegistry(principal: UserPrincipal): boolean {
-  if (isGuest(principal)) return false;
   return isCompanyAdministrator(principal) || hasPermission(principal, "projects.read");
 }
 
 /**
  * May this person reach project records at all, subject to membership?
  *
- * True for everyone with a standing, because membership is what actually
+ * True for everyone, because membership is what actually
  * decides which projects they see. The register check above decides whether
  * they may browse beyond the ones they belong to.
  */

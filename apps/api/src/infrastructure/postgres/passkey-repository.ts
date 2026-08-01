@@ -29,13 +29,14 @@ export class PostgresPasskeyRepository implements PasskeyRepository {
   async findUserByTenantAndEmail(tenantSlug: string, email: string): Promise<PasskeyUserRecord | null> {
     const result = await this.pool.query(
       `select tenants.id tenant_id, tenants.slug tenant_slug, users.id user_id, users.email, users.display_name,
-        coalesce(array_agg(distinct tenant_user_roles.role) filter (where tenant_user_roles.role is not null), '{}') as roles,
-        coalesce(array_agg(distinct permission_value) filter (where permission_value is not null), '{}') as permissions
+        -- Resolved exactly as the password path resolves it. Two sign-in
+        -- routes answering "what may this person do" differently would mean a
+        -- passkey grants access a password does not.
+        array[coalesce(max(tenant_user_roles.role), 'none')] as roles,
+        coalesce(array_agg(distinct user_permissions.permission) filter (where user_permissions.permission is not null), '{}') as permissions
        from tenants join users on users.tenant_id = tenants.id
        left join tenant_user_roles on tenant_user_roles.tenant_id = tenants.id and tenant_user_roles.user_id = users.id
-       left join user_type_assignments on user_type_assignments.tenant_id = tenants.id and user_type_assignments.user_id = users.id
-       left join user_types on user_types.id = user_type_assignments.user_type_id
-       left join lateral unnest(user_types.permissions) as permission_value on true
+       left join user_permissions on user_permissions.tenant_id = tenants.id and user_permissions.user_id = users.id
        where ($1 = '' or tenants.slug = $1) and lower(users.email) = lower($2) and users.status = 'active'
        group by tenants.id, tenants.slug, users.id, users.email, users.display_name limit 1`,
       [tenantSlug, email],
@@ -46,13 +47,14 @@ export class PostgresPasskeyRepository implements PasskeyRepository {
   async findUserById(tenantId: string, userId: string): Promise<PasskeyUserRecord | null> {
     const result = await this.pool.query(
       `select tenants.id tenant_id, tenants.slug tenant_slug, users.id user_id, users.email, users.display_name,
-        coalesce(array_agg(distinct tenant_user_roles.role) filter (where tenant_user_roles.role is not null), '{}') as roles,
-        coalesce(array_agg(distinct permission_value) filter (where permission_value is not null), '{}') as permissions
+        -- Resolved exactly as the password path resolves it. Two sign-in
+        -- routes answering "what may this person do" differently would mean a
+        -- passkey grants access a password does not.
+        array[coalesce(max(tenant_user_roles.role), 'none')] as roles,
+        coalesce(array_agg(distinct user_permissions.permission) filter (where user_permissions.permission is not null), '{}') as permissions
        from tenants join users on users.tenant_id = tenants.id
        left join tenant_user_roles on tenant_user_roles.tenant_id = tenants.id and tenant_user_roles.user_id = users.id
-       left join user_type_assignments on user_type_assignments.tenant_id = tenants.id and user_type_assignments.user_id = users.id
-       left join user_types on user_types.id = user_type_assignments.user_type_id
-       left join lateral unnest(user_types.permissions) as permission_value on true
+       left join user_permissions on user_permissions.tenant_id = tenants.id and user_permissions.user_id = users.id
        where tenants.id = $1 and users.id = $2 and users.status = 'active'
        group by tenants.id, tenants.slug, users.id, users.email, users.display_name limit 1`,
       [tenantId, userId],

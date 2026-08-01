@@ -33,8 +33,7 @@ const en = {
     "The user types carrying it come off these people only. The user types themselves are not changed.",
   chooseSide: "Choose one",
   chooseToSee: "Choose a permission above to see what they lose",
-  wouldLose: "Loses {{types}}",
-  wouldEmptyOption: "{{permission}} — would leave someone with no access",
+  wouldLose: "Loses {{permission}}",
   wouldEmptyPeople:
     "This would leave {{names}} with no access at all. Give them another user type first.",
 
@@ -85,8 +84,7 @@ const ar: LocaleBundle<typeof en> = {
     "تُنزع أنواع المستخدم التي تحملها عن هؤلاء الأشخاص وحدهم. أنواع المستخدم نفسها لا تتغير.",
   chooseSide: "اختر واحدة",
   chooseToSee: "اختر صلاحية أعلاه لمعرفة ما سيفقدونه",
-  wouldLose: "يفقد {{types}}",
-  wouldEmptyOption: "{{permission}} — ستترك شخصًا بلا أي صلاحية",
+  wouldLose: "يفقد {{permission}}",
   wouldEmptyPeople:
     "هذا سيترك {{names}} بلا أي صلاحية. امنحهم نوع مستخدم آخر أولًا.",
 

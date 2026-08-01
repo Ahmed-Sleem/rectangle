@@ -34,11 +34,10 @@ const en = {
     other: "Other",
   },
   memberRole: {
-    project_admin: "Project admin",
-    project_manager: "Project manager",
-    controls_manager: "Controls manager",
+    owner: "Project owner",
+    manager: "Project manager",
+    member: "Team member",
     viewer: "Viewer",
-    external_collaborator: "External collaborator",
   },
   stakeholderCategory: {
     client: "Client",
@@ -60,12 +59,6 @@ const en = {
     active: "Active",
     invited: "Invited",
     disabled: "Disabled",
-  },
-  /** Seeded user types. Custom types created by a company keep their own name. */
-  systemUserType: {
-    owner: "Owner",
-    project_manager: "Project manager",
-    viewer: "Viewer",
   },
   riskKind: {
     risk: "Risk",
@@ -183,11 +176,10 @@ const ar: LocaleBundle<typeof en> = {
     other: "أخرى",
   },
   memberRole: {
-    project_admin: "مسؤول المشروع",
-    project_manager: "مدير المشروع",
-    controls_manager: "مدير الضوابط",
+    owner: "مالك المشروع",
+    manager: "مدير المشروع",
+    member: "عضو الفريق",
     viewer: "مطالع",
-    external_collaborator: "متعاون خارجي",
   },
   stakeholderCategory: {
     client: "العميل",
@@ -209,11 +201,6 @@ const ar: LocaleBundle<typeof en> = {
     active: "نشط",
     invited: "مدعو",
     disabled: "معطّل",
-  },
-  systemUserType: {
-    owner: "المالك",
-    project_manager: "مدير المشروع",
-    viewer: "مطالع",
   },
   riskKind: {
     risk: "خطر",

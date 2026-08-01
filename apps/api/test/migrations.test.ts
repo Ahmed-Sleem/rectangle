@@ -30,6 +30,7 @@ describe("PostgreSQL migrations", () => {
       "016_search_engine.sql",
       "017_orphaned_project_membership.sql",
       "018_direct_user_permissions.sql",
+      "019_project_roles.sql",
     ]);
 
     for (const file of files) {

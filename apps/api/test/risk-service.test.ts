@@ -23,8 +23,8 @@ const riskId = "66666666-6666-4666-8666-666666666666";
 const taskOnProject = "77777777-7777-4777-8777-777777777777";
 const taskElsewhere = "88888888-8888-4888-8888-888888888888";
 
-const admin: UserPrincipal = { tenantId, userId: adminUserId, roles: ["admin"], permissions: [] };
-const member: UserPrincipal = { tenantId, userId: memberUserId, roles: ["member"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId: adminUserId, roles: ["owner"], permissions: [] };
+const member: UserPrincipal = { tenantId, userId: memberUserId, roles: ["none"], permissions: [] };
 
 class MemoryAudit implements AuditRepository {
   readonly events: AuditEventInput[] = [];

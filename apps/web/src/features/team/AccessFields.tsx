@@ -1,29 +1,30 @@
 /**
- * Standing, user types, and what the two add up to.
+ * What one person may do, chosen directly.
  *
- * The same three fields appeared in the create-person dialog and the
- * edit-person dialog, written out twice, and the copies had already drifted:
- * the edit form had lost the hint explaining that owners and administrators do
- * not need a user type. Nobody would notice, because you have to open two
- * dialogs side by side to see it.
+ * This used to ask two questions — a standing, and a set of bundles — and the
+ * answer to "what can this person actually do" was the union of two things
+ * neither of which was on the screen. Choosing "Project office" for a site
+ * engineer handed them every project in the company, because that permission
+ * was buried inside a bundle nobody opens.
  *
- * Extracted so there is one answer to "how is access chosen for a person". Both
- * dialogs render this; a change to the rule is a change in one place.
+ * Now the permissions themselves are the field. A saved bundle is offered
+ * above them purely to fill the boxes in, and the moment it does its job the
+ * ticks are the person's own: changing one does not "leave" the bundle,
+ * because the bundle was never holding anything.
+ *
+ * Both the create dialog and the edit dialog render this, so the rule for
+ * granting access is written once.
  */
-import type { TFunction } from "i18next";
+import { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Checkbox, Field, Select } from "@/shared/ui";
-import type { PermissionOption, UserTypeRecord } from "./admin-api";
+import { Button, Field, Select } from "@/shared/ui";
+import { PermissionPicker } from "./PermissionPicker";
+import type { CompanyStanding, PermissionOption, UserTypeRecord } from "./admin-api";
 
-/** Owners and administrators hold everything by standing, whatever else says. */
+/** The owner holds everything by standing, so nothing else needs asking. */
 export function standingGrantsEverything(standing: string): boolean {
-  return standing === "owner" || standing === "admin";
-}
-
-export interface EffectiveEntry {
-  key: string;
-  from: string[];
+  return standing === "owner";
 }
 
 /**
@@ -32,8 +33,8 @@ export interface EffectiveEntry {
  * values include these" rather than as one exact form type.
  */
 export interface AccessFormValues {
-  standing: string;
-  userTypeIds: string[];
+  standing: CompanyStanding;
+  permissions: string[];
 }
 
 export interface AccessFieldsProps<TValues extends AccessFormValues> {
@@ -41,31 +42,37 @@ export interface AccessFieldsProps<TValues extends AccessFormValues> {
    * Generic rather than cast to `any`.
    *
    * The first version took `UseFormReturn<never>` and cast, which silently
-   * turned off checking on the two field names this component depends on — a
-   * typo in `watch("standing")` compiled cleanly, verified. Constraining the
-   * generic to a form whose values include those fields keeps both dialogs
-   * assignable while the names stay checked.
+   * turned off checking on the field names this component depends on — a typo
+   * in `watch("standing")` compiled cleanly, verified. Constraining the generic
+   * to a form whose values include those fields keeps both dialogs assignable
+   * while the names stay checked.
    */
   form: UseFormReturn<TValues>;
-  types: UserTypeRecord[];
+  /** Saved lists, offered as a starting point. They grant nothing themselves. */
+  bundles: UserTypeRecord[];
   permissionOptions: PermissionOption[];
-  /** Only an owner may mint another owner. The API refuses it as well. */
+  /** Only an owner may make another owner. The API refuses it as well. */
   isOwner: boolean;
-  effectivePermissions: (selectedIds: string[], types: UserTypeRecord[]) => EffectiveEntry[];
-  roleName: (type: { name: string; key: string; systemType?: boolean }, t: TFunction) => string;
+  /**
+   * What the person filling the form holds.
+   *
+   * Nobody may grant what they were never given, and the server refuses it, so
+   * the permissions beyond the granter's own are not offered. Showing them
+   * would be offering a choice that always ends in a refusal.
+   */
+  grantable: string[];
 }
 
 export function AccessFields<TValues extends AccessFormValues>({
   form,
-  types,
+  bundles,
   permissionOptions,
   isOwner,
-  effectivePermissions,
-  roleName,
+  grantable,
 }: AccessFieldsProps<TValues>) {
   const { t } = useTranslation();
   /*
-   * `react-hook-form` types `watch` and `register` against the exact form
+   * `react-hook-form` types `watch` and `setValue` against the exact form
    * shape, and a generic constrained to a supertype cannot prove to the
    * compiler that a literal key belongs to it. This one narrowing is the whole
    * concession, and it is made once here rather than at every call — the field
@@ -73,10 +80,32 @@ export function AccessFields<TValues extends AccessFormValues>({
    */
   const fields = form as unknown as UseFormReturn<AccessFormValues>;
 
-  const standing = fields.watch("standing") ?? "member";
-  const selectedTypeIds = fields.watch("userTypeIds") ?? [];
+  const standing = fields.watch("standing") ?? "none";
+  const permissions = fields.watch("permissions") ?? [];
   const everything = standingGrantsEverything(standing);
-  const effective = effectivePermissions(selectedTypeIds, types);
+
+  /*
+   * Which bundle was last applied, remembered only so the control can say so.
+   * Deliberately not part of the form: the saved value is the permissions, and
+   * keeping a bundle id alongside them would invite somebody to treat it as
+   * the source of truth again.
+   */
+  const [appliedBundle, setAppliedBundle] = useState("");
+
+  const offered = permissionOptions.filter((option) => grantable.includes(option.key));
+
+  function applyBundle(bundleId: string): void {
+    setAppliedBundle(bundleId);
+    const bundle = bundles.find((candidate) => candidate.id === bundleId);
+    if (!bundle) return;
+    // Filtered to what the granter holds, so applying a bundle can never ask
+    // the server for something it is about to refuse.
+    fields.setValue(
+      "permissions",
+      bundle.permissions.filter((permission) => grantable.includes(permission)),
+      { shouldDirty: true, shouldValidate: true },
+    );
+  }
 
   return (
     <>
@@ -86,68 +115,92 @@ export function AccessFields<TValues extends AccessFormValues>({
         error={fields.formState.errors.standing?.message}
         required
       >
+        {/*
+          * Only an owner is offered the owner option. Everybody else sees a
+          * single value, which reads as the statement it is: this person's
+          * access is the list below and nothing more.
+          */}
         <Select {...fields.register("standing")}>
-          {(isOwner ? ["owner", "admin", "member", "guest"] : ["admin", "member", "guest"]).map(
-            (value) => (
-              <option key={value} value={value}>
-                {t(`team.standing_${value}`)}
-              </option>
-            ),
-          )}
+          {(isOwner ? ["none", "owner"] : ["none"]).map((value) => (
+            <option key={value} value={value}>
+              {t(`team.standing_${value}`)}
+            </option>
+          ))}
         </Select>
       </Field>
 
-      {/*
-        * Hidden for owners and administrators, and this is the confusion the
-        * owner reported. Their standing already carries every permission, so
-        * the form was demanding a second choice that changed nothing and then
-        * reporting, truthfully, that the choice had changed nothing. The
-        * question is only asked of the people whose access depends on it.
-        */}
-      {everything ? null : (
-        <Field
-          label={t("team.userTypes")}
-          hint={t("team.userTypesHint")}
-          error={fields.formState.errors.userTypeIds?.message}
-          required
-        >
-          <div className="rect-team-permissions">
-            {types.map((type) => (
-              <Checkbox
-                key={type.id}
-                label={roleName(type, t)}
-                {...(type.description ? { description: type.description } : {})}
-                value={type.id}
-                {...fields.register("userTypeIds")}
-              />
-            ))}
-          </div>
+      {everything ? (
+        /*
+         * The ticks are hidden rather than shown and ignored. An owner holds
+         * every permission by standing, so a list of boxes beside that
+         * statement would be a second answer to a question already answered.
+         */
+        <Field label={t("team.permissionsTitle")}>
+          <p className="rect-panel-note">{t("team.effectiveEverything")}</p>
         </Field>
-      )}
+      ) : (
+        <>
+          {bundles.length > 0 ? (
+            <Field label={t("team.bundleLabel")} hint={t("team.bundleHint")}>
+              <div className="rect-team-bundle">
+                {/*
+                  * Named directly rather than by the surrounding Field, whose
+                  * label points at the wrapper holding both this and the clear
+                  * button — a wrapper is not a labellable control, so without
+                  * this the select has no accessible name at all.
+                  */}
+                <Select
+                  aria-label={t("team.bundleLabel")}
+                  value={appliedBundle}
+                  onChange={(event) => applyBundle(event.currentTarget.value)}
+                >
+                  <option value="">{t("team.bundleNone")}</option>
+                  {bundles.map((bundle) => (
+                    <option key={bundle.id} value={bundle.id}>
+                      {bundle.name}
+                    </option>
+                  ))}
+                </Select>
+                {/*
+                  * Clearing is its own action rather than a bundle called
+                  * "nothing", because starting from scratch is a thing people
+                  * do deliberately and it should not look like a saved list.
+                  */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setAppliedBundle("");
+                    fields.setValue("permissions", [], {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }}
+                >
+                  {t("team.bundleClear")}
+                </Button>
+              </div>
+            </Field>
+          ) : null}
 
-      <Field label={t("team.effectiveTitle")} hint={t("team.effectiveHint")}>
-        <div className="rect-team-effective">
-          {everything ? (
-            <p className="rect-panel-note">{t("team.effectiveEverything")}</p>
-          ) : effective.length === 0 ? (
-            <p className="rect-panel-note">{t("team.effectiveNone")}</p>
-          ) : (
-            <ul className="rect-team-effective__list">
-              {effective.map((entry) => (
-                <li key={entry.key} className="rect-team-effective__item">
-                  <span className="rect-team-effective__name">
-                    {permissionOptions.find((option) => option.key === entry.key)?.label ?? entry.key}
-                  </span>
-                  {/* Naming the source is what makes an unexpected grant traceable. */}
-                  <span className="rect-team-effective__source">
-                    {entry.from.join(t("common.listSeparator"))}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </Field>
+          <Field
+            label={t("team.permissionsTitle")}
+            hint={t("team.permissionsGrantHint")}
+            error={fields.formState.errors.permissions?.message}
+          >
+            <PermissionPicker
+              options={offered}
+              value={permissions}
+              onChange={(next) =>
+                fields.setValue("permissions", next, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+            />
+          </Field>
+        </>
+      )}
     </>
   );
 }

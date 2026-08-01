@@ -77,12 +77,14 @@ export function updateProject(
   });
 }
 
-export type ProjectMemberRole =
-  | "project_admin"
-  | "project_manager"
-  | "controls_manager"
-  | "viewer"
-  | "external_collaborator";
+/**
+ * What somebody is on one project, in order of authority.
+ *
+ * owner may delete the project and appoint anyone; manager runs everything
+ * inside it except deletion and appointments; member does the work; viewer
+ * reads. The server refuses an appointment at or above the appointer's own.
+ */
+export type ProjectMemberRole = "owner" | "manager" | "member" | "viewer";
 
 /**
  * What the caller may do on one project, as the server resolves it.

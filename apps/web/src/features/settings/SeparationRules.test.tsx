@@ -36,11 +36,6 @@ function violator(overrides: Record<string, unknown> = {}) {
     userId: "22222222-2222-4222-8222-222222222222",
     displayName: "Mona Adel",
     email: "mona@example.com",
-    typesGrantingA: [{ id: "t1", name: "Role Author" }],
-    typesGrantingB: [{ id: "t2", name: "People Admin" }],
-    totalTypes: 2,
-    losesEverythingIfA: false,
-    losesEverythingIfB: false,
     ...overrides,
   };
 }
@@ -73,7 +68,7 @@ const settingsAdmin: AuthContextValue = {
   setupRequired: false,
   loading: false,
   refresh: async () => undefined,
-  user: { tenantId: "1", userId: "2", roles: ["member"], permissions: ["settings.manage"] },
+  user: { tenantId: "1", userId: "2", roles: ["none"], permissions: ["settings.manage"] },
 };
 
 function renderRules(auth: AuthContextValue = settingsAdmin) {
@@ -106,7 +101,7 @@ describe("SeparationRules", () => {
     const fetchMock = mockApi({ rules: [RULE] });
     renderRules({
       ...settingsAdmin,
-      user: { tenantId: "1", userId: "3", roles: ["member"], permissions: ["users.read"] },
+      user: { tenantId: "1", userId: "3", roles: ["none"], permissions: ["users.read"] },
     });
 
     expect(await screen.findByText(/do not have access/iu)).toBeInTheDocument();
@@ -218,19 +213,21 @@ describe("SeparationRules", () => {
       await screen.findByLabelText(/Which permission should they give up/iu),
       "users.edit",
     );
-    // `users.edit` was chosen first, so it is side A and the types granting it
-    // are what comes off.
-    expect(screen.getByText(/Loses Role Author/iu)).toBeInTheDocument();
+    // The permission itself is what comes off the person now, so the sentence
+    // names it rather than naming a bundle that no longer grants anything.
+    expect(screen.getByText(/Loses Edit people/iu)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Add rule/iu })).toBeEnabled();
   });
 
-  it("rules out a side that would leave somebody with nothing", async () => {
+  it("offers both sides, because neither can strip somebody bare any more", async () => {
     /*
-     * Offered but disabled, with the reason attached. Hiding it would leave
-     * the administrator wondering why a choice they expected is missing.
+     * A side used to be disabled when giving it up would have taken away
+     * somebody's only bundle and left them with an account that reaches
+     * nothing. Revoking one permission cannot do that, so the refusal and the
+     * disabled option both went with the reason for them.
      */
     const user = userEvent.setup();
-    mockApi({ preview: [violator({ losesEverythingIfA: true, totalTypes: 1 })] });
+    mockApi({ preview: [violator()] });
     renderRules();
 
     await user.selectOptions(await screen.findByLabelText(/First permission/iu), "users.edit");
@@ -238,8 +235,9 @@ describe("SeparationRules", () => {
     await user.click(screen.getByRole("button", { name: /Check who this affects/iu }));
 
     const choice = await screen.findByLabelText(/Which permission should they give up/iu);
-    expect(within(choice).getByRole("option", { name: /would leave someone with no access/iu }))
-      .toBeDisabled();
+    for (const option of within(choice).getAllByRole("option")) {
+      expect(option).toBeEnabled();
+    }
   });
 
   it("reads back the server's refusal by name rather than as a raw error", async () => {

@@ -17,17 +17,17 @@ const tenantId = "11111111-1111-4111-8111-111111111111";
 const otherTenantId = "99999999-9999-4999-8999-999999999999";
 const userId = "22222222-2222-4222-8222-222222222222";
 
-const admin: UserPrincipal = { tenantId, userId, roles: ["admin"], permissions: [] };
+const admin: UserPrincipal = { tenantId, userId, roles: ["owner"], permissions: [] };
 /*
  * A member who may read the project register. Standing alone grants nothing
  * now — only owners and admins gain permissions from standing — so the
  * permission is carried by a user type, which is how a real member gets it.
  */
-const viewer: UserPrincipal = { tenantId, userId, roles: ["member"], permissions: ["projects.read"] };
+const viewer: UserPrincipal = { tenantId, userId, roles: ["none"], permissions: ["projects.read"] };
 const outsider: UserPrincipal = {
   tenantId,
   userId,
-  roles: ["guest"],
+  roles: ["none"],
   permissions: [],
 };
 
@@ -250,7 +250,7 @@ describe("the dashboard counts only what the viewer can reach", () => {
   it("scopes the project blocks to membership for a plain member", async () => {
     const repository = new RecordingRepository();
     await new OverviewService(repository).getSummary(
-      { tenantId, userId, roles: ["member"], permissions: ["projects.read"] },
+      { tenantId, userId, roles: ["none"], permissions: ["projects.read"] },
       {},
     );
 
@@ -260,7 +260,7 @@ describe("the dashboard counts only what the viewer can reach", () => {
   it("gives a company administrator the whole company", async () => {
     const repository = new RecordingRepository();
     await new OverviewService(repository).getSummary(
-      { tenantId, userId, roles: ["admin"], permissions: [] },
+      { tenantId, userId, roles: ["owner"], permissions: [] },
       {},
     );
 
@@ -272,7 +272,7 @@ describe("the dashboard counts only what the viewer can reach", () => {
     // three of them is what produced the mismatch above.
     const repository = new RecordingRepository();
     await new OverviewService(repository).getSummary(
-      { tenantId, userId, roles: ["member"], permissions: ["projects.read"] },
+      { tenantId, userId, roles: ["none"], permissions: ["projects.read"] },
       {},
     );
 

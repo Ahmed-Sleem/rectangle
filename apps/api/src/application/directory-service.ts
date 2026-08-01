@@ -56,7 +56,7 @@ export interface DirectoryPerson {
   /** Open tasks assigned to this person, on projects the viewer can reach. */
   openTaskCount: number;
   /**
-   * The user types this person holds.
+   * Everything this person may do company-wide.
    *
    * Carried here so the Team page has one people register rather than two. It
    * previously ran a directory list and an administrative list side by side,
@@ -66,7 +66,7 @@ export interface DirectoryPerson {
    * a caller holding `users.read`, since the colleague register is open to
    * everyone.
    */
-  userTypes: Array<{ id: string; name: string; key: string }>;
+  permissions: string[];
 }
 
 export interface DirectoryReach {
@@ -116,8 +116,7 @@ export class DirectoryService {
      * `hasPermission`, not `permissions.includes`. An owner or administrator
      * holds everything by standing and carries an empty permission list, so
      * reading the array directly would hide the company register from exactly
-     * the people it exists for. `hasPermission` also short-circuits guests,
-     * which is the other half of the rule.
+     * the person it exists for.
      */
     if (hasPermission(actor, "users.read")) registers.unshift("company");
     return registers;

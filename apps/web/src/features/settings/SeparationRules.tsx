@@ -311,49 +311,29 @@ export function SeparationRules() {
                   <Select value={losing} onChange={(event) => setLosing(event.currentTarget.value)}>
                     <option value="">{t("separation.chooseSide")}</option>
                     {/*
-                      A side that would empty somebody is offered but disabled,
-                      with the reason attached. Hiding it would leave the
-                      administrator wondering why a choice they expected is
-                      missing.
+                      Both sides are always offered now. Giving one up removes
+                      exactly that permission from the people in violation, and
+                      nothing else — it can no longer strip somebody of a bundle
+                      that happened to be their only access.
                     */}
-                    <option
-                      value={draft.a}
-                      disabled={violators.some((violator) => violator.losesEverythingIfA)}
-                    >
-                      {violators.some((violator) => violator.losesEverythingIfA)
-                        ? t("separation.wouldEmptyOption", { permission: labelFor(draft.a) })
-                        : labelFor(draft.a)}
-                    </option>
-                    <option
-                      value={draft.b}
-                      disabled={violators.some((violator) => violator.losesEverythingIfB)}
-                    >
-                      {violators.some((violator) => violator.losesEverythingIfB)
-                        ? t("separation.wouldEmptyOption", { permission: labelFor(draft.b) })
-                        : labelFor(draft.b)}
-                    </option>
+                    <option value={draft.a}>{labelFor(draft.a)}</option>
+                    <option value={draft.b}>{labelFor(draft.b)}</option>
                   </Select>
                 </Field>
 
                 <ul className="rect-separation__violators" aria-label={t("separation.affectedLabel")}>
-                  {violators.map((violator) => {
-                    const losingTypes =
-                      losing === draft.a ? violator.typesGrantingA : violator.typesGrantingB;
-                    return (
-                      <li key={violator.userId} className="rect-separation__violator">
-                        <span className="rect-separation__person">{violator.displayName}</span>
-                        {losing === "" ? (
-                          <span className="rect-separation__pending">{t("separation.chooseToSee")}</span>
-                        ) : (
-                          <span className="rect-separation__loses">
-                            {t("separation.wouldLose", {
-                              types: losingTypes.map((type) => type.name).join(t("common.listSeparator")),
-                            })}
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
+                  {violators.map((violator) => (
+                    <li key={violator.userId} className="rect-separation__violator">
+                      <span className="rect-separation__person">{violator.displayName}</span>
+                      {losing === "" ? (
+                        <span className="rect-separation__pending">{t("separation.chooseToSee")}</span>
+                      ) : (
+                        <span className="rect-separation__loses">
+                          {t("separation.wouldLose", { permission: labelFor(losing) })}
+                        </span>
+                      )}
+                    </li>
+                  ))}
                 </ul>
               </>
             )}

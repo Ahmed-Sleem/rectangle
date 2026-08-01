@@ -28,6 +28,14 @@ import { Avatar, Badge, Button, DataTable, buttonClassName } from "@/shared/ui";
 import type { DirectoryPerson } from "./directory-api";
 import "./PeopleDirectory.css";
 
+/**
+ * How many permission names a row shows before collapsing into a count.
+ *
+ * Three fits one line at the narrowest supported width, which is the point of
+ * the limit: a row that wraps to four lines stops being scannable.
+ */
+const PERMISSIONS_SHOWN = 3;
+
 export interface PeopleDirectoryProps {
   people: DirectoryPerson[];
   view: "cards" | "table";
@@ -38,7 +46,8 @@ export interface PeopleDirectoryProps {
   onDisable: (person: DirectoryPerson) => void;
   onEnable: (person: DirectoryPerson) => void;
   /** Names a user type for display, honouring the seeded ones' translations. */
-  roleName: (type: { id: string; name: string; key: string }) => string;
+  /** Turns a permission key into the label the catalogue gives it. */
+  permissionLabel: (key: string) => string;
 }
 
 function ContactLink({ person, label }: { person: DirectoryPerson; label: string }) {
@@ -124,7 +133,7 @@ export function PeopleDirectory({
   onEdit,
   onDisable,
   onEnable,
-  roleName,
+  permissionLabel,
 }: PeopleDirectoryProps) {
   const { t } = useTranslation();
   const actions = { canEdit, canDisable, onEdit, onDisable, onEnable };
@@ -145,12 +154,18 @@ export function PeopleDirectory({
             accessor: (person) => t(`team.standing_${person.standing}`),
           },
           {
-            id: "types",
-            header: t("team.userTypes"),
+            id: "permissions",
+            header: t("team.permissionsColumn"),
+            /*
+             * A count, not the list. Somebody scanning the register wants to
+             * know who has a lot of access and who has none; twenty permission
+             * names in a table cell answers neither question and makes every
+             * row a different height.
+             */
             accessor: (person) =>
-              person.userTypes.length === 0
-                ? t("team.noRole")
-                : person.userTypes.map(roleName).join(t("common.listSeparator")),
+              person.standing === "owner"
+                ? t("team.permissionsEverything")
+                : t("team.permissionCount", { count: person.permissions.length }),
           },
           {
             id: "projects",
@@ -196,10 +211,10 @@ export function PeopleDirectory({
             </div>
             {/* Standing is a different kind of thing from a user type, so it
                 reads differently rather than sitting in the same row of tags. */}
-            {person.standing !== "member" ? (
-              <Badge tone={person.standing === "owner" ? "warning" : "info"}>
-                {t(`team.standing_${person.standing}`)}
-              </Badge>
+            {/* Only ownership is a standing worth announcing; everybody else
+                is described by what they may do, just below. */}
+            {person.standing === "owner" ? (
+              <Badge tone="warning">{t("team.standing_owner")}</Badge>
             ) : null}
             <Badge tone={person.status === "active" ? "success" : "neutral"}>
               {t(`enums.userStatus.${person.status}`)}
@@ -207,14 +222,30 @@ export function PeopleDirectory({
           </div>
 
           <div className="rect-person__facts">
-            {person.userTypes.length === 0 ? (
-              <span className="rect-person__norole">{t("team.noRole")}</span>
+            {/*
+              * The first few by name, then a count. The names are what make an
+              * unexpected grant noticeable at a glance; listing all of them
+              * would bury that in a wall of tags nobody reads.
+              */}
+            {person.standing === "owner" ? (
+              <Badge tone="warning">{t("team.permissionsEverything")}</Badge>
+            ) : person.permissions.length === 0 ? (
+              <span className="rect-person__norole">{t("team.permissionsNone")}</span>
             ) : (
-              person.userTypes.map((type) => (
-                <Badge key={type.id} tone="info">
-                  {roleName(type)}
-                </Badge>
-              ))
+              <>
+                {person.permissions.slice(0, PERMISSIONS_SHOWN).map((permission) => (
+                  <Badge key={permission} tone="info">
+                    {permissionLabel(permission)}
+                  </Badge>
+                ))}
+                {person.permissions.length > PERMISSIONS_SHOWN ? (
+                  <Badge tone="neutral">
+                    {t("team.permissionsMore", {
+                      count: person.permissions.length - PERMISSIONS_SHOWN,
+                    })}
+                  </Badge>
+                ) : null}
+              </>
             )}
             {person.sharedProjectCount > 0 ? (
               <Badge tone="accent">

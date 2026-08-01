@@ -14,7 +14,7 @@ const signedIn: AuthContextValue = {
   user: {
     tenantId: "1",
     userId: "2",
-    roles: ["member"],
+    roles: ["none"],
     permissions: [],
     displayName: "Ahmed Sleem",
     email: "ahmed@rectangle.test",

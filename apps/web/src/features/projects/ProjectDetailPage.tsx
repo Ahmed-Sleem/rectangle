@@ -56,11 +56,10 @@ import {
 import "./ProjectsPage.css";
 
 const MEMBER_ROLES = [
-  "project_admin",
-  "project_manager",
-  "controls_manager",
+  "owner",
+  "manager",
+  "member",
   "viewer",
-  "external_collaborator",
 ] as const satisfies ReadonlyArray<ProjectMemberRole>;
 
 const STAKEHOLDER_CATEGORIES = [
@@ -85,7 +84,7 @@ const editSchema = z.object({
 
 const memberSchema = z.object({
   userId: z.string().uuid({ message: "Choose a person to add." }),
-  role: z.enum(["project_admin", "project_manager", "controls_manager", "viewer", "external_collaborator"]),
+  role: z.enum(["owner", "manager", "member", "viewer"]),
 });
 
 const stakeholderSchema = z.object({

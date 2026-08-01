@@ -11,12 +11,12 @@ const managerAuth: AuthContextValue = {
   setupRequired: false,
   loading: false,
   refresh: async () => undefined,
-  user: { tenantId: "1", userId: "2", roles: ["admin"], permissions: [] },
+  user: { tenantId: "1", userId: "2", roles: ["owner"], permissions: [] },
 };
 
 const viewerAuth: AuthContextValue = {
   ...managerAuth,
-  user: { tenantId: "1", userId: "3", roles: ["member"], permissions: [] },
+  user: { tenantId: "1", userId: "3", roles: ["none"], permissions: [] },
 };
 
 function jsonResponse(body: unknown, status = 200) {

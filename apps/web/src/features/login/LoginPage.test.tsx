@@ -35,9 +35,9 @@ describe("LoginPage", () => {
         expect(init?.method).toBe("POST");
         expect(JSON.parse(String(init?.body))).toMatchObject({ email: "owner@rectangle.test" });
         expect(JSON.parse(String(init?.body))).not.toHaveProperty("tenantSlug");
-        return Promise.resolve(new Response(JSON.stringify({ user: { tenantId: "1", userId: "2", roles: ["admin"] } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+        return Promise.resolve(new Response(JSON.stringify({ user: { tenantId: "1", userId: "2", roles: ["owner"] } }), { status: 200, headers: { "Content-Type": "application/json" } }));
       })
-      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ user: { tenantId: "1", userId: "2", roles: ["admin"] } }), { status: 200, headers: { "Content-Type": "application/json" } })));
+      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ user: { tenantId: "1", userId: "2", roles: ["owner"] } }), { status: 200, headers: { "Content-Type": "application/json" } })));
 
     renderLogin();
     await user.type(screen.getByLabelText(/Email/i), "owner@rectangle.test");

@@ -21,6 +21,7 @@ import type {
   UpdateStakeholderInput,
 } from "../domain/project-team.js";
 import {
+  canAssignProjectRole,
   isProjectAdminRole,
   roleGrantsOnProject,
   parseAddProjectMemberInput,
@@ -60,7 +61,7 @@ export interface ProjectTeamRepository {
     projectId: string,
     userId: string,
   ): Promise<{ removed: boolean; unassignedTasks: number; unassignedRisks: number }>;
-  countAdmins(tenantId: string, projectId: string): Promise<number>;
+  countOwners(tenantId: string, projectId: string): Promise<number>;
   listStakeholders(tenantId: string, projectId: string): Promise<StakeholderRecord[]>;
   createStakeholder(
     tenantId: string,
@@ -266,7 +267,7 @@ export class ProjectTeamService {
        */
       deleteProject:
         isCompanyAdministrator(actor) ||
-        (access.membershipRole === "project_admin" && hasPermission(actor, "projects.delete")),
+        (access.membershipRole === "owner" && hasPermission(actor, "projects.delete")),
       manageTeam: may("project_team.manage"),
       createTask: may("tasks.create"),
       editTask: may("tasks.edit"),
@@ -348,10 +349,10 @@ export class ProjectTeamService {
     }
 
     const membership = await this.team.findMember(actor.tenantId, projectId, actor.userId);
-    if (membership?.role !== "project_admin") {
+    if (membership?.role !== "owner") {
       throw new DomainError(
         "FORBIDDEN",
-        "Deleting a project requires being its project administrator. Archive it instead.",
+        "Deleting a project requires owning it. Archive it instead.",
       );
     }
   }
@@ -362,6 +363,43 @@ export class ProjectTeamService {
    */
   private async requireManage(actor: UserPrincipal, projectId: string): Promise<void> {
     await this.requireProjectCapability(actor, projectId, "project_team.manage");
+  }
+
+  /**
+   * Refuses an appointment the actor does not outrank.
+   *
+   * `project_team.manage` says somebody may staff a project; it does not say
+   * they may staff it with people senior to themselves. Without this a manager
+   * could appoint an owner — or promote themselves to one — and then delete the
+   * project, which is exactly the act the owner/manager split withholds.
+   *
+   * A company administrator is exempt because they already hold every
+   * permission on every project, so refusing them here would be theatre.
+   */
+  private async requireAppointment(
+    actor: UserPrincipal,
+    projectId: string,
+    role: ProjectMemberRecord["role"],
+  ): Promise<void> {
+    if (isCompanyAdministrator(actor)) return;
+
+    const membership = await this.team.findMember(actor.tenantId, projectId, actor.userId);
+    if (membership && canAssignProjectRole(membership.role, role)) return;
+
+    /*
+     * Somebody acting through the company-wide `project_team.manage` grant
+     * rather than through membership is treated as a manager: head office may
+     * staff any project, but appointing the person accountable for one is the
+     * project owner's decision, not a company-wide convenience.
+     */
+    if (!membership && hasPermission(actor, "project_team.manage") && canAssignProjectRole("manager", role)) {
+      return;
+    }
+
+    throw new DomainError(
+      "FORBIDDEN",
+      "You cannot grant a project role at or above your own.",
+    );
   }
 
   async listMembers(actor: UserPrincipal, rawProjectId: unknown): Promise<ProjectMemberRecord[]> {
@@ -378,6 +416,7 @@ export class ProjectTeamService {
     const projectId = parseProjectId(rawProjectId);
     await this.requireManage(actor, projectId);
     const input = parseAddProjectMemberInput(rawInput);
+    await this.requireAppointment(actor, projectId, input.role);
 
     // Without this check a manager could attach a user from another tenant.
     const userExists = await this.team.tenantUserExists(actor.tenantId, input.userId);
@@ -418,13 +457,23 @@ export class ProjectTeamService {
       throw new DomainError("NOT_FOUND", "That person is not on this project.");
     }
 
-    // Demoting the last administrator would leave the project unmanageable.
-    if (isProjectAdminRole(current.role) && !isProjectAdminRole(input.role)) {
-      const admins = await this.team.countAdmins(actor.tenantId, projectId);
-      if (admins <= 1) {
+    /*
+     * Both ends of the change are checked. A manager who could not appoint an
+     * owner but could demote one would be able to remove everybody above them
+     * and then be the most senior person left, which is the same escalation
+     * taking two steps instead of one.
+     */
+    await this.requireAppointment(actor, projectId, current.role);
+    await this.requireAppointment(actor, projectId, input.role);
+
+    // Removing the last owner would leave the project with nobody able to
+    // delete it or appoint anyone to it.
+    if (current.role === "owner" && input.role !== "owner") {
+      const owners = await this.team.countOwners(actor.tenantId, projectId);
+      if (owners <= 1) {
         throw new DomainError(
           "CONFLICT",
-          "This project needs at least one project manager or project admin.",
+          "This project needs at least one owner. Make someone else an owner first.",
         );
       }
     }
@@ -460,12 +509,14 @@ export class ProjectTeamService {
       throw new DomainError("NOT_FOUND", "That person is not on this project.");
     }
 
-    if (isProjectAdminRole(current.role)) {
-      const admins = await this.team.countAdmins(actor.tenantId, projectId);
-      if (admins <= 1) {
+    await this.requireAppointment(actor, projectId, current.role);
+
+    if (current.role === "owner") {
+      const owners = await this.team.countOwners(actor.tenantId, projectId);
+      if (owners <= 1) {
         throw new DomainError(
           "CONFLICT",
-          "This project needs at least one project manager or project admin.",
+          "This project needs at least one owner. Make someone else an owner first.",
         );
       }
     }
