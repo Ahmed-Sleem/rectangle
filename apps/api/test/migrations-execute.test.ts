@@ -38,6 +38,18 @@ const LEGACY_FIXTURE = `
     ('11111111-1111-4111-8111-111111111111','aaaaaaaa-2222-4222-8222-222222222222','viewer'),
     ('11111111-1111-4111-8111-111111111111','aaaaaaaa-2222-4222-8222-222222222222','project_manager'),
     ('22222222-2222-4222-8222-222222222222','bbbbbbbb-1111-4111-8111-111111111111','tenant_admin');
+
+  -- Projects as they exist in a database that predates the creator being
+  -- enrolled automatically: real work, and not one row in project_members.
+  insert into projects (id, tenant_id, name, code, status) values
+    ('cccccccc-1111-4111-8111-111111111111','11111111-1111-4111-8111-111111111111','Legacy Tower','LT-001','active'),
+    ('cccccccc-2222-4222-8222-222222222222','11111111-1111-4111-8111-111111111111','Staffed Depot','SD-002','active');
+
+  -- One of them already has a team, so the migration has something it must
+  -- leave alone. Without this the test could not tell "repairs what is broken"
+  -- from "writes rows everywhere".
+  insert into project_members (tenant_id, project_id, user_id, role) values
+    ('11111111-1111-4111-8111-111111111111','cccccccc-2222-4222-8222-222222222222','aaaaaaaa-2222-4222-8222-222222222222','viewer');
 `;
 
 describe("migrations execute against PostgreSQL", () => {
@@ -172,5 +184,66 @@ describe("company standing migration", () => {
       db.exec(`insert into tenant_user_roles (tenant_id, user_id, role) values
                ('11111111-1111-4111-8111-111111111111','aaaaaaaa-1111-4111-8111-111111111111','admin')`),
     ).rejects.toThrow(/duplicate key|unique/iu);
+  });
+
+  /*
+   * The fault this repairs is not a bug in the schema — it is the consequence
+   * of a correct rule meeting data that predates it. Once reading a project
+   * requires reach, a project with no members is reachable only by people who
+   * reach everything, and nothing in `projects` records who created it.
+   *
+   * The repair has to be unreachable-proof: adding somebody to a project needs
+   * `project_team.manage` on that project, which needs to reach it, which is
+   * the thing that is missing. So the database has to do it.
+   */
+  it("gives every memberless project the company owners and admins", async () => {
+    const result = await db.query<{ user_id: string; role: string }>(
+      `select user_id, role from project_members
+        where project_id = 'cccccccc-1111-4111-8111-111111111111'
+        order by user_id`,
+    );
+
+    // The owner holds both 'owner' and 'admin' rows in the legacy fixture and
+    // is collapsed to one standing by migration 012, so they appear once.
+    expect(result.rows).toEqual([
+      { user_id: "aaaaaaaa-1111-4111-8111-111111111111", role: "project_admin" },
+    ]);
+  });
+
+  it("leaves a project that already has a team exactly as it was", async () => {
+    /*
+     * The half that stops this being a licence to enrol everybody everywhere.
+     * A project with members is somebody's, and the migration has no business
+     * adding the company's administrators to it.
+     */
+    const result = await db.query<{ user_id: string; role: string }>(
+      `select user_id, role from project_members
+        where project_id = 'cccccccc-2222-4222-8222-222222222222'`,
+    );
+
+    expect(result.rows).toEqual([
+      { user_id: "aaaaaaaa-2222-4222-8222-222222222222", role: "viewer" },
+    ]);
+  });
+
+  it("leaves no project in the database unreachable", async () => {
+    // The property that actually matters, stated directly rather than inferred
+    // from the two cases above.
+    const orphans = await db.query<{ c: number }>(
+      `select count(*)::int as c from projects p
+        where not exists (
+          select 1 from project_members m
+           where m.tenant_id = p.tenant_id and m.project_id = p.id
+        )`,
+    );
+    expect(orphans.rows[0]?.c).toBe(0);
+  });
+
+  it("changes nothing when run a second time", async () => {
+    // Every migration runs on each boot, so a second pass must be a no-op.
+    const before = await db.query<{ c: number }>("select count(*)::int as c from project_members");
+    await migrateUpTo(db);
+    const after = await db.query<{ c: number }>("select count(*)::int as c from project_members");
+    expect(after.rows[0]?.c).toBe(before.rows[0]?.c);
   });
 });

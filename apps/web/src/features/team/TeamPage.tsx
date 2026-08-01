@@ -20,10 +20,10 @@ import { useOptionalAuth } from "@/shared/auth";
 import {
   Avatar, Badge, Button, CardGrid, Checkbox, ConfirmDialog, DataTable, EmptyState,
   ErrorState, Field, FormDialog, Input, LoadingState, PageToolbar, StatCard, StatRow,
-  Select,
   ViewToggle,
 } from "@/shared/ui";
 import { searchRecords } from "@/shared/search/match";
+import { AccessFields } from "./AccessFields";
 import { PeopleDirectory } from "./PeopleDirectory";
 import { PermissionPicker } from "./PermissionPicker";
 import { adminApi, type AdminUserRecord, type UserTypeRecord } from "./admin-api";
@@ -159,11 +159,6 @@ function effectivePermissions(
   return [...byPermission.entries()]
     .map(([key, from]) => ({ key, from }))
     .sort((a, b) => a.key.localeCompare(b.key));
-}
-
-/** Owners and admins hold everything by standing, whatever their types say. */
-function standingGrantsEverything(standing: string): boolean {
-  return standing === "owner" || standing === "admin";
 }
 
 /** A built-in role keeps its translated name; a company's own role keeps its own. */
@@ -721,183 +716,124 @@ export default function TeamPage() {
         </CardGrid>
       )}
 
+      {/*
+        * One dialog for creating and editing a role.
+        *
+        * They were two, differing only in which form object they read, whether
+        * the key field appeared, and the wording of the button. Kept apart they
+        * had already drifted — the same permission picker, described twice, is
+        * two places to forget. The key is create-only because assignments and
+        * audit entries point at it, so it cannot change once anything refers
+        * to it.
+        */}
       <FormDialog
-        open={typeOpen}
-        title={t("team.createUserType")}
-        description={t("team.createUserTypeDescription")}
-        onClose={() => setTypeOpen(false)}
-        onSubmit={typeForm.handleSubmit((values) => createType.mutate(values))}
-        submitLabel={t("team.createUserType")}
-        pending={createType.isPending}
-        error={messageFor(createType.error, t("team.createUserTypeFailed"))}
+        open={typeOpen || editingType !== null}
+        title={editingType ? t("team.editUserType") : t("team.createUserType")}
+        description={editingType ? t("team.editUserTypeDescription") : t("team.createUserTypeDescription")}
+        onClose={() => { setTypeOpen(false); setEditingType(null); }}
+        onSubmit={
+          editingType
+            ? editTypeForm.handleSubmit((values) =>
+                saveType.mutate({ userTypeId: editingType.id, values }),
+              )
+            : typeForm.handleSubmit((values) => createType.mutate(values))
+        }
+        submitLabel={editingType ? t("team.saveChanges") : t("team.createUserType")}
+        pending={editingType ? saveType.isPending : createType.isPending}
+        error={
+          editingType
+            ? messageFor(saveType.error, t("team.updateUserTypeFailed"))
+            : messageFor(createType.error, t("team.createUserTypeFailed"))
+        }
       >
-        <Field label={t("team.fieldName")} error={typeForm.formState.errors.name?.message} required><Input data-autofocus="true" {...typeForm.register("name")} /></Field>
-        <Field label={t("team.fieldKey")} error={typeForm.formState.errors.key?.message} required><Input {...typeForm.register("key")} /></Field>
-        <Field label={t("team.fieldDescription")} error={typeForm.formState.errors.description?.message}><Input {...typeForm.register("description")} /></Field>
-        <Field label={t("team.fieldPermissions")} hint={t("team.permissionsHint")} error={typeForm.formState.errors.permissions?.message} required>
-          <PermissionPicker
-            options={permissionOptions}
-            value={typeForm.watch("permissions") ?? []}
-            onChange={(next) => typeForm.setValue("permissions", next, { shouldValidate: true })}
-          />
-        </Field>
-      </FormDialog>
-
-      <FormDialog
-        open={editingType !== null}
-        title={t("team.editUserType")}
-        description={t("team.editUserTypeDescription")}
-        onClose={() => setEditingType(null)}
-        onSubmit={editTypeForm.handleSubmit((values) => {
-          if (editingType) saveType.mutate({ userTypeId: editingType.id, values });
-        })}
-        submitLabel={t("team.saveChanges")}
-        pending={saveType.isPending}
-        error={messageFor(saveType.error, t("team.updateUserTypeFailed"))}
-      >
-        <Field label={t("team.fieldName")} error={editTypeForm.formState.errors.name?.message} required><Input data-autofocus="true" {...editTypeForm.register("name")} /></Field>
-        <Field label={t("team.fieldDescription")} error={editTypeForm.formState.errors.description?.message}><Input {...editTypeForm.register("description")} /></Field>
-        <Field label={t("team.fieldPermissions")} hint={t("team.permissionsHint")} error={editTypeForm.formState.errors.permissions?.message} required>
-          <PermissionPicker
-            options={permissionOptions}
-            value={editTypeForm.watch("permissions") ?? []}
-            onChange={(next) => editTypeForm.setValue("permissions", next, { shouldValidate: true })}
-          />
-        </Field>
-      </FormDialog>
-
-      <FormDialog
-        open={userOpen}
-        title={t("team.createUser")}
-        description={t("team.createUserDescription")}
-        onClose={() => setUserOpen(false)}
-        onSubmit={userForm.handleSubmit((values) => createUser.mutate(values))}
-        submitLabel={t("team.createUser")}
-        pending={createUser.isPending}
-        error={messageFor(createUser.error, t("team.createUserFailed"))}
-      >
-        <Field label={t("team.fieldName")} error={userForm.formState.errors.displayName?.message} required><Input data-autofocus="true" {...userForm.register("displayName")} /></Field>
-        <Field label={t("team.fieldEmail")} error={userForm.formState.errors.email?.message} required><Input type="email" {...userForm.register("email")} /></Field>
-        <Field label={t("team.inviteLabel")} hint={t("team.inviteHint")}>
-          <Checkbox label={t("team.inviteOption")} {...userForm.register("invite")} />
-        </Field>
-        {!userForm.watch("invite") ? (
-          <Field
-            label={t("team.fieldTemporaryPassword")}
-            hint={t("team.passwordRule")}
-            error={userForm.formState.errors.password ? t("team.passwordWeak") : undefined}
-            required
-          >
-            <Input type="password" autoComplete="new-password" {...userForm.register("password")} />
-          </Field>
-        ) : null}
-        <Field
-          label={t("team.fieldStanding")}
-          hint={t("team.standingHint")}
-          error={userForm.formState.errors.standing?.message}
-          required
-        >
-          <Select {...userForm.register("standing")}>
-            {/* Only an owner may mint another owner; the API refuses it too. */}
-            {(isOwner ? ["owner", "admin", "member", "guest"] : ["admin", "member", "guest"]).map((value) => (
-              <option key={value} value={value}>{t(`team.standing_${value}`)}</option>
-            ))}
-          </Select>
-        </Field>
-        {/*
-          * Hidden for owners and administrators, and this is the confusion the
-          * owner reported. Their standing already carries every permission, so
-          * the form was demanding a second choice that changed nothing and then
-          * reporting, truthfully, that the choice had changed nothing. The
-          * question is only asked of the people whose access actually depends
-          * on the answer.
-          */}
-        {standingGrantsEverything(userForm.watch("standing")) ? null : (
-          <Field label={t("team.userTypes")} hint={t("team.userTypesHint")} error={userForm.formState.errors.userTypeIds?.message} required>
-            <div className="rect-team-permissions">
-              {typeRows.map((type) => (
-                <Checkbox key={type.id} label={roleName(type, t)} {...(type.description ? { description: type.description } : {})} value={type.id} {...userForm.register("userTypeIds")} />
-              ))}
-            </div>
-          </Field>
+        {editingType ? (
+          <>
+            <Field label={t("team.fieldName")} error={editTypeForm.formState.errors.name?.message} required><Input data-autofocus="true" {...editTypeForm.register("name")} /></Field>
+            <Field label={t("team.fieldDescription")} error={editTypeForm.formState.errors.description?.message}><Input {...editTypeForm.register("description")} /></Field>
+            <Field label={t("team.fieldPermissions")} hint={t("team.permissionsHint")} error={editTypeForm.formState.errors.permissions?.message} required>
+              <PermissionPicker
+                options={permissionOptions}
+                value={editTypeForm.watch("permissions") ?? []}
+                onChange={(next) => editTypeForm.setValue("permissions", next, { shouldValidate: true })}
+              />
+            </Field>
+          </>
+        ) : (
+          <>
+            <Field label={t("team.fieldName")} error={typeForm.formState.errors.name?.message} required><Input data-autofocus="true" {...typeForm.register("name")} /></Field>
+            <Field label={t("team.fieldKey")} error={typeForm.formState.errors.key?.message} required><Input {...typeForm.register("key")} /></Field>
+            <Field label={t("team.fieldDescription")} error={typeForm.formState.errors.description?.message}><Input {...typeForm.register("description")} /></Field>
+            <Field label={t("team.fieldPermissions")} hint={t("team.permissionsHint")} error={typeForm.formState.errors.permissions?.message} required>
+              <PermissionPicker
+                options={permissionOptions}
+                value={typeForm.watch("permissions") ?? []}
+                onChange={(next) => typeForm.setValue("permissions", next, { shouldValidate: true })}
+              />
+            </Field>
+          </>
         )}
-        <Field label={t("team.effectiveTitle")} hint={t("team.effectiveHint")}>
-          <div className="rect-team-effective">
-            {standingGrantsEverything(userForm.watch("standing")) ? (
-              <p className="rect-panel-note">{t("team.effectiveEverything")}</p>
-            ) : effectivePermissions(userForm.watch("userTypeIds") ?? [], typeRows).length === 0 ? (
-              <p className="rect-panel-note">{t("team.effectiveNone")}</p>
-            ) : (
-              <ul className="rect-team-effective__list">
-                {effectivePermissions(userForm.watch("userTypeIds") ?? [], typeRows).map((entry) => (
-                  <li key={entry.key} className="rect-team-effective__item">
-                    <span className="rect-team-effective__name">
-                      {permissionOptions.find((option) => option.key === entry.key)?.label ?? entry.key}
-                    </span>
-                    {/* Naming the source is what makes an unexpected grant traceable. */}
-                    <span className="rect-team-effective__source">{entry.from.join(t("common.listSeparator"))}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </Field>
       </FormDialog>
 
+      {/*
+        * One dialog for adding a person and for changing one.
+        *
+        * Email and how they get access are asked only when creating, because
+        * neither can change afterwards through this form — an address change
+        * is a verified flow of its own, and a password nobody has yet cannot
+        * be reset here. Everything below that is identical for both, and was
+        * previously written out twice; the copies had already drifted, with
+        * the edit form missing the hint that explains why owners are not asked
+        * for a user type.
+        */}
       <FormDialog
-        open={editingUser !== null}
-        title={t("team.editUser")}
-        description={t("team.editUserDescription")}
-        onClose={() => setEditingUser(null)}
-        onSubmit={editUserForm.handleSubmit((values) => {
-          if (editingUser) saveUser.mutate({ userId: editingUser.id, values });
-        })}
-        submitLabel={t("team.saveChanges")}
-        pending={saveUser.isPending}
-        error={messageFor(saveUser.error, t("team.updateUserFailed"))}
+        open={userOpen || editingUser !== null}
+        title={editingUser ? t("team.editUser") : t("team.createUser")}
+        description={editingUser ? t("team.editUserDescription") : t("team.createUserDescription")}
+        onClose={() => { setUserOpen(false); setEditingUser(null); }}
+        onSubmit={
+          editingUser
+            ? editUserForm.handleSubmit((values) =>
+                saveUser.mutate({ userId: editingUser.id, values }),
+              )
+            : userForm.handleSubmit((values) => createUser.mutate(values))
+        }
+        submitLabel={editingUser ? t("team.saveChanges") : t("team.createUser")}
+        pending={editingUser ? saveUser.isPending : createUser.isPending}
+        error={
+          editingUser
+            ? messageFor(saveUser.error, t("team.updateUserFailed"))
+            : messageFor(createUser.error, t("team.createUserFailed"))
+        }
       >
-        <Field label={t("team.fieldName")} error={editUserForm.formState.errors.displayName?.message} required><Input data-autofocus="true" {...editUserForm.register("displayName")} /></Field>
-        <Field
-          label={t("team.fieldStanding")}
-          hint={t("team.standingHint")}
-          error={editUserForm.formState.errors.standing?.message}
-          required
-        >
-          <Select {...editUserForm.register("standing")}>
-            {/* Only an owner may mint another owner; the API refuses it too. */}
-            {(isOwner ? ["owner", "admin", "member", "guest"] : ["admin", "member", "guest"]).map((value) => (
-              <option key={value} value={value}>{t(`team.standing_${value}`)}</option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={t("team.userTypes")} error={editUserForm.formState.errors.userTypeIds?.message} required>
-          <div className="rect-team-permissions">
-            {typeRows.map((type) => (
-              <Checkbox key={type.id} label={roleName(type, t)} {...(type.description ? { description: type.description } : {})} value={type.id} {...editUserForm.register("userTypeIds")} />
-            ))}
-          </div>
-        </Field>
-        <Field label={t("team.effectiveTitle")} hint={t("team.effectiveHint")}>
-          <div className="rect-team-effective">
-            {standingGrantsEverything(editUserForm.watch("standing")) ? (
-              <p className="rect-panel-note">{t("team.effectiveEverything")}</p>
-            ) : effectivePermissions(editUserForm.watch("userTypeIds") ?? [], typeRows).length === 0 ? (
-              <p className="rect-panel-note">{t("team.effectiveNone")}</p>
-            ) : (
-              <ul className="rect-team-effective__list">
-                {effectivePermissions(editUserForm.watch("userTypeIds") ?? [], typeRows).map((entry) => (
-                  <li key={entry.key} className="rect-team-effective__item">
-                    <span className="rect-team-effective__name">
-                      {permissionOptions.find((option) => option.key === entry.key)?.label ?? entry.key}
-                    </span>
-                    {/* Naming the source is what makes an unexpected grant traceable. */}
-                    <span className="rect-team-effective__source">{entry.from.join(t("common.listSeparator"))}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </Field>
+        {editingUser ? (
+          <Field label={t("team.fieldName")} error={editUserForm.formState.errors.displayName?.message} required><Input data-autofocus="true" {...editUserForm.register("displayName")} /></Field>
+        ) : (
+          <>
+            <Field label={t("team.fieldName")} error={userForm.formState.errors.displayName?.message} required><Input data-autofocus="true" {...userForm.register("displayName")} /></Field>
+            <Field label={t("team.fieldEmail")} error={userForm.formState.errors.email?.message} required><Input type="email" {...userForm.register("email")} /></Field>
+            <Field label={t("team.inviteLabel")} hint={t("team.inviteHint")}>
+              <Checkbox label={t("team.inviteOption")} {...userForm.register("invite")} />
+            </Field>
+            {!userForm.watch("invite") ? (
+              <Field
+                label={t("team.fieldTemporaryPassword")}
+                hint={t("team.passwordRule")}
+                error={userForm.formState.errors.password ? t("team.passwordWeak") : undefined}
+                required
+              >
+                <Input type="password" autoComplete="new-password" {...userForm.register("password")} />
+              </Field>
+            ) : null}
+          </>
+        )}
+        <AccessFields
+          form={(editingUser ? editUserForm : userForm) as never}
+          types={typeRows}
+          permissionOptions={permissionOptions}
+          isOwner={isOwner}
+          effectivePermissions={effectivePermissions}
+          roleName={roleName}
+        />
       </FormDialog>
 
       {/* Disabling locks someone out, so it is confirmed; enabling is one click. */}

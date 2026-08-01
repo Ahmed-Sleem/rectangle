@@ -77,11 +77,30 @@ const tasks = {
   ],
 };
 
+/**
+ * What the server says this caller may do on each project.
+ *
+ * Ordered before the generic `/v1/projects` branch in every mock below,
+ * because `/v1/projects/capabilities` matches that prefix too — the reason
+ * these tests first failed was a mock answering the capability request with a
+ * list of projects.
+ */
+const allCapabilities = {
+  editProject: true, archiveProject: true, deleteProject: true, manageTeam: true,
+  createTask: true, editTask: true, deleteTask: true,
+  createRisk: true, editRisk: true, deleteRisk: true,
+};
+
+function capabilitiesFor(ids: readonly string[], overrides = allCapabilities) {
+  return { capabilities: Object.fromEntries(ids.map((id) => [id, overrides])) };
+}
+
 function mockReads() {
   return vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
     const url = String(input);
     if (url.includes("/comments")) return jsonResponse({ comments: [] });
     if (url.includes("/members")) return jsonResponse({ members: [] });
+    if (url.includes("/v1/projects/capabilities")) return jsonResponse(capabilitiesFor(["p1"]));
     if (url.includes("/v1/projects")) return jsonResponse(projects);
     return jsonResponse(tasks);
   });
@@ -175,9 +194,26 @@ describe("TasksPage", () => {
     );
   });
 
-  it("hides creation and deletion from someone who cannot manage projects", async () => {
+  it("hides creation and deletion when the project grants neither", async () => {
+    /*
+     * Driven by what the server reports for the project, not by the company
+     * permission the page used to read. That flag was wrong in both
+     * directions: it offered Create on a project the person is not on, and hid
+     * it from a project manager whose project role granted it.
+     */
     const user = userEvent.setup();
-    mockReads();
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("/comments")) return jsonResponse({ comments: [] });
+      if (url.includes("/members")) return jsonResponse({ members: [] });
+      if (url.includes("/v1/projects/capabilities")) {
+        return jsonResponse(
+          capabilitiesFor(["p1"], { ...allCapabilities, createTask: false, deleteTask: false }),
+        );
+      }
+      if (url.includes("/v1/projects")) return jsonResponse(projects);
+      return jsonResponse(tasks);
+    });
     renderTasks(viewerAuth);
 
     await screen.findByText("Pour raft foundation");
@@ -188,8 +224,22 @@ describe("TasksPage", () => {
     expect(within(dialog).queryByRole("button", { name: "Delete task" })).not.toBeInTheDocument();
   });
 
+  it("offers creation to a project manager who holds no company-wide permission", async () => {
+    /*
+     * The half of the bug nobody would have reported as a security issue and
+     * everybody would have reported as the product being broken: a project
+     * manager, appointed on their own project, saw no Create button because
+     * the page asked only whether they held `tasks.create` across the company.
+     */
+    mockReads();
+    renderTasks(viewerAuth);
+
+    expect(await screen.findByRole("button", { name: "Create task" })).toBeInTheDocument();
+  });
+
   it("reports a failed load instead of showing an empty board", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      if (String(input).includes("/v1/projects/capabilities")) return jsonResponse(capabilitiesFor(["p1"]));
       if (String(input).includes("/v1/projects")) return jsonResponse(projects);
       return jsonResponse({ error: { code: "INTERNAL", message: "boom" } }, 500);
     });
@@ -201,6 +251,7 @@ describe("TasksPage", () => {
 
   it("directs the user to projects when there are none to attach work to", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      if (String(input).includes("/v1/projects/capabilities")) return jsonResponse({ capabilities: {} });
       if (String(input).includes("/v1/projects")) return jsonResponse({ projects: [] });
       return jsonResponse({ tasks: [] });
     });

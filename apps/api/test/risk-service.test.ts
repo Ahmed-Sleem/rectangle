@@ -155,7 +155,24 @@ class MemoryRiskRepository implements RiskRepository {
 function accessStub(access: Partial<ProjectAccess> & { throws?: boolean } = {}) {
   const resolve = async (): Promise<ProjectAccess> => {
     if (access.throws) throw new DomainError("NOT_FOUND", "Project was not found.");
-    return { canRead: access.canRead ?? true, canManage: access.canManage ?? true };
+    const canManage = access.canManage ?? true;
+    /*
+     * Every capability follows canManage in this double. The service under
+     * test never reads them — it calls requireProjectCapability — so a
+     * faithful per-permission answer here would be scaffolding pretending to
+     * be a rule. The real derivation is tested in project-team-service.test.ts.
+     */
+    const allowed = canManage;
+    return {
+      canRead: access.canRead ?? true,
+      canManage,
+      capabilities: {
+        editProject: allowed, archiveProject: allowed, deleteProject: allowed,
+        manageTeam: allowed,
+        createTask: allowed, editTask: allowed, deleteTask: allowed,
+        createRisk: allowed, editRisk: allowed, deleteRisk: allowed,
+      },
+    };
   };
   return {
     resolveAccess: resolve,

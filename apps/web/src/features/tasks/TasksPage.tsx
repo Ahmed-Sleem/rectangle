@@ -15,13 +15,18 @@ import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
-import { useOptionalAuth, hasPermission } from "@/shared/auth";
+import { useOptionalAuth } from "@/shared/auth";
 import { getCurrentLanguage } from "@/shared/i18n";
 import {
   Badge, Button, buttonClassName, ConfirmDialog, DataTable, EmptyState, ErrorState,
   Field, FormDialog, Input, LoadingState, PageToolbar, Select, StatCard, StatRow, Textarea,
 } from "@/shared/ui";
-import { listProjectMembers, listProjects } from "@/features/projects/project-api";
+import {
+  canOnAnyProject,
+  getProjectCapabilities,
+  listProjectMembers,
+  listProjects,
+} from "@/features/projects/project-api";
 import {
   createTask, deleteTask, listTasks, updateTask,
   type TaskPriority, type TaskRecord, type TaskStatus,
@@ -136,9 +141,6 @@ export default function TasksPage() {
    * only — the server decides — but offering a button whose request would be
    * refused is a worse lie than not offering it.
    */
-  const canCreate = hasPermission(auth?.user, "tasks.create");
-  const canEdit = hasPermission(auth?.user, "tasks.edit");
-  const canDelete = hasPermission(auth?.user, "tasks.delete");
 
   const filters = {
     ...(projectFilter ? { projectId: projectFilter } : {}),
@@ -155,6 +157,33 @@ export default function TasksPage() {
   });
   const projectsQuery = useQuery({ queryKey: ["projects", {}], queryFn: () => listProjects() });
   const projects = useMemo(() => projectsQuery.data?.projects ?? [], [projectsQuery.data]);
+  const projectIds = useMemo(() => projects.map((project) => project.id), [projects]);
+
+  /*
+   * Asked of the server, per project, rather than derived from the
+   * company-wide permission here.
+   *
+   * The permission alone was wrong in both directions. It offered a Create
+   * button to somebody holding `tasks.create` on a project they are not on,
+   * where the server refuses — and it withheld the button from a project
+   * manager whose project role grants the action but who holds nothing
+   * company-wide, which made the appointment decorative. Reach and capability
+   * are one question and the server is the only place that answers it.
+   */
+  const capabilitiesQuery = useQuery({
+    queryKey: ["projects", "capabilities", projectIds],
+    queryFn: () => getProjectCapabilities(projectIds),
+    enabled: projectIds.length > 0,
+  });
+  const capabilities = capabilitiesQuery.data?.capabilities ?? {};
+
+  /** Whether a Create button belongs on the toolbar at all. */
+  const canCreateSomewhere = canOnAnyProject(capabilities, "createTask");
+  /** The projects a new task may actually be filed against. */
+  const creatableProjects = useMemo(
+    () => projects.filter((project) => capabilities[project.id]?.createTask),
+    [projects, capabilities],
+  );
 
   const form = useForm<TaskForm>({
     resolver: zodResolver(taskSchema),
@@ -233,6 +262,11 @@ export default function TasksPage() {
   }
 
   const rows = useMemo(() => tasksQuery.data?.tasks ?? [], [tasksQuery.data]);
+  /** The open task, so its own project decides what may be done to it. */
+  const openTask = useMemo(
+    () => rows.find((task) => task.id === openTaskId) ?? null,
+    [rows, openTaskId],
+  );
   const isFiltered = Boolean(search.trim() || projectFilter || priorityFilter || mineOnly || openOnly);
 
   const overdueCount = rows.filter(isOverdue).length;
@@ -331,13 +365,8 @@ export default function TasksPage() {
         ]}
         onClearFilters={clearFilters}
         actions={
-          canCreate ? (
-            <Button
-              variant="primary"
-              onClick={() => { form.reset(); setCreateOpen(true); }}
-              disabled={projects.length === 0}
-              {...(projects.length === 0 ? { title: t("tasks.noProjectsMessage") } : {})}
-            >
+          canCreateSomewhere ? (
+            <Button variant="primary" onClick={() => { form.reset(); setCreateOpen(true); }}>
               {t("tasks.create")}
             </Button>
           ) : null
@@ -381,8 +410,8 @@ export default function TasksPage() {
       ) : rows.length === 0 ? (
         <EmptyState
           title={t("tasks.emptyTitle")}
-          message={canCreate ? t("tasks.emptyManage") : t("tasks.emptyRead")}
-          {...(canCreate
+          message={canCreateSomewhere ? t("tasks.emptyManage") : t("tasks.emptyRead")}
+          {...(canCreateSomewhere
             ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("tasks.create")}</Button> }
             : {})}
         />
@@ -453,8 +482,13 @@ export default function TasksPage() {
       <TaskDetail
         taskId={openTaskId}
         tasks={rows}
-        canEdit={canEdit}
-        canDelete={canDelete}
+        /*
+         * Per task, from the project it belongs to. One flag for the whole
+         * list would be wrong the moment somebody manages one project and only
+         * reads another, which is the ordinary case for a site engineer.
+         */
+        canEdit={openTask ? (capabilities[openTask.projectId]?.editTask ?? false) : false}
+        canDelete={openTask ? (capabilities[openTask.projectId]?.deleteTask ?? false) : false}
         onClose={() => setOpenTaskId(null)}
         onEdit={(task) => { setOpenTaskId(null); setEditing(task); }}
         onDelete={(task) => { setOpenTaskId(null); setPendingDelete(task); }}
@@ -476,9 +510,17 @@ export default function TasksPage() {
         error={messageFor(editing ? save.error : create.error, t(editing ? "tasks.updateFailed" : "tasks.createFailed"))}
       >
         <Field label={t("tasks.fieldProject")} error={form.formState.errors.projectId?.message} required>
+          {/*
+            * Only projects this person may actually file work against. Listing
+            * the rest invites choosing one and meeting a refusal on submit,
+            * with the form already filled in. When editing, the project is
+            * fixed and the field is read-only, so the full list is right —
+            * otherwise a task on a project you can edit but not create in
+            * would show an empty selector.
+            */}
           <Select disabled={editing !== null} {...form.register("projectId")}>
             <option value="">{t("tasks.allProjects")}</option>
-            {projects.map((project) => (
+            {(editing ? projects : creatableProjects).map((project) => (
               <option key={project.id} value={project.id}>{project.name}</option>
             ))}
           </Select>

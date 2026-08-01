@@ -302,3 +302,174 @@ describe("ProjectTeamService", () => {
     expect(event?.metadata).toMatchObject({ unassignedTasks: 0 });
   });
 });
+
+describe("the capabilities reported for one project", () => {
+  /*
+   * The client used to answer this for itself from the company-wide permission
+   * alone, and was wrong in both directions: it offered a Create button on a
+   * project the person was not on, which failed on click, and it withheld one
+   * from a project manager whose project role granted the action, making the
+   * appointment decorative.
+   *
+   * The property that matters is not any particular answer but that the
+   * reported capability and the guard always agree — so most of what follows
+   * asks both and requires the same verdict, for every permission, for every
+   * kind of caller.
+   */
+  let projects: StubProjectsRepository;
+  let team: MemoryProjectTeamRepository;
+  let service: ProjectTeamService;
+
+  beforeEach(() => {
+    projects = new StubProjectsRepository();
+    projects.seed(buildProject());
+    team = new MemoryProjectTeamRepository();
+    team.addTenantUser({ id: adminUserId, tenantId, displayName: "Site Owner", email: "owner@example.com" });
+    team.addTenantUser({ id: memberUserId, tenantId, displayName: "Mona Adel", email: "mona@example.com" });
+    service = new ProjectTeamService(projects, team, new MemoryAuditRepository());
+  });
+
+  /** Every capability beside the permission the guard checks for it. */
+  const PAIRS = [
+    ["editProject", "projects.edit"],
+    ["archiveProject", "projects.archive"],
+    ["manageTeam", "project_team.manage"],
+    ["createTask", "tasks.create"],
+    ["editTask", "tasks.edit"],
+    ["deleteTask", "tasks.delete"],
+    ["createRisk", "risks.create"],
+    ["editRisk", "risks.edit"],
+    ["deleteRisk", "risks.delete"],
+  ] as const;
+
+  async function guardAllows(actor: UserPrincipal, permission: string): Promise<boolean> {
+    try {
+      await service.requireProjectCapability(actor, projectId, permission as never);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  it("gives a project manager the actions their project role grants, with no company permission", async () => {
+    /*
+     * The missing-button half of the bug, and the reason a company-wide flag
+     * cannot answer this: Mona holds nothing at company level. Her authority
+     * is entirely the role she was given on this one project.
+     */
+    await service.addMember(admin, projectId, { userId: memberUserId, role: "project_manager" });
+
+    const access = await service.resolveAccess(viewer, projectId);
+
+    expect(access.capabilities.createTask).toBe(true);
+    expect(access.capabilities.editTask).toBe(true);
+    expect(access.capabilities.createRisk).toBe(true);
+    expect(access.capabilities.manageTeam).toBe(true);
+    // Granted by the role, and still not enough to destroy the project.
+    expect(access.capabilities.deleteProject).toBe(false);
+  });
+
+  it("gives a project viewer none of the write actions", async () => {
+    await service.addMember(admin, projectId, { userId: memberUserId, role: "viewer" });
+
+    const access = await service.resolveAccess(viewer, projectId);
+
+    expect(access.canRead).toBe(true);
+    for (const [capability] of PAIRS) {
+      expect(access.capabilities[capability], capability).toBe(false);
+    }
+  });
+
+  it("agrees with the guard for every permission, for a project manager", async () => {
+    await service.addMember(admin, projectId, { userId: memberUserId, role: "project_manager" });
+    const access = await service.resolveAccess(viewer, projectId);
+
+    for (const [capability, permission] of PAIRS) {
+      expect(access.capabilities[capability], `${capability} vs ${permission}`).toBe(
+        await guardAllows(viewer, permission),
+      );
+    }
+  });
+
+  it("agrees with the guard for every permission, for a project viewer", async () => {
+    await service.addMember(admin, projectId, { userId: memberUserId, role: "viewer" });
+    const access = await service.resolveAccess(viewer, projectId);
+
+    for (const [capability, permission] of PAIRS) {
+      expect(access.capabilities[capability], `${capability} vs ${permission}`).toBe(
+        await guardAllows(viewer, permission),
+      );
+    }
+  });
+
+  it("refuses every write to somebody who can reach the project but not manage it", async () => {
+    /*
+     * The case that exposes a capability set built without consulting reach.
+     * An external collaborator is a member — they resolve, they can read — and
+     * `canManage` is false for them, so every write must be false even when
+     * the company-wide permission is held. Break-testing found this missing:
+     * removing the `canManage` guard from the derivation left every other test
+     * in this file green, because nobody else here reads a project they may
+     * not manage.
+     */
+    await service.addMember(admin, projectId, {
+      userId: memberUserId,
+      role: "external_collaborator",
+    });
+    const collaborator: UserPrincipal = {
+      tenantId,
+      userId: memberUserId,
+      roles: ["member"],
+      // Deliberately generous at company level. Reach decides, not this.
+      permissions: ["tasks.create", "tasks.edit", "risks.create", "project_team.manage"],
+    };
+
+    const access = await service.resolveAccess(collaborator, projectId);
+
+    expect(access.canRead).toBe(true);
+    expect(access.canManage).toBe(false);
+    for (const [capability, permission] of PAIRS) {
+      expect(access.capabilities[capability], capability).toBe(false);
+      expect(await guardAllows(collaborator, permission), permission).toBe(false);
+    }
+  });
+
+  it("agrees with the guard for every permission, for a company administrator", async () => {
+    const access = await service.resolveAccess(admin, projectId);
+
+    for (const [capability, permission] of PAIRS) {
+      expect(access.capabilities[capability], `${capability} vs ${permission}`).toBe(
+        await guardAllows(admin, permission),
+      );
+    }
+  });
+
+  it("lets a company administrator delete, and head office not", async () => {
+    /*
+     * Deletion is the one capability not derived like the others: reaching
+     * every project is enough to edit any of them and deliberately not enough
+     * to destroy one, because it takes the tasks, risks and history with it.
+     */
+    const headOffice: UserPrincipal = {
+      tenantId,
+      userId: memberUserId,
+      roles: ["member"],
+      permissions: ["projects.read", "projects.manage_all", "projects.delete"],
+    };
+
+    expect((await service.resolveAccess(admin, projectId)).capabilities.deleteProject).toBe(true);
+    expect((await service.resolveAccess(headOffice, projectId)).capabilities.deleteProject).toBe(false);
+  });
+
+  it("lets a project admin holding projects.delete delete their own project", async () => {
+    await service.addMember(admin, projectId, { userId: memberUserId, role: "project_admin" });
+    const deleter: UserPrincipal = {
+      tenantId,
+      userId: memberUserId,
+      roles: ["member"],
+      permissions: ["projects.delete"],
+    };
+
+    expect((await service.resolveAccess(deleter, projectId)).capabilities.deleteProject).toBe(true);
+  });
+});

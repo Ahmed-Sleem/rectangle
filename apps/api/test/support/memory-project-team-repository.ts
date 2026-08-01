@@ -44,6 +44,15 @@ export class MemoryProjectTeamRepository implements ProjectTeamRepository {
     );
   }
 
+  async findMembershipsForUser(
+    tenantId: string,
+    userId: string,
+  ): Promise<Array<{ projectId: string; role: ProjectMemberRecord["role"] }>> {
+    return this.members
+      .filter((member) => member.tenantId === tenantId && member.userId === userId)
+      .map((member) => ({ projectId: member.projectId, role: member.role }));
+  }
+
   async findMember(
     tenantId: string,
     projectId: string,

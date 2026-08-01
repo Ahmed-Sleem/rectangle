@@ -84,10 +84,34 @@ export type ProjectMemberRole =
   | "viewer"
   | "external_collaborator";
 
+/**
+ * What the caller may do on one project, as the server resolves it.
+ *
+ * Not re-derived here from the company-wide permission list, and that is the
+ * point: reaching a project and being allowed an action on it are two
+ * questions, and a project role can grant an action to somebody who holds
+ * nothing company-wide. Answering it in the browser produced buttons that
+ * failed on click and, worse, withheld buttons from project managers who were
+ * entitled to them.
+ */
+export interface ProjectCapabilities {
+  editProject: boolean;
+  archiveProject: boolean;
+  deleteProject: boolean;
+  manageTeam: boolean;
+  createTask: boolean;
+  editTask: boolean;
+  deleteTask: boolean;
+  createRisk: boolean;
+  editRisk: boolean;
+  deleteRisk: boolean;
+}
+
 export interface ProjectAccess {
   canRead: boolean;
   canManage: boolean;
   membershipRole?: ProjectMemberRole;
+  capabilities: ProjectCapabilities;
 }
 
 export interface ProjectMember {
@@ -153,6 +177,29 @@ export interface ProjectActivityEntry {
 
 export function getProjectAccess(projectId: string): Promise<{ access: ProjectAccess }> {
   return apiRequest(`/v1/projects/${projectId}/access`);
+}
+
+/**
+ * Capabilities for several projects in one request.
+ *
+ * A register spanning projects needs the answer per row, and asking per row
+ * would be a request per project on every render. Anything unreachable comes
+ * back with every capability false rather than missing, so a caller never has
+ * to distinguish "absent" from "refused".
+ */
+export function getProjectCapabilities(
+  projectIds: readonly string[],
+): Promise<{ capabilities: Record<string, ProjectCapabilities> }> {
+  if (projectIds.length === 0) return Promise.resolve({ capabilities: {} });
+  return apiRequest(`/v1/projects/capabilities?ids=${projectIds.join(",")}`);
+}
+
+/** True when the person may do this on at least one project they can reach. */
+export function canOnAnyProject(
+  capabilities: Record<string, ProjectCapabilities>,
+  capability: keyof ProjectCapabilities,
+): boolean {
+  return Object.values(capabilities).some((entry) => entry[capability]);
 }
 
 export function listProjectMembers(projectId: string): Promise<{ members: ProjectMember[] }> {

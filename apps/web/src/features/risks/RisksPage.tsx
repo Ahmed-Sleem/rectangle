@@ -15,14 +15,18 @@ import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router";
 import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
-import { useOptionalAuth, hasPermission } from "@/shared/auth";
 import { getCurrentLanguage } from "@/shared/i18n";
 import {
   Badge, BreakdownBar, Button, buttonClassName, CardGrid, ConfirmDialog, DataTable,
   EmptyState, ErrorState, Field, FormDialog, InsightBanner, Input, LoadingState,
   PageToolbar, Select, SidePanel, StatCard, StatRow, Textarea,
 } from "@/shared/ui";
-import { listProjectMembers, listProjects } from "@/features/projects/project-api";
+import {
+  canOnAnyProject,
+  getProjectCapabilities,
+  listProjectMembers,
+  listProjects,
+} from "@/features/projects/project-api";
 import { listTasks } from "@/features/tasks/task-api";
 import {
   createRisk, deleteRisk, getRiskSummary, listRisks, updateRisk,
@@ -110,7 +114,6 @@ function cellSeverity(score: number): RiskSeverity {
 export default function RisksPage() {
   const { t } = useTranslation();
   const language = getCurrentLanguage();
-  const auth = useOptionalAuth();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -133,9 +136,12 @@ export default function RisksPage() {
    * only — the server decides — but offering a button whose request would be
    * refused is a worse lie than not offering it.
    */
-  const canCreate = hasPermission(auth?.user, "risks.create");
-  const canEdit = hasPermission(auth?.user, "risks.edit");
-  const canDelete = hasPermission(auth?.user, "risks.delete");
+  /*
+   * Resolved by the server for each project, not derived from the company-wide
+   * permission here. See TasksPage for the full reasoning: the permission alone
+   * both offered actions the server refuses and withheld actions a project role
+   * grants.
+   */
 
   const filters = {
     ...(search.trim() ? { search: search.trim() } : {}),
@@ -161,6 +167,21 @@ export default function RisksPage() {
   });
   const projectsQuery = useQuery({ queryKey: ["projects", {}], queryFn: () => listProjects() });
   const projects = useMemo(() => projectsQuery.data?.projects ?? [], [projectsQuery.data]);
+  const projectIds = useMemo(() => projects.map((project) => project.id), [projects]);
+  const capabilitiesQuery = useQuery({
+    queryKey: ["projects", "capabilities", projectIds],
+    queryFn: () => getProjectCapabilities(projectIds),
+    enabled: projectIds.length > 0,
+  });
+  const capabilities = capabilitiesQuery.data?.capabilities ?? {};
+  const canCreateSomewhere = canOnAnyProject(capabilities, "createRisk");
+  const creatableProjects = useMemo(
+    () => projects.filter((project) => capabilities[project.id]?.createRisk),
+    [projects, capabilities],
+  );
+  /** Per risk, from the project it belongs to. */
+  const mayEdit = (projectId: string) => capabilities[projectId]?.editRisk ?? false;
+  const mayDelete = (projectId: string) => capabilities[projectId]?.deleteRisk ?? false;
 
   const form = useForm<RiskForm>({
     resolver: zodResolver(riskSchema),
@@ -355,7 +376,7 @@ export default function RisksPage() {
         ]}
         onClearFilters={clearFilters}
         actions={
-          canCreate ? (
+          canCreateSomewhere ? (
             <Button
               variant="primary"
               onClick={() => { form.reset(); setCreateOpen(true); }}
@@ -405,8 +426,8 @@ export default function RisksPage() {
               ) : rows.length === 0 ? (
                 <EmptyState
                   title={t("risks.emptyTitle")}
-                  message={canCreate ? t("risks.emptyManage") : t("risks.emptyRead")}
-                  {...(canCreate
+                  message={canCreateSomewhere ? t("risks.emptyManage") : t("risks.emptyRead")}
+                  {...(canCreateSomewhere
                     ? { action: <Button variant="primary" onClick={() => setCreateOpen(true)}>{t("risks.create")}</Button> }
                     : {})}
                 />
@@ -426,7 +447,7 @@ export default function RisksPage() {
                         </span>
                       </header>
 
-                      {canEdit ? (
+                      {mayEdit(risk.projectId) ? (
                         <button type="button" className="rect-risk__link" onClick={() => setEditing(risk)}>
                           {risk.title}
                         </button>
@@ -473,7 +494,7 @@ export default function RisksPage() {
                           <Badge tone={risk.kind === "issue" ? "danger" : "neutral"}>
                             {t(`enums.riskKind.${risk.kind}`)}
                           </Badge>
-                          {canEdit ? (
+                          {mayEdit(risk.projectId) ? (
                             <button type="button" className="rect-risk__link" onClick={() => setEditing(risk)}>
                               {risk.title}
                             </button>
@@ -519,15 +540,24 @@ export default function RisksPage() {
                           ? dateFormatter.format(new Date(`${risk.dueDate}T00:00:00`))
                           : t("common.notAvailable"),
                     },
-                    ...(canDelete
+                    /*
+                     * The column exists when deletion is possible on any
+                     * visible project, and the button appears only on the rows
+                     * where it is. A single flag would either hide the action
+                     * from the projects that allow it or offer it on the ones
+                     * that refuse it, and both are wrong for anybody who
+                     * manages one project and reads another.
+                     */
+                    ...(canOnAnyProject(capabilities, "deleteRisk")
                       ? [{
                           id: "actions",
                           header: t("common.actions"),
-                          accessor: (risk: RiskRecord) => (
-                            <Button size="sm" variant="secondary" onClick={() => setPendingDelete(risk)}>
-                              {t("risks.delete")}
-                            </Button>
-                          ),
+                          accessor: (risk: RiskRecord) =>
+                            mayDelete(risk.projectId) ? (
+                              <Button size="sm" variant="secondary" onClick={() => setPendingDelete(risk)}>
+                                {t("risks.delete")}
+                              </Button>
+                            ) : null,
                         }]
                       : []),
                   ]}
@@ -640,7 +670,12 @@ export default function RisksPage() {
         <Field label={t("risks.fieldProject")} error={form.formState.errors.projectId?.message} required>
           <Select disabled={editing !== null} {...form.register("projectId")}>
             <option value="">{t("risks.allProjects")}</option>
-            {projects.map((project) => (
+            {/*
+              * Only projects a risk may actually be raised against. When
+              * editing, the project is fixed and the field is read-only, so
+              * the full list is correct there.
+              */}
+            {(editing ? projects : creatableProjects).map((project) => (
               <option key={project.id} value={project.id}>{project.name}</option>
             ))}
           </Select>

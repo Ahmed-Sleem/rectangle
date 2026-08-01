@@ -88,13 +88,33 @@ const risks = {
   ],
 };
 
-function mockReads() {
+/**
+ * What the server reports this caller may do on each project.
+ *
+ * The register asks for this before it decides what to offer, so a mock that
+ * falls through to the project list answers the question with the wrong shape
+ * and every capability reads as false — which is how these tests passed while
+ * asserting nothing about the controls.
+ */
+const allCapabilities = {
+  editProject: true, archiveProject: true, deleteProject: true, manageTeam: true,
+  createTask: true, editTask: true, deleteTask: true,
+  createRisk: true, editRisk: true, deleteRisk: true,
+};
+
+function capabilitiesFor(overrides: Partial<typeof allCapabilities> = {}) {
+  return { capabilities: { p1: { ...allCapabilities, ...overrides } } };
+}
+
+function mockReads(capabilities = capabilitiesFor()) {
   return vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
     const url = String(input);
     if (url.includes("/v1/risks/summary")) return jsonResponse(summary);
     if (url.includes("/v1/risks")) return jsonResponse(risks);
     if (url.includes("/members")) return jsonResponse({ members: [] });
     if (url.includes("/v1/tasks")) return jsonResponse({ tasks: [] });
+    // Before the generic project branch: the capability url matches it too.
+    if (url.includes("/v1/projects/capabilities")) return jsonResponse(capabilities);
     return jsonResponse(projects);
   });
 }
@@ -194,8 +214,50 @@ describe("RisksPage", () => {
     );
   });
 
+  it("offers creation to a project manager who holds no company-wide permission", async () => {
+    /*
+     * The half of the mismatch that reads as the product being broken rather
+     * than as a leak: somebody appointed manager of their own project saw no
+     * Create button, because the page asked only whether they held
+     * `risks.create` across the whole company.
+     */
+    mockReads();
+    renderRisks();
+
+    expect(await screen.findByRole("button", { name: "Raise a risk" })).toBeInTheDocument();
+  });
+
+  it("hides creation and deletion when the project grants neither", async () => {
+    mockReads(capabilitiesFor({ createRisk: false, deleteRisk: false, editRisk: false }));
+    renderRisks();
+
+    await screen.findByText("Rebar delivery may slip");
+    expect(screen.queryByRole("button", { name: "Raise a risk" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    /*
+     * The card title is the edit affordance, so it must stop being a button —
+     * not merely lose its handler. Break-testing showed the two assertions
+     * above pass with per-risk editing forced on, because neither looks at it.
+     */
+    expect(
+      screen.queryByRole("button", { name: "Rebar delivery may slip" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("makes the title an edit affordance when the project allows editing", async () => {
+    // The other direction, so the assertion above cannot be satisfied by a
+    // register that never offers editing at all.
+    mockReads();
+    renderRisks();
+
+    expect(
+      await screen.findByRole("button", { name: "Rebar delivery may slip" }),
+    ).toBeInTheDocument();
+  });
+
   it("reports a failed load instead of an empty register", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      if (String(input).includes("/v1/projects/capabilities")) return jsonResponse(capabilitiesFor());
       if (String(input).includes("/v1/projects")) return jsonResponse(projects);
       return jsonResponse({ error: { code: "INTERNAL", message: "boom" } }, 500);
     });

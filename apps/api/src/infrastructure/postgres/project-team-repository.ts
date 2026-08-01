@@ -91,6 +91,21 @@ export class PostgresProjectTeamRepository {
     return result.rows.map(mapMember);
   }
 
+  async findMembershipsForUser(
+    tenantId: string,
+    userId: string,
+  ): Promise<Array<{ projectId: string; role: ProjectMemberRecord["role"] }>> {
+    // One query for every project this person is on, so a register spanning
+    // dozens of projects costs one round trip rather than one per row.
+    const result = await this.pool.query<{ project_id: string; role: ProjectMemberRecord["role"] }>(
+      `select project_id, role
+         from project_members
+        where tenant_id = $1 and user_id = $2`,
+      [tenantId, userId],
+    );
+    return result.rows.map((row) => ({ projectId: row.project_id, role: row.role }));
+  }
+
   async findMember(
     tenantId: string,
     projectId: string,

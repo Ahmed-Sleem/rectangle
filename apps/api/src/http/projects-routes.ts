@@ -39,6 +39,23 @@ export async function registerProjectRoutes(
     return reply.status(204).send();
   });
 
+  /*
+   * Capabilities for many projects at once.
+   *
+   * The register, the task list and the risk list all span projects, so asking
+   * per row would be one request per project on every render. Ids come in the
+   * query string; anything the caller cannot reach comes back with every
+   * capability false rather than being omitted, so the client does not have to
+   * treat "absent" and "refused" as different answers.
+   */
+  app.get<{ Querystring: { ids?: string } }>("/v1/projects/capabilities", async (request) => {
+    const ids = (request.query.ids ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+    return { capabilities: await projectTeamService.capabilitiesForProjects(request.principal, ids) };
+  });
+
   app.get<{ Params: ProjectParams }>("/v1/projects/:projectId/access", async (request) => {
     return { access: await projectTeamService.resolveAccess(request.principal, request.params.projectId) };
   });

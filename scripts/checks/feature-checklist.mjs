@@ -215,6 +215,14 @@ for (const page of PAGES) {
   // `access.data?.access` covers the per-project pages, where the answer is not
   // a company-wide permission at all: the server resolves what this caller may
   // do on this one project, and the page gates on that.
+  //
+  // `capabilities[` and `canOnAnyProject(` cover the registers that span
+  // projects. Tasks and Risks used to read the company-wide permission, which
+  // was wrong in both directions — it offered actions the server refuses on a
+  // project the person is not on, and withheld actions a project role grants.
+  // They now ask the server per project, and this check flagged them as
+  // ungated for doing the stricter thing. Its own note above applies: a check
+  // that fails when the code improves is measuring the wrong thing.
   const hasWriteAction = /Button[^>]*variant="primary"|onClick=\{\(\) => set\w*Open/.test(source);
   if (!page.singleRecord) {
     check(
@@ -222,7 +230,9 @@ for (const page of PAGES) {
       page.id,
       "actions gated by permission",
       !hasWriteAction ||
-        /hasPermission\(|permissions\.includes|roles\.some|access\.data\?\.access/.test(source),
+        /hasPermission\(|permissions\.includes|roles\.some|access\.data\?\.access|capabilities\[|canOnAnyProject\(/.test(
+          source,
+        ),
     );
   }
 

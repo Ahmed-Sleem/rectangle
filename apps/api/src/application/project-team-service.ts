@@ -38,6 +38,8 @@ import type { AuditRepository, ProjectsRepository } from "./project-service.js";
 export interface ProjectTeamRepository {
   listMembers(tenantId: string, projectId: string): Promise<ProjectMemberRecord[]>;
   findMember(tenantId: string, projectId: string, userId: string): Promise<ProjectMemberRecord | null>;
+  /** Every project in the tenant this person is on, as project id to role. */
+  findMembershipsForUser(tenantId: string, userId: string): Promise<Array<{ projectId: string; role: ProjectMemberRecord["role"] }>>;
   tenantUserExists(tenantId: string, userId: string): Promise<boolean>;
   addMember(
     tenantId: string,
@@ -89,10 +91,41 @@ export interface ProjectTeamRepository {
  * permission. Keeping them apart is the whole point of the model: reach says
  * which projects, capability says which actions.
  */
+/**
+ * The capabilities a page needs to decide what to offer on one project.
+ *
+ * Named individually rather than returned as a list of permission strings so
+ * that adding one is a compile error at every call site rather than a lookup
+ * that silently returns false.
+ */
+export interface ProjectCapabilities {
+  editProject: boolean;
+  archiveProject: boolean;
+  deleteProject: boolean;
+  manageTeam: boolean;
+  createTask: boolean;
+  editTask: boolean;
+  deleteTask: boolean;
+  createRisk: boolean;
+  editRisk: boolean;
+  deleteRisk: boolean;
+}
+
 export interface ProjectAccess {
   canRead: boolean;
   canManage: boolean;
   membershipRole?: ProjectMemberRecord["role"];
+  /**
+   * What this caller may actually do here.
+   *
+   * The client used to answer this for itself from the company-wide permission
+   * alone, and was wrong in both directions: it offered a Create button on a
+   * project the person was not on, which failed on click, and it withheld one
+   * from a project manager whose project role granted the action — making the
+   * appointment decorative. Both are the same mistake, a second implementation
+   * of a rule that already exists here.
+   */
+  capabilities: ProjectCapabilities;
 }
 
 export class ProjectTeamService {
@@ -125,7 +158,8 @@ export class ProjectTeamService {
     }
 
     if (canReachAllProjects(actor)) {
-      return { canRead: true, canManage: true };
+      const reachesEverything = { canRead: true, canManage: true };
+      return { ...reachesEverything, capabilities: this.capabilitiesFor(actor, reachesEverything) };
     }
 
     const membership = await this.team.findMember(actor.tenantId, projectId, actor.userId);
@@ -135,11 +169,106 @@ export class ProjectTeamService {
       throw new DomainError("NOT_FOUND", "Project was not found.");
     }
 
-    return {
+    const access = {
       canRead: true,
       canManage: isProjectAdminRole(membership.role),
       membershipRole: membership.role,
     };
+    return { ...access, capabilities: this.capabilitiesFor(actor, access) };
+  }
+
+  /**
+   * The same answer as `resolveAccess`, for many projects in one round trip.
+   *
+   * The register and the task and risk lists span projects, and asking per row
+   * would be a request per project on every render. One membership lookup
+   * answers all of them, and the capabilities are derived by the same private
+   * method, so the bulk answer cannot drift from the single one.
+   */
+  async capabilitiesForProjects(
+    actor: UserPrincipal,
+    projectIds: readonly string[],
+  ): Promise<Record<string, ProjectCapabilities>> {
+    if (projectIds.length === 0) return {};
+
+    if (canReachAllProjects(actor)) {
+      const reaching = { canRead: true, canManage: true };
+      const capabilities = this.capabilitiesFor(actor, reaching);
+      return Object.fromEntries(projectIds.map((id) => [id, capabilities]));
+    }
+
+    const memberships = await this.team.findMembershipsForUser(actor.tenantId, actor.userId);
+    const byProject = new Map(memberships.map((m) => [m.projectId, m.role]));
+
+    const answer: Record<string, ProjectCapabilities> = {};
+    for (const projectId of projectIds) {
+      const role = byProject.get(projectId);
+      // Absent means unreachable, and an unreachable project is reported as
+      // no capabilities rather than omitted, so a caller iterating ids does
+      // not have to treat "missing" and "refused" as different cases.
+      const access = {
+        canRead: role !== undefined,
+        canManage: role !== undefined && isProjectAdminRole(role),
+        ...(role !== undefined ? { membershipRole: role } : {}),
+      };
+      answer[projectId] = this.capabilitiesFor(actor, access);
+    }
+    return answer;
+  }
+
+  /**
+   * Answers, for one project, every question a page needs to ask.
+   *
+   * Deliberately expressed by calling the same predicate the guards call rather
+   * than by restating the rule. If this drifted from `requireProjectCapability`
+   * the interface would confidently offer actions the server then refuses,
+   * which is worse than not offering them at all.
+   */
+  private capabilitiesFor(
+    actor: UserPrincipal,
+    access: Omit<ProjectAccess, "capabilities">,
+  ): ProjectCapabilities {
+    const may = (permission: Parameters<typeof hasPermission>[1]): boolean =>
+      this.allows(actor, access, permission);
+
+    return {
+      editProject: may("projects.edit"),
+      archiveProject: may("projects.archive"),
+      /*
+       * Deletion is not a capability like the others and is not derived like
+       * one. It requires administering this project specifically, or the
+       * company: the head-office permission that reaches every project is
+       * deliberately not enough to destroy one. Mirrors
+       * `requireProjectDeletion`.
+       */
+      deleteProject:
+        isCompanyAdministrator(actor) ||
+        (access.membershipRole === "project_admin" && hasPermission(actor, "projects.delete")),
+      manageTeam: may("project_team.manage"),
+      createTask: may("tasks.create"),
+      editTask: may("tasks.edit"),
+      deleteTask: may("tasks.delete"),
+      createRisk: may("risks.create"),
+      editRisk: may("risks.edit"),
+      deleteRisk: may("risks.delete"),
+    };
+  }
+
+  /**
+   * The single rule: reach, then capability from either the company-wide
+   * permission or the project role. `requireProjectCapability` throws on the
+   * same answer this returns.
+   */
+  private allows(
+    actor: UserPrincipal,
+    access: Omit<ProjectAccess, "capabilities">,
+    permission: Parameters<typeof hasPermission>[1],
+  ): boolean {
+    if (!access.canManage) return false;
+    const grantedByRole =
+      access.membershipRole !== undefined &&
+      roleGrantsOnProject(access.membershipRole, permission);
+    return grantedByRole || hasPermission(actor, permission);
   }
 
   /**
@@ -162,18 +291,17 @@ export class ProjectTeamService {
     }
 
     /*
-     * The capability can come from either side, and both are legitimate.
+     * The same predicate the reported capabilities are built from, called
+     * rather than restated. Written twice, the guard and the answer the page
+     * renders would eventually disagree, and the interface would offer actions
+     * that fail on click — which is the fault this change exists to remove.
      *
-     * A company-wide permission grants the action everywhere the person can
-     * reach. A project role grants it on the one project it is held on, which
-     * is what being made administrator of a project has to mean — otherwise
-     * the appointment is decorative and a site team has to ask head office
-     * before adding its own people.
+     * The capability may come from either side, and both are legitimate: a
+     * company-wide permission grants the action everywhere the person can
+     * reach, and a project role grants it on the one project it is held on,
+     * which is what being made administrator of a project has to mean.
      */
-    const grantedByRole =
-      access.membershipRole !== undefined &&
-      roleGrantsOnProject(access.membershipRole, permission);
-    if (!grantedByRole && !hasPermission(actor, permission)) {
+    if (!this.allows(actor, access, permission)) {
       throw new DomainError("FORBIDDEN", "You do not have permission to perform this action.");
     }
     return access;

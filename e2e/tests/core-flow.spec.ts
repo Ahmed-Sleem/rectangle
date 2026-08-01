@@ -391,6 +391,62 @@ test("the people register shows colleagues, and only the projects the viewer may
   expect(ownerAsColleague!.projects.map((project) => project.code)).toEqual(["AW-002"]);
 });
 
+test("a project manager is offered the actions their project role grants", async ({ page }) => {
+  /*
+   * The mismatch the owner reported, end to end.
+   *
+   * Mona holds a narrow user type: she may create and edit projects and holds
+   * no company-wide task or risk permission at all. She is `project_admin` of
+   * Alexandria Warehouse because she created it. The server has always allowed
+   * her to add tasks there — her project role grants it — and the interface
+   * used to show her no Create button, because it asked only whether she held
+   * `tasks.create` across the company.
+   *
+   * This asserts the server's answer and the screen agree.
+   */
+  await page.goto("/logout");
+  await expect(page.getByLabel("Password")).toBeVisible({ timeout: 20_000 });
+  await page.getByLabel("Email").fill(MEMBER.email);
+  await page.getByLabel("Password").fill(MEMBER.password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("navigation").getByRole("link", { name: "Projects" })).toBeVisible({
+    timeout: 30_000,
+  });
+
+  const list = await page.request.get("/v1/projects");
+  const hers = ((await list.json()) as { projects: Array<{ id: string; code: string }> }).projects;
+  expect(hers.map((project) => project.code)).toEqual(["AW-002"]);
+
+  const reported = await page.request.get(`/v1/projects/capabilities?ids=${hers[0]!.id}`);
+  expect(reported.ok()).toBeTruthy();
+  const capabilities = (
+    (await reported.json()) as { capabilities: Record<string, Record<string, boolean>> }
+  ).capabilities[hers[0]!.id]!;
+
+  // Granted by the project role, held nowhere company-wide.
+  expect(capabilities.createTask).toBe(true);
+  expect(capabilities.createRisk).toBe(true);
+  expect(capabilities.manageTeam).toBe(true);
+  // And still not enough to destroy the project.
+  expect(capabilities.deleteProject).toBe(false);
+
+  // The screen agrees with the server, which is the whole point.
+  /*
+   * `.first()` because the register offers the action twice when it is empty —
+   * once in the toolbar and once inside the empty state. Both are the same
+   * decision; either appearing proves it was taken.
+   */
+  await page.getByRole("navigation").getByRole("link", { name: "Tasks" }).click();
+  await expect(page.getByRole("button", { name: "Create task" }).first()).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await page.getByRole("navigation").getByRole("link", { name: "Risks" }).click();
+  await expect(page.getByRole("button", { name: "Raise a risk" }).first()).toBeVisible({
+    timeout: 20_000,
+  });
+});
+
 test("an unauthenticated request is refused by the API, not answered with a page", async ({
   request,
 }) => {
