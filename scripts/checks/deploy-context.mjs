@@ -99,10 +99,30 @@ function findRelativeSpecifiers(source) {
 const problems = [];
 
 for (const stage of STAGES) {
-  const appRoot = join(ROOT, stage.appDir);
-  const files = walk(appRoot).filter((file) =>
-    SOURCE_EXTENSIONS.has(file.slice(file.lastIndexOf("."))),
-  );
+  /*
+   * Only the paths the stage actually COPYs, not the whole app directory.
+   *
+   * Walking the app directory asked the wrong question. `apps/api/test` is
+   * never copied into any image, so a test reaching into another app cannot
+   * fail a deploy — and search-parity.test.ts deliberately imports the browser
+   * matcher, because holding the two search implementations to the same answers
+   * is the entire point of that test. Reported as a deployment fault, it was a
+   * false alarm that a reader would eventually silence by weakening the check
+   * or deleting a good test. What the Dockerfile copies is what the container
+   * has, so that is what is examined.
+   */
+  const files = stage.copied
+    .flatMap((path) => {
+      const full = join(ROOT, path);
+      try {
+        return statSync(full).isDirectory() ? walk(full) : [full];
+      } catch {
+        // A COPY naming a path that does not exist is caught by the
+        // Dockerfile self-check below, which reports it far more clearly.
+        return [];
+      }
+    })
+    .filter((file) => SOURCE_EXTENSIONS.has(file.slice(file.lastIndexOf("."))));
 
   for (const file of files) {
     const source = readFileSync(file, "utf8");

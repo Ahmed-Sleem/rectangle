@@ -47,6 +47,7 @@ run_step "design token snapshot" node scripts/checks/token-snapshot.mjs
 run_step "design token usage" node scripts/checks/token-usage.mjs
 run_step "pglite budget" node scripts/checks/pglite-budget.mjs
 run_step "one search engine" node scripts/checks/search-engine.mjs
+run_step "permission visibility" node scripts/checks/permission-visibility.mjs
 run_step "rules reference integrity" node scripts/checks/rules-reference.mjs
 run_step "deploy build context" node scripts/checks/deploy-context.mjs
 run_step "dependency advisories" node scripts/checks/dependency-audit.mjs
