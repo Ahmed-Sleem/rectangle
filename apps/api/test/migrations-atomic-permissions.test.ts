@@ -98,7 +98,12 @@ describe("atomic permission migration", () => {
 
   it("renames the two types whose names collided with other vocabulary", async () => {
     const result = await db.query<{ key: string; name: string }>(
-      "select key, name from user_types where tenant_id = $1 and system_type order by key",
+      /*
+       * No `system_type` filter. Migration 018 turned every bundle into an
+       * ordinary saved list a company may edit or delete, so the flag no longer
+       * marks anything — the keys are what identify these.
+       */
+      "select key, name from user_types where tenant_id = $1 order by key",
       [TENANT],
     );
     const names = Object.fromEntries(result.rows.map((row) => [row.key, row.name]));

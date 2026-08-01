@@ -44,3 +44,8 @@ export async function migrateUpTo(db: PGlite, stopBefore?: string): Promise<void
     await db.exec(forPglite(readFileSync(join(MIGRATIONS_DIR, file), "utf8")));
   }
 }
+
+/** Applies one migration file, for tests that need it in isolation. */
+export async function applyMigration(db: PGlite, file: string): Promise<void> {
+  await db.exec(forPglite(readFileSync(join(MIGRATIONS_DIR, file), "utf8")));
+}
