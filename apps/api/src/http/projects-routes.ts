@@ -48,13 +48,19 @@ export async function registerProjectRoutes(
    * capability false rather than being omitted, so the client does not have to
    * treat "absent" and "refused" as different answers.
    */
-  app.get<{ Querystring: { ids?: string } }>("/v1/projects/capabilities", async (request) => {
-    const ids = (request.query.ids ?? "")
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean);
-    return { capabilities: await projectTeamService.capabilitiesForProjects(request.principal, ids) };
-  });
+  /*
+   * POST, for a read.
+   *
+   * The ids are the request, and there can be a few hundred of them. In a query
+   * string that grew with the register until the server refused the whole
+   * request with a 431 at around four hundred projects — a ceiling a large
+   * contractor would reach and nobody would have tested. A body has no such
+   * limit. The endpoint stays read-only: nothing is written and nothing is
+   * audited.
+   */
+  app.post("/v1/projects/capabilities", async (request) => ({
+    capabilities: await projectTeamService.capabilitiesForProjects(request.principal, request.body),
+  }));
 
   app.get<{ Params: ProjectParams }>("/v1/projects/:projectId/access", async (request) => {
     return { access: await projectTeamService.resolveAccess(request.principal, request.params.projectId) };

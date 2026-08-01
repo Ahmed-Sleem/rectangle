@@ -11,7 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Contact, LayoutGrid, Rows3, ShieldCheck, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { z } from "zod";
@@ -23,7 +23,7 @@ import {
   ViewToggle,
 } from "@/shared/ui";
 import { searchRecords } from "@/shared/search/match";
-import { AccessFields } from "./AccessFields";
+import { AccessFields, type AccessFormValues } from "./AccessFields";
 import { PeopleDirectory } from "./PeopleDirectory";
 import { PermissionPicker } from "./PermissionPicker";
 import { adminApi, type AdminUserRecord, type UserTypeRecord } from "./admin-api";
@@ -827,7 +827,12 @@ export default function TeamPage() {
           </>
         )}
         <AccessFields
-          form={(editingUser ? editUserForm : userForm) as never}
+          /*
+           * The two forms differ — creating asks for an email and a password —
+           * so the union is narrowed to the fields AccessFields actually reads.
+           * Those names stay checked; see AccessFieldsProps.
+           */
+          form={(editingUser ? editUserForm : userForm) as unknown as UseFormReturn<AccessFormValues>}
           types={typeRows}
           permissionOptions={permissionOptions}
           isOwner={isOwner}

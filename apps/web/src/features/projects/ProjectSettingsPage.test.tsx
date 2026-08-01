@@ -26,6 +26,22 @@ function json(body: unknown, status = 200) {
   );
 }
 
+/**
+ * The capability set the server returns beside `canManage`.
+ *
+ * Written out here rather than defaulted inside the page, because the fault
+ * these tests now guard is precisely a page assuming what it was not told:
+ * reaching a project and being allowed to change it are different answers.
+ */
+function capabilities(overrides: Record<string, boolean> = {}) {
+  return {
+    editProject: true, archiveProject: true, deleteProject: true, manageTeam: true,
+    createTask: true, editTask: true, deleteTask: true,
+    createRisk: true, editRisk: true, deleteRisk: true,
+    ...overrides,
+  };
+}
+
 function mockApi({ canManage = true }: { canManage?: boolean } = {}) {
   const calls: Array<{ url: string; method: string; body?: unknown }> = [];
   vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
@@ -33,7 +49,16 @@ function mockApi({ canManage = true }: { canManage?: boolean } = {}) {
     const method = init?.method ?? "GET";
     calls.push({ url, method, ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}) });
 
-    if (url.endsWith("/access")) return json({ access: { canRead: true, canManage } });
+    if (url.endsWith("/access"))
+      return json({
+        access: {
+          canRead: true,
+          canManage,
+          // Every form here writes project fields, which the server governs
+          // with `projects.edit` — not with reach.
+          capabilities: capabilities(canManage ? {} : { editProject: false }),
+        },
+      });
     if (method === "PATCH") return json({ project });
     return json({ project });
   });
@@ -140,5 +165,33 @@ describe("ProjectSettingsPage", () => {
     expect(
       await screen.findByText("Use uppercase letters, numbers, dot, dash, or underscore."),
     ).toBeInTheDocument();
+  });
+});
+
+describe("somebody who reaches the project but may not change it", () => {
+  /*
+   * The gap this page had. `canManage` answers reach — may this person act on
+   * this project at all — and an oversight role holding `projects.manage_all`
+   * without `projects.edit` reaches every project in the company. The page read
+   * that as permission to edit and showed all three Save buttons; the server
+   * answered 403 on every one, which was verified against a running server.
+   *
+   * Both flags are true here except the one that governs writing, so a page
+   * that went back to reading `canManage` would fail this.
+   */
+  it("shows the read-only explanation rather than the forms", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith("/access"))
+        return json({
+          access: { canRead: true, canManage: true, capabilities: capabilities({ editProject: false }) },
+        });
+      return json({ project });
+    });
+
+    renderSettings();
+
+    expect(await screen.findByText("Settings are managed by the project team")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Save/u })).not.toBeInTheDocument();
   });
 });

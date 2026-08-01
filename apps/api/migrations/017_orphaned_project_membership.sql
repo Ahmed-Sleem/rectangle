@@ -39,6 +39,14 @@ select p.tenant_id, p.id, r.user_id, 'project_admin'
   join tenant_user_roles r
     on r.tenant_id = p.tenant_id
    and r.role in ('owner', 'admin')
+  join users u
+    on u.tenant_id = r.tenant_id
+   and u.id = r.user_id
+   -- Active accounts only. `findActiveSession` requires `u.status = 'active'`
+   -- on every request, so enrolling a disabled owner writes a name into the
+   -- project team that can never open it — leaving the project exactly as
+   -- unreachable as before while appearing to have been repaired.
+   and u.status = 'active'
  where not exists (
    select 1
      from project_members existing
@@ -47,7 +55,36 @@ select p.tenant_id, p.id, r.user_id, 'project_admin'
  )
 on conflict (project_id, user_id) do nothing;
 
--- Left deliberately unsolved in SQL: a company with no owner or administrator
--- at all. That cannot arise through the product — the first account created is
--- an owner and the last owner cannot be demoted — and inventing a member for
--- such a company would be guessing at who should hold the work.
+-- The company whose owners and administrators are all disabled.
+--
+-- The statement above deliberately skips disabled accounts, which leaves that
+-- company exactly where it started: a project nobody can open. It is a narrow
+-- case and it has an obvious least-bad answer — the longest-standing active
+-- person in the company, who in a firm small enough for this to happen is the
+-- person actually running the work.
+--
+-- `not exists` again rather than a different condition, so this pass only sees
+-- projects the first one could not repair, and re-running remains a no-op.
+insert into project_members (tenant_id, project_id, user_id, role)
+select p.tenant_id, p.id, fallback.id, 'project_admin'
+  from projects p
+  cross join lateral (
+    select u.id
+      from users u
+     where u.tenant_id = p.tenant_id
+       and u.status = 'active'
+     order by u.created_at asc, u.id asc
+     limit 1
+  ) as fallback
+ where not exists (
+   select 1
+     from project_members existing
+    where existing.tenant_id = p.tenant_id
+      and existing.project_id = p.id
+ )
+on conflict (project_id, user_id) do nothing;
+
+-- Still unsolved, and correctly so: a company with no active people at all.
+-- There is nobody to give the work to, and inventing an account would be worse
+-- than leaving a dormant company dormant. It resolves itself the moment
+-- somebody is re-enabled, because this migration runs on every boot.

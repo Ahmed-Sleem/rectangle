@@ -103,6 +103,18 @@ export const updateProjectInputSchema = projectInputObjectSchema.partial().super
 
 export const projectIdSchema = z.uuid();
 
+/**
+ * The ids a capability lookup may ask about.
+ *
+ * Bounded because the answer is one entry per id and the caller controls the
+ * list. 200 is comfortably above any register a company will page through at
+ * once, and small enough that a malicious caller cannot turn one request into
+ * an expensive one.
+ */
+export const projectCapabilityIdsSchema = z
+  .object({ projectIds: z.array(z.uuid()).max(200) })
+  .transform((value) => value.projectIds);
+
 export const projectListQuerySchema = z.object({
   search: z.string().trim().min(1).max(120).optional(),
   status: projectStatusSchema.optional(),

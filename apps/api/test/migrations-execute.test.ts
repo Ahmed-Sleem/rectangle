@@ -50,6 +50,25 @@ const LEGACY_FIXTURE = `
   -- from "writes rows everywhere".
   insert into project_members (tenant_id, project_id, user_id, role) values
     ('11111111-1111-4111-8111-111111111111','cccccccc-2222-4222-8222-222222222222','aaaaaaaa-2222-4222-8222-222222222222','viewer');
+
+  -- A third company, kept separate from the two above so disabling its people
+  -- cannot disturb what the standing migration does to theirs. Its only owner
+  -- is disabled and it has a memberless project: enrolling that owner would
+  -- look like a repair and leave the project exactly as unreachable, because a
+  -- disabled account can never hold a session.
+  insert into tenants (id, name, slug) values
+    ('33333333-3333-4333-8333-333333333333','Dormant','dormant');
+
+  insert into users (id, tenant_id, email, display_name, status, created_at) values
+    ('bbbbbbbb-1111-4111-8111-111111111112','33333333-3333-4333-8333-333333333333','boss@c.co','Disabled Boss','disabled','2019-01-01'),
+    ('bbbbbbbb-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333','worker@c.co','Worker','active','2020-01-01'),
+    ('bbbbbbbb-3333-4333-8333-333333333333','33333333-3333-4333-8333-333333333333','later@c.co','Later Joiner','active','2024-01-01');
+
+  insert into tenant_user_roles (tenant_id, user_id, role) values
+    ('33333333-3333-4333-8333-333333333333','bbbbbbbb-1111-4111-8111-111111111112','tenant_owner');
+
+  insert into projects (id, tenant_id, name, code, status) values
+    ('cccccccc-3333-4333-8333-333333333333','33333333-3333-4333-8333-333333333333','Stranded','SD-003','active');
 `;
 
 describe("migrations execute against PostgreSQL", () => {
@@ -245,5 +264,33 @@ describe("company standing migration", () => {
     await migrateUpTo(db);
     const after = await db.query<{ c: number }>("select count(*)::int as c from project_members");
     expect(after.rows[0]?.c).toBe(before.rows[0]?.c);
+  });
+
+  it("never enrols an account that cannot sign in", async () => {
+    /*
+     * A disabled owner in a project team is worse than an empty one: the
+     * project looks repaired and is not, because `findActiveSession` refuses
+     * every request from a disabled account.
+     */
+    const disabled = await db.query<{ c: number }>(
+      `select count(*)::int as c
+         from project_members m
+         join users u on u.tenant_id = m.tenant_id and u.id = m.user_id
+        where u.status <> 'active'`,
+    );
+    expect(disabled.rows[0]?.c).toBe(0);
+  });
+
+  it("falls back to the longest-standing active person when every admin is disabled", async () => {
+    // The company where skipping disabled accounts would otherwise leave the
+    // project exactly where it started.
+    const result = await db.query<{ email: string; role: string }>(
+      `select u.email, m.role
+         from project_members m
+         join users u on u.tenant_id = m.tenant_id and u.id = m.user_id
+        where m.project_id = 'cccccccc-3333-4333-8333-333333333333'`,
+    );
+
+    expect(result.rows).toEqual([{ email: "worker@c.co", role: "project_admin" }]);
   });
 });

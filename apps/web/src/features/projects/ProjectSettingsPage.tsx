@@ -93,7 +93,14 @@ export default function ProjectSettingsPage() {
   const project = useQuery({ queryKey: ["project", projectId], queryFn: () => getProject(projectId), enabled });
   const access = useQuery({ queryKey: ["project", projectId, "access"], queryFn: () => getProjectAccess(projectId), enabled });
 
-  const canManage = access.data?.access.canManage ?? false;
+  /*
+   * Editing, not reaching. `canManage` answers whether this person may act on
+   * the project at all; every form on this page writes project fields, which
+   * the server governs with `projects.edit`. An oversight role that reaches
+   * every project without holding it was shown all three Save buttons and
+   * refused by the server on each.
+   */
+  const canManage = access.data?.access.capabilities.editProject ?? false;
   const record = project.data?.project;
 
   const identityForm = useForm<IdentityForm>({ resolver: zodResolver(identitySchema) });

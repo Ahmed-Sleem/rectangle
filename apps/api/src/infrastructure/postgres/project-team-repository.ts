@@ -91,6 +91,20 @@ export class PostgresProjectTeamRepository {
     return result.rows.map(mapMember);
   }
 
+  async filterExistingProjectIds(
+    tenantId: string,
+    projectIds: readonly string[],
+  ): Promise<string[]> {
+    if (projectIds.length === 0) return [];
+    // Answering for an id that is not a project told the caller something
+    // untrue and disagreed with `/access`, which reports it as not found.
+    const result = await this.pool.query<{ id: string }>(
+      `select id from projects where tenant_id = $1 and id = any($2::uuid[])`,
+      [tenantId, projectIds],
+    );
+    return result.rows.map((row) => row.id);
+  }
+
   async findMembershipsForUser(
     tenantId: string,
     userId: string,

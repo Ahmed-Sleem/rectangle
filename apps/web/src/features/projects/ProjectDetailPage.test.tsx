@@ -38,6 +38,22 @@ interface RouteState {
   projectStatus?: number;
 }
 
+/**
+ * The capability set the server returns beside `canManage`.
+ *
+ * Written out here rather than defaulted inside the page, because the fault
+ * these tests now guard is precisely a page assuming what it was not told:
+ * reaching a project and being allowed to change it are different answers.
+ */
+function capabilities(overrides: Record<string, boolean> = {}) {
+  return {
+    editProject: true, archiveProject: true, deleteProject: true, manageTeam: true,
+    createTask: true, editTask: true, deleteTask: true,
+    createRisk: true, editRisk: true, deleteRisk: true,
+    ...overrides,
+  };
+}
+
 function mockApi(state: RouteState) {
   const calls: Array<{ url: string; method: string; body?: unknown }> = [];
 
@@ -46,7 +62,21 @@ function mockApi(state: RouteState) {
     const method = init?.method ?? "GET";
     calls.push({ url, method, ...(init?.body ? { body: JSON.parse(String(init.body)) } : {}) });
 
-    if (url.endsWith("/access")) return json({ access: { canRead: true, canManage: state.canManage } });
+    if (url.endsWith("/access"))
+      return json({
+        access: {
+          canRead: true,
+          canManage: state.canManage,
+          // A caller who may not manage the project may do none of these.
+          capabilities: capabilities(
+            state.canManage ? {} : {
+              editProject: false, archiveProject: false, deleteProject: false, manageTeam: false,
+              createTask: false, editTask: false, deleteTask: false,
+              createRisk: false, editRisk: false, deleteRisk: false,
+            },
+          ),
+        },
+      });
     if (url.endsWith("/members") && method === "GET") return json({ members: state.members });
     if (url.endsWith("/members") && method === "POST") {
       return json({ member: { projectId, userId: teammateId, role: "viewer", displayName: "Mona Adel", email: "mona@example.com", createdAt: "", updatedAt: "" } }, 201);

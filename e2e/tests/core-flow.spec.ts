@@ -417,7 +417,11 @@ test("a project manager is offered the actions their project role grants", async
   const hers = ((await list.json()) as { projects: Array<{ id: string; code: string }> }).projects;
   expect(hers.map((project) => project.code)).toEqual(["AW-002"]);
 
-  const reported = await page.request.get(`/v1/projects/capabilities?ids=${hers[0]!.id}`);
+  // POST because the ids are the request; in a query string the URL grew with
+  // the register and the server refused it outright past a few hundred.
+  const reported = await page.request.post("/v1/projects/capabilities", {
+    data: { projectIds: [hers[0]!.id] },
+  });
   expect(reported.ok()).toBeTruthy();
   const capabilities = (
     (await reported.json()) as { capabilities: Record<string, Record<string, boolean>> }

@@ -140,9 +140,19 @@ export default function ProjectDetailPage() {
     enabled,
   });
 
-  const canManage = access.data?.access.canManage ?? false;
+  /*
+   * What the server says this caller may do here, rather than what they may
+   * reach. The two are not the same and the page used to conflate them: an
+   * oversight role holding `projects.manage_all` without `projects.edit`
+   * reaches every project, so `canManage` is true and every control appeared —
+   * and the server answered 403 on each of them.
+   */
+  const can = access.data?.access.capabilities;
+  const canEditProject = can?.editProject ?? false;
+  const canArchiveProject = can?.archiveProject ?? false;
+  const canManageTeam = can?.manageTeam ?? false;
   // Only fetch the company directory when it will actually be used.
-  const directory = useQuery({ queryKey: ["admin", "users"], queryFn: adminApi.users, enabled: enabled && canManage && memberOpen });
+  const directory = useQuery({ queryKey: ["admin", "users"], queryFn: adminApi.users, enabled: enabled && canManageTeam && memberOpen });
 
   const editForm = useForm<EditForm>({ resolver: zodResolver(editSchema) });
   const memberForm = useForm<MemberForm>({ resolver: zodResolver(memberSchema), defaultValues: { userId: "", role: "viewer" } });
@@ -286,13 +296,13 @@ export default function ProjectDetailPage() {
           <Badge tone={record.status === "active" ? "success" : "neutral"}>
             {t(`enums.projectStatus.${record.status}`)}
           </Badge>
-          {canManage ? <Button variant="secondary" onClick={() => setEditOpen(true)}>{t("projects.editProject")}</Button> : null}
-          {canManage ? (
+          {canEditProject ? <Button variant="secondary" onClick={() => setEditOpen(true)}>{t("projects.editProject")}</Button> : null}
+          {canEditProject ? (
             <Link className={buttonClassName("secondary")} to={`/projects/${projectId}/settings`}>
               {t("projects.projectSettings")}
             </Link>
           ) : null}
-          {canManage ? (
+          {canEditProject || canArchiveProject ? (
             <Select
               className="rect-project-lifecycle"
               aria-label={t("projects.lifecycle")}
@@ -347,14 +357,14 @@ export default function ProjectDetailPage() {
       <Card className="rect-project-detail__panel">
         <div className="rect-project-detail__panel-head">
           <h3>{t("projects.teamTitle")}</h3>
-          {canManage ? <Button size="sm" variant="secondary" onClick={() => setMemberOpen(true)}>{t("projects.addMember")}</Button> : null}
+          {canManageTeam ? <Button size="sm" variant="secondary" onClick={() => setMemberOpen(true)}>{t("projects.addMember")}</Button> : null}
         </div>
         {members.isLoading ? (
           <LoadingState title={t("projects.loadingTeam")} message={t("projects.loadingTeamMessage")} />
         ) : memberRows.length === 0 ? (
           <EmptyState
             title={t("projects.noMembersTitle")}
-            message={canManage ? t("projects.noMembersManage") : t("projects.noMembersRead")}
+            message={canManageTeam ? t("projects.noMembersManage") : t("projects.noMembersRead")}
           />
         ) : (
           <DataTable
@@ -367,7 +377,7 @@ export default function ProjectDetailPage() {
               {
                 id: "role",
                 header: t("projects.memberRole"),
-                accessor: (member) => canManage ? (
+                accessor: (member) => canManageTeam ? (
                   <Select
                     aria-label={t("projects.memberRoleFor", { name: member.displayName })}
                     value={member.role}
@@ -380,7 +390,7 @@ export default function ProjectDetailPage() {
                   </Select>
                 ) : t(`enums.memberRole.${member.role}`),
               },
-              ...(canManage ? [{
+              ...(canManageTeam ? [{
                 id: "action",
                 header: t("projects.actionColumn"),
                 accessor: (member: (typeof memberRows)[number]) => (
@@ -398,14 +408,14 @@ export default function ProjectDetailPage() {
       <Card className="rect-project-detail__panel">
         <div className="rect-project-detail__panel-head">
           <h3>{t("projects.stakeholdersTitle")}</h3>
-          {canManage ? <Button size="sm" variant="secondary" onClick={() => setStakeholderOpen(true)}>{t("projects.addStakeholder")}</Button> : null}
+          {canManageTeam ? <Button size="sm" variant="secondary" onClick={() => setStakeholderOpen(true)}>{t("projects.addStakeholder")}</Button> : null}
         </div>
         {stakeholders.isLoading ? (
           <LoadingState title={t("projects.loadingStakeholders")} message={t("projects.loadingStakeholdersMessage")} />
         ) : stakeholderRows.length === 0 ? (
           <EmptyState
             title={t("projects.noStakeholdersTitle")}
-            message={canManage ? t("projects.noStakeholdersManage") : t("projects.noStakeholdersRead")}
+            message={canManageTeam ? t("projects.noStakeholdersManage") : t("projects.noStakeholdersRead")}
           />
         ) : (
           <DataTable
@@ -418,7 +428,7 @@ export default function ProjectDetailPage() {
               { id: "category", header: t("projects.stakeholderCategory"), accessor: (item) => t(`enums.stakeholderCategory.${item.category}`) },
               { id: "influence", header: t("projects.stakeholderInfluence"), accessor: (item) => t(`enums.level.${item.influence}`) },
               { id: "interest", header: t("projects.stakeholderInterest"), accessor: (item) => t(`enums.level.${item.interest}`) },
-              ...(canManage ? [{
+              ...(canManageTeam ? [{
                 id: "action",
                 header: t("projects.actionColumn"),
                 accessor: (item: ProjectStakeholder) => (

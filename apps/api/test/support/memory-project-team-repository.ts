@@ -38,6 +38,26 @@ export class MemoryProjectTeamRepository implements ProjectTeamRepository {
     this.users.push(user);
   }
 
+  /**
+   * Projects this double knows about.
+   *
+   * Seeded by `seedProject`. A double that answered "every id you gave me is
+   * real" would make the phantom-project tests pass while the production
+   * repository was doing the wrong thing, so it has to be able to say no.
+   */
+  readonly knownProjectIds = new Set<string>();
+
+  seedProject(projectId: string): void {
+    this.knownProjectIds.add(projectId);
+  }
+
+  async filterExistingProjectIds(
+    _tenantId: string,
+    projectIds: readonly string[],
+  ): Promise<string[]> {
+    return projectIds.filter((id) => this.knownProjectIds.has(id));
+  }
+
   async listMembers(tenantId: string, projectId: string): Promise<ProjectMemberRecord[]> {
     return this.members.filter(
       (member) => member.tenantId === tenantId && member.projectId === projectId,

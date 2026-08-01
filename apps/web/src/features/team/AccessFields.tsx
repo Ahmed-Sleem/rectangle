@@ -26,20 +26,27 @@ export interface EffectiveEntry {
   from: string[];
 }
 
-/** The shape both dialogs' forms share, which is all this component touches. */
-interface AccessForm {
+/**
+ * The fields this component reads. Both dialogs' forms contain these; the
+ * create form contains more, which is why the prop is written as "a form whose
+ * values include these" rather than as one exact form type.
+ */
+export interface AccessFormValues {
   standing: string;
   userTypeIds: string[];
 }
 
-export interface AccessFieldsProps {
+export interface AccessFieldsProps<TValues extends AccessFormValues> {
   /*
-   * Typed loosely on purpose. The create form carries an email and a password
-   * and the edit form does not, so demanding one exact form type here would
-   * force one of them to pretend to have fields it has no business holding.
-   * Only the two fields above are read.
+   * Generic rather than cast to `any`.
+   *
+   * The first version took `UseFormReturn<never>` and cast, which silently
+   * turned off checking on the two field names this component depends on — a
+   * typo in `watch("standing")` compiled cleanly, verified. Constraining the
+   * generic to a form whose values include those fields keeps both dialogs
+   * assignable while the names stay checked.
    */
-  form: UseFormReturn<never> | UseFormReturn<AccessForm & Record<string, unknown>>;
+  form: UseFormReturn<TValues>;
   types: UserTypeRecord[];
   permissionOptions: PermissionOption[];
   /** Only an owner may mint another owner. The API refuses it as well. */
@@ -48,20 +55,26 @@ export interface AccessFieldsProps {
   roleName: (type: { name: string; key: string; systemType?: boolean }, t: TFunction) => string;
 }
 
-export function AccessFields({
+export function AccessFields<TValues extends AccessFormValues>({
   form,
   types,
   permissionOptions,
   isOwner,
   effectivePermissions,
   roleName,
-}: AccessFieldsProps) {
+}: AccessFieldsProps<TValues>) {
   const { t } = useTranslation();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see the note on `form`.
-  const anyForm = form as any;
+  /*
+   * `react-hook-form` types `watch` and `register` against the exact form
+   * shape, and a generic constrained to a supertype cannot prove to the
+   * compiler that a literal key belongs to it. This one narrowing is the whole
+   * concession, and it is made once here rather than at every call — the field
+   * names below are still checked against `AccessFormValues`.
+   */
+  const fields = form as unknown as UseFormReturn<AccessFormValues>;
 
-  const standing: string = anyForm.watch("standing") ?? "member";
-  const selectedTypeIds: string[] = anyForm.watch("userTypeIds") ?? [];
+  const standing = fields.watch("standing") ?? "member";
+  const selectedTypeIds = fields.watch("userTypeIds") ?? [];
   const everything = standingGrantsEverything(standing);
   const effective = effectivePermissions(selectedTypeIds, types);
 
@@ -70,10 +83,10 @@ export function AccessFields({
       <Field
         label={t("team.fieldStanding")}
         hint={t("team.standingHint")}
-        error={anyForm.formState.errors.standing?.message}
+        error={fields.formState.errors.standing?.message}
         required
       >
-        <Select {...anyForm.register("standing")}>
+        <Select {...fields.register("standing")}>
           {(isOwner ? ["owner", "admin", "member", "guest"] : ["admin", "member", "guest"]).map(
             (value) => (
               <option key={value} value={value}>
@@ -95,7 +108,7 @@ export function AccessFields({
         <Field
           label={t("team.userTypes")}
           hint={t("team.userTypesHint")}
-          error={anyForm.formState.errors.userTypeIds?.message}
+          error={fields.formState.errors.userTypeIds?.message}
           required
         >
           <div className="rect-team-permissions">
@@ -105,7 +118,7 @@ export function AccessFields({
                 label={roleName(type, t)}
                 {...(type.description ? { description: type.description } : {})}
                 value={type.id}
-                {...anyForm.register("userTypeIds")}
+                {...fields.register("userTypeIds")}
               />
             ))}
           </div>

@@ -13,7 +13,8 @@ import {
   type UserPrincipal,
 } from "../domain/auth.js";
 import { DomainError } from "../domain/errors.js";
-import { parseProjectId } from "../domain/project.js";
+import { z } from "zod";
+import { parseProjectId, projectCapabilityIdsSchema } from "../domain/project.js";
 import type {
   AddProjectMemberInput,
   CreateStakeholderInput,
@@ -40,6 +41,8 @@ export interface ProjectTeamRepository {
   findMember(tenantId: string, projectId: string, userId: string): Promise<ProjectMemberRecord | null>;
   /** Every project in the tenant this person is on, as project id to role. */
   findMembershipsForUser(tenantId: string, userId: string): Promise<Array<{ projectId: string; role: ProjectMemberRecord["role"] }>>;
+  /** Of the ids given, the ones that are real projects in this tenant. */
+  filterExistingProjectIds(tenantId: string, projectIds: readonly string[]): Promise<string[]>;
   tenantUserExists(tenantId: string, userId: string): Promise<boolean>;
   addMember(
     tenantId: string,
@@ -128,6 +131,15 @@ export interface ProjectAccess {
   capabilities: ProjectCapabilities;
 }
 
+/** Validates and bounds the ids a capability lookup asks about. */
+function parseProjectCapabilityIds(raw: unknown): string[] {
+  const parsed = projectCapabilityIdsSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new DomainError("VALIDATION_FAILED", "Project ids are invalid.", z.treeifyError(parsed.error));
+  }
+  return parsed.data;
+}
+
 export class ProjectTeamService {
   constructor(
     private readonly projects: ProjectsRepository,
@@ -187,21 +199,32 @@ export class ProjectTeamService {
    */
   async capabilitiesForProjects(
     actor: UserPrincipal,
-    projectIds: readonly string[],
+    rawProjectIds: unknown,
   ): Promise<Record<string, ProjectCapabilities>> {
+    const projectIds = parseProjectCapabilityIds(rawProjectIds);
     if (projectIds.length === 0) return {};
+
+    /*
+     * Only projects that exist. Answering for an id that is not a project told
+     * the caller something untrue and disagreed with `/access`, which reports
+     * the same id as not found — two endpoints meant to give one answer giving
+     * two. An id that survives this is real; one that does not is simply absent
+     * from the reply, exactly as an unreachable project is.
+     */
+    const existing = await this.team.filterExistingProjectIds(actor.tenantId, projectIds);
+    if (existing.length === 0) return {};
 
     if (canReachAllProjects(actor)) {
       const reaching = { canRead: true, canManage: true };
       const capabilities = this.capabilitiesFor(actor, reaching);
-      return Object.fromEntries(projectIds.map((id) => [id, capabilities]));
+      return Object.fromEntries(existing.map((id) => [id, capabilities]));
     }
 
     const memberships = await this.team.findMembershipsForUser(actor.tenantId, actor.userId);
     const byProject = new Map(memberships.map((m) => [m.projectId, m.role]));
 
     const answer: Record<string, ProjectCapabilities> = {};
-    for (const projectId of projectIds) {
+    for (const projectId of existing) {
       const role = byProject.get(projectId);
       // Absent means unreachable, and an unreachable project is reported as
       // no capabilities rather than omitted, so a caller iterating ids does

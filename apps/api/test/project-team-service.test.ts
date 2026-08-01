@@ -473,3 +473,84 @@ describe("the capabilities reported for one project", () => {
     expect((await service.resolveAccess(deleter, projectId)).capabilities.deleteProject).toBe(true);
   });
 });
+
+describe("capabilities for many projects at once", () => {
+  /*
+   * This method had no test of its own, and that is how two faults shipped: it
+   * answered for ids that are not projects, and it carried its ids in a query
+   * string that the server refused at around four hundred of them.
+   */
+  let projects: StubProjectsRepository;
+  let team: MemoryProjectTeamRepository;
+  let service: ProjectTeamService;
+
+  const ghost = "77777777-7777-4777-8777-777777777777";
+
+  beforeEach(() => {
+    projects = new StubProjectsRepository();
+    projects.seed(buildProject());
+    team = new MemoryProjectTeamRepository();
+    team.seedProject(projectId);
+    team.addTenantUser({ id: adminUserId, tenantId, displayName: "Site Owner", email: "owner@example.com" });
+    team.addTenantUser({ id: memberUserId, tenantId, displayName: "Mona Adel", email: "mona@example.com" });
+    service = new ProjectTeamService(projects, team, new MemoryAuditRepository());
+  });
+
+  it("says nothing about an id that is not a project", async () => {
+    /*
+     * It used to answer `true` for any id at all when the caller reaches every
+     * project — including strings that are not identifiers — because it never
+     * asked the database. `/access` reports the same id as not found, so the
+     * two endpoints contradicted each other.
+     */
+    const answer = await service.capabilitiesForProjects(admin, { projectIds: [ghost] });
+
+    expect(answer).toEqual({});
+  });
+
+  it("answers for the real ids and drops the phantom ones from the same request", async () => {
+    const answer = await service.capabilitiesForProjects(admin, {
+      projectIds: [projectId, ghost],
+    });
+
+    expect(Object.keys(answer)).toEqual([projectId]);
+  });
+
+  it("agrees with resolveAccess for the same project", async () => {
+    await service.addMember(admin, projectId, { userId: memberUserId, role: "project_manager" });
+
+    const single = await service.resolveAccess(viewer, projectId);
+    const bulk = await service.capabilitiesForProjects(viewer, { projectIds: [projectId] });
+
+    expect(bulk[projectId]).toEqual(single.capabilities);
+  });
+
+  it("reports no capabilities on a project the caller cannot reach", async () => {
+    // Present in the answer with everything false, rather than absent, so a
+    // caller iterating ids need not treat "missing" and "refused" differently.
+    const answer = await service.capabilitiesForProjects(viewer, { projectIds: [projectId] });
+
+    expect(answer[projectId]).toBeDefined();
+    expect(Object.values(answer[projectId]!).every((allowed) => allowed === false)).toBe(true);
+  });
+
+  it("refuses an id that is not a uuid", async () => {
+    await expect(
+      service.capabilitiesForProjects(admin, { projectIds: ["' or 1=1 --"] }),
+    ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  });
+
+  it("refuses more ids than any register would ask for", async () => {
+    // The list is caller-controlled and the answer is one entry per id, so it
+    // is bounded rather than trusted.
+    const tooMany = Array.from({ length: 201 }, () => ghost);
+
+    await expect(
+      service.capabilitiesForProjects(admin, { projectIds: tooMany }),
+    ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  });
+
+  it("returns nothing for an empty request rather than failing", async () => {
+    expect(await service.capabilitiesForProjects(admin, { projectIds: [] })).toEqual({});
+  });
+});

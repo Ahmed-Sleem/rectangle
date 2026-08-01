@@ -191,7 +191,16 @@ export function getProjectCapabilities(
   projectIds: readonly string[],
 ): Promise<{ capabilities: Record<string, ProjectCapabilities> }> {
   if (projectIds.length === 0) return Promise.resolve({ capabilities: {} });
-  return apiRequest(`/v1/projects/capabilities?ids=${projectIds.join(",")}`);
+  /*
+   * POST for a read, because the ids are the request. In a query string the
+   * URL grew with the register and the server refused it outright at around
+   * four hundred projects — a ceiling a large contractor reaches and nobody
+   * would think to test.
+   */
+  return apiRequest("/v1/projects/capabilities", {
+    method: "POST",
+    body: JSON.stringify({ projectIds }),
+  });
 }
 
 /** True when the person may do this on at least one project they can reach. */
