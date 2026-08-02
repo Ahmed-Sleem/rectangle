@@ -76,7 +76,32 @@ describe("AppShell", () => {
   beforeEach(async () => {
     window.localStorage.clear();
     vi.restoreAllMocks();
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ projects: [] }), { status: 200, headers: { "Content-Type": "application/json" } })));
+    /*
+     * Answers by path rather than returning one shape to everything. The
+     * assistant asks whether it is configured before it renders anything, and a
+     * blanket `{ projects: [] }` told it nothing it could read — which is a
+     * fixture problem, not a product one, but it hid the panel's real states.
+     */
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      const body = url.includes("/v1/ai/settings")
+        ? {
+            aiSettings: {
+              configured: true,
+              enabled: true,
+              hasCompanyKey: true,
+              hasPersonalKey: false,
+              ready: true,
+            },
+          }
+        : { projects: [] };
+      return Promise.resolve(
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    });
     await setRectangleLanguage("en");
   });
 
@@ -153,39 +178,39 @@ describe("AppShell", () => {
     });
   });
 
-  it("renders a retractable AI assistant panel without fake model output", async () => {
+  it("renders a live assistant panel, not a disabled placeholder", async () => {
     renderApp("/");
     expect(await screen.findByLabelText("AI Assistant")).toBeInTheDocument();
     expect(screen.getByText("AI Assistant")).toBeInTheDocument();
-    expect(screen.getByText("Model connection pending")).toBeInTheDocument();
+
+    /*
+     * The fault this feature existed to fix. The panel used to render a
+     * disabled textarea and a disabled Send under the words "Model connection
+     * pending", which looked like a product and behaved like a wall. A composer
+     * that is present must accept typing.
+     */
+    await waitFor(() => expect(screen.getByText("Ready")).toBeInTheDocument());
+    const composer = screen.getByLabelText("Ask Rectangle AI");
+    expect(composer).toBeEnabled();
+    expect(screen.queryByText("Model connection pending")).not.toBeInTheDocument();
+
+    /*
+     * Send is disabled only because there is nothing typed yet — a state the
+     * person changes themselves, which is what `disabled` is allowed to mean.
+     */
+    const send = screen.getByRole("button", { name: /send/i });
+    expect(send).toBeDisabled();
+    fireEvent.change(composer, { target: { value: "how many projects are running" } });
+    expect(send).toBeEnabled();
+
+    // Off a project page there is nothing to attach, so no context control.
     expect(
-      screen.getByText(/Connect a real model adapter before enabling send/i),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Project context")).not.toBeInTheDocument();
-    expect(screen.queryByText("Documents")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /attach file/i }),
+      screen.queryByRole("button", { name: /using this project as context/i }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /voice input/i }),
-    ).not.toBeInTheDocument();
-
-    const currentPageToggle = screen.getByRole("button", {
-      name: /current page context on/i,
-    });
-    expect(currentPageToggle).toHaveAttribute("aria-pressed", "true");
-
-    fireEvent.click(currentPageToggle);
-
-    expect(
-      screen.getByRole("button", { name: /current page context off/i }),
-    ).toHaveAttribute("aria-pressed", "false");
 
     fireEvent.click(screen.getByRole("button", { name: /close ai panel/i }));
 
-    expect(screen.getByTestId("app-shell")).toHaveClass(
-      "rect-app--ai-collapsed",
-    );
+    expect(screen.getByTestId("app-shell")).toHaveClass("rect-app--ai-collapsed");
     await waitFor(() => {
       expect(screen.queryByLabelText("AI Assistant")).not.toBeInTheDocument();
     });

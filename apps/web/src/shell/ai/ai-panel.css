@@ -411,3 +411,264 @@
   border-color: var(--rect-orb-bg-hover);
   color: var(--rect-surface-bg-hover);
 }
+
+/* ── The conversation ─────────────────────────────────────────────────────
+ *
+ * The panel body used to hold one centred empty state and nothing else, so it
+ * was a flex row with the child stretched. A transcript scrolls and stacks, so
+ * the body now lays its children out in a column and the empty state keeps its
+ * own growth rather than inheriting it from the container.
+ */
+.rect-ai-panel__body {
+  flex-direction: column;
+  gap: var(--rect-space-3);
+}
+
+.rect-ai-panel__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-1);
+}
+
+.rect-ai-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-ai-turn {
+  border-radius: 14px;
+  padding: var(--rect-space-3);
+  font-size: var(--rect-text-table);
+  line-height: 1.5;
+  max-width: 92%;
+}
+
+/*
+ * Asked and answered are told apart by weight and alignment rather than by
+ * colour alone, so the distinction survives a monochrome screen and does not
+ * depend on somebody distinguishing two tints.
+ */
+.rect-ai-turn--asked {
+  align-self: flex-end;
+  background: var(--rect-badge-bg);
+  border: 1px solid var(--rect-badge-border);
+  color: var(--rect-text-primary);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-ai-turn--answered {
+  align-self: flex-start;
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  color: var(--rect-text-primary);
+}
+
+.rect-ai-turn__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* What the answer was read from. Quiet, because it qualifies rather than speaks. */
+.rect-ai-turn__tools {
+  margin-block-start: var(--rect-space-2);
+  font-size: var(--rect-text-micro);
+  color: var(--rect-text-secondary);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-ai-turn--thinking {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-2);
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+.rect-ai-turn__spin {
+  animation: rect-ai-spin 900ms linear infinite;
+}
+
+@keyframes rect-ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rect-ai-panel__error {
+  color: var(--rect-color-danger);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-semibold);
+}
+
+/* ── Unavailable, with a reason ──────────────────────────────────────────── */
+.rect-ai-panel__blocked {
+  flex: 1;
+  border: 1px dashed var(--rect-card-border);
+  border-radius: 18px;
+  background: var(--rect-card-bg);
+  color: var(--rect-text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--rect-space-6) var(--rect-space-4);
+  gap: var(--rect-space-2);
+}
+
+.rect-ai-panel__blocked svg {
+  color: var(--rect-color-warning);
+}
+
+.rect-ai-panel__blocked-link {
+  margin-block-start: var(--rect-space-2);
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-bold);
+  text-decoration: underline;
+}
+
+/* ── The confirmation card ───────────────────────────────────────────────
+ *
+ * Deliberately the loudest thing in the panel. It is the only place where the
+ * assistant can change data, and it must not read like another paragraph of
+ * chat that somebody scrolls past and approves without looking.
+ */
+.rect-ai-proposal {
+  border: 1px solid var(--rect-color-warning);
+  border-radius: 16px;
+  background: var(--rect-surface-bg);
+  padding: var(--rect-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-2);
+}
+
+.rect-ai-proposal__title {
+  font-size: var(--rect-text-subsection);
+  font-weight: var(--rect-weight-bold);
+  color: var(--rect-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.rect-ai-proposal__help {
+  font-size: var(--rect-text-label);
+  color: var(--rect-text-secondary);
+}
+
+.rect-ai-proposal__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-1);
+}
+
+.rect-ai-proposal__row {
+  display: flex;
+  gap: var(--rect-space-2);
+  font-size: var(--rect-text-label);
+}
+
+.rect-ai-proposal__row dt {
+  color: var(--rect-text-secondary);
+  font-weight: var(--rect-weight-semibold);
+  min-width: 84px;
+}
+
+.rect-ai-proposal__row dd {
+  color: var(--rect-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.rect-ai-proposal__actions {
+  display: flex;
+  gap: var(--rect-space-2);
+  margin-block-start: var(--rect-space-1);
+}
+
+/* The line naming which project a question will be answered against. */
+.rect-ai-composer__context {
+  font-size: var(--rect-text-micro);
+  color: var(--rect-text-secondary);
+  font-weight: var(--rect-weight-semibold);
+  margin-block-end: var(--rect-space-2);
+}
+
+/* ── Past conversations ──────────────────────────────────────────────────── */
+.rect-ai-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-ai-history__item {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-2);
+}
+
+.rect-ai-history__open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rect-space-05);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  padding: var(--rect-space-2);
+  cursor: pointer;
+  text-align: start;
+  min-width: 0;
+}
+
+.rect-ai-history__open:hover,
+.rect-ai-history__open:focus-visible {
+  background: var(--rect-card-bg);
+  border-color: var(--rect-card-border);
+}
+
+.rect-ai-history__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-semibold);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rect-ai-history__meta {
+  color: var(--rect-text-muted);
+  font-size: var(--rect-text-micro);
+}
+
+.rect-ai-history__delete {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--rect-text-secondary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rect-ai-history__delete:hover,
+.rect-ai-history__delete:focus-visible {
+  background: var(--rect-card-bg);
+  color: var(--rect-color-danger);
+}
+
+.rect-ai-history__note {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}

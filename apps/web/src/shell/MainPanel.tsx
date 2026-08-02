@@ -10,6 +10,8 @@ import { NavToggle } from "./NavToggle";
 import { GlobalSearch } from "./search/GlobalSearch";
 import { UserMenu } from "./UserMenu";
 import { useScrollEdges } from "./useScrollEdges";
+import { useAuth } from "@/shared/auth";
+import { hasPermission } from "@/shared/auth/authority";
 
 export function MainPanel({
   navCollapsed,
@@ -36,8 +38,17 @@ export function MainPanel({
   children: ReactNode;
 }) {
   const { t } = useTranslation();
+  const auth = useAuth();
   const { ref: bodyRef, edges } = useScrollEdges<HTMLElement>();
   const [searchOpen, setSearchOpen] = useState(false);
+
+  /*
+   * Both ways into the assistant are gated on the same permission the panel
+   * itself is. A button that opens an empty column would be a control pointing
+   * at nothing, and the product hides what a person may not reach rather than
+   * greying it out.
+   */
+  const mayUseAi = hasPermission(auth.user, "ai.use");
 
   // Cmd/Ctrl+K is the shortcut people already expect for this. Bound at the
   // window so it works wherever focus happens to be.
@@ -76,7 +87,7 @@ export function MainPanel({
         * opened from the header beside everything else, so a second control
         * hovering over the content would be the same action twice.
         */}
-      {!isHandset && aiCollapsed ? (
+      {!isHandset && aiCollapsed && mayUseAi ? (
         <button
           type="button"
           className="rect-ai-fab"
@@ -117,7 +128,7 @@ export function MainPanel({
             <Search size={16} strokeWidth={2} aria-hidden />
             <span className="rect-panel__search-text">{t("shell.search.open")}</span>
           </button>
-          {isHandset ? (
+          {isHandset && mayUseAi ? (
             <button
               type="button"
               className="rect-panel__sheet-open"
