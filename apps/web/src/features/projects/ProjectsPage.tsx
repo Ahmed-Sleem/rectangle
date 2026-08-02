@@ -151,6 +151,12 @@ export default function ProjectsPage() {
   return (
     <section className="rect-projects-page" aria-label={t("projects.workspaceLabel")}>
       <PageToolbar<ViewMode>
+        refresh={{
+          onRefresh: () => {
+            void queryClient.invalidateQueries({ queryKey: ["projects"] });
+          },
+          pending: projects.isFetching,
+        }}
         search={{
           value: search,
           onChange: setSearch,

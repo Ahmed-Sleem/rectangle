@@ -61,6 +61,7 @@ export const resources = {
         removeFilter: "Remove filter: {{filter}}",
         clearAll: "Clear all",
         done: "Done",
+        refresh: "Refresh",
       },
       insight: {
         label: "AI insight",
@@ -273,6 +274,7 @@ export const resources = {
         removeFilter: "إزالة التصفية: {{filter}}",
         clearAll: "مسح الكل",
         done: "تم",
+        refresh: "تحديث",
       },
       insight: {
         label: "رؤية الذكاء الاصطناعي",

@@ -10,11 +10,11 @@
  * this component put them in a window, summarise them as badges, count them,
  * and clear them — none of which is possible when they arrive as opaque JSX.
  */
-import { Filter, X } from "lucide-react";
+import { Filter, RefreshCw, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/cn";
-import { Badge, Button, Checkbox } from "./primitives";
+import { Badge, Button, Checkbox, IconButton } from "./primitives";
 import { SearchInput } from "./search-input";
 import { Overlay } from "./overlay";
 import { ViewToggle, type ViewToggleOption } from "./page-blocks";
@@ -93,7 +93,24 @@ export interface PageToolbarProps<T extends string> {
    */
   register?: ReactNode;
   view?: ToolbarView<T>;
+  /**
+   * Fetches the page's data again, now.
+   *
+   * The product refreshes itself on a short staleness window and whenever the
+   * tab regains focus, which covers almost everything. This is for the case
+   * those cannot: somebody who has just been told by a colleague that the
+   * record changed, and wants to see it without waiting or alt-tabbing. It
+   * lives here rather than on each page so it is in the same corner every
+   * time, and so `pending` spins the same way everywhere.
+   */
+  refresh?: ToolbarRefresh;
   className?: string;
+}
+
+export interface ToolbarRefresh {
+  onRefresh: () => void;
+  /** Spins the icon and blocks a second press while a fetch is in flight. */
+  pending?: boolean;
 }
 
 /** A filter counts as active when it would change what the list returns. */
@@ -121,6 +138,7 @@ export function PageToolbar<T extends string>({
   scope,
   register,
   view,
+  refresh,
   className,
 }: PageToolbarProps<T>) {
   const { t } = useTranslation();
@@ -167,6 +185,22 @@ export function PageToolbar<T extends string>({
         <span className="rect-toolbar__spacer" aria-hidden />
 
         {scope}
+
+        {refresh ? (
+          <IconButton
+            label={t("toolbar.refresh")}
+            variant="soft"
+            onClick={refresh.onRefresh}
+            disabled={refresh.pending ?? false}
+          >
+            <RefreshCw
+              size={16}
+              strokeWidth={2}
+              aria-hidden
+              className={cn(refresh.pending && "rect-toolbar__refresh-icon--spinning")}
+            />
+          </IconButton>
+        ) : null}
 
         {register}
 

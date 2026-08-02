@@ -98,6 +98,7 @@ export {
   type SelectFilterOption,
   type ToggleFilter,
   type ToolbarFilter,
+  type ToolbarRefresh,
   type ToolbarSearch,
   type ToolbarView,
 } from "./page-toolbar";

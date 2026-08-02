@@ -316,6 +316,12 @@ export default function RisksPage() {
   return (
     <section className="rect-risks-page" aria-label={t("risks.pageLabel")}>
       <PageToolbar<ViewMode>
+        refresh={{
+          onRefresh: () => {
+            void queryClient.invalidateQueries({ queryKey: ["risks"] });
+          },
+          pending: risksQuery.isFetching,
+        }}
         search={{
           value: search,
           onChange: setSearch,

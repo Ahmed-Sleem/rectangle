@@ -175,3 +175,24 @@
 .rect-toolbar__filter-select:focus-visible {
   border-color: var(--rect-border-active);
 }
+
+/*
+ * Turns while a fetch is in flight, so pressing refresh visibly does something
+ * even when the data comes back identical — which is the common case, and
+ * without this reads as a dead button.
+ */
+@keyframes rect-toolbar-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rect-toolbar__refresh-icon--spinning {
+  animation: rect-toolbar-refresh-spin 900ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-toolbar__refresh-icon--spinning {
+    animation: none;
+  }
+}

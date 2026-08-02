@@ -215,3 +215,50 @@ describe("PageToolbar", () => {
     expect(toolbarSource).toMatch(/scope\?:\s*ReactNode/u);
   });
 });
+
+describe("the refresh control", () => {
+  it("is offered only where a page supplies one", () => {
+    /*
+     * Not every surface has data worth refetching, and a button that does
+     * nothing is worse than no button. It appears because the page asked.
+     */
+    render(
+      <RectangleI18nProvider>
+        <PageToolbar search={{ value: "", onChange: () => undefined, label: "Search" }} />
+      </RectangleI18nProvider>,
+    );
+    expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+  });
+
+  it("asks the page to fetch again", async () => {
+    // The owner's request: the product keeps itself current on its own, and
+    // this is the way to insist without reloading the browser.
+    const user = userEvent.setup();
+    const onRefresh = vi.fn();
+    render(
+      <RectangleI18nProvider>
+        <PageToolbar refresh={{ onRefresh }} />
+      </RectangleI18nProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a second press while the first is still running", async () => {
+    // Otherwise an impatient double-press queues two identical fetches, and
+    // the icon gives no sign the first one is still in flight.
+    const user = userEvent.setup();
+    const onRefresh = vi.fn();
+    render(
+      <RectangleI18nProvider>
+        <PageToolbar refresh={{ onRefresh, pending: true }} />
+      </RectangleI18nProvider>,
+    );
+
+    const button = screen.getByRole("button", { name: "Refresh" });
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+});

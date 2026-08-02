@@ -201,6 +201,12 @@ export default function ActivityPage() {
   return (
     <section className="rect-activity-page" aria-label={t("activity.pageLabel")}>
       <PageToolbar<ActivityScope>
+        refresh={{
+          onRefresh: () => {
+            void feed.refetch();
+          },
+          pending: feed.isFetching,
+        }}
         /*
          * Dates stay on the row rather than going into the filter window,
          * because narrowing by time is the first thing anybody does with a

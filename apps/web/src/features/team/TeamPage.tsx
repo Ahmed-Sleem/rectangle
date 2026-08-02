@@ -380,6 +380,13 @@ export default function TeamPage() {
   return (
     <section className="rect-team-page" aria-label={t("team.pageLabel")}>
       <PageToolbar<ViewMode>
+        refresh={{
+          onRefresh: () => {
+            void queryClient.invalidateQueries({ queryKey: ["directory"] });
+            void queryClient.invalidateQueries({ queryKey: ["admin"] });
+          },
+          pending: users.isFetching || userTypes.isFetching,
+        }}
         /*
          * The register picker sits beside the view toggle rather than leading
          * the row. Both answer "how am I looking at this page"; search and

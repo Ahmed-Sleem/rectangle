@@ -328,6 +328,12 @@ export default function TasksPage() {
   return (
     <section className="rect-tasks-page" aria-label={t("tasks.pageLabel")}>
       <PageToolbar<ViewMode>
+        refresh={{
+          onRefresh: () => {
+            void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          },
+          pending: tasksQuery.isFetching,
+        }}
         search={{
           value: search,
           onChange: setSearch,
