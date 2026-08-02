@@ -73,6 +73,10 @@ export const inactiveRiskService = {
 export const inactiveAiService = {
   chat(): never { throw new Error("not used"); },
   confirm(): never { throw new Error("not used"); },
+  listConversations(): never { throw new Error("not used"); },
+  readConversation(): never { throw new Error("not used"); },
+  renameConversation(): never { throw new Error("not used"); },
+  deleteConversation(): never { throw new Error("not used"); },
 };
 
 export const inactiveAiSettingsService = {

@@ -32,9 +32,13 @@
  *     occupies a worker until the process restarts.
  */
 import {
+  AI_CONTEXT_TURNS,
   AI_LIMITS,
   aiChatInputSchema,
   aiConfirmInputSchema,
+  aiConversationIdSchema,
+  aiRenameConversationSchema,
+  deriveConversationTitle,
   findTool,
   sanitiseForModel,
   toolsFor,
@@ -84,7 +88,62 @@ export type AiToolExecutor = (
   args: Record<string, unknown>,
 ) => Promise<unknown>;
 
+/** One turn as it was said, for replaying a thread onto a screen. */
+export interface StoredAiMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  usedTools: string[];
+  createdAt: string;
+}
+
+/** A thread as it appears in the list, without its contents. */
+export interface AiConversationSummary {
+  id: string;
+  title: string;
+  projectId: string | null;
+  updatedAt: string;
+}
+
+/**
+ * Storage for conversations.
+ *
+ * Every method takes the tenant and the person, and every implementation is
+ * required to put both into the query rather than filter afterwards. That is
+ * not a style preference here: it is the entire isolation guarantee. A thread
+ * belongs to one person, and the way it stays that way is that no method
+ * exists which can find one without being told whose it is.
+ */
+export interface AiConversationRepository {
+  create(input: {
+    tenantId: string;
+    userId: string;
+    title: string;
+    projectId: string | null;
+  }): Promise<{ id: string }>;
+  /** Null when it does not exist, or belongs to somebody else. Same answer. */
+  find(
+    tenantId: string,
+    userId: string,
+    id: string,
+  ): Promise<{ id: string; title: string; projectId: string | null } | null>;
+  list(tenantId: string, userId: string, limit: number): Promise<AiConversationSummary[]>;
+  /** In the order they were said. `limit` keeps only the most recent turns. */
+  messages(tenantId: string, conversationId: string, limit?: number): Promise<StoredAiMessage[]>;
+  appendMessage(input: {
+    tenantId: string;
+    conversationId: string;
+    role: "user" | "assistant";
+    content: string;
+    usedTools: string[];
+  }): Promise<StoredAiMessage>;
+  rename(tenantId: string, userId: string, id: string, title: string): Promise<boolean>;
+  remove(tenantId: string, userId: string, id: string): Promise<boolean>;
+}
+
 export interface AiChatResult {
+  /** Which thread this turn belongs to. New when the request carried no id. */
+  conversationId: string;
   /** The model's prose answer. Empty only if it stopped to propose something. */
   answer: string;
   /** What it looked at, so the person can judge the answer. */
@@ -92,6 +151,16 @@ export interface AiChatResult {
   /** Present when it wants to change something and is waiting to be told to. */
   proposal?: { id: string; tool: string; summary: Record<string, unknown> };
 }
+
+/**
+ * How many threads the list returns.
+ *
+ * Not pagination: a person's own conversations with an assistant are not a
+ * dataset, and somebody scrolling past fifty of them is looking for a search
+ * box rather than a longer list. The cap exists so that a heavy user cannot
+ * make the panel slow to open.
+ */
+const CONVERSATION_LIST_LIMIT = 50;
 
 const SYSTEM_PROMPT = [
   "You are Rectangle's assistant, inside a construction project management product.",
@@ -109,6 +178,7 @@ export class AiService {
     private readonly audit: AuditRepository,
     /** Keyed by tool name. Missing means the tool is declared but not wired. */
     private readonly executors: Record<string, AiToolExecutor>,
+    private readonly conversations: AiConversationRepository,
   ) {}
 
   async chat(actor: UserPrincipal, rawInput: unknown): Promise<AiChatResult> {
@@ -119,35 +189,94 @@ export class AiService {
       throw new DomainError("VALIDATION_FAILED", "That message could not be read.");
     }
 
+    const projectId = parsed.data.projectId ?? null;
+
+    /*
+     * The thread is resolved before the provider is even asked for, and a
+     * conversation id that is not this person's simply does not resolve. So an
+     * id guessed or copied from somewhere else cannot be continued, cannot be
+     * read, and cannot be appended to — the request is refused before anything
+     * has been spent on it.
+     */
+    const thread = parsed.data.conversationId
+      ? await this.conversations.find(actor.tenantId, actor.userId, parsed.data.conversationId)
+      : await this.conversations.create({
+          tenantId: actor.tenantId,
+          userId: actor.userId,
+          title: deriveConversationTitle(parsed.data.message),
+          projectId,
+        });
+
+    if (!thread) {
+      throw new DomainError("NOT_FOUND", "That conversation could not be found.");
+    }
+
+    /*
+     * The question is written down before the answer is attempted, not after.
+     * If the provider is unreachable or the loop times out, the person still
+     * finds what they asked in the thread instead of an exchange that silently
+     * never happened.
+     */
+    await this.conversations.appendMessage({
+      tenantId: actor.tenantId,
+      conversationId: thread.id,
+      role: "user",
+      content: parsed.data.message,
+      usedTools: [],
+    });
+
     const provider = await this.settings.resolveProvider(actor);
     const available = toolsFor(actor);
     const deadline = Date.now() + AI_LIMITS.totalTimeoutMs;
 
+    // Read back rather than reasoned about: the transcript the model sees is
+    // the stored one, including the turn just written, so there is no second
+    // copy of the conversation that could disagree with the record.
+    const history = await this.conversations.messages(
+      actor.tenantId,
+      thread.id,
+      AI_CONTEXT_TURNS,
+    );
+
     const messages: ProviderMessage[] = [
       { role: "system", content: SYSTEM_PROMPT },
-      ...(parsed.data.projectId
+      ...(projectId
         ? [
             {
               role: "system" as const,
-              content: `The person is currently looking at project ${parsed.data.projectId}.`,
+              content: `The person is currently looking at project ${projectId}.`,
             },
           ]
         : []),
-      ...parsed.data.messages.map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
+      ...history.map((message) => ({ role: message.role, content: message.content })),
     ];
 
     const usedTools: string[] = [];
 
+    /*
+     * Every exit from the loop below stores the answer and reports the thread.
+     * Wrapping it here rather than repeating it at each `return` is what makes
+     * that true of all of them — including the timeout and the gave-up paths,
+     * which are the ones a person most wants to find in the record later.
+     */
+    const finish = async (result: Omit<AiChatResult, "conversationId">): Promise<AiChatResult> => {
+      await this.conversations.appendMessage({
+        tenantId: actor.tenantId,
+        conversationId: thread.id,
+        role: "assistant",
+        content: result.answer,
+        usedTools: result.usedTools,
+      });
+      return { ...result, conversationId: thread.id };
+    };
+
     for (let iteration = 0; iteration < AI_LIMITS.maxIterations; iteration += 1) {
       if (Date.now() > deadline) {
-        return {
+        return finish({
           answer:
             "That took longer than expected and I stopped. Please ask again, or narrow the question.",
           usedTools,
-        };
+        });
       }
 
       const reply = await this.provider.complete({
@@ -162,7 +291,7 @@ export class AiService {
       });
 
       if (reply.toolCalls.length === 0) {
-        return { answer: reply.content.trim(), usedTools };
+        return finish({ answer: reply.content.trim(), usedTools });
       }
 
       // Recorded so the next turn's tool results have a call to answer.
@@ -216,7 +345,7 @@ export class AiService {
            * passes through a human.
            */
           const proposal = await this.propose(actor, tool, args.data);
-          return { answer: reply.content.trim(), usedTools, proposal };
+          return finish({ answer: reply.content.trim(), usedTools, proposal });
         }
 
         usedTools.push(tool.name);
@@ -230,10 +359,113 @@ export class AiService {
      * better than looping again: a model that has not converged in six turns
      * over local database reads is confused, not close.
      */
-    return {
+    return finish({
       answer: "I could not work that out. Try asking in a more specific way.",
       usedTools,
+    });
+  }
+
+  /**
+   * This person's conversations, most recently active first.
+   *
+   * There is no parameter for whose list to fetch, and that absence is the
+   * design: a caller cannot ask for somebody else's threads because there is
+   * nowhere to say whose. Ordered by last activity rather than creation, since
+   * the thread somebody is in the middle of is the one they are looking for.
+   */
+  async listConversations(actor: UserPrincipal): Promise<{ conversations: AiConversationSummary[] }> {
+    requirePermission(actor, "ai.use");
+    return {
+      conversations: await this.conversations.list(actor.tenantId, actor.userId, CONVERSATION_LIST_LIMIT),
     };
+  }
+
+  /** One thread with its turns. Not found and not yours are the same answer. */
+  async readConversation(
+    actor: UserPrincipal,
+    rawInput: unknown,
+  ): Promise<{ conversation: AiConversationSummary; messages: StoredAiMessage[] }> {
+    requirePermission(actor, "ai.use");
+
+    const parsed = aiConversationIdSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new DomainError("VALIDATION_FAILED", "That conversation could not be read.");
+    }
+
+    const thread = await this.conversations.find(
+      actor.tenantId,
+      actor.userId,
+      parsed.data.conversationId,
+    );
+    if (!thread) {
+      throw new DomainError("NOT_FOUND", "That conversation could not be found.");
+    }
+
+    /*
+     * The whole thread, unlike the slice the model is given. The limit upstream
+     * is about what a provider can afford to read; a person reading their own
+     * conversation should see all of it, which is the reason it was kept.
+     */
+    const messages = await this.conversations.messages(actor.tenantId, thread.id);
+
+    return {
+      conversation: {
+        id: thread.id,
+        title: thread.title,
+        projectId: thread.projectId,
+        // The list carries this; a single read does not need a second query
+        // for a field the screen showing one thread does not display.
+        updatedAt: messages[messages.length - 1]?.createdAt ?? new Date(0).toISOString(),
+      },
+      messages,
+    };
+  }
+
+  /** Renaming somebody else's thread fails as not-found, not as forbidden. */
+  async renameConversation(actor: UserPrincipal, rawInput: unknown): Promise<{ renamed: true }> {
+    requirePermission(actor, "ai.use");
+
+    const parsed = aiRenameConversationSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new DomainError("VALIDATION_FAILED", "That name cannot be used.");
+    }
+
+    const renamed = await this.conversations.rename(
+      actor.tenantId,
+      actor.userId,
+      parsed.data.conversationId,
+      parsed.data.title,
+    );
+    if (!renamed) {
+      throw new DomainError("NOT_FOUND", "That conversation could not be found.");
+    }
+    return { renamed: true };
+  }
+
+  /**
+   * Deleting a conversation.
+   *
+   * Really deleted, and the messages with it by cascade. A person who asks for
+   * their conversation to be gone has asked for one thing, and a hidden row
+   * that still exists is not it.
+   */
+  async deleteConversation(actor: UserPrincipal, rawInput: unknown): Promise<{ deleted: true }> {
+    requirePermission(actor, "ai.use");
+
+    const parsed = aiConversationIdSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new DomainError("VALIDATION_FAILED", "That conversation could not be read.");
+    }
+
+    const deleted = await this.conversations.remove(
+      actor.tenantId,
+      actor.userId,
+      parsed.data.conversationId,
+    );
+    if (!deleted) {
+      throw new DomainError("NOT_FOUND", "That conversation could not be found.");
+    }
+    return { deleted: true };
   }
 
   /**

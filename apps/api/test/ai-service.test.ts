@@ -11,11 +11,17 @@
  * anything.
  */
 import { describe, expect, it, vi } from "vitest";
-import { AiService, type AiPendingActionRepository, type AiToolExecutor } from "../src/application/ai-service.js";
+import {
+  AiService,
+  type AiConversationRepository,
+  type AiPendingActionRepository,
+  type AiToolExecutor,
+} from "../src/application/ai-service.js";
 import type { AiSettingsService } from "../src/application/ai-settings-service.js";
 import type { AiProviderClient, ProviderReply, ProviderRequest } from "../src/infrastructure/ai-provider.js";
 import type { AuditEventInput, AuditRepository } from "../src/application/project-service.js";
 import type { UserPrincipal } from "../src/domain/auth.js";
+import { AI_LIMITS } from "../src/domain/ai.js";
 
 const tenantId = "11111111-1111-4111-8111-111111111111";
 const userId = "22222222-2222-4222-8222-222222222222";
@@ -102,14 +108,103 @@ function toolCall(name: string, args: unknown) {
   };
 }
 
+/**
+ * Conversations held in memory.
+ *
+ * Faithful to the contract in one respect that matters: `find` requires the
+ * tenant and the person, so a test that reaches for somebody else's thread
+ * gets nothing here for the same reason it would get nothing from Postgres.
+ */
+class MemoryConversations implements AiConversationRepository {
+  rows: Array<{ id: string; tenantId: string; userId: string; title: string; projectId: string | null }> = [];
+  said: Array<{
+    id: string;
+    tenantId: string;
+    conversationId: string;
+    role: "user" | "assistant";
+    content: string;
+    usedTools: string[];
+    createdAt: string;
+  }> = [];
+  private next = 1;
+
+  async create(input: { tenantId: string; userId: string; title: string; projectId: string | null }) {
+    const id = `cccccccc-0000-4000-8000-00000000000${this.next++}`;
+    this.rows.push({ id, ...input });
+    return { id };
+  }
+
+  async find(tenantId: string, userId: string, id: string) {
+    const row = this.rows.find(
+      (candidate) => candidate.id === id && candidate.tenantId === tenantId && candidate.userId === userId,
+    );
+    return row ? { id: row.id, title: row.title, projectId: row.projectId } : null;
+  }
+
+  async list(tenantId: string, userId: string, limit: number) {
+    return this.rows
+      .filter((row) => row.tenantId === tenantId && row.userId === userId)
+      .slice(0, limit)
+      .map((row) => ({
+        id: row.id,
+        title: row.title,
+        projectId: row.projectId,
+        updatedAt: new Date(0).toISOString(),
+      }));
+  }
+
+  async messages(tenantId: string, conversationId: string, limit?: number) {
+    const all = this.said.filter(
+      (row) => row.tenantId === tenantId && row.conversationId === conversationId,
+    );
+    return limit === undefined ? all : all.slice(-limit);
+  }
+
+  async appendMessage(input: {
+    tenantId: string;
+    conversationId: string;
+    role: "user" | "assistant";
+    content: string;
+    usedTools: string[];
+  }) {
+    const row = {
+      id: `dddddddd-0000-4000-8000-00000000000${this.said.length + 1}`,
+      createdAt: new Date(2026, 0, 1, 0, this.said.length).toISOString(),
+      ...input,
+    };
+    this.said.push(row);
+    return row;
+  }
+
+  async rename(tenantId: string, userId: string, id: string, title: string) {
+    const row = this.rows.find(
+      (candidate) => candidate.id === id && candidate.tenantId === tenantId && candidate.userId === userId,
+    );
+    if (!row) return false;
+    row.title = title;
+    return true;
+  }
+
+  async remove(tenantId: string, userId: string, id: string) {
+    const before = this.rows.length;
+    this.rows = this.rows.filter(
+      (row) => !(row.id === id && row.tenantId === tenantId && row.userId === userId),
+    );
+    this.said = this.said.filter((row) => row.conversationId !== id);
+    return this.rows.length < before;
+  }
+}
+
 function build(options: {
   replies: ProviderReply[];
   executors?: Record<string, AiToolExecutor>;
   pending?: MemoryPending;
   audit?: MemoryAudit;
+  conversations?: MemoryConversations;
 }) {
   const audit = options.audit ?? new MemoryAudit();
   const pending = options.pending ?? new MemoryPending();
+  const conversations = options.conversations ?? new MemoryConversations();
   const provider = new ScriptedProvider(options.replies);
   const settings = {
     resolveProvider: async () => ({
@@ -125,14 +220,15 @@ function build(options: {
     pending,
     audit,
     options.executors ?? {},
+    conversations,
   );
-  return { service, audit, pending, provider };
+  return { service, audit, pending, provider, conversations };
 }
 
 describe("who may use the assistant at all", () => {
   it("refuses somebody without the permission", async () => {
     const { service } = build({ replies: [] });
-    await expect(service.chat(person([]), { messages: [{ role: "user", content: "hello" }] }))
+    await expect(service.chat(person([]), { message: "hello" }))
       .rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });
@@ -142,7 +238,7 @@ describe("the model asking for tools", () => {
     const { service } = build({ replies: [{ content: "Two projects are active.", toolCalls: [] }] });
 
     const result = await service.chat(person(["ai.use"]), {
-      messages: [{ role: "user", content: "how many projects" }],
+      message: "how many projects",
     });
 
     expect(result.answer).toBe("Two projects are active.");
@@ -160,7 +256,7 @@ describe("the model asking for tools", () => {
     });
 
     const result = await service.chat(person(["ai.use", "projects.read"]), {
-      messages: [{ role: "user", content: "find Nile" }],
+      message: "find Nile",
     });
 
     expect(search).toHaveBeenCalledOnce();
@@ -176,7 +272,7 @@ describe("the model asking for tools", () => {
     const { service, provider } = build({ replies: [{ content: "ok", toolCalls: [] }] });
 
     await service.chat(person(["ai.use", "projects.read"]), {
-      messages: [{ role: "user", content: "hi" }],
+      message: "hi",
     });
 
     const offered = provider.requests[0]!.tools.map((tool) => tool.function.name);
@@ -195,7 +291,7 @@ describe("the model asking for tools", () => {
     });
 
     const result = await service.chat(person(["ai.use", "projects.read"]), {
-      messages: [{ role: "user", content: "delete it all" }],
+      message: "delete it all",
     });
 
     expect(result.answer).toBe("Sorry, I cannot do that.");
@@ -217,7 +313,7 @@ describe("the model asking for tools", () => {
     });
 
     await service.chat(person(["ai.use", "projects.read"]), {
-      messages: [{ role: "user", content: "any risks?" }],
+      message: "any risks?",
     });
 
     expect(risks).not.toHaveBeenCalled();
@@ -255,9 +351,10 @@ describe("the model asking for tools", () => {
       new MemoryPending(),
       new MemoryAudit(),
       { search_risks: risks as unknown as AiToolExecutor },
+      new MemoryConversations(),
     );
 
-    await service.chat(revoking, { messages: [{ role: "user", content: "any risks?" }] });
+    await service.chat(revoking, { message: "any risks?" });
 
     expect(risks).not.toHaveBeenCalled();
   });
@@ -274,7 +371,7 @@ describe("the model asking for tools", () => {
     });
 
     const result = await service.chat(person(["ai.use", "projects.read"]), {
-      messages: [{ role: "user", content: "search" }],
+      message: "search",
     });
 
     expect(search).not.toHaveBeenCalled();
@@ -296,7 +393,7 @@ describe("the model asking for tools", () => {
     });
 
     const result = await service.chat(person(["ai.use", "projects.read"]), {
-      messages: [{ role: "user", content: "find a" }],
+      message: "find a",
     });
 
     expect(result.answer).toBe("I could not look that up.");
@@ -317,7 +414,7 @@ describe("the model asking for tools", () => {
     });
 
     const result = await service.chat(person(["ai.use", "projects.read"]), {
-      messages: [{ role: "user", content: "loop" }],
+      message: "loop",
     });
 
     expect(provider.requests.length).toBeLessThanOrEqual(6);
@@ -341,7 +438,7 @@ describe("changing something", () => {
     });
 
     const result = await service.chat(author, {
-      messages: [{ role: "user", content: "add a task to pour the slab" }],
+      message: "add a task to pour the slab",
     });
 
     expect(create).not.toHaveBeenCalled();
@@ -361,7 +458,7 @@ describe("changing something", () => {
     });
 
     const proposed = await service.chat(author, {
-      messages: [{ role: "user", content: "add it" }],
+      message: "add it",
     });
     await service.confirm(author, { actionId: proposed.proposal!.id });
 
@@ -383,7 +480,7 @@ describe("changing something", () => {
       executors: { create_task: create },
     });
 
-    const proposed = await service.chat(author, { messages: [{ role: "user", content: "add" }] });
+    const proposed = await service.chat(author, { message: "add" });
     await service.confirm(author, {
       actionId: proposed.proposal!.id,
       // Tampered payload, as a hostile client would send.
@@ -403,7 +500,7 @@ describe("changing something", () => {
       executors: { create_task: create },
     });
 
-    const proposed = await service.chat(author, { messages: [{ role: "user", content: "add" }] });
+    const proposed = await service.chat(author, { message: "add" });
     await service.confirm(author, { actionId: proposed.proposal!.id });
     await expect(service.confirm(author, { actionId: proposed.proposal!.id })).rejects.toMatchObject(
       { code: "NOT_FOUND" },
@@ -425,7 +522,7 @@ describe("changing something", () => {
       pending,
     });
 
-    const proposed = await service.chat(author, { messages: [{ role: "user", content: "add" }] });
+    const proposed = await service.chat(author, { message: "add" });
 
     const someoneElse: UserPrincipal = {
       tenantId,
@@ -452,7 +549,7 @@ describe("changing something", () => {
       executors: { create_task: create as unknown as AiToolExecutor },
     });
 
-    const proposed = await service.chat(author, { messages: [{ role: "user", content: "add" }] });
+    const proposed = await service.chat(author, { message: "add" });
 
     const demoted = person(["ai.use"]);
     await expect(
@@ -473,11 +570,278 @@ describe("changing something", () => {
       audit,
     });
 
-    const proposed = await service.chat(author, { messages: [{ role: "user", content: "add" }] });
+    const proposed = await service.chat(author, { message: "add" });
     await service.confirm(author, { actionId: proposed.proposal!.id });
 
     const actions = audit.events.map((event) => event.action);
     expect(actions).toContain("ai.action.propose");
     expect(actions).toContain("ai.action.confirm");
+  });
+});
+
+describe("conversations are kept", () => {
+  const reply = (content: string): ProviderReply => ({ content, toolCalls: [] });
+
+  it("starts a thread when none is named, and stores both sides of the turn", async () => {
+    const { service, conversations } = build({ replies: [reply("Four projects are running.")] });
+
+    const result = await service.chat(person(["ai.use"]), { message: "how many projects" });
+
+    expect(result.conversationId).toBeTruthy();
+    expect(conversations.said.map((row) => [row.role, row.content])).toEqual([
+      ["user", "how many projects"],
+      ["assistant", "Four projects are running."],
+    ]);
+  });
+
+  it("titles the thread from the opening question", async () => {
+    const { service, conversations } = build({ replies: [reply("ok")] });
+
+    await service.chat(person(["ai.use"]), { message: "which risks are overdue" });
+
+    expect(conversations.rows[0]?.title).toBe("which risks are overdue");
+  });
+
+  it("continues the named thread rather than starting another", async () => {
+    const { service, conversations } = build({ replies: [reply("one"), reply("two")] });
+    const actor = person(["ai.use"]);
+
+    const first = await service.chat(actor, { message: "opening question" });
+    const second = await service.chat(actor, {
+      conversationId: first.conversationId,
+      message: "and then?",
+    });
+
+    expect(second.conversationId).toBe(first.conversationId);
+    expect(conversations.rows).toHaveLength(1);
+    expect(conversations.said).toHaveLength(4);
+  });
+
+  /*
+   * The reason the transcript moved to the server. What the model is shown is
+   * read back out of storage, so a client cannot present the model with a
+   * conversation that differs from the one on the record.
+   */
+  it("replays the stored thread to the model, not anything the caller sent", async () => {
+    const conversations = new MemoryConversations();
+    const { service, provider } = build({
+      replies: [reply("first answer"), reply("second answer")],
+      conversations,
+    });
+    const actor = person(["ai.use"]);
+
+    const first = await service.chat(actor, { message: "remember this" });
+    await service.chat(actor, { conversationId: first.conversationId, message: "what did I say" });
+
+    const lastRequest = provider.requests[provider.requests.length - 1] as ProviderRequest;
+    expect(lastRequest.messages.map((message) => message.content)).toContain("remember this");
+    expect(lastRequest.messages.map((message) => message.content)).toContain("first answer");
+  });
+
+  /*
+   * The question survives a failure. Somebody whose provider was unreachable
+   * must still find what they asked in the thread, rather than an exchange
+   * that appears never to have happened.
+   */
+  it("keeps the question even when answering fails", async () => {
+    const conversations = new MemoryConversations();
+    const failing: AiProviderClient = {
+      async complete() {
+        throw new Error("upstream is down");
+      },
+    };
+    const service = new AiService(
+      { resolveProvider: async () => ({ baseUrl: "https://p.test", model: "m", apiKey: "k" }) } as unknown as AiSettingsService,
+      failing,
+      new MemoryPending(),
+      new MemoryAudit(),
+      {},
+      conversations,
+    );
+
+    await expect(service.chat(person(["ai.use"]), { message: "did this survive" })).rejects.toThrow();
+
+    expect(conversations.said.map((row) => row.content)).toEqual(["did this survive"]);
+  });
+
+  /*
+   * Added after a break-test passed when it should not have. Removing the
+   * store from the timeout exit left every test green, because none of them
+   * reached that branch — the classic test that cannot see the bug. These two
+   * drive the loop's other two ways out, so all four exits are now covered and
+   * a person always finds what the assistant said, including when it gave up.
+   */
+  it("stores the answer when the loop runs out of time", async () => {
+    const conversations = new MemoryConversations();
+    let clock = Date.now();
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => clock);
+
+    try {
+      const provider: AiProviderClient = {
+        async complete() {
+          // The whole budget disappears while the model is thinking.
+          clock += AI_LIMITS.totalTimeoutMs + 1;
+          return { content: "", toolCalls: [toolCall("search_projects", { query: "a" })] };
+        },
+      };
+      const service = new AiService(
+        { resolveProvider: async () => ({ baseUrl: "https://p.test", model: "m", apiKey: "k" }) } as unknown as AiSettingsService,
+        provider,
+        new MemoryPending(),
+        new MemoryAudit(),
+        { search_projects: (async () => ({ found: 0 })) as unknown as AiToolExecutor },
+        conversations,
+      );
+
+      const result = await service.chat(person(["ai.use", "projects.read"]), { message: "slow one" });
+
+      expect(result.answer).toContain("longer than expected");
+      expect(conversations.said.map((row) => row.role)).toEqual(["user", "assistant"]);
+      expect(conversations.said[1]?.content).toBe(result.answer);
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  it("stores the answer when the loop gives up without converging", async () => {
+    const conversations = new MemoryConversations();
+    const provider: AiProviderClient = {
+      // Never reaches a final answer: always reaches for the tool again.
+      async complete() {
+        return { content: "", toolCalls: [toolCall("search_projects", { query: "a" })] };
+      },
+    };
+    const service = new AiService(
+      { resolveProvider: async () => ({ baseUrl: "https://p.test", model: "m", apiKey: "k" }) } as unknown as AiSettingsService,
+      provider,
+      new MemoryPending(),
+      new MemoryAudit(),
+      { search_projects: (async () => ({ found: 0 })) as unknown as AiToolExecutor },
+      conversations,
+    );
+
+    const result = await service.chat(person(["ai.use", "projects.read"]), { message: "round and round" });
+
+    expect(result.answer).toContain("could not work that out");
+    expect(conversations.said[1]?.content).toBe(result.answer);
+  });
+
+  it("records which tools an answer was built from", async () => {
+    const { service, conversations } = build({
+      replies: [
+        { content: "", toolCalls: [toolCall("search_projects", { query: "Nile" })] },
+        reply("One project matches."),
+      ],
+      executors: { search_projects: (async () => ({ found: 1 })) as unknown as AiToolExecutor },
+    });
+
+    await service.chat(person(["ai.use", "projects.read"]), { message: "find Nile" });
+
+    const answer = conversations.said.find((row) => row.role === "assistant");
+    expect(answer?.usedTools).toEqual(["search_projects"]);
+  });
+});
+
+describe("a conversation belongs to one person", () => {
+  const otherUserId = "44444444-4444-4444-8444-444444444444";
+  const otherTenantId = "55555555-5555-4555-8555-555555555555";
+
+  /*
+   * The isolation break-tests. Each one holds a real conversation id — so the
+   * id is not the secret — and differs only in who is asking. Deleting the
+   * owner condition from any repository query makes these fail.
+   */
+  it("refuses to read somebody else's thread", async () => {
+    const { service, conversations } = build({ replies: [{ content: "hello", toolCalls: [] }] });
+    const owner = person(["ai.use"]);
+    const started = await service.chat(owner, { message: "my private question" });
+
+    const colleague: UserPrincipal = { ...owner, userId: otherUserId };
+
+    await expect(
+      service.readConversation(colleague, { conversationId: started.conversationId }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(conversations.said.some((row) => row.content === "my private question")).toBe(true);
+  });
+
+  it("refuses to read a thread from another company", async () => {
+    const { service } = build({ replies: [{ content: "hello", toolCalls: [] }] });
+    const owner = person(["ai.use"]);
+    const started = await service.chat(owner, { message: "our question" });
+
+    const outsider: UserPrincipal = { ...owner, tenantId: otherTenantId };
+
+    await expect(
+      service.readConversation(outsider, { conversationId: started.conversationId }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("refuses to continue somebody else's thread", async () => {
+    const { service } = build({ replies: [{ content: "hello", toolCalls: [] }] });
+    const owner = person(["ai.use"]);
+    const started = await service.chat(owner, { message: "mine" });
+
+    const colleague: UserPrincipal = { ...owner, userId: otherUserId };
+
+    await expect(
+      service.chat(colleague, { conversationId: started.conversationId, message: "let me in" }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("refuses to rename or delete somebody else's thread", async () => {
+    const { service, conversations } = build({ replies: [{ content: "hello", toolCalls: [] }] });
+    const owner = person(["ai.use"]);
+    const started = await service.chat(owner, { message: "mine" });
+    const colleague: UserPrincipal = { ...owner, userId: otherUserId };
+
+    await expect(
+      service.renameConversation(colleague, { conversationId: started.conversationId, title: "yours now" }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(
+      service.deleteConversation(colleague, { conversationId: started.conversationId }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    expect(conversations.rows).toHaveLength(1);
+  });
+
+  it("lists only the asker's own threads", async () => {
+    const conversations = new MemoryConversations();
+    const { service } = build({ replies: [{ content: "a", toolCalls: [] }], conversations });
+    const owner = person(["ai.use"]);
+    await service.chat(owner, { message: "mine" });
+
+    conversations.rows.push({
+      id: "eeeeeeee-0000-4000-8000-000000000001",
+      tenantId,
+      userId: otherUserId,
+      title: "somebody else's",
+      projectId: null,
+    });
+
+    const listed = await service.listConversations(owner);
+
+    expect(listed.conversations.map((row) => row.title)).toEqual(["mine"]);
+  });
+
+  it("refuses the whole conversation surface without the permission", async () => {
+    const { service } = build({ replies: [] });
+    const stranger = person([]);
+    const anyId = "eeeeeeee-0000-4000-8000-000000000002";
+
+    await expect(service.listConversations(stranger)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(service.readConversation(stranger, { conversationId: anyId })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(service.renameConversation(stranger, { conversationId: anyId, title: "x" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(service.deleteConversation(stranger, { conversationId: anyId })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("takes the messages with the thread when it is deleted", async () => {
+    const { service, conversations } = build({ replies: [{ content: "hello", toolCalls: [] }] });
+    const owner = person(["ai.use"]);
+    const started = await service.chat(owner, { message: "forget this" });
+
+    await service.deleteConversation(owner, { conversationId: started.conversationId });
+
+    expect(conversations.rows).toHaveLength(0);
+    expect(conversations.said).toHaveLength(0);
   });
 });

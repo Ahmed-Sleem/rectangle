@@ -206,14 +206,36 @@ export function sanitiseForModel(value: string): string {
     .slice(0, 2000);
 }
 
-/** A message in one conversation. Stateless: the client returns the history. */
+/** A message in one conversation. */
 export const aiMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string().trim().min(1).max(4000),
 });
 
+/**
+ * How much of a stored thread is replayed to the model.
+ *
+ * A conversation is kept in full — that is the point of keeping it — but a
+ * thread that has run for an hour must not be posted to the provider in its
+ * entirety on every turn. Cost and latency grow with the transcript, and
+ * providers refuse outright past their context window, which would mean a long
+ * conversation quietly becoming a broken one. Twenty turns is the reading, not
+ * the record: the person still sees everything.
+ */
+export const AI_CONTEXT_TURNS = 20;
+
 export const aiChatInputSchema = z.object({
-  messages: z.array(aiMessageSchema).min(1).max(20),
+  /**
+   * The thread to continue. Absent starts a new one.
+   *
+   * The transcript is NOT sent: the server holds it. That is what stops the
+   * stored conversation and the conversation the model sees from being two
+   * different things, and it means a client cannot rewrite what it was told
+   * earlier before asking the next question.
+   */
+  conversationId: z.uuid().optional(),
+  /** The one new thing the person said. */
+  message: z.string().trim().min(1).max(4000),
   /**
    * Which page the person is on, so "what needs attention here" can mean
    * something. Advisory only — it names a project the tools would let them
@@ -221,6 +243,30 @@ export const aiChatInputSchema = z.object({
    */
   projectId: z.uuid().optional(),
 });
+
+export const aiConversationIdSchema = z.object({ conversationId: z.uuid() });
+
+export const aiRenameConversationSchema = z.object({
+  conversationId: z.uuid(),
+  title: z.string().trim().min(1).max(200),
+});
+
+/**
+ * The label a thread appears under in the list.
+ *
+ * Taken from the opening question rather than asked for, because somebody with
+ * a question wants to ask it, not to name a document first — and a list of
+ * "Untitled conversation" is no list at all. Cut on a word boundary where one
+ * is near the limit, so the label reads as a phrase rather than a severed word.
+ */
+export function deriveConversationTitle(firstMessage: string): string {
+  const flattened = firstMessage.replace(/\s+/gu, " ").trim();
+  if (flattened.length <= 60) return flattened;
+
+  const cut = flattened.slice(0, 60);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${lastSpace > 30 ? cut.slice(0, lastSpace) : cut}…`;
+}
 
 export const aiConfirmInputSchema = z.object({
   /** Identifies the stored proposal. The arguments are NOT sent back. */
@@ -260,5 +306,6 @@ export const aiUserKeyInputSchema = z.object({
 export type AiSettingsInput = z.infer<typeof aiSettingsInputSchema>;
 export type AiUserKeyInput = z.infer<typeof aiUserKeyInputSchema>;
 export type AiChatInput = z.infer<typeof aiChatInputSchema>;
+export type AiRenameConversationInput = z.infer<typeof aiRenameConversationSchema>;
 export type AiConfirmInput = z.infer<typeof aiConfirmInputSchema>;
 export type AiMessage = z.infer<typeof aiMessageSchema>;

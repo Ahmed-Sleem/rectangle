@@ -1,0 +1,240 @@
+/**
+ * The assistant's settings: what each audience is shown, and what leaves.
+ *
+ * Two things are being defended here. The first is that a key never appears on
+ * the screen and an unchanged key is never resent — a form that posted an empty
+ * string would erase a working credential, and one that echoed the saved key
+ * would put it in the DOM. The second is that a person without
+ * `settings.manage` is not offered the company provider at all: absent, not
+ * disabled, because the two look different to somebody who cannot tell whether
+ * they are waiting for something.
+ */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthContext, type AuthContextValue } from "@/shared/auth";
+import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
+import { AiAssistant } from "./AiAssistant";
+import type { AiSettingsView } from "./ai-api";
+
+/** Bodies sent to the settings endpoint, so the payload can be inspected. */
+let saved: string[] = [];
+/** Bodies sent to the personal-key endpoint. */
+let keyed: string[] = [];
+/** Methods used against the personal-key endpoint. */
+let keyMethods: string[] = [];
+
+function json(body: unknown, status = 200) {
+  return Promise.resolve(
+    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }),
+  );
+}
+
+function mockApi(state: AiSettingsView) {
+  saved = [];
+  keyed = [];
+  keyMethods = [];
+  return vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+    const url = String(input);
+    if (url.includes("/v1/ai/key")) {
+      keyMethods.push(String(init?.method));
+      if (init?.method === "PUT") {
+        keyed.push(String(init.body));
+        return json({ hasPersonalKey: true });
+      }
+      return json({ hasPersonalKey: false });
+    }
+    if (url.includes("/v1/ai/settings") && init?.method === "PUT") {
+      saved.push(String(init.body));
+      return json({ aiSettings: { ...state, configured: true } });
+    }
+    return json({ aiSettings: state });
+  });
+}
+
+const manager: AuthContextValue = {
+  setupRequired: false,
+  loading: false,
+  refresh: async () => undefined,
+  user: { tenantId: "1", userId: "2", roles: ["none"], permissions: ["ai.use", "settings.manage"] },
+};
+
+const ordinary: AuthContextValue = {
+  ...manager,
+  user: { tenantId: "1", userId: "3", roles: ["none"], permissions: ["ai.use"] },
+};
+
+function renderSection(auth: AuthContextValue = manager) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <RectangleI18nProvider>
+        <AuthContext.Provider value={auth}>
+          <AiAssistant open onToggle={() => undefined} />
+        </AuthContext.Provider>
+      </RectangleI18nProvider>
+    </QueryClientProvider>,
+  );
+}
+
+const CONFIGURED: AiSettingsView = {
+  configured: true,
+  enabled: true,
+  baseUrl: "https://api.openai.com/v1",
+  model: "gpt-4o-mini",
+  hasCompanyKey: true,
+  hasPersonalKey: false,
+  ready: true,
+};
+
+const UNCONFIGURED: AiSettingsView = {
+  configured: false,
+  enabled: false,
+  hasCompanyKey: false,
+  hasPersonalKey: false,
+  ready: false,
+};
+
+describe("AiAssistant settings", () => {
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    await setRectangleLanguage("en");
+  });
+
+  it("offers only the way in when nothing is set up", async () => {
+    mockApi(UNCONFIGURED);
+    renderSection();
+
+    expect(await screen.findByRole("button", { name: "Set up the assistant" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Assistant")).not.toBeInTheDocument();
+  });
+
+  it("states what is standing in the way rather than only that it is off", async () => {
+    mockApi({ ...CONFIGURED, hasCompanyKey: false, ready: false });
+    renderSection();
+
+    expect(await screen.findByText("No key saved")).toBeInTheDocument();
+  });
+
+  it("shows the provider and an on/off switch once configured", async () => {
+    mockApi(CONFIGURED);
+    renderSection();
+
+    expect(await screen.findByText("Ready")).toBeInTheDocument();
+    expect(screen.getByText(/gpt-4o-mini/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Assistant")).toBeChecked();
+  });
+
+  /*
+   * The credential must not be reachable from the page. Not merely masked —
+   * absent, since the server never sends it.
+   */
+  it("never renders a key", async () => {
+    mockApi({ ...CONFIGURED, hasPersonalKey: true });
+    const { container } = renderSection();
+
+    await screen.findByText("Ready");
+
+    expect(container.innerHTML).not.toContain("sk-");
+    expect(screen.getByText("Your key is saved and is being used instead of the company's.")).toBeInTheDocument();
+  });
+
+  it("keeps the saved key when the box is left empty", async () => {
+    mockApi(CONFIGURED);
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const wizard = await screen.findByRole("dialog");
+
+    await user.clear(within(wizard).getByLabelText("Model"));
+    await user.type(within(wizard).getByLabelText("Model"), "gpt-4o");
+    await user.click(within(wizard).getByRole("button", { name: /next/i }));
+    await user.click(within(wizard).getByRole("button", { name: /next/i }));
+    await user.click(within(wizard).getByRole("button", { name: "Save and switch on" }));
+
+    await waitFor(() => expect(saved).toHaveLength(1));
+    const payload = JSON.parse(saved[0] ?? "{}") as Record<string, unknown>;
+    expect(payload.model).toBe("gpt-4o");
+    // Absent, not empty: an empty string would wipe the working key.
+    expect(payload).not.toHaveProperty("apiKey");
+  });
+
+  it("refuses an endpoint that is not https, because the request carries the key", async () => {
+    mockApi(UNCONFIGURED);
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(await screen.findByRole("button", { name: "Set up the assistant" }));
+    const wizard = await screen.findByRole("dialog");
+
+    await user.type(within(wizard).getByLabelText("Endpoint"), "http://api.example.com/v1");
+    await user.type(within(wizard).getByLabelText("Model"), "some-model");
+
+    expect(
+      await within(wizard).findByText("Enter a full https address, for example https://api.openai.com/v1"),
+    ).toBeInTheDocument();
+    expect(within(wizard).getByRole("button", { name: /next/i })).toBeDisabled();
+  });
+
+  it("saves a personal key and never sends it to the company endpoint", async () => {
+    mockApi(CONFIGURED);
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(await screen.findByRole("button", { name: "Add a key" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Your own key"), "sk-personal-secret");
+    await user.click(within(dialog).getByRole("button", { name: "Save key" }));
+
+    await waitFor(() => expect(keyed).toHaveLength(1));
+    expect(JSON.parse(keyed[0] ?? "{}")).toEqual({ apiKey: "sk-personal-secret" });
+    expect(saved).toHaveLength(0);
+  });
+
+  it("offers removal only when a personal key exists", async () => {
+    mockApi(CONFIGURED);
+    const { unmount } = renderSection();
+    await screen.findByText("Ready");
+    expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+    unmount();
+
+    mockApi({ ...CONFIGURED, hasPersonalKey: true });
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(await screen.findByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(keyMethods).toContain("DELETE"));
+  });
+
+  /*
+   * The permission rule, and the reason this file mounts the section rather
+   * than the page: hidden means absent from the document, which is a thing a
+   * query can prove. A disabled control would still be found here.
+   */
+  it("hides the company provider from somebody who cannot manage settings", async () => {
+    mockApi(CONFIGURED);
+    renderSection(ordinary);
+
+    await screen.findByText("Ready");
+
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Assistant")).not.toBeInTheDocument();
+    // Still told whether it works, because that is not a secret from them.
+    expect(screen.getByText(/Your company has set up the assistant/)).toBeInTheDocument();
+    // And can still manage their own key.
+    expect(screen.getByRole("button", { name: "Add a key" })).toBeInTheDocument();
+  });
+
+  it("reads in Arabic", async () => {
+    await setRectangleLanguage("ar");
+    mockApi(CONFIGURED);
+    renderSection();
+
+    expect(await screen.findByText("جاهز")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "تعديل" })).toBeInTheDocument();
+  });
+});

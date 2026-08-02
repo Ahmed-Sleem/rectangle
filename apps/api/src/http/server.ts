@@ -51,7 +51,15 @@ export interface ServerDependencies {
   projectService: ProjectService;
   riskService: Pick<RiskService, "createRisk" | "listRisks" | "getRisk" | "updateRisk" | "deleteRisk" | "summarise">;
   searchService: Pick<SearchService, "search">;
-  aiService: Pick<AiService, "chat" | "confirm">;
+  aiService: Pick<
+    AiService,
+    | "chat"
+    | "confirm"
+    | "listConversations"
+    | "readConversation"
+    | "renameConversation"
+    | "deleteConversation"
+  >;
   aiSettingsService: Pick<
     AiSettingsService,
     "getSettings" | "saveSettings" | "saveMyKey" | "deleteMyKey"

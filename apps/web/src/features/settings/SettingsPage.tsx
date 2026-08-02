@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/shared/auth";
+import { hasPermission } from "@/shared/auth/authority";
 import {
   Badge,
   Button,
@@ -14,6 +15,7 @@ import {
   SettingsStack,
 } from "@/shared/ui";
 import { useRectangleI18n, type RectangleLanguage } from "@/shared/i18n";
+import { AiAssistant } from "./AiAssistant";
 import { PermissionReference } from "./PermissionReference";
 import { EmailDelivery } from "./EmailDelivery";
 import { SeparationRules } from "./SeparationRules";
@@ -21,7 +23,7 @@ import { listPasskeys, registerPasskey } from "./passkey-api";
 import "./SettingsPage.css";
 
 
-type SectionId = "language" | "email" | "permissions" | "separation" | "passkeys";
+type SectionId = "language" | "email" | "ai" | "permissions" | "separation" | "passkeys";
 
 function canManageCompanySettings(user: ReturnType<typeof useAuth>["user"]): boolean {
   if (!user) return false;
@@ -36,6 +38,7 @@ export default function SettingsPage() {
   const { t } = useTranslation();
   const auth = useAuth();
   const canManageCompany = canManageCompanySettings(auth.user);
+  const canUseAi = hasPermission(auth.user, "ai.use");
   const { language, setLanguage } = useRectangleI18n();
   const queryClient = useQueryClient();
 
@@ -99,6 +102,17 @@ export default function SettingsPage() {
 
       {canManageCompany ? (
         <EmailDelivery open={openSection === "email"} onToggle={() => toggleSection("email")} />
+      ) : null}
+
+      {/*
+        Open to anyone who may use the assistant, not only to those who
+        configure it. Somebody without `settings.manage` still needs to save
+        their own key and to find out why the panel is not answering; the
+        section shows them those two things and no means of changing the
+        company's provider.
+      */}
+      {canUseAi ? (
+        <AiAssistant open={openSection === "ai"} onToggle={() => toggleSection("ai")} />
       ) : null}
 
       {/*

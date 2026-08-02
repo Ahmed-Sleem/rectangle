@@ -11,7 +11,13 @@ import type {
   AiSettingsRecord,
   AiSettingsRepository,
 } from "../../application/ai-settings-service.js";
-import type { AiPendingActionRepository, PendingAction } from "../../application/ai-service.js";
+import type {
+  AiConversationRepository,
+  AiConversationSummary,
+  AiPendingActionRepository,
+  PendingAction,
+  StoredAiMessage,
+} from "../../application/ai-service.js";
 
 function mapSettings(row: Record<string, unknown>): AiSettingsRecord {
   return {
@@ -179,5 +185,191 @@ export class PostgresAiPendingActionRepository implements AiPendingActionReposit
       "delete from ai_pending_actions where confirmed_at is null and expires_at < now()",
     );
     return result.rowCount ?? 0;
+  }
+}
+
+/**
+ * PostgreSQL storage for conversations.
+ *
+ * The isolation guarantee lives in these queries and nowhere else. Every
+ * statement names the tenant and, where the row belongs to a person, that
+ * person — inside the WHERE clause, never as a check performed on the result.
+ * The difference matters: a filter applied after the fact is a line of code
+ * somebody can delete without any query failing, whereas a condition in the
+ * SQL means the row is never read at all. Nothing here can return a thread to
+ * a caller who was not identified as its owner, because there is no statement
+ * that selects one without saying whose it is.
+ */
+export class PostgresAiConversationRepository implements AiConversationRepository {
+  constructor(private readonly pool: pg.Pool) {}
+
+  async create(input: {
+    tenantId: string;
+    userId: string;
+    title: string;
+    projectId: string | null;
+  }): Promise<{ id: string }> {
+    const result = await this.pool.query<{ id: string }>(
+      `insert into ai_conversations (tenant_id, user_id, title, project_id)
+       values ($1, $2, $3, $4)
+       returning id`,
+      [input.tenantId, input.userId, input.title, input.projectId],
+    );
+    return { id: String(result.rows[0]?.id) };
+  }
+
+  async find(
+    tenantId: string,
+    userId: string,
+    id: string,
+  ): Promise<{ id: string; title: string; projectId: string | null } | null> {
+    const result = await this.pool.query<{
+      id: string;
+      title: string;
+      project_id: string | null;
+    }>(
+      `select id, title, project_id
+         from ai_conversations
+        where id = $1 and tenant_id = $2 and user_id = $3`,
+      [id, tenantId, userId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return { id: String(row.id), title: String(row.title), projectId: row.project_id };
+  }
+
+  async list(tenantId: string, userId: string, limit: number): Promise<AiConversationSummary[]> {
+    const result = await this.pool.query<{
+      id: string;
+      title: string;
+      project_id: string | null;
+      updated_at: string;
+    }>(
+      `select id, title, project_id, updated_at
+         from ai_conversations
+        where tenant_id = $1 and user_id = $2
+        order by updated_at desc
+        limit $3`,
+      [tenantId, userId, limit],
+    );
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      title: String(row.title),
+      projectId: row.project_id,
+      updatedAt: new Date(String(row.updated_at)).toISOString(),
+    }));
+  }
+
+  /**
+   * The turns of a thread.
+   *
+   * With a limit it returns the LAST n in chronological order, which needs the
+   * inner query to sort backwards and the outer one to put them right again.
+   * Taking the first n instead would hand the model the beginning of a long
+   * conversation and none of what was just said — the opposite of useful.
+   */
+  async messages(
+    tenantId: string,
+    conversationId: string,
+    limit?: number,
+  ): Promise<StoredAiMessage[]> {
+    const result =
+      limit === undefined
+        ? await this.pool.query(
+            `select id, role, content, used_tools, created_at
+               from ai_messages
+              where tenant_id = $1 and conversation_id = $2
+              order by created_at, id`,
+            [tenantId, conversationId],
+          )
+        : await this.pool.query(
+            `select id, role, content, used_tools, created_at from (
+               select id, role, content, used_tools, created_at
+                 from ai_messages
+                where tenant_id = $1 and conversation_id = $2
+                order by created_at desc, id desc
+                limit $3
+             ) recent
+             order by created_at, id`,
+            [tenantId, conversationId, limit],
+          );
+
+    return (result.rows as Record<string, unknown>[]).map((row) => ({
+      id: String(row.id),
+      role: row.role === "assistant" ? "assistant" : "user",
+      content: String(row.content),
+      usedTools: Array.isArray(row.used_tools) ? row.used_tools.map(String) : [],
+      createdAt: new Date(String(row.created_at)).toISOString(),
+    }));
+  }
+
+  /**
+   * Adds a turn, and moves the thread to the top of the list.
+   *
+   * Both statements or neither. A message stored against a thread whose
+   * `updated_at` did not move would sink out of view the moment it was
+   * written, so the ordering is part of the write rather than a later repair.
+   */
+  async appendMessage(input: {
+    tenantId: string;
+    conversationId: string;
+    role: "user" | "assistant";
+    content: string;
+    usedTools: string[];
+  }): Promise<StoredAiMessage> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const result = await client.query<{
+        id: string;
+        role: string;
+        content: string;
+        used_tools: string[];
+        created_at: string;
+      }>(
+        `insert into ai_messages (conversation_id, tenant_id, role, content, used_tools)
+         values ($1, $2, $3, $4, $5)
+         returning id, role, content, used_tools, created_at`,
+        [input.conversationId, input.tenantId, input.role, input.content, input.usedTools],
+      );
+      await client.query(
+        "update ai_conversations set updated_at = now() where id = $1 and tenant_id = $2",
+        [input.conversationId, input.tenantId],
+      );
+      await client.query("commit");
+
+      const row = result.rows[0];
+      if (!row) throw new Error("The message was not stored.");
+      return {
+        id: String(row.id),
+        role: row.role === "assistant" ? "assistant" : "user",
+        content: String(row.content),
+        usedTools: Array.isArray(row.used_tools) ? row.used_tools.map(String) : [],
+        createdAt: new Date(String(row.created_at)).toISOString(),
+      };
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async rename(tenantId: string, userId: string, id: string, title: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `update ai_conversations set title = $4
+        where id = $1 and tenant_id = $2 and user_id = $3`,
+      [id, tenantId, userId, title],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  /** The messages go with it: `ai_messages.conversation_id` cascades. */
+  async remove(tenantId: string, userId: string, id: string): Promise<boolean> {
+    const result = await this.pool.query(
+      "delete from ai_conversations where id = $1 and tenant_id = $2 and user_id = $3",
+      [id, tenantId, userId],
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 }
