@@ -53,6 +53,13 @@ export const permissionSchema = z.enum([
   "settings.manage",
   "activity.read_team",
   "activity.read_all",
+  /*
+   * The assistant is a capability, not a source of authority. Holding this
+   * lets somebody open it and ask questions; every answer it gives and every
+   * action it proposes is still bounded by the rest of their permissions,
+   * because each tool runs through the same service the interface uses.
+   */
+  "ai.use",
 ]);
 
 export type Permission = z.infer<typeof permissionSchema>;
@@ -256,6 +263,13 @@ export const permissionDescriptions: PermissionDescriptor[] = [
     group: "company",
     label: "View all activity",
     description: "See the company's full activity and security history.",
+  },
+  {
+    key: "ai.use",
+    group: "company",
+    label: "Use the assistant",
+    description:
+      "Ask the AI assistant about this company's work. It can only see and do what the person using it already can.",
   },
 ];
 

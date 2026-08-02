@@ -9,6 +9,13 @@ export type DomainErrorCode =
   | "CONFLICT"
   | "NOT_FOUND"
   | "CONFIGURATION_REQUIRED"
+  /*
+   * A service Rectangle depends on but does not run. Distinct from
+   * CONFIGURATION_REQUIRED, which means somebody here has something to fix,
+   * and from the 5xx family, which would claim the fault is ours.
+   */
+  | "UPSTREAM_UNAVAILABLE"
+  | "UPSTREAM_TIMEOUT"
   | "RATE_LIMITED";
 
 export class DomainError extends Error {

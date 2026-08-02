@@ -12,6 +12,10 @@ const statusByCode = {
   CONFLICT: 409,
   NOT_FOUND: 404,
   CONFIGURATION_REQUIRED: 503,
+  /* 502: we reached out on the caller's behalf and got nothing usable back. */
+  UPSTREAM_UNAVAILABLE: 502,
+  /* 504: the same, but it was slowness rather than a refusal. */
+  UPSTREAM_TIMEOUT: 504,
   RATE_LIMITED: 429,
 } as const;
 
