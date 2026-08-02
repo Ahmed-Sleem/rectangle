@@ -14,6 +14,33 @@
   width: 100%;
 }
 
+/*
+ * A line of fields that belong to one fact, each sized to what it expects.
+ *
+ * Distinct from `rect-settings-grid`, which spreads equal peers across equal
+ * columns. Here the parts are not peers: an address is long and open-ended, a
+ * port is four digits, and giving them the same width states something untrue
+ * about both.
+ */
+.rect-settings-row {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2) var(--rect-space-3);
+  width: 100%;
+}
+
+.rect-settings-row__grow {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+/* Four digits and nothing more, so the control tells the truth about its input. */
+.rect-settings-row__port {
+  flex: 0 0 var(--rect-field-width-xs);
+  min-width: 0;
+}
+
 .rect-settings-inline {
   display: flex;
   align-items: flex-end;
@@ -27,16 +54,25 @@
   min-width: 0;
 }
 
+/*
+ * The save action stays against the bottom of the form while it is scrolled.
+ *
+ * A long configuration form pushes its own primary action off screen, so the
+ * person filling it in has to scroll back down to commit — and the button was
+ * landing exactly where the canvas draws its bottom edge, which is what made
+ * it look damaged. Pinning it keeps the action reachable at every scroll
+ * position and gives it a surface of its own instead of the page edge.
+ */
 .rect-settings-actions {
+  position: sticky;
+  inset-block-end: 0;
   display: flex;
   justify-content: flex-end;
   gap: var(--rect-space-2);
-}
-
-.rect-settings-divider {
-  height: 1px;
-  background: var(--rect-surface-divider);
-  margin-block: var(--rect-space-1);
+  padding-block-start: var(--rect-space-3);
+  background: var(--rect-card-bg);
+  /* Above the canvas edge line, so the boundary never crosses the control. */
+  z-index: 2;
 }
 
 .rect-settings-message {

@@ -63,12 +63,99 @@ html[dir="rtl"] .rect-app {
  * on the side the header actually used in Arabic.
  */
 
+/*
+ * The screen behind every pre-login page.
+ *
+ * It was flat near-black, which is calm but says nothing. This is a drafting
+ * grid drifting very slowly across it — the paper a construction drawing is set
+ * out on, which is the one piece of decoration this product has earned the
+ * right to, because it is what the product is about.
+ *
+ * Three deliberate restraints, because a sign-in background that draws
+ * attention is a background that has failed:
+ *  - The lines are the faintest values in the theme. They should read as a
+ *    texture noticed on second glance, not as a pattern.
+ *  - The drift is one very slow diagonal pass, over a minute per cycle. Fast
+ *    movement behind a password field is agitating, and this has to be
+ *    something a person can sit in front of every morning.
+ *  - Only `transform` is animated, on a layer that paints nothing else, so the
+ *    compositor carries it and the form in front never repaints.
+ */
 .rect-auth-screen {
   align-items: center;
   background: var(--rect-chrome-bg);
   color: var(--rect-text-primary);
   display: flex;
   min-height: 100dvh;
-  padding: 24px;
+  padding: var(--rect-space-6);
   justify-content: center;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+/*
+ * The grid itself. Oversized and offset so that however far it drifts, no edge
+ * of the pattern can ever enter the viewport.
+ *
+ * Two line weights, as a real drawing has: a fine cell and a heavier rule every
+ * fifth one. A single weight reads as graph paper; the pair reads as a set-out.
+ */
+.rect-auth-screen::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  z-index: -2;
+  background-image:
+    linear-gradient(to right, var(--rect-auth-grid-line-major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rect-auth-grid-line-major) 1px, transparent 1px),
+    linear-gradient(to right, var(--rect-auth-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rect-auth-grid-line) 1px, transparent 1px);
+  background-size:
+    var(--rect-auth-grid-major) var(--rect-auth-grid-major),
+    var(--rect-auth-grid-major) var(--rect-auth-grid-major),
+    var(--rect-auth-grid-cell) var(--rect-auth-grid-cell),
+    var(--rect-auth-grid-cell) var(--rect-auth-grid-cell);
+  animation: rect-auth-drift var(--rect-auth-drift-duration) linear infinite;
+  will-change: transform;
+}
+
+/*
+ * A soft light behind the card, so the grid falls away where the form sits and
+ * the eye is taken to the one thing on the screen that wants attention.
+ */
+.rect-auth-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(
+    ellipse 60% 55% at 50% 45%,
+    var(--rect-auth-glow),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/* Exactly one cell of travel, so the loop is seamless: after one major square
+   the pattern is identical to where it started. */
+@keyframes rect-auth-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(
+      calc(var(--rect-auth-grid-major) * -1),
+      calc(var(--rect-auth-grid-major) * -1),
+      0
+    );
+  }
+}
+
+/* The grid stays; only the movement goes. A still drafting grid is still the
+   right backdrop, and motion is the part that can make somebody unwell. */
+@media (prefers-reduced-motion: reduce) {
+  .rect-auth-screen::before {
+    animation: none;
+  }
 }

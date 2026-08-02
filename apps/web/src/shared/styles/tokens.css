@@ -58,6 +58,20 @@
   --rect-overlay-on-light-inner: rgba(32, 33, 36, 0.18);
   --rect-overlay-on-light-inner-strong: rgba(32, 33, 36, 0.28);
   --rect-overlay-hatch: rgba(32, 33, 36, 0.035);
+  /* ── Sign-in backdrop ──
+     A drafting grid, which is the one decorative surface in the product and is
+     the reason it is allowed to be decorative at all: it is the paper a
+     construction drawing is set out on. Kept at the very edge of visibility —
+     these are the faintest values in the file — because it sits behind a form
+     somebody types a password into, and a background that competes with that
+     is a background that has failed. */
+  --rect-auth-grid-line: rgba(247, 247, 245, 0.055);
+  --rect-auth-grid-line-major: rgba(247, 247, 245, 0.085);
+  --rect-auth-grid-cell: 44px;
+  --rect-auth-grid-major: 220px;
+  --rect-auth-glow: rgba(247, 247, 245, 0.05);
+  --rect-auth-drift-duration: 70s;
+
   --rect-orb-inner-ring: rgba(247, 247, 245, 0.14);
   --rect-orb-inner-ring-hover: rgba(247, 247, 245, 0.2);
 
@@ -228,7 +242,6 @@
 
   /* ── Canvas content contract ── */
   --rect-canvas-content-max: 1180px;
-  --rect-canvas-scroll-fade: 20px;
 
   /* ── Overlay / window system ──
      Every window in the product uses these. Widths are ceilings; the overlay

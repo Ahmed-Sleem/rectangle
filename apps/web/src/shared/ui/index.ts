@@ -82,6 +82,7 @@ export {
 export {
   ChoiceGroup,
   SettingRow,
+  SettingsDivider,
   SettingsSection,
   SettingsStack,
   type ChoiceGroupProps,

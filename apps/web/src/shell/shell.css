@@ -285,25 +285,34 @@
    */
   padding-block: 0 var(--rect-space-2);
 
-  /* Scroll affordance is drawn by the overlay layers below rather than by a
+  /* Scroll affordance is drawn by the overlay layer below rather than by a
      mask on this element.
 
      A mask applies to the whole element including anything sticky inside it, so
      a pinned toolbar faded out at exactly the moment it was doing its job. The
-     fades are now siblings painted over the scroll area and under the sticky
+     edge line is a sibling painted over the scroll area and under the sticky
      row, which is the only arrangement where both can be true at once. */
-  --rect-fade-bottom: 0px;
+  --rect-scroll-edge-opacity: 0;
 }
 
 /*
- * The bottom scroll fade only.
+ * A hairline at the bottom edge once content is hidden below the fold.
  *
- * There used to be a matching one at the top, and it was the cause of a gap the
- * owner reported: a sticky flex child placed before the toolbar in the column,
- * so once the page scrolled it pinned at the top and pushed the toolbar down by
- * its own height, opening a strip of bare canvas through which content showed.
- * The toolbar now paints its own fade beneath itself, which is the only place
- * that can be correct — above the toolbar there is nothing to fade.
+ * This was a 20px gradient painting the canvas colour over whatever sat at the
+ * bottom of the scroll area — and what sits there is usually a form's Save
+ * button, which came out looking veiled by a strange sheen. That is the
+ * "corrupted button with a weird gradient over it" reported on the email
+ * settings page: not a fault in that page at all, but the last of the scroll
+ * fades reaching every page in the product.
+ *
+ * The matching fade above the toolbar was replaced by a single divider line
+ * for exactly this reason and the note is still in `page-toolbar.css`: nothing
+ * else here fades one surface into another, and every other stacked surface is
+ * separated by one hairline. This is that same decision, finished.
+ *
+ * A line also states the fact better than a fade did. "There is more below" is
+ * a boundary, not a dimming, and a boundary can sit over a button without
+ * appearing to damage it.
  */
 .rect-panel__body::after {
   content: "";
@@ -311,18 +320,20 @@
   inset-inline: 0;
   inset-block-end: 0;
   display: block;
-  block-size: var(--rect-fade-bottom);
-  margin-block-start: calc(var(--rect-fade-bottom) * -1);
-  background: linear-gradient(to top, var(--rect-canvas-bg), transparent);
+  block-size: 1px;
+  margin-block-start: -1px;
+  background: var(--rect-surface-divider);
+  opacity: var(--rect-scroll-edge-opacity);
+  transition: opacity var(--rect-motion-nav);
   z-index: 1;
   pointer-events: none;
   flex: none;
 }
 
-/* Zero height until something is actually hidden below, so a page that fits is
-   never dimmed at an edge with nothing beyond it. */
+/* Shown only while something is actually hidden below, so a page that fits is
+   never given an edge with nothing beyond it. */
 .rect-panel__body[data-scroll-bottom="false"] {
-  --rect-fade-bottom: var(--rect-canvas-scroll-fade);
+  --rect-scroll-edge-opacity: 1;
 }
 
 /* Feature content column: one shared gutter and max width for every page,

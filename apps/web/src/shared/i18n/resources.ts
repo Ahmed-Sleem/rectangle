@@ -25,6 +25,7 @@ export const resources = {
       },
       common: {
         loading: "Loading…",
+        preparingWorkspace: "Preparing your workspace",
         noRecordsYet: "No records to show here yet.",
         noPermissionTitle: "You do not have access to this page",
         noPermissionMessage: "Ask a company owner or administrator if you need it.",
@@ -238,6 +239,7 @@ export const resources = {
       },
       common: {
         loading: "جارٍ التحميل…",
+        preparingWorkspace: "جارٍ تجهيز مساحة عملك",
         noRecordsYet: "لا توجد سجلات لعرضها هنا بعد.",
         noPermissionTitle: "ليس لديك صلاحية الوصول إلى هذه الصفحة",
         noPermissionMessage: "اطلب من مالك الشركة أو المسؤول إن كنت بحاجة إليها.",

@@ -779,6 +779,13 @@
   gap: var(--rect-space-3);
 }
 
+/* One hairline, so every divided section in the product divides the same way. */
+.rect-settings-divider {
+  block-size: 1px;
+  background: var(--rect-surface-divider);
+  margin-block: var(--rect-space-1);
+}
+
 .rect-section {
   background: var(--rect-card-bg);
   border: 1px solid var(--rect-card-border);

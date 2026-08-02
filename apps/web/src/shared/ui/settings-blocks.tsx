@@ -168,3 +168,21 @@ export function ChoiceGroup<T extends string>({
 export function SettingsStack({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return <div className={cn("rect-settings-stack", className)} {...props} />;
 }
+
+/**
+ * Separates two groups of settings that belong to the same section.
+ *
+ * A hairline is how every stacked surface in the product is divided, and each
+ * page was drawing its own `<div>` for it. One here means the weight and colour
+ * of that line move together everywhere, and a page never has to know which
+ * token a divider uses.
+ *
+ * `role="presentation"` because it carries no meaning of its own: the grouping
+ * is already stated by the headings either side, and announcing a separator to
+ * a screen reader would add noise, not structure.
+ */
+export function SettingsDivider({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cn("rect-settings-divider", className)} role="presentation" {...props} />
+  );
+}

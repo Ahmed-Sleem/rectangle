@@ -187,3 +187,106 @@ describe("SettingsPage", () => {
     expect(posted[0]).toContain("site@rectangle.test");
   });
 });
+
+describe("the email section's arrangement", () => {
+  /** Bodies sent to the save endpoint, so a rearrangement cannot drop a field. */
+  let saved: string[] = [];
+
+  beforeEach(async () => {
+    saved = [];
+    window.localStorage.clear();
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.includes("/v1/settings/email") && init?.method === "PUT") {
+        saved.push(String(init.body));
+        return jsonResponse({
+          emailSettings: { configured: true, enabled: true, hasPassword: true },
+        });
+      }
+      if (url.includes("passkeys")) return jsonResponse({ passkeys: [] });
+      if (url.includes("permission-reference")) {
+        return jsonResponse({
+          permissions: [],
+          projectRoles: [],
+          standings: [],
+          deletionRule: { requiresProjectAdmin: true, manageAllInsufficient: true },
+        });
+      }
+      if (url.includes("separation-rules")) return jsonResponse({ rules: [] });
+      return jsonResponse({
+        emailSettings: { configured: false, enabled: false, hasPassword: false },
+      });
+    });
+    await setRectangleLanguage("en");
+  });
+
+  async function openEmail() {
+    const user = userEvent.setup();
+    renderSettingsPage();
+    await user.click(await screen.findByRole("button", { name: /Email delivery/u }));
+    return user;
+  }
+
+  it("turns sending on with a switch, not a checkbox", async () => {
+    /*
+     * This enables a capability for the whole company. A checkbox reads as one
+     * of several choices inside the form beneath it; a switch reads as the
+     * thing being turned on, which is what it is.
+     */
+    await openEmail();
+
+    const control = await screen.findByRole("switch", { name: "Send email from Rectangle" });
+    expect(control).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Send email from Rectangle" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the secure-connection choice with the server it describes", async () => {
+    /*
+     * It qualifies the address and port, not the credentials. Sitting after the
+     * password it read as a property of the password.
+     */
+    await openEmail();
+
+    const secure = await screen.findByRole("checkbox", { name: /secure SSL\/TLS/iu });
+    const host = screen.getByLabelText("Server address");
+    const username = screen.getByLabelText("Username");
+
+    // Document order: host … secure … username.
+    expect(host.compareDocumentPosition(secure) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      secure.compareDocumentPosition(username) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("still saves everything the form collects", async () => {
+    // The rearrangement must not drop a field. Every one the server needs is
+    // still sent, which is the part a visual change can silently break.
+    const user = await openEmail();
+
+    await user.clear(screen.getByLabelText("Server address"));
+    await user.type(screen.getByLabelText("Server address"), "smtp.example.test");
+    await user.clear(screen.getByLabelText("Port"));
+    await user.type(screen.getByLabelText("Port"), "587");
+    await user.clear(screen.getByLabelText("Username"));
+    await user.type(screen.getByLabelText("Username"), "mailer");
+    await user.clear(screen.getByLabelText("From address"));
+    await user.type(screen.getByLabelText("From address"), "site@rectangle.test");
+    await user.clear(screen.getByLabelText("From name"));
+    await user.type(screen.getByLabelText("From name"), "Rectangle");
+
+    await user.click(screen.getByRole("button", { name: "Save email settings" }));
+
+    await waitFor(() => expect(saved).toHaveLength(1));
+    const body = JSON.parse(saved[0]!) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      host: "smtp.example.test",
+      port: 587,
+      username: "mailer",
+      fromEmail: "site@rectangle.test",
+      fromName: "Rectangle",
+    });
+  });
+});

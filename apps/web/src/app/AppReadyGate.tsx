@@ -5,11 +5,10 @@
  */
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import "./app-ready-gate.css";
+import { BootScreen } from "./BootScreen";
 
 const DEFAULT_MIN_MS = 1100;
 const DEFAULT_MAX_MS = 2200;
-const WORDMARK = "RECTANGLE";
 
 function waitForDocumentReady(): Promise<void> {
   if (typeof document === "undefined" || document.readyState !== "loading") {
@@ -81,18 +80,7 @@ export function AppReadyGate({
   return (
     <>
       {children}
-      {visible ? (
-        <div className="rect-boot" role="status" aria-label="Loading Rectangle">
-          <div className="rect-boot__wordmark" aria-hidden="true">
-            {WORDMARK.split("").map((letter, index) => (
-              <span className="rect-boot__letter" key={`${letter}-${index}`}>
-                {letter}
-              </span>
-            ))}
-          </div>
-          <p className="rect-boot__text">Loading Rectangle</p>
-        </div>
-      ) : null}
+      {visible ? <BootScreen label="Loading Rectangle" /> : null}
     </>
   );
 }

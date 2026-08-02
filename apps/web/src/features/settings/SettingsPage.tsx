@@ -14,9 +14,11 @@ import {
   EmptyState,
   ChoiceGroup,
   Checkbox,
+  Switch,
   Field,
   Input,
   SettingRow,
+  SettingsDivider,
   SettingsSection,
   SettingsStack,
 } from "@/shared/ui";
@@ -242,17 +244,21 @@ export default function SettingsPage() {
             onSubmit={emailForm.handleSubmit((values) => saveEmail.mutate(values))}
           >
             {/*
-              * The row states what the setting is; the control must not repeat
-              * it. Printing "Send email from Rectangle" twice, once as the row
-              * label and again beside the box, read as a rendering fault. The
-              * checkbox keeps an accessible name — the row's label is a span,
-              * not a `label` element, so it cannot supply one.
+              * A switch, not a checkbox. This turns a capability on and off for
+              * the whole company and takes effect on save; a checkbox says "one
+              * of several choices" and reads as part of the form below it.
+              *
+              * The row states what the setting is, so the control must not
+              * repeat it — printing "Send email from Rectangle" twice, once as
+              * the row label and again beside the control, read as a rendering
+              * fault. The switch still needs its own accessible name because
+              * the row's label is a span, not a `label` element.
               */}
             <SettingRow
               label={t("settings.emailEnable")}
               description={t("settings.emailEnableHelp")}
               control={
-                <Checkbox
+                <Switch
                   label={t("settings.emailEnableToggle")}
                   aria-label={t("settings.emailEnable")}
                   {...emailForm.register("enabled")}
@@ -265,8 +271,17 @@ export default function SettingsPage() {
               description={t("settings.emailServerHelp")}
               stacked
             >
-              <div className="rect-settings-grid">
+              {/*
+                * Address and port on one line, because they are one fact: a
+                * port is meaningless without the host it belongs to. The port
+                * is given the narrow width its four digits actually need —
+                * stretching it to match the address made a number look like a
+                * long answer and is the kind of mismatch that makes people
+                * re-read the label.
+                */}
+              <div className="rect-settings-row">
                 <Field
+                  className="rect-settings-row__grow"
                   label={t("settings.emailHost")}
                   error={emailForm.formState.errors.host?.message}
                   required
@@ -274,6 +289,7 @@ export default function SettingsPage() {
                   <Input aria-label={t("settings.emailHost")} {...emailForm.register("host")} />
                 </Field>
                 <Field
+                  className="rect-settings-row__port"
                   label={t("settings.emailPort")}
                   error={emailForm.formState.errors.port?.message}
                   required
@@ -284,6 +300,16 @@ export default function SettingsPage() {
                     {...emailForm.register("port", { valueAsNumber: true })}
                   />
                 </Field>
+              </div>
+
+              {/*
+                * Immediately beneath the address and port it qualifies. It used
+                * to sit after the credentials, where it read as a property of
+                * the password rather than of the connection.
+                */}
+              <Checkbox label={t("settings.emailSecure")} {...emailForm.register("secure")} />
+
+              <div className="rect-settings-grid">
                 <Field
                   label={t("settings.emailUsername")}
                   error={emailForm.formState.errors.username?.message}
@@ -307,7 +333,6 @@ export default function SettingsPage() {
                   />
                 </Field>
               </div>
-              <Checkbox label={t("settings.emailSecure")} {...emailForm.register("secure")} />
             </SettingRow>
 
             <SettingRow
@@ -355,7 +380,7 @@ export default function SettingsPage() {
             </div>
           </form>
 
-          <div className="rect-settings-divider" role="presentation" />
+          <SettingsDivider />
 
           <SettingRow
             label={t("settings.emailTest")}
