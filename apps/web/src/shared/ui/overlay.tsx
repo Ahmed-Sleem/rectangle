@@ -14,13 +14,13 @@
  *     against the dynamic viewport, so it can never exceed the screen.
  */
 import type { FormEvent, HTMLAttributes, ReactNode } from "react";
-import { useId } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/cn";
 import { Button, IconButton } from "./primitives";
-import { useOverlayBehaviour } from "./overlay-behaviour";
+import { overlayDepth, useOverlayBehaviour } from "./overlay-behaviour";
 import { useExitTransition } from "./use-exit-transition";
 
 /**
@@ -78,11 +78,54 @@ export function Overlay({
   const t = useOverlayLabels();
   const headingId = useId();
   const descriptionId = useId();
+  // Stable for the life of this window, and unique across every other one.
+  const overlayId = useId();
   // Hold the window in the tree while its exit animation plays; unmounting on
   // the same tick would remove it before any closing motion could run.
   const { mounted, state, onAnimationEnd } = useExitTransition({ open });
 
-  if (!mounted || typeof document === "undefined") return null;
+  /*
+   * One portal root per window, created on first render and reused.
+   *
+   * Portalling straight to <body> put every window in the same stacking
+   * context at the same z-index, so which one appeared in front came down to
+   * DOM order — and a child opened from a parent is not guaranteed to come
+   * after it. Its own root also gives `inert` something to be applied to that
+   * covers the whole window including its backdrop.
+   */
+  const host = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const element = document.createElement("div");
+    element.dataset.overlayRoot = "true";
+    element.dataset.overlayId = overlayId;
+    return element;
+  }, [overlayId]);
+
+  /*
+   * Detached whenever the window is not on screen, not only when the component
+   * unmounts. A closed window usually stays mounted — the page that owns it
+   * keeps rendering it with `open={false}` — so unmount alone left an empty
+   * root in the document for every window the person had ever opened.
+   */
+  useEffect(() => {
+    if (mounted) return;
+    host?.remove();
+  }, [host, mounted]);
+  useEffect(() => () => host?.remove(), [host]);
+
+  if (!mounted || typeof document === "undefined" || !host) return null;
+
+  /*
+   * Attached during render rather than in an effect, because effects run
+   * child-first: the surface inside would mount, try to move focus into
+   * itself, and find it is not in the document yet. Focusing a detached
+   * element silently does nothing, which stranded the keyboard on <body>.
+   *
+   * Guarded on `isConnected` so re-rendering an open window does not move it,
+   * and reached only past the `mounted` check above so a closed window never
+   * puts an empty root in the document.
+   */
+  if (!host.isConnected) document.body.append(host);
 
   return createPortal(
     <OverlaySurface
@@ -97,6 +140,7 @@ export function Overlay({
       descriptionId={descriptionId}
       closeLabel={t("common.close")}
       onExitAnimationEnd={onAnimationEnd}
+      overlayId={overlayId}
       {...(footer !== undefined ? { footer } : {})}
       {...(description ? { description } : {})}
       {...(className ? { className } : {})}
@@ -104,7 +148,7 @@ export function Overlay({
     >
       {children}
     </OverlaySurface>,
-    document.body,
+    host,
   );
 }
 
@@ -122,6 +166,7 @@ interface OverlaySurfaceProps
   headingId: string;
   descriptionId: string;
   closeLabel: string;
+  overlayId: string;
   onExitAnimationEnd: (event: {
     target: EventTarget | null;
     currentTarget: EventTarget | null;
@@ -149,19 +194,33 @@ function OverlaySurface({
   headingId,
   descriptionId,
   closeLabel,
+  overlayId,
   onExitAnimationEnd,
   className,
   children,
   ...props
 }: OverlaySurfaceProps) {
-  const surfaceRef = useOverlayBehaviour<HTMLElement>({ onClose, closeOnEscape });
+  const surfaceRef = useOverlayBehaviour<HTMLElement>({ onClose, closeOnEscape, overlayId });
   const closing = state === "closed";
+  /*
+   * Depth is read once, at mount, because this window's position in the stack
+   * is fixed from the moment it opens: anything opened later goes above it and
+   * anything below was already there. Recomputing on render would let a child
+   * closing renumber its parent mid-animation.
+   */
+  const [depth] = useState(() => overlayDepth());
 
   return (
     <div
       className="rect-overlay"
       data-testid="overlay-backdrop"
       data-state={state}
+      /*
+       * Each window sits one step above the one it was opened from, so a child
+       * is guaranteed to paint over its parent rather than relying on the order
+       * two independent portals happen to appear in the document.
+       */
+      style={{ zIndex: `calc(var(--rect-z-overlay) + ${depth})` }}
       onAnimationEnd={onExitAnimationEnd}
       onMouseDown={(event) => {
         // A window on its way out must not react to a stray press.

@@ -147,37 +147,43 @@
   padding: var(--rect-space-1) var(--rect-space-2);
 }
 
-/* Effective permissions: what a combination of roles actually grants. */
+/* Choosing access: a saved list, a window of ticks, and what was chosen. */
 
-.rect-team-effective {
+.rect-access {
   border: 1px solid var(--rect-card-border);
   border-radius: var(--rect-radius-md);
+  display: grid;
+  gap: var(--rect-space-3);
   padding: var(--rect-space-3);
 }
 
-.rect-team-effective__list {
-  display: grid;
-  gap: var(--rect-space-2);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.rect-team-effective__item {
-  align-items: baseline;
+.rect-access__row {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--rect-space-2);
-  justify-content: space-between;
 }
 
-.rect-team-effective__name {
-  color: var(--rect-text-primary);
+.rect-access__label {
+  color: var(--rect-text-secondary);
   font-size: var(--rect-text-label);
 }
 
-/* Which role supplied it. The point is traceability, so it stays legible. */
-.rect-team-effective__source {
-  color: var(--rect-text-secondary);
-  font-size: var(--rect-text-micro);
+.rect-access__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+}
+
+/*
+ * What is about to be saved, shown in the form rather than only in the window
+ * where it was ticked. Capped and scrollable because somebody granted twenty
+ * permissions would otherwise push the dialog's buttons off the screen.
+ */
+.rect-access__chosen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+  max-height: min(24dvh, 200px);
+  overflow: auto;
 }

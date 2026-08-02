@@ -1,5 +1,5 @@
 /**
- * What one person may do, chosen directly.
+ * What one person may do, chosen through stacked windows.
  *
  * This used to ask two questions — a standing, and a set of bundles — and the
  * answer to "what can this person actually do" was the union of two things
@@ -7,18 +7,23 @@
  * engineer handed them every project in the company, because that permission
  * was buried inside a bundle nobody opens.
  *
- * Now the permissions themselves are the field. A saved bundle is offered
- * above them purely to fill the boxes in, and the moment it does its job the
- * ticks are the person's own: changing one does not "leave" the bundle,
- * because the bundle was never holding anything.
+ * Now the permissions themselves are what is saved, and the main window offers
+ * the three ways somebody actually arrives at them: pick a list you saved
+ * earlier, build one now and save it for next time, or tick boxes for this
+ * person alone. The second and third open a window of their own rather than
+ * unfolding in place, because a permission catalogue is far taller than the
+ * form around it and pushing the name and email fields off screen loses the
+ * person's place in what they were doing.
  *
- * Both the create dialog and the edit dialog render this, so the rule for
- * granting access is written once.
+ * A saved list grants nothing. Choosing one copies its ticks onto the person
+ * and the link ends there, so editing a list later cannot silently change
+ * somebody's access — which is exactly what the old model did.
  */
 import { useState } from "react";
+import { Layers, PencilRuler, Plus } from "lucide-react";
 import type { UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Button, Field, Select } from "@/shared/ui";
+import { Badge, Button, Field, FormDialog, Overlay, Select } from "@/shared/ui";
 import { PermissionPicker } from "./PermissionPicker";
 import type { CompanyStanding, PermissionOption, UserTypeRecord } from "./admin-api";
 
@@ -48,7 +53,7 @@ export interface AccessFieldsProps<TValues extends AccessFormValues> {
    * while the names stay checked.
    */
   form: UseFormReturn<TValues>;
-  /** Saved lists, offered as a starting point. They grant nothing themselves. */
+  /** Lists this company saved earlier. They prefill the ticks and grant nothing. */
   bundles: UserTypeRecord[];
   permissionOptions: PermissionOption[];
   /** Only an owner may make another owner. The API refuses it as well. */
@@ -61,6 +66,13 @@ export interface AccessFieldsProps<TValues extends AccessFormValues> {
    * would be offering a choice that always ends in a refusal.
    */
   grantable: string[];
+  /** Saves a new list. Absent when the person may not create one. */
+  onCreateBundle?: (input: {
+    name: string;
+    key: string;
+    description?: string;
+    permissions: string[];
+  }) => Promise<void>;
 }
 
 export function AccessFields<TValues extends AccessFormValues>({
@@ -69,6 +81,7 @@ export function AccessFields<TValues extends AccessFormValues>({
   permissionOptions,
   isOwner,
   grantable,
+  onCreateBundle,
 }: AccessFieldsProps<TValues>) {
   const { t } = useTranslation();
   /*
@@ -84,27 +97,23 @@ export function AccessFields<TValues extends AccessFormValues>({
   const permissions = fields.watch("permissions") ?? [];
   const everything = standingGrantsEverything(standing);
 
-  /*
-   * Which bundle was last applied, remembered only so the control can say so.
-   * Deliberately not part of the form: the saved value is the permissions, and
-   * keeping a bundle id alongside them would invite somebody to treat it as
-   * the source of truth again.
-   */
-  const [appliedBundle, setAppliedBundle] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [bundleOpen, setBundleOpen] = useState(false);
 
   const offered = permissionOptions.filter((option) => grantable.includes(option.key));
+  const labelFor = (key: string) =>
+    permissionOptions.find((option) => option.key === key)?.label ?? key;
+
+  function setPermissions(next: string[]): void {
+    fields.setValue("permissions", next, { shouldDirty: true, shouldValidate: true });
+  }
 
   function applyBundle(bundleId: string): void {
-    setAppliedBundle(bundleId);
     const bundle = bundles.find((candidate) => candidate.id === bundleId);
     if (!bundle) return;
-    // Filtered to what the granter holds, so applying a bundle can never ask
-    // the server for something it is about to refuse.
-    fields.setValue(
-      "permissions",
-      bundle.permissions.filter((permission) => grantable.includes(permission)),
-      { shouldDirty: true, shouldValidate: true },
-    );
+    // Filtered to what the granter holds, so applying a list can never ask the
+    // server for something it is about to refuse.
+    setPermissions(bundle.permissions.filter((permission) => grantable.includes(permission)));
   }
 
   return (
@@ -139,19 +148,18 @@ export function AccessFields<TValues extends AccessFormValues>({
           <p className="rect-panel-note">{t("team.effectiveEverything")}</p>
         </Field>
       ) : (
-        <>
-          {bundles.length > 0 ? (
-            <Field label={t("team.bundleLabel")} hint={t("team.bundleHint")}>
-              <div className="rect-team-bundle">
-                {/*
-                  * Named directly rather than by the surrounding Field, whose
-                  * label points at the wrapper holding both this and the clear
-                  * button — a wrapper is not a labellable control, so without
-                  * this the select has no accessible name at all.
-                  */}
+        <Field
+          label={t("team.permissionsTitle")}
+          hint={t("team.permissionsGrantHint")}
+          error={fields.formState.errors.permissions?.message}
+        >
+          <div className="rect-access">
+            {bundles.length > 0 ? (
+              <label className="rect-access__row">
+                <span className="rect-access__label">{t("team.bundleLabel")}</span>
                 <Select
                   aria-label={t("team.bundleLabel")}
-                  value={appliedBundle}
+                  defaultValue=""
                   onChange={(event) => applyBundle(event.currentTarget.value)}
                 >
                   <option value="">{t("team.bundleNone")}</option>
@@ -161,46 +169,172 @@ export function AccessFields<TValues extends AccessFormValues>({
                     </option>
                   ))}
                 </Select>
-                {/*
-                  * Clearing is its own action rather than a bundle called
-                  * "nothing", because starting from scratch is a thing people
-                  * do deliberately and it should not look like a saved list.
-                  */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setAppliedBundle("");
-                    fields.setValue("permissions", [], {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    });
-                  }}
-                >
-                  {t("team.bundleClear")}
-                </Button>
-              </div>
-            </Field>
-          ) : null}
+              </label>
+            ) : null}
 
-          <Field
-            label={t("team.permissionsTitle")}
-            hint={t("team.permissionsGrantHint")}
-            error={fields.formState.errors.permissions?.message}
-          >
-            <PermissionPicker
-              options={offered}
-              value={permissions}
-              onChange={(next) =>
-                fields.setValue("permissions", next, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-            />
-          </Field>
-        </>
+            <div className="rect-access__actions">
+              {/*
+                * Both open a window rather than expanding here. The catalogue
+                * is taller than this form, and unfolding it in place pushes
+                * the name and email out of sight mid-task.
+                */}
+              <Button type="button" variant="secondary" onClick={() => setPickerOpen(true)}>
+                <PencilRuler size={16} strokeWidth={2} aria-hidden />
+                {permissions.length === 0 ? t("team.chooseFromScratch") : t("team.changeChosen")}
+              </Button>
+              {onCreateBundle ? (
+                <Button type="button" variant="ghost" onClick={() => setBundleOpen(true)}>
+                  <Plus size={16} strokeWidth={2} aria-hidden />
+                  {t("team.bundleCreate")}
+                </Button>
+              ) : null}
+            </div>
+
+            {/*
+              * What is actually about to be saved, in the main window. Sending
+              * somebody into a second window to find out what they chose in it
+              * would make the summary useless.
+              */}
+            <div className="rect-access__chosen" aria-live="polite">
+              {permissions.length === 0 ? (
+                <p className="rect-panel-note">{t("team.permissionsNone")}</p>
+              ) : (
+                permissions.map((permission) => (
+                  <Badge key={permission} tone="info">
+                    {labelFor(permission)}
+                  </Badge>
+                ))
+              )}
+            </div>
+          </div>
+        </Field>
       )}
+
+      {/*
+        * Ticking for this person only. Its own window, stacked above the form,
+        * with the form frozen behind it until this one is finished.
+        */}
+      <Overlay
+        open={pickerOpen}
+        title={t("team.permissionsTitle")}
+        description={t("team.permissionsGrantHint")}
+        size="lg"
+        onClose={() => setPickerOpen(false)}
+        footer={
+          <Button variant="primary" onClick={() => setPickerOpen(false)}>
+            {t("team.permissionsDone")}
+          </Button>
+        }
+      >
+        <PermissionPicker options={offered} value={permissions} onChange={setPermissions} />
+      </Overlay>
+
+      {onCreateBundle ? (
+        <BundleWindow
+          open={bundleOpen}
+          options={offered}
+          onClose={() => setBundleOpen(false)}
+          onSave={async (input) => {
+            await onCreateBundle(input);
+            /*
+             * The list is saved and its ticks are applied to the person in one
+             * action, because somebody who just described a role is describing
+             * the person in front of them. Then this window closes and the
+             * form behind it shows the result — which is the whole point of
+             * stacking rather than navigating away.
+             */
+            setPermissions(input.permissions);
+            setBundleOpen(false);
+          }}
+        />
+      ) : null}
     </>
+  );
+}
+
+/**
+ * Creating a saved list, from inside the person form.
+ *
+ * Deliberately the same window whether it is reached from here or from the
+ * Roles register: one definition of "what a saved list is", so the two cannot
+ * drift into asking for different things.
+ */
+function BundleWindow({
+  open,
+  options,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  options: PermissionOption[];
+  onClose: () => void;
+  onSave: (input: {
+    name: string;
+    key: string;
+    description?: string;
+    permissions: string[];
+  }) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const [name, setName] = useState("");
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  /*
+   * Derived from the name rather than asked for. The key is what audit entries
+   * reference, so it has to exist, but making somebody invent a second
+   * identifier for the same thing is a question with no useful answer.
+   */
+  const key = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, "_")
+    .replace(/^_+|_+$/gu, "");
+
+  const valid = name.trim().length >= 2 && key.length >= 2 && permissions.length > 0;
+
+  return (
+    <FormDialog
+      open={open}
+      title={t("team.bundleCreate")}
+      description={t("team.bundleCreateDescription")}
+      size="lg"
+      onClose={onClose}
+      submitLabel={t("team.bundleSave")}
+      pending={pending}
+      submitDisabled={!valid}
+      error={error}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!valid) return;
+        setPending(true);
+        setError(null);
+        void onSave({ name: name.trim(), key, permissions })
+          .then(() => {
+            setName("");
+            setPermissions([]);
+          })
+          .catch((cause: unknown) => {
+            setError(cause instanceof Error ? cause.message : t("team.createUserTypeFailed"));
+          })
+          .finally(() => setPending(false));
+      }}
+    >
+      <Field label={t("team.fieldName")} hint={t("team.bundleNameHint")} required>
+        <input
+          className="rect-ui-input"
+          data-autofocus="true"
+          value={name}
+          onChange={(event) => setName(event.currentTarget.value)}
+        />
+      </Field>
+      <Field label={t("team.fieldPermissions")} hint={t("team.permissionsHint")} required>
+        <PermissionPicker options={options} value={permissions} onChange={setPermissions} />
+      </Field>
+      <p className="rect-panel-note">
+        <Layers size={14} strokeWidth={2} aria-hidden /> {t("team.bundleGrantsNothing")}
+      </p>
+    </FormDialog>
   );
 }

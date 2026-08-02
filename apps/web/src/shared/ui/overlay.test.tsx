@@ -39,6 +39,114 @@ function Harness({ dismissOnBackdrop = true }: { dismissOnBackdrop?: boolean }) 
   );
 }
 
+/**
+ * A window that opens another window, which is the shape the product needs for
+ * "create a person" opening "create a saved list" without losing the first.
+ */
+function StackHarness() {
+  const [parent, setParent] = useState(false);
+  const [child, setChild] = useState(false);
+  return (
+    <div className="rect-app">
+      <button type="button" onClick={() => setParent(true)}>
+        Open parent
+      </button>
+      <Overlay open={parent} title="Parent window" onClose={() => setParent(false)}>
+        <button type="button" onClick={() => setChild(true)}>
+          Open child
+        </button>
+        <Overlay open={child} title="Child window" onClose={() => setChild(false)}>
+          <Field label="Child field">
+            <Input aria-label="Child field" />
+          </Field>
+        </Overlay>
+      </Overlay>
+    </div>
+  );
+}
+
+describe("stacked windows", () => {
+  it("paints a child above the parent that opened it", async () => {
+    /*
+     * Both windows portal out of the tree independently, so their order in the
+     * document is not guaranteed to match the order they were opened in. Depth
+     * is what decides which is in front.
+     */
+    const user = userEvent.setup();
+    render(withI18n(<StackHarness />));
+    await user.click(screen.getByRole("button", { name: "Open parent" }));
+    await user.click(screen.getByRole("button", { name: "Open child" }));
+
+    const roots = Array.from(document.querySelectorAll<HTMLElement>("[data-overlay-root]"));
+    expect(roots).toHaveLength(2);
+    const [first, second] = roots.map(
+      (root) => root.querySelector<HTMLElement>(".rect-overlay")?.style.zIndex ?? "",
+    );
+    expect(first).toBe("calc(var(--rect-z-overlay) + 0)");
+    expect(second).toBe("calc(var(--rect-z-overlay) + 1)");
+  });
+
+  it("makes the parent untouchable while the child is open", async () => {
+    // The owner's rule: the original window cannot be changed or touched until
+    // the current one is finished. `inert` is the browser enforcing it.
+    const user = userEvent.setup();
+    render(withI18n(<StackHarness />));
+    await user.click(screen.getByRole("button", { name: "Open parent" }));
+
+    const parentRoot = document.querySelector<HTMLElement>("[data-overlay-root]")!;
+    expect(parentRoot.inert).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Open child" }));
+    expect(parentRoot.inert).toBe(true);
+
+    // And usable again the moment the child is done.
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(parentRoot.inert).toBe(false));
+  });
+
+  it("closes only the window in front when Escape is pressed", async () => {
+    /*
+     * Every open window listens on the document, so without a topmost check
+     * one Escape closed the whole stack — losing the parent's unsaved work
+     * along with the child the person actually meant to dismiss.
+     */
+    const user = userEvent.setup();
+    render(withI18n(<StackHarness />));
+    await user.click(screen.getByRole("button", { name: "Open parent" }));
+    await user.click(screen.getByRole("button", { name: "Open child" }));
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Child window" })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("dialog", { name: "Parent window" })).toBeInTheDocument();
+  });
+
+  it("leaves nothing inert once every window has closed", async () => {
+    // A stack that unwinds wrongly leaves the application unusable, with no
+    // error and nothing on screen to explain why clicking does nothing.
+    const user = userEvent.setup();
+    render(withI18n(<StackHarness />));
+    await user.click(screen.getByRole("button", { name: "Open parent" }));
+    await user.click(screen.getByRole("button", { name: "Open child" }));
+
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Child window" })).not.toBeInTheDocument(),
+    );
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(__getOverlayCounters()).toEqual({
+      scrollLockCount: 0,
+      blurCount: 0,
+      stackDepth: 0,
+    });
+    expect(document.querySelectorAll("[data-overlay-root]")).toHaveLength(0);
+  });
+});
+
 describe("Overlay", () => {
   it("renders outside the app subtree so the canvas transform cannot trap it", async () => {
     const user = userEvent.setup();
@@ -112,7 +220,7 @@ describe("Overlay", () => {
 
     await waitFor(() => expect(document.documentElement).not.toHaveClass("rect-has-overlay"));
     expect(document.body.style.overflow).toBe("");
-    expect(__getOverlayCounters()).toEqual({ scrollLockCount: 0, blurCount: 0 });
+    expect(__getOverlayCounters()).toEqual({ scrollLockCount: 0, blurCount: 0, stackDepth: 0 });
   });
 
   it("closes on a backdrop press but never on a press that began inside", async () => {
@@ -176,7 +284,7 @@ describe("Overlay", () => {
     expect(document.body.style.overflow).toBe("hidden");
 
     // Held for the whole exit, not released the instant `open` flipped.
-    expect(__getOverlayCounters()).toEqual({ scrollLockCount: 1, blurCount: 1 });
+    expect(__getOverlayCounters()).toEqual({ scrollLockCount: 1, blurCount: 1, stackDepth: 1 });
 
     fireEvent.animationEnd(screen.getByTestId("overlay-backdrop"));
 

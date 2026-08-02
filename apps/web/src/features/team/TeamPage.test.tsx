@@ -344,6 +344,51 @@ describe("TeamPage", () => {
     expect(screen.getByText("Site Viewer")).toBeInTheDocument();
   });
 
+  it("shows a new person without the page being reloaded by hand", async () => {
+    /*
+     * The fault the owner reported, as a test. Creating somebody invalidated
+     * `["admin", "users"]` while the register had moved to `["directory", ...]`,
+     * so the refresh signal was sent to a key nothing was listening to and the
+     * new person did not appear until the browser was reloaded.
+     */
+    const user = userEvent.setup();
+    let currentPeople = [...people.people];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith("/v1/admin/users") && init?.method === "POST") {
+        currentPeople = [
+          ...currentPeople,
+          {
+            ...people.people[1]!,
+            id: "99999999-9999-4999-8999-999999999999",
+            displayName: "Nadia Samir",
+            email: "nadia@rectangle.test",
+            status: "active",
+          },
+        ];
+        return jsonResponse({ user: currentPeople.at(-1) }, 201);
+      }
+      if (url.includes("permissions")) return jsonResponse(permissions);
+      if (url.includes("user-types")) return jsonResponse(userTypes);
+      if (url.includes("/v1/directory/registers")) {
+        return jsonResponse({ registers: ["company", "colleagues"] });
+      }
+      return jsonResponse({ people: currentPeople });
+    });
+    renderTeam();
+
+    await screen.findByText("Mona Adel");
+    expect(screen.queryByText("Nadia Samir")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Create user" }));
+    const dialog = await screen.findByRole("dialog", { name: "Create user" });
+    await user.type(within(dialog).getByLabelText("Name"), "Nadia Samir");
+    await user.type(within(dialog).getByLabelText("Email"), "nadia@rectangle.test");
+    await user.click(within(dialog).getByRole("button", { name: "Create user" }));
+
+    expect(await screen.findByText("Nadia Samir")).toBeInTheDocument();
+  });
+
   it("keeps people and role searches apart", async () => {
     const user = userEvent.setup();
     mockReads();
@@ -447,6 +492,74 @@ describe("TeamPage", () => {
       expect(
         within(dialog).getByText("Every permission, because they own the company."),
       ).toBeInTheDocument();
+    });
+
+    it("ticks permissions in a window of their own, stacked over the form", async () => {
+      /*
+       * The catalogue is taller than the form around it, so unfolding it in
+       * place pushed the name and email off screen mid-task. It opens above
+       * instead, and the form underneath is inert until it is finished — the
+       * owner's rule that the original window cannot be touched until the
+       * current one is done.
+       */
+      const user = userEvent.setup();
+      mockReads();
+      renderTeam();
+
+      await screen.findByText("Mona Adel");
+      await user.click(screen.getByRole("button", { name: "Create user" }));
+      const form = await screen.findByRole("dialog", { name: "Create user" });
+
+      await user.click(within(form).getByRole("button", { name: /Choose permissions/iu }));
+
+      const picker = await screen.findByRole("dialog", { name: "What this person can do" });
+      const formRoot = form.closest("[data-overlay-root]") as HTMLElement;
+      expect(formRoot.inert).toBe(true);
+
+      await user.click(within(picker).getByRole("button", { name: /Projects/iu }));
+      await user.click(within(picker).getByRole("checkbox", { name: /View projects/iu }));
+      await user.click(within(picker).getByRole("button", { name: /Done/iu }));
+
+      // Closed, the form usable again, and showing what was just chosen.
+      await waitFor(() => expect(formRoot.inert).toBe(false));
+      expect(within(form).getByText("View projects")).toBeInTheDocument();
+    });
+
+    it("saves a new list from inside the form and applies it to the person", async () => {
+      /*
+       * A third window, opened from the second. What comes back is the
+       * permissions themselves — the saved list is a convenience for next time
+       * and grants nothing on its own.
+       */
+      const user = userEvent.setup();
+      const fetchMock = mockReads();
+      renderTeam();
+
+      await screen.findByText("Mona Adel");
+      await user.click(screen.getByRole("button", { name: "Create user" }));
+      const form = await screen.findByRole("dialog", { name: "Create user" });
+      await user.click(within(form).getByRole("button", { name: /Save a new list/iu }));
+
+      const bundle = await screen.findByRole("dialog", { name: "Save a new list" });
+      await user.type(within(bundle).getByLabelText("Name"), "Site engineer");
+      await user.click(within(bundle).getByRole("button", { name: /Projects/iu }));
+      await user.click(within(bundle).getByRole("checkbox", { name: /View projects/iu }));
+      await user.click(within(bundle).getByRole("button", { name: /Save list/iu }));
+
+      await waitFor(() => {
+        const call = fetchMock.mock.calls.find(
+          ([url, init]) =>
+            String(url).endsWith("/v1/admin/user-types") && init?.method === "POST",
+        );
+        expect(call).toBeDefined();
+        expect(JSON.parse(String(call?.[1]?.body)).key).toBe("site_engineer");
+      });
+
+      // The window closes and the form behind it shows the result.
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog", { name: "Save a new list" })).not.toBeInTheDocument(),
+      );
+      expect(within(form).getByText("View projects")).toBeInTheDocument();
     });
 
     it("fills the boxes from a saved list without that list granting anything", async () => {

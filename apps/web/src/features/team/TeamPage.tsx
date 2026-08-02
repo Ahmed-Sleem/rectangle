@@ -232,7 +232,22 @@ export default function TeamPage() {
     }
   }, [editingType, editTypeForm]);
 
-  const invalidate = (key: string) => queryClient.invalidateQueries({ queryKey: ["admin", key] });
+  /*
+   * Named after what actually changed, not after the endpoint that changed it.
+   *
+   * This previously invalidated `["admin", "users"]` while the people list had
+   * moved to `["directory", ...]`, so creating somebody refreshed a key nothing
+   * was listening to and the new person did not appear until the page was
+   * reloaded by hand — the fault the owner reported. Both keys are named here
+   * because both hold people: the register the page renders, and the
+   * administrative list other screens read.
+   */
+  const invalidate = async (what: "users" | "user-types") => {
+    await queryClient.invalidateQueries({ queryKey: ["admin", what] });
+    if (what === "users") {
+      await queryClient.invalidateQueries({ queryKey: ["directory"] });
+    }
+  };
 
   const createType = useMutation({
     mutationFn: adminApi.createUserType,
@@ -716,6 +731,21 @@ export default function TeamPage() {
           permissionOptions={permissionOptions}
           isOwner={isOwner}
           grantable={grantable}
+          {...(canAddRoles
+            ? {
+                onCreateBundle: async (input: {
+                  name: string;
+                  key: string;
+                  description?: string;
+                  permissions: string[];
+                }) => {
+                  await adminApi.createUserType(input);
+                  // The register behind refreshes, so the new list is there the
+                  // next time somebody reaches for it rather than after a reload.
+                  await invalidate("user-types");
+                },
+              }
+            : {})}
         />
       </FormDialog>
 
