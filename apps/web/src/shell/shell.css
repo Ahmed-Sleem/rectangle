@@ -453,32 +453,254 @@
     padding: var(--rect-space-1) var(--rect-space-2);
   }
 
-  /* Inside a sheet the rail is a full-height column again, not a rail. */
-  .rect-sheet .rect-nav {
+  /*
+   * Inside a sheet the rail is a full-height column again, not a rail.
+   *
+   * `min-height: 0` is the fix for the reported fault. The rail sets
+   * `overflow: hidden`, which is right on a desktop where it is as tall as the
+   * viewport and nothing can be cut off. In a sheet the column is a flex child
+   * whose content is taller than the space available, and a flex child refuses
+   * to shrink below its content unless told it may — so the box stayed at its
+   * natural height, the hidden overflow clipped everything past the fold, and
+   * the items below simply did not exist for the person. Allowing it to shrink
+   * lets the list inside become the scrolling region, which is where the
+   * scrolling belongs anyway.
+   */
+  .rect-canvas-sheet .rect-nav {
     width: 100%;
     height: 100%;
+    min-height: 0;
     border: 0;
     background: transparent;
     padding: 0;
   }
 
-  .rect-sheet .rect-nav-item {
+  .rect-canvas-sheet .rect-nav-item {
     min-height: var(--rect-control-touch);
     font-size: var(--rect-text-body);
   }
 
+  /*
+   * The one scrolling region in the sheet, and it reaches the last item.
+   *
+   * The `<nav>` element, not the `<ul>` inside it. The list is not a child of
+   * the rail — there is a `<nav>` landmark between them — so a rule on the list
+   * makes the list scrollable inside a `<nav>` that is itself too short and
+   * clipped by the rail, which changes nothing a person can see. The scrolling
+   * has to be on the element that is actually the flex child competing for the
+   * rail's height.
+   */
+  .rect-canvas-sheet .rect-nav > nav {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    min-height: 0;
+    flex: 1;
+    /* Clears the home indicator, and the keyboard if one is somehow open. */
+    padding-block-end: calc(env(safe-area-inset-bottom, 0px) + var(--rect-space-4));
+  }
+
+  /*
+   * The spacer exists to push account items to the bottom of a desktop rail.
+   * In a sheet the list is the scrolling region, and a growing spacer beneath
+   * it competes for the same height — so it takes none.
+   */
+  .rect-canvas-sheet .rect-nav__spacer {
+    flex: 0 0 auto;
+  }
+
   /* The sheet already carries the product name in its heading. */
-  .rect-sheet .rect-nav__topbar {
+  .rect-canvas-sheet .rect-nav__topbar {
     display: none;
   }
 
-  .rect-sheet .rect-ai-panel {
+  /*
+   * The assistant fills the sheet.
+   *
+   * `width` and `min-width` are the reported fault, and the cause was not this
+   * rule being absent — it was here and losing. `.rect-ai-panel` runs an entry
+   * animation with `both`, whose final keyframe sets both properties to the
+   * desktop panel width; an animation's fill beats a normal declaration in the
+   * cascade, so the panel kept its column width inside a full-screen sheet no
+   * matter what was declared here. Cancelling the animation is what lets the
+   * width apply, and the sheet plays its own entry motion anyway, so there was
+   * nothing to keep.
+   */
+  .rect-canvas-sheet .rect-ai-panel {
+    animation: none;
     width: 100%;
-    height: 100%;
     min-width: 0;
+    max-width: none;
+    height: 100%;
+    min-height: 0;
     border: 0;
     border-radius: 0;
     background: transparent;
+    box-shadow: none;
+  }
+
+  .rect-canvas-sheet .rect-ai-panel__header,
+  .rect-canvas-sheet .rect-ai-panel__body,
+  .rect-canvas-sheet .rect-ai-composer {
+    animation: none;
+  }
+}
+
+/*
+ * A canvas holding a sheet gives up its own padding and scrolling.
+ *
+ * The panel pads its content and scrolls it, which is right for a page. A sheet
+ * is not content in the page — it is standing in for the page — so that padding
+ * became a visible margin around something that is supposed to reach the edges,
+ * and the panel's scroller became a second one wrapped around the sheet's own.
+ * Two nested scrollers on a phone is how a list ends up unreachable, which is
+ * half of what was reported.
+ */
+.rect-panel__body[data-has-sheet="true"] {
+  padding: 0;
+  overflow: hidden;
+  scroll-padding-block-end: 0;
+
+  /*
+   * Out to the real edges of the screen.
+   *
+   * Two gutters sit between this element and the device: the app frame's
+   * `--rect-body-padding-mobile` and the panel's own
+   * `--rect-panel-padding-mobile`. They are right for a page — content should
+   * not touch the glass — and wrong for a surface standing in for the whole
+   * screen, which is why the assistant measured 336px on a 390px phone and
+   * looked like a card rather than the app. Cancelling both with a negative
+   * inline margin, and adding the same amount back as width, is what makes
+   * "fills the screen" literally true.
+   */
+  margin-inline: calc(-1 * var(--rect-sheet-bleed));
+  width: calc(100% + 2 * var(--rect-sheet-bleed));
+  margin-block-end: calc(-1 * var(--rect-sheet-bleed));
+}
+
+/*
+ * How far the sheet has to reach to escape the frame: both gutters plus the
+ * panel's own border, which is drawn outside its padding box. Named once so the
+ * bleed and the thing being bled through cannot drift apart.
+ */
+.rect-app--handset {
+  --rect-sheet-bleed: calc(
+    var(--rect-body-padding-mobile) + var(--rect-panel-padding-mobile) +
+      var(--rect-panel-border-width)
+  );
+}
+
+/*
+ * The card stops being a card while a sheet is open.
+ *
+ * The rounded corner and the border are what make the canvas read as a panel
+ * sitting on a page. A surface that is standing in for the whole screen must
+ * not appear to sit inside anything, and the radius also clips the sheet's
+ * corners, which is what the remaining few pixels of the measured width were.
+ */
+.rect-app--handset .rect-panel:has(> .rect-panel__body[data-has-sheet="true"]) {
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* The gradient hairline belongs to a scrolling page, and there is not one. */
+.rect-panel__body[data-has-sheet="true"]::after {
+  content: none;
+}
+
+/* ── The handset canvas sheet ─────────────────────────────────────────────
+ *
+ * Not a window. It occupies the canvas rather than covering the screen, so it
+ * has no backdrop, no shadow and no inset: the header the person opened it from
+ * stays visible above it, and everything below the header is the sheet.
+ */
+.rect-canvas-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  block-size: 100%;
+  inline-size: 100%;
+  background: var(--rect-surface-bg);
+  outline: none;
+  /*
+   * Keeps the sheet clear of the keyboard on iOS, where the layout viewport
+   * does not shrink. Zero on Android and on a desktop, because the property
+   * resolves to 0px unless a keyboard is actually covering something.
+   */
+  padding-block-end: var(--rect-keyboard-inset, 0px);
+  transition: padding-block-end 120ms ease-out;
+}
+
+.rect-canvas-sheet[data-state="open"] {
+  animation: rect-canvas-sheet-in 180ms var(--rect-ease-spring, ease-out) both;
+}
+
+.rect-canvas-sheet[data-state="closed"] {
+  animation: rect-canvas-sheet-out 140ms ease-in both;
+}
+
+/*
+ * Slides from the side it belongs to rather than scaling up from the middle.
+ * A window appears; a panel arrives from where it lives, which is what tells
+ * somebody this is the rail rather than a dialog about the rail.
+ */
+@keyframes rect-canvas-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes rect-canvas-sheet-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+
+.rect-canvas-sheet--ai[data-state="open"] {
+  animation-name: rect-canvas-sheet-in-end;
+}
+
+@keyframes rect-canvas-sheet-in-end {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/*
+ * The way out, in the corner of the canvas rather than in a window's title bar.
+ * Positioned with logical properties so it lands on the correct side in Arabic.
+ */
+.rect-canvas-sheet__close {
+  position: absolute;
+  inset-block-start: var(--rect-space-2);
+  inset-inline-end: var(--rect-space-2);
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-canvas-sheet {
+    animation: none !important;
+    transition: none !important;
   }
 }
 

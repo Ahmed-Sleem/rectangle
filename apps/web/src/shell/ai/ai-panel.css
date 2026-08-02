@@ -209,6 +209,15 @@
   border-top: 1px solid var(--rect-surface-divider);
   padding: var(--rect-space-3);
   background: var(--rect-surface-bg);
+  /*
+   * Sticks to the bottom of whatever is holding it, and the transcript above
+   * scrolls. Without this the composer is simply the last thing in a column, so
+   * on a phone a long conversation pushes it off the screen and there is
+   * nowhere to type the next question.
+   */
+  position: sticky;
+  inset-block-end: 0;
+  flex-shrink: 0;
 }
 
 .rect-ai-composer__label {

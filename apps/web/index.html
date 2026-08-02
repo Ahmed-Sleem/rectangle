@@ -3,7 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      interactive-widget=resizes-content makes Chrome on Android shrink the
+      layout viewport when the on-screen keyboard opens, which it stopped doing
+      by default in version 108. With it, ordinary flex layout and dvh units
+      keep a bottom-pinned composer above the keyboard with no JavaScript.
+      iOS Safari ignores this property entirely, which is why useKeyboardInset
+      exists as well.
+
+      viewport-fit=cover lets the app paint under a notch and the home
+      indicator; every surface that reaches an edge pads itself back out with
+      env(safe-area-inset-*).
+
+      No user-scalable or maximum-scale: WCAG 1.4.4 requires that a person can
+      zoom, and a construction drawing is exactly the thing somebody needs to
+      zoom into.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta name="theme-color" content="#141416" />
     <meta name="description" content="Rectangle — AI-native construction / PMO" />
     <title>RECTANGLE</title>

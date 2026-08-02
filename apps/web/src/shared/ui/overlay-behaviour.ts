@@ -27,6 +27,53 @@ export function getFocusable(container: HTMLElement): HTMLElement[] {
   );
 }
 
+/**
+ * Where focus goes when a surface opens.
+ *
+ * A surface may nominate a control with `data-autofocus`; otherwise the first
+ * thing a person could operate is the right place, and the surface itself is
+ * the fallback so the caret is never stranded on <body>.
+ *
+ * Exported because the handset canvas sheet needs the identical rule. It is not
+ * an overlay — it does not portal, dim or make the shell inert — but "which
+ * control receives focus" is one rule, and a second copy of it would be a
+ * second answer that drifts.
+ */
+export function focusInitial(surface: HTMLElement): void {
+  const focusable = getFocusable(surface);
+  const target = focusable.find((el) => el.dataset.autofocus === "true") ?? focusable[0];
+  (target ?? surface).focus();
+}
+
+/**
+ * Keeps Tab inside a surface, wrapping at both ends.
+ *
+ * Returns nothing and consumes the event when it acted, so a caller can hand it
+ * every keydown and let it decide. Shared with the canvas sheet for the same
+ * reason as `focusInitial`: this is one rule about how keyboard focus behaves
+ * inside a modal surface, and it is written once.
+ */
+export function containTabWithin(surface: HTMLElement, event: KeyboardEvent): void {
+  const focusable = getFocusable(surface);
+  if (focusable.length === 0) {
+    event.preventDefault();
+    surface.focus();
+    return;
+  }
+
+  const first = focusable[0]!;
+  const last = focusable[focusable.length - 1]!;
+  const active = document.activeElement;
+
+  if (event.shiftKey && (active === first || !surface.contains(active))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 /** Locks background scrolling while any overlay is open (reference counted). */
 let scrollLockCount = 0;
 let restoreOverflow = "";
@@ -162,11 +209,7 @@ export function useOverlayBehaviour<T extends HTMLElement>({
 
     // Move focus into the overlay so keyboard and screen-reader users land inside.
     const surface = surfaceRef.current;
-    if (surface) {
-      const focusable = getFocusable(surface);
-      const target = focusable.find((el) => el.dataset.autofocus === "true") ?? focusable[0];
-      (target ?? surface).focus();
-    }
+    if (surface) focusInitial(surface);
 
     function onKeyDown(event: KeyboardEvent) {
       /*
@@ -188,25 +231,8 @@ export function useOverlayBehaviour<T extends HTMLElement>({
       const node = surfaceRef.current;
       if (!node) return;
 
-      const focusable = getFocusable(node);
-      if (focusable.length === 0) {
-        event.preventDefault();
-        node.focus();
-        return;
-      }
-
-      const first = focusable[0]!;
-      const last = focusable[focusable.length - 1]!;
-      const active = document.activeElement;
-
       // Wrap focus so it can never escape the open window.
-      if (event.shiftKey && (active === first || !node.contains(active))) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus();
-      }
+      containTabWithin(node, event);
     }
 
     document.addEventListener("keydown", onKeyDown, true);

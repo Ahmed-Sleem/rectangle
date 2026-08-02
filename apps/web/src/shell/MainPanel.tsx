@@ -21,6 +21,7 @@ export function MainPanel({
   aiCollapsed,
   onToggleAi,
   isHandset = false,
+  canvasSheet,
   children,
 }: {
   navCollapsed: boolean;
@@ -35,6 +36,16 @@ export function MainPanel({
    * the widen/narrow controls, which have nothing left to widen into.
    */
   isHandset?: boolean;
+  /**
+   * A handset surface that takes over the canvas entirely.
+   *
+   * Passed in rather than rendered beside the panel so the rail and the
+   * assistant occupy the work area itself, under the same header, instead of
+   * floating over the whole shell as windows. Absent on anything wider than a
+   * phone, where all three zones fit side by side and nothing needs to take
+   * anything else's place.
+   */
+  canvasSheet?: ReactNode;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -152,8 +163,11 @@ export function MainPanel({
         ref={bodyRef}
         data-scroll-top={edges.atTop ? "true" : "false"}
         data-scroll-bottom={edges.atBottom ? "true" : "false"}
+        /* A sheet brings its own scrolling, and two nested scrollers on a phone
+           is how a list ends up unreachable. */
+        data-has-sheet={canvasSheet ? "true" : "false"}
       >
-        <div className="rect-panel__content">{children}</div>
+        {canvasSheet ?? <div className="rect-panel__content">{children}</div>}
       </main>
     </div>
   );

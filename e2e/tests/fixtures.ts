@@ -19,24 +19,34 @@ export interface Stack {
 
 let stack: Stack | null = null;
 
+/**
+ * Started once per worker and stopped when the worker finishes.
+ *
+ * The teardown used to be a `test.afterAll`, which reads as "after all the
+ * tests" and is in fact "after all the tests IN THIS FILE". With one spec file
+ * the two were indistinguishable; adding a second made the difference a
+ * failure, because the first file to finish shut the product down and every
+ * test in the next one hit a refused connection. Playwright runs a
+ * worker-scoped fixture's teardown when the worker exits, which is what was
+ * meant all along, so the lifetime is expressed there instead of in a hook
+ * whose name suggests a scope it does not have.
+ */
 export const test = base.extend<Record<string, never>, { stack: Stack }>({
   stack: [
     async ({}, use) => {
       stack ??= (await startStack()) as Stack;
       await use(stack);
+      // Everything after `use` runs at worker teardown, not after each file.
+      if (stack) {
+        await stack.stop();
+        stack = null;
+      }
     },
     { scope: "worker" },
   ],
   baseURL: async ({ stack }, use) => {
     await use(stack.baseUrl);
   },
-});
-
-test.afterAll(async () => {
-  if (stack) {
-    await stack.stop();
-    stack = null;
-  }
 });
 
 export { expect } from "@playwright/test";

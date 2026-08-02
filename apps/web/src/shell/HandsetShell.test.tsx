@@ -138,8 +138,17 @@ describe("the shell on a phone", () => {
 
     const sheet = await screen.findByRole("dialog", { name: "Main" });
     expect(within(sheet).getByRole("navigation")).toBeInTheDocument();
-    // Full size: the sheet is the screen, so it carries no width ceiling.
-    expect(sheet).toHaveClass("rect-overlay__surface--full");
+
+    /*
+     * In the canvas, not over the shell. The rail used to be a portalled window
+     * laid across everything, which read as a dialog that had appeared on top
+     * of the product rather than as the product's own navigation. It now
+     * replaces the page content inside the same work area, under the same
+     * header, so the header the person opened it from is still there.
+     */
+    expect(sheet).toHaveClass("rect-canvas-sheet");
+    expect(sheet.closest("#main-content")).not.toBeNull();
+    expect(document.querySelector("[data-overlay-root]")).toBeNull();
 
     await user.click(within(sheet).getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -169,7 +178,10 @@ describe("the shell on a phone", () => {
     await user.click(screen.getByRole("button", { name: "Open AI panel" }));
 
     const sheet = await screen.findByRole("dialog", { name: "AI Assistant" });
-    expect(sheet).toHaveClass("rect-overlay__surface--full");
+    expect(sheet).toHaveClass("rect-canvas-sheet");
+    // In the canvas, so the assistant occupies the work area rather than
+    // floating over the whole shell as a window.
+    expect(sheet.closest("#main-content")).not.toBeNull();
     // One way out, not two: the panel's own collapse control is suppressed
     // inside a sheet that already supplies an X.
     expect(within(sheet).queryByRole("button", { name: /Close AI panel/iu })).not.toBeInTheDocument();

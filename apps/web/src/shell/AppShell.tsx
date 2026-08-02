@@ -18,10 +18,11 @@
  * expand and contract controls are not offered at all.
  */
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { AiAssistantPanel } from "./ai";
 import { MainPanel } from "./MainPanel";
 import { SideNav } from "./SideNav";
-import { MobileSheet } from "./MobileSheet";
+import { CanvasSheet } from "./CanvasSheet";
 import { cn } from "@/shared/lib/cn";
 import { useIsHandset } from "@/shared/lib/useIsHandset";
 import "./shell.css";
@@ -44,6 +45,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const isHandset = useIsHandset();
+  const { t } = useTranslation();
 
   /*
    * A sheet is a transient thing, not a preference, so its state is local and
@@ -59,6 +61,16 @@ export function AppShell({
   const [aiSheetOpen, setAiSheetOpen] = useState(false);
 
   if (isHandset) {
+    /*
+     * The sheets are passed into the canvas rather than rendered beside it.
+     *
+     * They used to be portalled windows laid over the whole shell, which is why
+     * they read as dialogs that had appeared on top of the product. On a phone
+     * the rail and the assistant are not something covering the work — while
+     * they are open they are the work, so they belong inside the surface the
+     * person is looking at, filling it completely, with the header they were
+     * opened from still above them.
+     */
     return (
       <div className="rect-app rect-app--handset" data-testid="app-shell">
         <MainPanel
@@ -69,29 +81,30 @@ export function AppShell({
           aiCollapsed={!aiSheetOpen}
           onToggleAi={() => setAiSheetOpen((open) => !open)}
           isHandset
+          canvasSheet={
+            navSheetOpen ? (
+              <CanvasSheet
+                open
+                onClose={() => setNavSheetOpen(false)}
+                label={t("shell.nav.main")}
+                className="rect-canvas-sheet--nav"
+              >
+                <SideNav collapsed={false} navId={NAV_ID} onNavigate={() => setNavSheetOpen(false)} />
+              </CanvasSheet>
+            ) : aiSheetOpen ? (
+              <CanvasSheet
+                open
+                onClose={() => setAiSheetOpen(false)}
+                label={t("shell.ai.assistant")}
+                className="rect-canvas-sheet--ai"
+              >
+                <AiAssistantPanel collapsed={false} onToggle={() => setAiSheetOpen(false)} hideOwnToggle />
+              </CanvasSheet>
+            ) : null
+          }
         >
           {children}
         </MainPanel>
-
-        <MobileSheet
-          open={navSheetOpen}
-          onClose={() => setNavSheetOpen(false)}
-          labelKey="shell.nav.main"
-        >
-          <SideNav collapsed={false} navId={NAV_ID} onNavigate={() => setNavSheetOpen(false)} />
-        </MobileSheet>
-
-        <MobileSheet
-          open={aiSheetOpen}
-          onClose={() => setAiSheetOpen(false)}
-          labelKey="shell.ai.assistant"
-        >
-          <AiAssistantPanel
-            collapsed={false}
-            onToggle={() => setAiSheetOpen(false)}
-            hideOwnToggle
-          />
-        </MobileSheet>
       </div>
     );
   }

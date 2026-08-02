@@ -564,13 +564,21 @@
    so a window can never exceed the screen at any breakpoint. */
 
 .rect-overlay {
+  /* Re-pointed by the media queries below; read by the one padding rule. */
+  --rect-overlay-gap: var(--rect-overlay-margin);
   position: fixed;
   inset: 0;
   z-index: var(--rect-z-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--rect-overlay-margin);
+  /*
+   * Every side except the bottom. The bottom is set once, below, because it
+   * has to carry the keyboard allowance as well — and a `padding` shorthand
+   * anywhere would silently throw that allowance away.
+   */
+  padding-block-start: var(--rect-overlay-margin);
+  padding-inline: var(--rect-overlay-margin);
   background: var(--rect-overlay-scrim);
   backdrop-filter: blur(var(--rect-overlay-blur));
   -webkit-backdrop-filter: blur(var(--rect-overlay-blur));
@@ -635,6 +643,48 @@
   block-size: 100dvh;
   border: 0;
   border-radius: 0;
+  /* Under a notch and the home indicator, now that the app paints edge to edge. */
+  padding-block-start: env(safe-area-inset-top, 0px);
+  padding-block-end: env(safe-area-inset-bottom, 0px);
+}
+
+/*
+ * Every window lifts clear of the on-screen keyboard.
+ *
+ * Written once, here, rather than in each dialog that happens to contain a
+ * text field: any window can be given an input, and a rule that only some of
+ * them carry is a rule that the next one will be missing. Resolves to 0px
+ * whenever no keyboard is covering anything, which includes every desktop.
+ */
+/*
+ * The bottom edge of every window, declared exactly once.
+ *
+ * This was four rules before — the base, a narrow-viewport override, a
+ * short-viewport override, and the keyboard allowance — three of them using the
+ * `padding` shorthand, so each silently discarded the keyboard allowance the
+ * one before it had set. The last one to match won, which on a phone with the
+ * keyboard open was the short-viewport rule, and the window sat under the
+ * keyboard exactly as if none of this existed.
+ *
+ * So the margin is a variable that the media queries below re-point, and the
+ * bottom padding is computed from it here and nowhere else. To change the
+ * spacing you change the variable; the keyboard allowance cannot be lost
+ * because there is no second place that sets this property.
+ */
+.rect-overlay {
+  padding-block-end: calc(var(--rect-overlay-gap) + var(--rect-keyboard-inset, 0px));
+  transition: padding-block-end 120ms ease-out;
+}
+
+/*
+ * A full-screen window shrinks instead, because it has no margin to give up.
+ * Without this the surface keeps its full height and the keyboard covers the
+ * bottom of it — which on the search palette is the results, and on a form is
+ * the button that submits it.
+ */
+.rect-overlay__surface--full {
+  max-block-size: calc(100dvh - var(--rect-keyboard-inset, 0px));
+  block-size: calc(100dvh - var(--rect-keyboard-inset, 0px));
 }
 
 .rect-overlay:has(> .rect-overlay__surface--full) {
@@ -756,7 +806,9 @@
 
 @media (max-width: 640px) {
   .rect-overlay {
-    padding: var(--rect-overlay-margin-mobile);
+    --rect-overlay-gap: var(--rect-overlay-margin-mobile);
+    padding-block-start: var(--rect-overlay-margin-mobile);
+    padding-inline: var(--rect-overlay-margin-mobile);
     align-items: flex-end;
   }
 
@@ -781,7 +833,9 @@
    letting a fixed ceiling push actions off-screen. */
 @media (max-height: 560px) {
   .rect-overlay {
-    padding: var(--rect-overlay-margin-mobile);
+    --rect-overlay-gap: var(--rect-overlay-margin-mobile);
+    padding-block-start: var(--rect-overlay-margin-mobile);
+    padding-inline: var(--rect-overlay-margin-mobile);
   }
 
   .rect-overlay__surface {
