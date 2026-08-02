@@ -16,6 +16,7 @@ const EXIT_ANIMATION_MS = 260;
 export function AiAssistantPanel({
   collapsed,
   onToggle,
+  hideOwnToggle = false,
 }: AiAssistantPanelProps) {
   const { t } = useTranslation();
   const [shouldRender, setShouldRender] = useState(!collapsed);
@@ -75,7 +76,7 @@ export function AiAssistantPanel({
             <p className="rect-ai-panel__status">{t("shell.ai.statusPending")}</p>
           </div>
         </div>
-        <AiPanelToggle collapsed={false} onToggle={onToggle} />
+        {hideOwnToggle ? null : <AiPanelToggle collapsed={false} onToggle={onToggle} />}
       </header>
 
       <div className="rect-ai-panel__body" id="rectangle-ai-panel-body">

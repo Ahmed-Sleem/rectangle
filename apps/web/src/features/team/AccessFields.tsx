@@ -23,7 +23,7 @@ import { useState } from "react";
 import { Layers, PencilRuler, Plus } from "lucide-react";
 import type { UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Field, FormDialog, Overlay, Select } from "@/shared/ui";
+import { Badge, Button, Field, FormDialog, Input, Overlay, Select } from "@/shared/ui";
 import { PermissionPicker } from "./PermissionPicker";
 import type { CompanyStanding, PermissionOption, UserTypeRecord } from "./admin-api";
 
@@ -322,8 +322,7 @@ function BundleWindow({
       }}
     >
       <Field label={t("team.fieldName")} hint={t("team.bundleNameHint")} required>
-        <input
-          className="rect-ui-input"
+        <Input
           data-autofocus="true"
           value={name}
           onChange={(event) => setName(event.currentTarget.value)}

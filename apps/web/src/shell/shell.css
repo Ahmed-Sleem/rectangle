@@ -42,8 +42,8 @@
   font-size: var(--rect-text-wordmark-lg);
   letter-spacing: -0.04em;
   color: var(--rect-logo);
-  margin-bottom: 18px;
-  padding: 0 8px;
+  margin-bottom: var(--rect-space-4);
+  padding: 0 var(--rect-space-2);
   line-height: 1;
   white-space: nowrap;
   display: flex;
@@ -62,7 +62,7 @@
   font-size: var(--rect-text-wordmark);
   letter-spacing: -0.05em;
   padding: 0;
-  margin-bottom: 14px;
+  margin-bottom: var(--rect-space-3);
   width: 100%;
   justify-content: center;
 }
@@ -88,20 +88,20 @@
 }
 
 .rect-nav__footer {
-  margin-top: 6px;
+  margin-top: var(--rect-space-1);
   opacity: 0.72;
 }
 
 .rect-nav-item {
   display: flex;
   align-items: center;
-  padding: 7px 10px;
+  padding: var(--rect-space-2) var(--rect-space-2);
   border-radius: var(--rect-nav-item-radius);
   color: var(--rect-nav-text);
   font-weight: 500;
   font-size: var(--rect-text-table);
   letter-spacing: -0.01em;
-  gap: 9px;
+  gap: var(--rect-space-2);
   white-space: nowrap;
   overflow: hidden;
   min-height: var(--rect-min-nav-item-height);
@@ -141,7 +141,7 @@
 }
 
 .rect-app--collapsed .rect-nav-item {
-  padding: 8px 0;
+  padding: var(--rect-space-2) 0;
   justify-content: center;
   gap: 0;
   min-height: 36px;
@@ -235,7 +235,7 @@
 .rect-panel__badge {
   background: var(--rect-badge-bg);
   color: var(--rect-badge-text);
-  padding: 5px 12px;
+  padding: var(--rect-space-1) var(--rect-space-3);
   border-radius: var(--rect-pill-radius);
   font-size: var(--rect-text-label);
   font-weight: 600;
@@ -396,10 +396,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--rect-space-2);
   color: var(--rect-text-primary);
   text-align: center;
-  padding: 24px;
+  padding: var(--rect-space-6);
 }
 
 .rect-error__title {
@@ -429,102 +429,27 @@
 
 /* ── Mobile ── */
 
+/* ── Handset ──
+   The three-zone shell does not fit, so it is not attempted. The canvas takes
+   the screen; the rail and the assistant are full-screen sheets rendered by
+   MobileSheet, which means everything the old stacked layout styled here —
+   a wrapped nav strip, a shrunken canvas, a slab of assistant below it — is
+   gone rather than restyled. */
+
 @media (max-width: 768px) {
-  .rect-app {
-    flex-direction: column;
+  .rect-app--handset {
+    display: block;
     padding: var(--rect-body-padding-mobile);
-    height: auto;
-    min-height: 100dvh;
-    overflow: auto;
-    gap: 8px;
+    height: 100dvh;
+    overflow: hidden;
   }
 
-  .rect-nav {
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    padding: 6px 4px;
-    height: auto;
-    gap: 2px;
-  }
-
-  .rect-app--collapsed .rect-nav {
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-    padding: 6px 4px;
-  }
-
-  .rect-logo {
-    font-size: var(--rect-text-wordmark);
-    margin-bottom: 4px;
-    width: 100%;
-    padding: 0 6px;
-  }
-
-  .rect-app--collapsed .rect-logo {
-    font-size: var(--rect-text-page);
-    width: 100%;
-    justify-content: flex-start;
-    padding: 0 6px;
-    margin-bottom: 4px;
-  }
-
-  .rect-app--collapsed .rect-logo__full {
-    display: inline;
-  }
-
-  .rect-app--collapsed .rect-logo__short {
-    display: none;
-  }
-
-  .rect-nav__list {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 2px;
-  }
-
-  .rect-nav__spacer {
-    display: none;
-  }
-
-  .rect-nav__footer {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    opacity: 0.75;
-    margin-top: 0;
-  }
-
-  .rect-nav-item {
-    padding: 6px 10px;
-    font-size: var(--rect-text-label);
-    min-height: 32px;
-    gap: 6px;
-  }
-
-  .rect-app--collapsed .rect-nav-item {
-    padding: 6px 10px;
-    justify-content: flex-start;
-    min-height: 32px;
-  }
-
-  .rect-app--collapsed .rect-nav-item__label {
-    position: static;
-    width: auto;
-    height: auto;
-    margin: 0;
-    clip: auto;
-    overflow: visible;
-    font-size: var(--rect-text-label);
-  }
-
-  .rect-panel {
+  /* The canvas is the app. Nothing sits beside it or under it. */
+  .rect-app--handset .rect-panel {
     padding: var(--rect-panel-padding-mobile);
     border-radius: var(--rect-panel-radius-mobile);
-    min-height: min(60dvh, 520px);
-    flex: 1;
+    height: 100%;
+    width: 100%;
     overflow: hidden;
   }
 
@@ -534,15 +459,62 @@
 
   .rect-panel__badge {
     font-size: var(--rect-text-micro);
-    padding: 4px 10px;
+    padding: var(--rect-space-1) var(--rect-space-2);
   }
 
+  /* Inside a sheet the rail is a full-height column again, not a rail. */
+  .rect-sheet .rect-nav {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .rect-sheet .rect-nav-item {
+    min-height: var(--rect-control-touch);
+    font-size: var(--rect-text-body);
+  }
+
+  /* The sheet already carries the product name in its heading. */
+  .rect-sheet .rect-nav__topbar {
+    display: none;
+  }
+
+  .rect-sheet .rect-ai-panel {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+}
+
+/* Opens a sheet. Sized for a thumb, and only ever rendered on a handset. */
+.rect-panel__sheet-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: var(--rect-control-standard);
+  min-height: var(--rect-control-standard);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  background: var(--rect-card-bg);
+  color: var(--rect-text-primary);
+  cursor: pointer;
+}
+
+.rect-panel__sheet-open:hover,
+.rect-panel__sheet-open:focus-visible {
+  border-color: var(--rect-border-active);
 }
 
 @media (max-width: 480px) {
   .rect-nav-item {
     font-size: var(--rect-text-micro);
-    padding: 5px 8px;
+    padding: var(--rect-space-1) var(--rect-space-2);
   }
 
   .rect-panel__title {
@@ -605,8 +577,8 @@
   display: flex;
   align-items: center;
   min-height: 32px;
-  margin-bottom: 10px;
-  padding: 0 6px;
+  margin-bottom: var(--rect-space-2);
+  padding: 0 var(--rect-space-1);
 }
 
 .rect-logo {
@@ -620,7 +592,7 @@
 .rect-app--collapsed .rect-nav__topbar {
   justify-content: center;
   padding: 0;
-  margin-bottom: 12px;
+  margin-bottom: var(--rect-space-3);
 }
 
 .rect-app--collapsed .rect-logo {
@@ -629,8 +601,8 @@
 }
 
 .rect-nav__controls {
-  margin: 8px 0 6px;
-  padding: 6px 0 7px;
+  margin: var(--rect-space-2) 0 var(--rect-space-1);
+  padding: var(--rect-space-1) 0 var(--rect-space-2);
   border-top: 1px solid var(--rect-overlay-on-dark-line);
   border-bottom: 1px solid var(--rect-overlay-on-dark-line);
 }
@@ -645,8 +617,8 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
-  padding: 0 8px;
+  gap: var(--rect-space-2);
+  padding: 0 var(--rect-space-2);
   cursor: pointer;
   font: inherit;
   font-size: var(--rect-text-label);
@@ -695,7 +667,7 @@
 .rect-app--collapsed .rect-nav__controls {
   display: flex;
   justify-content: center;
-  padding: 6px 0;
+  padding: var(--rect-space-1) 0;
 }
 
 .rect-app--collapsed .rect-nav-toggle {
@@ -724,8 +696,8 @@
 
 .rect-nav-item {
   min-height: 32px;
-  padding: 6px 8px;
-  gap: 8px;
+  padding: var(--rect-space-1) var(--rect-space-2);
+  gap: var(--rect-space-2);
   font-size: var(--rect-text-label);
   transform: translateZ(0);
 }
@@ -736,7 +708,7 @@
 
 .rect-app--collapsed .rect-nav-item {
   min-height: 32px;
-  padding: 6px 0;
+  padding: var(--rect-space-1) 0;
 }
 
 .rect-app--collapsed .rect-nav-item:hover {
@@ -805,7 +777,7 @@
 }
 
 .rect-app--ai-collapsed .rect-panel__header {
-  padding-right: 46px;
+  padding-right: var(--rect-space-12);
 }
 
 @media (max-width: 768px) {
@@ -813,15 +785,15 @@
   .rect-app--collapsed .rect-nav__topbar {
     flex-direction: row;
     width: 100%;
-    padding: 0 6px;
-    margin-bottom: 4px;
+    padding: 0 var(--rect-space-1);
+    margin-bottom: var(--rect-space-1);
   }
 
   .rect-nav__controls,
   .rect-app--collapsed .rect-nav__controls {
     width: auto;
     min-width: 32px;
-    margin: 0 4px 0 0;
+    margin: 0 var(--rect-space-1) 0 0;
     padding: 0;
     border: 0;
   }
@@ -891,8 +863,8 @@
 .rect-nav__controls {
   display: flex;
   justify-content: flex-start;
-  margin: 10px 0 8px;
-  padding: 0 0 0 6px;
+  margin: var(--rect-space-2) 0 var(--rect-space-2);
+  padding: 0 0 0 var(--rect-space-1);
   border: 0;
 }
 
@@ -961,7 +933,7 @@
 @media (max-width: 768px) {
   .rect-nav__controls,
   .rect-app--collapsed .rect-nav__controls {
-    margin: 0 4px 0 0;
+    margin: 0 var(--rect-space-1) 0 0;
     padding: 0;
   }
 

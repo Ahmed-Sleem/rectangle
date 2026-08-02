@@ -7,9 +7,12 @@ import { getLocalizedFeatureTitle, useRectangleI18n } from "@/shared/i18n";
 export function SideNavItem({
   feature,
   collapsed,
+  onNavigate,
 }: {
   feature: FeatureModule;
   collapsed: boolean;
+  /** Present only where the rail is a sheet that must close behind the choice. */
+  onNavigate?: () => void;
 }) {
   const { language } = useRectangleI18n();
   const title = getLocalizedFeatureTitle(feature, language, feature.title);
@@ -24,6 +27,7 @@ export function SideNavItem({
         }
         aria-label={title}
         title={collapsed ? title : undefined}
+        {...(onNavigate ? { onClick: onNavigate } : {})}
       >
         <span className="rect-nav-item__icon">
           <FeatureIcon name={feature.icon} />

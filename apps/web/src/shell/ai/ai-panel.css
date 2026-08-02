@@ -71,15 +71,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 18px 18px 14px;
+  gap: var(--rect-space-3);
+  padding: var(--rect-space-4) var(--rect-space-4) var(--rect-space-3);
   border-bottom: 1px solid var(--rect-surface-divider);
 }
 
 .rect-ai-panel__identity {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--rect-space-2);
   min-width: 0;
 }
 
@@ -103,7 +103,7 @@
 }
 
 .rect-ai-panel__status {
-  margin-top: 3px;
+  margin-top: var(--rect-space-05);
   font-size: var(--rect-text-label);
   color: var(--rect-text-secondary);
   font-weight: 600;
@@ -144,8 +144,8 @@
 .rect-ai-panel__context {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  padding: 12px 18px;
+  gap: var(--rect-space-1);
+  padding: var(--rect-space-3) var(--rect-space-4);
   border-bottom: 1px solid var(--rect-surface-divider);
 }
 
@@ -154,7 +154,7 @@
   background: var(--rect-badge-bg);
   color: var(--rect-badge-text);
   border-radius: var(--rect-pill-radius);
-  padding: 5px 9px;
+  padding: var(--rect-space-1) var(--rect-space-2);
   font-size: var(--rect-text-micro);
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -164,7 +164,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 16px;
+  padding: var(--rect-space-4);
   display: flex;
 }
 
@@ -182,12 +182,12 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 24px 18px;
+  padding: var(--rect-space-6) var(--rect-space-4);
 }
 
 .rect-ai-panel__empty svg {
   color: var(--rect-text-primary);
-  margin-bottom: 12px;
+  margin-bottom: var(--rect-space-3);
 }
 
 .rect-ai-panel__empty-title {
@@ -195,7 +195,7 @@
   font-weight: var(--rect-weight-bold);
   font-size: var(--rect-text-subsection);
   letter-spacing: -0.02em;
-  margin-bottom: 7px;
+  margin-bottom: var(--rect-space-2);
 }
 
 .rect-ai-panel__empty-text {
@@ -207,7 +207,7 @@
 
 .rect-ai-composer {
   border-top: 1px solid var(--rect-surface-divider);
-  padding: 14px;
+  padding: var(--rect-space-3);
   background: var(--rect-surface-bg);
 }
 
@@ -218,7 +218,7 @@
   color: var(--rect-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-bottom: 8px;
+  margin-bottom: var(--rect-space-2);
 }
 
 .rect-ai-composer__input {
@@ -228,7 +228,7 @@
   background: var(--rect-card-bg);
   color: var(--rect-text-primary);
   border-radius: 16px;
-  padding: 12px;
+  padding: var(--rect-space-3);
   font: inherit;
   font-size: var(--rect-text-table);
   line-height: 1.45;
@@ -249,14 +249,14 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--rect-space-2);
+  margin-top: var(--rect-space-2);
 }
 
 .rect-ai-composer__tools {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--rect-space-1);
 }
 
 .rect-ai-composer__tool,
@@ -276,8 +276,8 @@
 }
 
 .rect-ai-composer__send {
-  gap: 6px;
-  padding: 0 11px;
+  gap: var(--rect-space-1);
+  padding: 0 var(--rect-space-3);
   font-size: var(--rect-text-label);
   font-weight: var(--rect-weight-bold);
 }
@@ -303,16 +303,14 @@
 
 }
 
-@media (max-width: 768px) {
-  .rect-ai-panel {
-    --rect-ai-panel-target-width: 100%;
-    width: var(--rect-ai-panel-target-width);
-    min-width: 0;
-    min-height: 320px;
-    border-radius: var(--rect-panel-radius-mobile);
-  }
-
-}
+/*
+ * No handset rule here any more.
+ *
+ * This used to give the panel `width: 100%; min-height: 320px`, which is what
+ * put a slab of assistant underneath the canvas and left the work surface with
+ * a fraction of the screen. On a phone the panel is rendered inside a
+ * full-screen sheet instead, and `shell.css` sizes it to that sheet.
+ */
 
 @media (prefers-reduced-motion: reduce) {
   .rect-ai-panel,

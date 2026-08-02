@@ -1,8 +1,8 @@
 .rect-setup-card {
   display: grid;
-  gap: 18px;
+  gap: var(--rect-space-4);
   max-width: 520px;
-  padding: 22px;
+  padding: var(--rect-space-5);
   width: min(520px, 100%);
 }
 
@@ -19,7 +19,7 @@
   font-size: var(--rect-text-display);
   font-weight: 900;
   letter-spacing: -0.045em;
-  margin-top: 6px;
+  margin-top: var(--rect-space-1);
 }
 
 .rect-setup-card__header span,
@@ -29,12 +29,12 @@
   font-size: var(--rect-text-body);
   font-weight: 600;
   line-height: 1.5;
-  margin-top: 6px;
+  margin-top: var(--rect-space-1);
 }
 
 .rect-setup-form {
   display: grid;
-  gap: 12px;
+  gap: var(--rect-space-3);
 }
 
 .rect-setup-form__error {

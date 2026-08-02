@@ -182,6 +182,8 @@ export const resources = {
           account: "Account",
           collapse: "Collapse menu",
           expand: "Expand menu",
+          /* The phone control. It opens the menu; it does not widen anything. */
+          openMenu: "Open menu",
         },
         toasts: {
           label: "Notifications",
@@ -404,6 +406,7 @@ export const resources = {
           account: "الحساب",
           collapse: "طي القائمة",
           expand: "توسيع القائمة",
+          openMenu: "افتح القائمة",
         },
         toasts: {
           label: "الإشعارات",

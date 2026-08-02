@@ -128,6 +128,19 @@
     linear-gradient(225deg, var(--rect-overlay-hatch) 25%, transparent 25%) -8px 0 / 16px 16px,
     var(--rect-card-bg);
 
+  /* ── Breakpoints ──
+     Stated once so every stylesheet asks the same question about the viewport.
+     CSS cannot use a custom property inside a media query, so these are the
+     canonical values and each `@media` restates the number — but the token is
+     what the checks compare against, and it is what `useIsHandset` reads, so
+     the JavaScript and the CSS can never disagree about where a phone begins.
+
+     handset: the width below which the three-zone shell stops fitting and the
+     canvas takes the whole screen. */
+  --rect-bp-handset: 768px;
+  --rect-bp-tablet: 900px;
+  --rect-bp-narrow-desktop: 1100px;
+
   /* ── Spacing scale (base 8px, 4px sub-step, 2px mini-step) ──
      Mandatory: see design/UI_RULES.md. Never hardcode spacing in component CSS. */
   --rect-space-0: 0;

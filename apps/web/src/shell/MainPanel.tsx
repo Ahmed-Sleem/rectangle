@@ -2,7 +2,7 @@
  * Hosts the active feature inside the brand-defining white rectangle while the
  * shell keeps route/page identity and universal assistant access outside feature code.
  */
-import { Search, Sparkles } from "lucide-react";
+import { Menu, Search, Sparkles } from "lucide-react";
 import type { ReactNode, MouseEvent } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +18,7 @@ export function MainPanel({
   title,
   aiCollapsed,
   onToggleAi,
+  isHandset = false,
   children,
 }: {
   navCollapsed: boolean;
@@ -26,6 +27,12 @@ export function MainPanel({
   title: string;
   aiCollapsed: boolean;
   onToggleAi: () => void;
+  /**
+   * On a phone the canvas is the whole screen and the other two zones are
+   * sheets, so what belongs here is a pair of plain open buttons rather than
+   * the widen/narrow controls, which have nothing left to widen into.
+   */
+  isHandset?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -46,6 +53,10 @@ export function MainPanel({
   }, []);
 
   function handleDoubleClick(e: MouseEvent<HTMLElement>) {
+    // A drag-free way to reach the rail on a desktop. Meaningless on a phone,
+    // where the rail is a sheet and the edge belongs to the browser's own
+    // back gesture.
+    if (isHandset) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     if (x < 40) {
@@ -55,9 +66,17 @@ export function MainPanel({
 
   return (
     <div className="rect-panel" onDoubleClick={handleDoubleClick}>
-      <NavToggle collapsed={navCollapsed} onToggle={onToggle} navId={navId} />
+      {isHandset ? null : (
+        <NavToggle collapsed={navCollapsed} onToggle={onToggle} navId={navId} />
+      )}
 
-      {aiCollapsed ? (
+      {/*
+        * The floating assistant button belongs to the desktop canvas, where it
+        * marks the edge the panel will come from. On a phone the assistant is
+        * opened from the header beside everything else, so a second control
+        * hovering over the content would be the same action twice.
+        */}
+      {!isHandset && aiCollapsed ? (
         <button
           type="button"
           className="rect-ai-fab"
@@ -72,6 +91,18 @@ export function MainPanel({
       ) : null}
 
       <header className="rect-panel__header">
+        {isHandset ? (
+          <button
+            type="button"
+            className="rect-panel__sheet-open"
+            onClick={onToggle}
+            aria-expanded={!navCollapsed}
+            aria-controls={navId}
+            aria-label={t("shell.nav.openMenu")}
+          >
+            <Menu size={18} strokeWidth={2} aria-hidden />
+          </button>
+        ) : null}
         <div className="rect-panel__heading">
           <h1 className="rect-panel__title">{title}</h1>
         </div>
@@ -86,6 +117,18 @@ export function MainPanel({
             <Search size={16} strokeWidth={2} aria-hidden />
             <span className="rect-panel__search-text">{t("shell.search.open")}</span>
           </button>
+          {isHandset ? (
+            <button
+              type="button"
+              className="rect-panel__sheet-open"
+              onClick={onToggleAi}
+              aria-expanded={!aiCollapsed}
+              aria-controls="rectangle-ai-panel-body"
+              aria-label={t("shell.ai.open")}
+            >
+              <Sparkles size={18} strokeWidth={2} aria-hidden />
+            </button>
+          ) : null}
           <UserMenu />
         </div>
       </header>

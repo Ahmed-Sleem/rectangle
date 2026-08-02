@@ -502,6 +502,23 @@
 .rect-overlay__surface--lg { max-width: var(--rect-overlay-width-lg); }
 .rect-overlay__surface--xl { max-width: var(--rect-overlay-width-xl); }
 
+/*
+ * Edge to edge, for a handset. No margin, no radius and no size ceiling: at
+ * this size the window is the screen, so a gap around it would only reveal a
+ * backdrop nobody can reach past.
+ */
+.rect-overlay__surface--full {
+  max-width: none;
+  max-block-size: 100dvh;
+  block-size: 100dvh;
+  border: 0;
+  border-radius: 0;
+}
+
+.rect-overlay:has(> .rect-overlay__surface--full) {
+  padding: 0;
+}
+
 .rect-overlay__header {
   display: flex;
   align-items: flex-start;

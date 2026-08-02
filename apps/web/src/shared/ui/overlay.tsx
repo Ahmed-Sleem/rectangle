@@ -44,7 +44,12 @@ function useOverlayLabels() {
   };
 }
 
-export type OverlaySize = "sm" | "md" | "lg" | "xl";
+/**
+ * `full` covers the screen edge to edge, for a phone where a window with a
+ * margin around it is a window with nowhere to go. It is the only size whose
+ * surface has no maximum.
+ */
+export type OverlaySize = "sm" | "md" | "lg" | "xl" | "full";
 
 export interface OverlayProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   open: boolean;
