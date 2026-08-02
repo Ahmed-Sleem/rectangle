@@ -248,9 +248,8 @@ describe("SeparationRules", () => {
       /* The envelope the API actually sends: everything under `error`. */
       createBody: {
         error: {
-          code: "VALIDATION_FAILED",
-          message: "This would leave some people with no access at all.",
-          details: { wouldEmpty: ["Mona Adel"] },
+          code: "CONFLICT",
+          message: "This pair is already separated.",
         },
       },
     });
@@ -266,7 +265,13 @@ describe("SeparationRules", () => {
     );
     await user.click(screen.getByRole("button", { name: /Add rule/iu }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Mona Adel/u);
+    /*
+     * The server's own sentence, not a generic failure. It used to also send a
+     * list of people a rule could not be applied to, because stripping a bundle
+     * could leave somebody with nothing; revoking a single permission cannot,
+     * so that refusal and the branch that rendered it are both gone.
+     */
+    expect(await screen.findByRole("alert")).toHaveTextContent(/already separated/iu);
   });
 
   it("asks before removing a rule, because that removes a control", async () => {

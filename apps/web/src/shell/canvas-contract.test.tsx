@@ -413,8 +413,16 @@ describe("focus indicators", () => {
        * backdrop-filter and dropped the standard property, so the glass was
        * plain translucency wherever the unprefixed name was needed — text over
        * text. Solid and always present is the version that cannot half-work.
+       *
+       * The surface is read from `--rect-surface-current` rather than named
+       * directly, so the bar repaints whatever it is actually sitting on. A
+       * sticky element that names one surface is correct only until somebody
+       * puts it on another — which is exactly what left a lighter strip behind
+       * the activity page's day heading once the trail was given a card.
        */
-      expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*background:\s*var\(--rect-canvas-bg\)/u);
+      expect(toolbarCss).toMatch(
+        /\.rect-toolbar\s*\{[^}]*background:\s*var\(--rect-surface-current\)/u,
+      );
       expect(toolbarCss).not.toContain("backdrop-filter:");
       expect(toolbarCss).not.toMatch(/background-color:\s*transparent/u);
     });

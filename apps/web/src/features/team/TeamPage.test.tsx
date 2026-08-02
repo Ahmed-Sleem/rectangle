@@ -179,7 +179,7 @@ describe("TeamPage", () => {
     renderTeam();
 
     await user.click(await screen.findByRole("radio", { name: "Roles" }));
-    await user.click(screen.getByRole("button", { name: "Create user type" }));
+    await user.click(screen.getByRole("button", { name: "Create a role" }));
     await user.type(screen.getByLabelText("Name"), "Cost Controller");
     await user.type(screen.getByLabelText("Key"), "cost_controller");
     /*
@@ -189,8 +189,8 @@ describe("TeamPage", () => {
      */
     await user.click(screen.getByRole("button", { name: /Projects/i }));
     await user.click(screen.getByRole("checkbox", { name: /View projects/i }));
-    const dialog = screen.getByRole("dialog", { name: "Create user type" });
-    await user.click(within(dialog).getByRole("button", { name: "Create user type" }));
+    const dialog = screen.getByRole("dialog", { name: "Create a role" });
+    await user.click(within(dialog).getByRole("button", { name: "Create a role" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/v1/admin/user-types", expect.objectContaining({ method: "POST" })));
   });
@@ -417,7 +417,7 @@ describe("TeamPage", () => {
     await user.click(screen.getByRole("radio", { name: /Roles/u }));
     await user.click(screen.getByRole("radio", { name: "Table view" }));
 
-    const table = screen.getByRole("table", { name: /User types/u });
+    const table = screen.getByRole("table", { name: /Roles/u });
     expect(within(table).getByText("site_viewer")).toBeInTheDocument();
     expect(within(table).getByText("Site Viewer")).toBeInTheDocument();
   });
@@ -460,7 +460,7 @@ describe("TeamPage", () => {
     const segments = screen.getByRole("radiogroup", { name: "Team register" });
     expect(within(segments).queryByRole("radio", { name: /Roles/u })).not.toBeInTheDocument();
     expect(within(segments).getByRole("radio", { name: /People/u })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Create user type" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create a role" })).not.toBeInTheDocument();
   });
 
   /*
@@ -628,8 +628,8 @@ describe("TeamPage", () => {
       renderTeam();
 
       await user.click(await screen.findByRole("radio", { name: "Roles" }));
-      await user.click(screen.getByRole("button", { name: "Create user type" }));
-      const dialog = await screen.findByRole("dialog", { name: "Create user type" });
+      await user.click(screen.getByRole("button", { name: "Create a role" }));
+      const dialog = await screen.findByRole("dialog", { name: "Create a role" });
 
       // Closed to begin with: the whole point is that the list is short until
       // somebody asks for an area.
@@ -645,8 +645,8 @@ describe("TeamPage", () => {
       renderTeam();
 
       await user.click(await screen.findByRole("radio", { name: "Roles" }));
-      await user.click(screen.getByRole("button", { name: "Create user type" }));
-      const dialog = await screen.findByRole("dialog", { name: "Create user type" });
+      await user.click(screen.getByRole("button", { name: "Create a role" }));
+      const dialog = await screen.findByRole("dialog", { name: "Create a role" });
       await user.type(within(dialog).getByLabelText("Name"), "People Editor");
       await user.type(within(dialog).getByLabelText("Key"), "people_editor");
 
@@ -668,7 +668,7 @@ describe("TeamPage", () => {
         if (url.includes("/v1/directory/registers")) return jsonResponse({ registers: ["company", "colleagues"] });
         return jsonResponse(people);
       });
-      await user.click(within(dialog).getByRole("button", { name: "Create user type" }));
+      await user.click(within(dialog).getByRole("button", { name: "Create a role" }));
       await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     });
 
@@ -678,8 +678,8 @@ describe("TeamPage", () => {
       renderTeam();
 
       await user.click(await screen.findByRole("radio", { name: "Roles" }));
-      await user.click(screen.getByRole("button", { name: "Create user type" }));
-      const dialog = await screen.findByRole("dialog", { name: "Create user type" });
+      await user.click(screen.getByRole("button", { name: "Create a role" }));
+      const dialog = await screen.findByRole("dialog", { name: "Create a role" });
 
       await user.click(within(dialog).getByRole("button", { name: /People/iu }));
       expect(within(dialog).getByRole("button", { name: /People/iu })).toHaveTextContent("0 of 2");

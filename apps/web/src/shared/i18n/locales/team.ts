@@ -15,23 +15,23 @@ const en = {
   directoryOpenTasks_one: "{{count}} open task",
   directoryOpenTasks_other: "{{count}} open tasks",
   directoryEmail: "Email",
-  createUserType: "Create user type",
+  createUserType: "Create a role",
   createUserTypeDescription:
     "Group permissions into a role you can assign to people on your team.",
   createUser: "Create user",
   createUserDescription:
     "Add a person to your company and choose what they are allowed to do.",
 
-  userTypesTitle: "User types",
-  userTypeName: "Type",
+  userTypesTitle: "Roles",
+  userTypeName: "Role",
   userTypeKey: "Key",
   userTypePermissions: "Permissions",
-  noUserTypes: "No user types yet.",
+  noUserTypes: "No roles yet.",
 
   usersTitle: "Users",
   userName: "Name",
   userEmail: "Email",
-  userTypes: "User types",
+  userTypes: "Roles",
   userStatus: "Status",
   userAction: "Action",
   noUsers: "No users yet.",
@@ -62,7 +62,7 @@ const en = {
   noUsersTitle: "No people yet",
   noUsersMessage: "Add the first person to your company to get started.",
   needTypeFirst: "Create a role before adding people.",
-  createUserTypeFailed: "User type could not be created.",
+  createUserTypeFailed: "That role could not be created.",
   createUserFailed: "User could not be created.",
   updateUserFailed: "That user could not be updated.",
 
@@ -145,7 +145,7 @@ const en = {
   permissionGroup_tasks: "Tasks",
   permissionGroup_risks: "Risks",
   permissionGroup_users: "People",
-  permissionGroup_user_types: "User types",
+  permissionGroup_user_types: "Roles",
   permissionGroup_company: "Company",
 } as const;
 
@@ -160,21 +160,21 @@ const ar: LocaleBundle<typeof en> = {
   directoryOpenTasks_other: "{{count}} مهام مفتوحة",
   directoryEmail: "البريد الإلكتروني",
   pageLabel: "إدارة الفريق",
-  createUserType: "إنشاء نوع مستخدم",
+  createUserType: "إنشاء دور",
   createUserTypeDescription: "اجمع الصلاحيات في دور يمكنك تعيينه لأفراد فريقك.",
   createUser: "إنشاء مستخدم",
   createUserDescription: "أضف شخصًا إلى شركتك وحدد ما يُسمح له بفعله.",
 
-  userTypesTitle: "أنواع المستخدمين",
-  userTypeName: "النوع",
+  userTypesTitle: "الأدوار",
+  userTypeName: "الدور",
   userTypeKey: "المفتاح",
   userTypePermissions: "الصلاحيات",
-  noUserTypes: "لا توجد أنواع مستخدمين بعد.",
+  noUserTypes: "لا توجد أدوار بعد.",
 
   usersTitle: "المستخدمون",
   userName: "الاسم",
   userEmail: "البريد الإلكتروني",
-  userTypes: "أنواع المستخدم",
+  userTypes: "الأدوار",
   userStatus: "الحالة",
   userAction: "إجراء",
   noUsers: "لا يوجد مستخدمون بعد.",
@@ -299,7 +299,7 @@ const ar: LocaleBundle<typeof en> = {
   permissionGroup_tasks: "المهام",
   permissionGroup_risks: "المخاطر",
   permissionGroup_users: "الأشخاص",
-  permissionGroup_user_types: "أنواع المستخدم",
+  permissionGroup_user_types: "الأدوار",
   permissionGroup_company: "الشركة",
 };
 

@@ -7,7 +7,7 @@
  *
  * The shape of the flow is set by what a mistake here costs. Declaring a pair
  * can take access away from people who already hold both, so the screen asks
- * what the rule would cost, shows exactly who loses which user type, and only
+ * what the rule would cost, shows exactly who loses which permission, and only
  * writes anything once that has been read and confirmed. A control that
  * silently changes people's access is the kind of feature administrators learn
  * to be frightened of.
@@ -115,7 +115,7 @@ export function SeparationRules() {
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "separation-rules"] });
-      // People's user types may have changed, so anything showing them is stale.
+      // People's permissions may have changed, so anything showing them is stale.
       await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       resetForm();
     },
@@ -138,13 +138,6 @@ export function SeparationRules() {
   function messageFor(error: unknown, fallback: string): string | null {
     if (!error) return null;
     return error instanceof ApiClientError ? error.message : fallback;
-  }
-
-  /** Names the people a rule cannot be applied to, from the server's refusal. */
-  function blockedNames(error: unknown): string[] {
-    if (!(error instanceof ApiClientError)) return [];
-    const details = error.details as { wouldEmpty?: unknown } | undefined;
-    return Array.isArray(details?.wouldEmpty) ? details.wouldEmpty.map(String) : [];
   }
 
   if (!mayManage) {
@@ -349,13 +342,14 @@ export function SeparationRules() {
           </div>
         )}
 
-        {blockedNames(create.error).length > 0 ? (
-          <p className="rect-separation__error" role="alert">
-            {t("separation.wouldEmptyPeople", {
-              names: blockedNames(create.error).join(t("common.listSeparator")),
-            })}
-          </p>
-        ) : messageFor(create.error, t("separation.saveFailed")) ? (
+        {/*
+          * There is no longer a refusal to render here beyond the ordinary one.
+          * The server used to reject a rule that would strip somebody's only
+          * bundle, because a bundle was the only way to hold anything; now that
+          * a permission is revoked from the person directly, giving one up
+          * cannot leave an account reaching nothing.
+          */}
+        {messageFor(create.error, t("separation.saveFailed")) ? (
           <p className="rect-separation__error" role="alert">
             {messageFor(create.error, t("separation.saveFailed"))}
           </p>

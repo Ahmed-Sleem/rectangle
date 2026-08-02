@@ -3,7 +3,7 @@
  *
  * The thing worth pinning is not that a table renders. It is that the four
  * rules a table cannot express are shown, and shown before the table — an owner
- * holds everything with no user type, a guest is refused everything, per-project
+ * holds everything with nothing granted, a saved list grants nothing, per-project
  * actions need reach as well as capability, and deletion is stricter than any
  * permission. A reader who takes the grid at face value without those draws the
  * wrong conclusion, and this page is the one place that is supposed to prevent
@@ -125,8 +125,8 @@ describe("PermissionReference", () => {
     renderReference();
 
     const rules = await screen.findByRole("region", { name: /Rules that decide access/iu });
-    expect(within(rules).getByText(/holds every permission, whatever user types/iu)).toBeInTheDocument();
-    expect(within(rules).getByText(/guest is refused every company-wide/iu)).toBeInTheDocument();
+    expect(within(rules).getByText(/holds every permission without being granted any/iu)).toBeInTheDocument();
+    expect(within(rules).getByText(/saved list of permissions grants nothing/iu)).toBeInTheDocument();
     expect(within(rules).getByText(/needs two things/iu)).toBeInTheDocument();
     expect(within(rules).getByText(/stricter than any permission/iu)).toBeInTheDocument();
 
@@ -150,7 +150,7 @@ describe("PermissionReference", () => {
     mockApi();
     renderReference();
     const matrix = await screen.findByRole("region", { name: /Every permission/iu });
-    expect(within(matrix).getByText(/No user type grants this/iu)).toBeInTheDocument();
+    expect(within(matrix).getByText(/Nobody holds this/iu)).toBeInTheDocument();
   });
 
   it("explains why a granted set can be larger than the boxes ticked", async () => {

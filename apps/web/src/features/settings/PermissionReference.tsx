@@ -1,20 +1,23 @@
 /**
  * What every permission allows, and who currently holds it.
  *
- * The product has twenty-seven atomic permissions, four company standings, five
+ * The product has twenty-seven atomic permissions, an owner standing, four
  * project roles and a separation-of-duties table. Each is defensible on its own
  * and together they are more than anybody holds in their head, which is how a
  * company ends up granting more than it meant to — not through carelessness but
  * because nowhere shows the whole picture at once.
  *
- * The rules come before the table deliberately. A matrix of permissions against
- * user types answers "who holds what" and silently omits four things that decide
- * access just as much: an owner holds everything with no user type at all, a
- * guest is refused every company-wide permission whatever they hold, per-project
- * actions need reach as well as capability, and deleting a project is stricter
- * than any permission. A reader who takes the matrix at face value without those
- * would draw the wrong conclusion, and a page that looks authoritative while
- * being wrong is worse than no page.
+ * Now that a permission is granted to a person directly, this is the only place
+ * that answers "who can do this", so it matters more than it did when a bundle
+ * could be inspected instead.
+ *
+ * The rules come before the table deliberately. A list of who holds what
+ * silently omits four things that decide access just as much: the owner holds
+ * everything with nothing granted to them, a saved list grants nothing at all,
+ * per-project actions need reach as well as capability, and deleting a project
+ * is stricter than any permission. A reader who takes the table at face value
+ * without those would draw the wrong conclusion, and a page that looks
+ * authoritative while being wrong is worse than no page.
  *
  * Everything is composed on the server from the same modules the guards read, so
  * this cannot drift into describing a system that no longer exists.
@@ -106,7 +109,7 @@ export function PermissionReference() {
         <h3 className="rect-permref__heading">{t("permissionReference.rulesTitle")}</h3>
         <ol className="rect-permref__rule-list">
           <li>{t("permissionReference.ruleStanding")}</li>
-          <li>{t("permissionReference.ruleGuest")}</li>
+          <li>{t("permissionReference.ruleBundles")}</li>
           <li>{t("permissionReference.ruleReach")}</li>
           <li>{t("permissionReference.ruleDeletion")}</li>
           <li>{t("permissionReference.ruleSeparation")}</li>

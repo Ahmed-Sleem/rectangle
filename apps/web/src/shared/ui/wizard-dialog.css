@@ -1,0 +1,88 @@
+/* The multi-step window. Structure only; every value comes from the theme. */
+
+.rect-wizard {
+  display: grid;
+  gap: var(--rect-space-4);
+}
+
+/*
+ * The step list is a map, not a control. It is deliberately not clickable:
+ * jumping ahead past a step that is not yet valid is the thing the wizard
+ * exists to prevent, and a control that refuses half the time is worse than
+ * no control.
+ */
+.rect-wizard__steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-wizard__step {
+  align-items: center;
+  color: var(--rect-text-muted);
+  display: flex;
+  font-size: var(--rect-text-label);
+  gap: var(--rect-space-2);
+}
+
+.rect-wizard__step[data-state="current"] {
+  color: var(--rect-text-primary);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-wizard__step[data-state="done"] {
+  color: var(--rect-text-secondary);
+}
+
+.rect-wizard__step-number {
+  align-items: center;
+  block-size: var(--rect-control-xs);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-pill-radius);
+  display: inline-flex;
+  font-variant-numeric: tabular-nums;
+  inline-size: var(--rect-control-xs);
+  justify-content: center;
+}
+
+/* The step being answered is the only one that reads as active. */
+.rect-wizard__step[data-state="current"] .rect-wizard__step-number {
+  background: var(--rect-color-ink-strong);
+  border-color: var(--rect-color-ink-strong);
+  color: var(--rect-color-paper);
+}
+
+.rect-wizard__step[data-state="done"] .rect-wizard__step-number {
+  border-color: var(--rect-border-active);
+}
+
+.rect-wizard__panel {
+  display: grid;
+  gap: var(--rect-space-3);
+}
+
+/* Type comes from the named styles in ui.css; see .rect-type-subsection. */
+.rect-wizard__description {
+  margin: 0;
+}
+
+.rect-wizard__content {
+  display: grid;
+  gap: var(--rect-space-3);
+}
+
+/* Pushes the forward action to the far end, so back and next never sit
+   adjacent and get pressed by mistake. */
+.rect-wizard__spacer {
+  flex: 1;
+}
+
+.rect-wizard__error {
+  color: var(--rect-color-danger);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-semibold);
+  margin: 0;
+}

@@ -21,8 +21,10 @@
 .rect-activity-day__heading {
   align-items: center;
   /* Opaque: entries scroll under this, and a transparent heading would let
-     them read through it. The token was previously undefined, so it did. */
-  background: var(--rect-canvas-bg);
+     them read through it. Reads whatever surface it is actually sitting on —
+     naming the canvas directly is what left a lighter strip behind the date
+     once the trail was given a card of its own. */
+  background: var(--rect-surface-current);
   display: flex;
   gap: var(--rect-space-3);
   justify-content: space-between;
@@ -195,6 +197,7 @@
    * bare — a list of lines floating on the canvas with nothing around it,
    * beside cards that all had a frame — which is what the owner reported.
    */
+  --rect-surface-current: var(--rect-card-bg);
   background: var(--rect-card-bg);
   border: 1px solid var(--rect-card-border);
   border-radius: var(--rect-radius-lg);

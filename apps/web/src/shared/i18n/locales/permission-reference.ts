@@ -12,26 +12,26 @@ const en = {
   rulesTitle: "Read these first",
   rulesLabel: "Rules that decide access",
   ruleStanding:
-    "A company owner or administrator holds every permission, whatever user types they are given. The table below will show them as holding nothing.",
-  ruleGuest:
-    "A guest is refused every company-wide permission, whatever user types they are given. They reach only the projects they were added to.",
+    "The company owner holds every permission without being granted any, so the table below will show them as holding nothing. Everyone else holds exactly what has been ticked for them.",
+  ruleBundles:
+    "A saved list of permissions grants nothing by itself. Choosing one only fills in the boxes, and the boxes are what the person actually holds.",
   ruleReach:
     "Acting on a project needs two things: being able to reach it — by being a member, or by holding “Reach every project” — and holding the permission for the action itself.",
   ruleDeletion:
-    "Deleting a project is stricter than any permission. It needs a company owner or administrator, or being the project administrator of that project and holding “Delete projects”. Reaching every project is not enough.",
+    "Deleting a project is stricter than any permission. It needs the company owner, or being an owner of that project and holding “Delete projects”. Reaching every project is not enough.",
   ruleSeparation:
     "Separation of duties may forbid a combination this table shows as available. Those rules are listed in the section below.",
 
   standingsTitle: "Company standing",
-  standingsNote: "Everyone has exactly one. It is decided before any user type is considered.",
+  standingsNote: "Everyone has exactly one. It is decided before any permission is considered.",
   standingEverything: "Holds every permission",
   standingFromGrants: "Only the permissions granted to them",
 
   matrixTitle: "Every permission",
   matrixNote:
-    "What each one allows, and which user types grant it. Owners and administrators are not listed: they hold all of them.",
+    "What each one allows, and who currently holds it. The company owner is not listed: they hold all of them.",
   alsoGrants: "Also grants {{permissions}}",
-  nobodyHolds: "No user type grants this",
+  nobodyHolds: "Nobody holds this",
 
   projectRolesTitle: "What a project role grants",
   projectRolesNote:
@@ -49,26 +49,26 @@ const ar: LocaleBundle<typeof en> = {
   rulesTitle: "اقرأ هذا أولًا",
   rulesLabel: "القواعد التي تحدد الصلاحية",
   ruleStanding:
-    "مالك الشركة أو المسؤول يملك كل الصلاحيات مهما كانت أنواع المستخدم الممنوحة له. الجدول أدناه سيظهرهما كأنهما لا يملكان شيئًا.",
-  ruleGuest:
-    "الضيف تُرفض له كل الصلاحيات على مستوى الشركة مهما مُنح من أنواع المستخدم. لا يصل إلا إلى المشاريع التي أُضيف إليها.",
+    "مالك الشركة يملك كل الصلاحيات دون أن تُمنح له، لذا سيظهر في الجدول أدناه كأنه لا يملك شيئًا. وكل شخص آخر يملك ما حُدِّد له بالضبط.",
+  ruleBundles:
+    "القائمة المحفوظة من الصلاحيات لا تمنح شيئًا بذاتها. اختيارها يملأ الخانات فقط، والخانات هي ما يملكه الشخص فعليًا.",
   ruleReach:
     "العمل على مشروع يتطلب أمرين: القدرة على الوصول إليه — بالعضوية أو بامتلاك «الوصول إلى كل المشاريع» — وامتلاك صلاحية الإجراء نفسه.",
   ruleDeletion:
-    "حذف مشروع أشد من أي صلاحية. يتطلب مالكًا أو مسؤولًا للشركة، أو أن تكون مسؤول ذلك المشروع وتملك «حذف المشاريع». الوصول إلى كل المشاريع لا يكفي.",
+    "حذف مشروع أشد من أي صلاحية. يتطلب مالك الشركة، أو أن تكون مالكًا لذلك المشروع وتملك «حذف المشاريع». الوصول إلى كل المشاريع لا يكفي.",
   ruleSeparation:
     "قد يمنع الفصل بين المهام جمعًا يبدو في هذا الجدول متاحًا. تلك القواعد مذكورة في القسم أدناه.",
 
   standingsTitle: "الصفة في الشركة",
-  standingsNote: "لكل شخص صفة واحدة فقط، وتُحسم قبل النظر في أي نوع مستخدم.",
+  standingsNote: "لكل شخص صفة واحدة فقط، وتُحسم قبل النظر في أي صلاحية.",
   standingEverything: "يملك كل الصلاحيات",
   standingFromGrants: "فقط الصلاحيات الممنوحة له",
 
   matrixTitle: "كل الصلاحيات",
   matrixNote:
-    "ما تتيحه كل صلاحية، وأي أنواع المستخدم تمنحها. المالك والمسؤول غير مذكورين: هما يملكانها جميعًا.",
+    "ما تتيحه كل صلاحية، ومن يملكها حاليًا. مالك الشركة غير مذكور: هو يملكها جميعًا.",
   alsoGrants: "يمنح أيضًا {{permissions}}",
-  nobodyHolds: "لا يمنحها أي نوع مستخدم",
+  nobodyHolds: "لا أحد يملكها",
 
   projectRolesTitle: "ما يمنحه دور المشروع",
   projectRolesNote:

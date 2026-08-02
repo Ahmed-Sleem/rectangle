@@ -30,12 +30,10 @@ const en = {
   affectedLabel: "People affected by this rule",
   whichToGiveUp: "Which permission should they give up?",
   whichToGiveUpHint:
-    "The user types carrying it come off these people only. The user types themselves are not changed.",
+    "It is taken from these people only. Nobody else is affected, and no saved list is changed.",
   chooseSide: "Choose one",
   chooseToSee: "Choose a permission above to see what they lose",
   wouldLose: "Loses {{permission}}",
-  wouldEmptyPeople:
-    "This would leave {{names}} with no access at all. Give them another user type first.",
 
   startOver: "Start over",
   declare: "Add rule",
@@ -81,12 +79,10 @@ const ar: LocaleBundle<typeof en> = {
   affectedLabel: "الأشخاص المتأثرون بهذه القاعدة",
   whichToGiveUp: "أي صلاحية يتنازلون عنها؟",
   whichToGiveUpHint:
-    "تُنزع أنواع المستخدم التي تحملها عن هؤلاء الأشخاص وحدهم. أنواع المستخدم نفسها لا تتغير.",
+    "تُنزع من هؤلاء الأشخاص وحدهم. لا أحد غيرهم يتأثر، ولا تتغير أي قائمة محفوظة.",
   chooseSide: "اختر واحدة",
   chooseToSee: "اختر صلاحية أعلاه لمعرفة ما سيفقدونه",
   wouldLose: "يفقد {{permission}}",
-  wouldEmptyPeople:
-    "هذا سيترك {{names}} بلا أي صلاحية. امنحهم نوع مستخدم آخر أولًا.",
 
   startOver: "ابدأ من جديد",
   declare: "أضف القاعدة",

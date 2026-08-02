@@ -80,6 +80,12 @@ export {
   type OverlaySize,
 } from "./overlay";
 
+/**
+ * A long form asked one step at a time, in a window. General by design: it
+ * knows nothing about any feature, so any part of the product can use it.
+ */
+export { WizardDialog, type WizardDialogProps, type WizardStep } from "./wizard-dialog";
+
 /** Configuration building blocks, reusable by any page. */
 export {
   ChoiceGroup,

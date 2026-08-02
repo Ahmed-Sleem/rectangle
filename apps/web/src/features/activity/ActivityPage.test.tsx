@@ -388,3 +388,37 @@ describe("ActivityPage", () => {
     });
   });
 });
+
+describe("the sticky day heading", () => {
+  /*
+   * The heading repaints its background so entries do not scroll through it.
+   * Which background is the whole question: it used to name the canvas
+   * directly, and once the trail was given a card of its own that left a
+   * lighter strip behind the date — reported by the owner as a weird
+   * background. The heading must paint whatever surface it is actually on.
+   */
+  it("paints the surface it sits on, not a surface it assumes", () => {
+    const heading = activityCss.slice(
+      activityCss.indexOf(".rect-activity-day__heading"),
+      activityCss.indexOf(".rect-activity-day__badge"),
+    );
+    expect(heading).toMatch(/background:\s*var\(--rect-surface-current\)/u);
+    expect(heading).not.toMatch(/background:\s*var\(--rect-canvas-bg\)/u);
+  });
+
+  it("is opaque, so entries cannot read through it while scrolling", () => {
+    const heading = activityCss.slice(
+      activityCss.indexOf(".rect-activity-day__heading"),
+      activityCss.indexOf(".rect-activity-day__badge"),
+    );
+    expect(heading).toMatch(/position:\s*sticky/u);
+    expect(heading).toMatch(/background:/u);
+  });
+
+  it("declares its own surface on the container, so children can read it", () => {
+    // The other half of the contract: a surface that paints a background must
+    // say so, or its sticky children have nothing correct to inherit.
+    const timeline = activityCss.slice(activityCss.indexOf(".rect-activity-timeline"));
+    expect(timeline).toMatch(/--rect-surface-current:\s*var\(--rect-card-bg\)/u);
+  });
+});

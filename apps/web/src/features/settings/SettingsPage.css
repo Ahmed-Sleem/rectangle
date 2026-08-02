@@ -70,7 +70,7 @@
   justify-content: flex-end;
   gap: var(--rect-space-2);
   padding-block-start: var(--rect-space-3);
-  background: var(--rect-card-bg);
+  background: var(--rect-surface-current);
   /* Above the canvas edge line, so the boundary never crosses the control. */
   z-index: 2;
 }
@@ -83,6 +83,42 @@
 .rect-settings-message--success {
   color: var(--rect-color-success);
   font-weight: var(--rect-weight-semibold);
+}
+
+/* Actions that sit inside a row rather than at the foot of a form: they are
+   beside the thing they act on, so they must not stretch or stick. */
+.rect-settings-actions--inline {
+  position: static;
+  background: none;
+  padding-block-start: 0;
+}
+
+/* The wizard's final summary: what is about to be saved, stated plainly. */
+.rect-email-review {
+  display: grid;
+  gap: var(--rect-space-2);
+  margin: 0;
+}
+
+.rect-email-review__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rect-space-2);
+  justify-content: space-between;
+}
+
+.rect-email-review__row dt {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+.rect-email-review__row dd {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-semibold);
+  margin: 0;
+  overflow-wrap: anywhere;
+  unicode-bidi: plaintext;
 }
 
 .rect-settings-list {

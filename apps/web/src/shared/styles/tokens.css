@@ -240,6 +240,19 @@
   --rect-radius-xl: 18px;
   --rect-radius-2xl: 24px;
 
+  /* ── What is behind me ──
+     A sticky child has to repaint the surface it scrolls over, or the content
+     passing underneath shows through it. Every such element used to name that
+     surface itself, which meant each one carried an assumption about where it
+     had been placed — and the assumption broke the moment the activity trail
+     was given a card of its own: its day heading went on painting the canvas
+     colour while sitting on a card, leaving a lighter strip behind "Today".
+
+     So a surface now declares itself, and sticky children read it. The default
+     is the canvas because that is what the main scroll area is; any component
+     that paints a different background overrides it for its own subtree. */
+  --rect-surface-current: var(--rect-canvas-bg);
+
   /* ── Canvas content contract ── */
   --rect-canvas-content-max: 1180px;
 

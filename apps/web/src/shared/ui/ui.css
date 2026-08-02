@@ -295,6 +295,8 @@
 .rect-ui-badge--info { color: var(--rect-color-info); }
 
 .rect-ui-card {
+  /* Declared for anything sticky inside, so it repaints this, not the canvas. */
+  --rect-surface-current: var(--rect-card-bg);
   background: var(--rect-card-bg);
   border: 1px solid var(--rect-card-border);
   border-radius: var(--rect-card-radius);
@@ -354,6 +356,7 @@
 }
 
 .rect-type-subsection,
+.rect-wizard__title,
 .rect-side-panel__title,
 .rect-today__title,
 .rect-task-detail__heading {
@@ -373,6 +376,7 @@
 }
 
 .rect-type-muted,
+.rect-wizard__description,
 .rect-overlay__description,
 .rect-section__description,
 .rect-setting-row__description,
@@ -487,7 +491,7 @@
 }
 
 .rect-ui-table th {
-  background: var(--rect-card-bg);
+  background: var(--rect-surface-current);
   color: var(--rect-text-secondary);
   font-size: var(--rect-text-label);
   font-weight: var(--rect-weight-bold);
@@ -892,6 +896,7 @@
 }
 
 .rect-section {
+  --rect-surface-current: var(--rect-card-bg);
   background: var(--rect-card-bg);
   border: 1px solid var(--rect-card-border);
   border-radius: var(--rect-radius-lg);
