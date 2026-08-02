@@ -37,24 +37,31 @@ html[dir="rtl"] .rect-app {
   direction: rtl;
 }
 
-html[dir="rtl"] .rect-nav-item,
-html[dir="rtl"] .rect-ui-button,
-html[dir="rtl"] .rect-ui-field,
-html[dir="rtl"] .rect-ai-panel,
-html[dir="rtl"] .rect-panel {
-  text-align: right;
+/*
+ * `start`, so the rule needs no `[dir]` qualifier at all: it resolves to left
+ * in English and right in Arabic on its own. Written as `right` under an RTL
+ * selector it said the same thing in twice as many words, and only for the
+ * five selectors somebody had listed.
+ */
+.rect-nav-item,
+.rect-ui-button,
+.rect-ui-field,
+.rect-ai-panel,
+.rect-panel {
+  text-align: start;
 }
 
-html[dir="rtl"] .rect-ai-fab {
-  left: 14px;
-  right: auto;
-}
-
-html[dir="rtl"] .rect-nav-toggle,
-html[dir="rtl"] .rect-app--collapsed .rect-nav-toggle {
-  left: auto;
-  right: 14px;
-}
+/*
+ * No RTL overrides for the two canvas controls any more.
+ *
+ * They used to be positioned with `left`/`right` and then flipped back here,
+ * which is two rules to express one intention and only worked where somebody
+ * remembered to write the second. They now use `inset-inline-*`, so the
+ * direction is carried by the property itself and Arabic needs no correction.
+ * The overlap the owner saw came from the half of this pair that was missing:
+ * the header reserved its space with `padding-right`, which reserved nothing
+ * on the side the header actually used in Arabic.
+ */
 
 .rect-auth-screen {
   align-items: center;

@@ -47,6 +47,19 @@
   white-space: nowrap;
 }
 
+/*
+ * Keeps a button at its content width inside a grid or a stretching flex row.
+ *
+ * A link styled as a button is a block-level grid item, so it fills its column
+ * and reads as a banner. This is the one shared answer to that, rather than an
+ * inline style repeated wherever it happens to come up.
+ */
+.rect-ui-button--inline {
+  justify-self: start;
+  align-self: start;
+  width: fit-content;
+}
+
 .rect-ui-button--sm { min-height: var(--rect-control-xs); padding: 0 var(--rect-space-2); font-size: var(--rect-text-label); }
 .rect-ui-button--md { min-height: var(--rect-control-compact); padding: 0 var(--rect-space-3); font-size: var(--rect-text-table); }
 .rect-ui-button--lg { min-height: var(--rect-control-standard); padding: 0 var(--rect-space-4); font-size: var(--rect-text-body); }

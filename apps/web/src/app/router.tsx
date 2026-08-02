@@ -1,5 +1,5 @@
 import { createBrowserRouter } from "react-router";
-import { ProtectedShellRoute, LoginRoute, SetupRoute } from "./AuthRoutes";
+import { ProtectedShellRoute, LoginRoute, SetupRoute, FullPageGate } from "./AuthRoutes";
 import { FeatureGuard } from "./FeatureGuard";
 import { RouteError } from "./RouteError";
 import { getEnabledFeatures } from "@/shell/registry";
@@ -73,27 +73,27 @@ export function createAppRouter() {
     // for a different account still needs the page to work.
     {
       path: "/invite/accept",
-      element: <AcceptInvitationPage />,
+      element: <FullPageGate><AcceptInvitationPage /></FullPageGate>,
       errorElement: <RouteError />,
     },
     {
       path: "/reset",
-      element: <PasswordResetPage />,
+      element: <FullPageGate><PasswordResetPage /></FullPageGate>,
       errorElement: <RouteError />,
     },
     {
       path: "/reset/confirm",
-      element: <PasswordResetConfirmPage />,
+      element: <FullPageGate><PasswordResetConfirmPage /></FullPageGate>,
       errorElement: <RouteError />,
     },
     {
       path: "/email-change/confirm",
-      element: <EmailChangePage mode="confirm" />,
+      element: <FullPageGate><EmailChangePage mode="confirm" /></FullPageGate>,
       errorElement: <RouteError />,
     },
     {
       path: "/email-change/revert",
-      element: <EmailChangePage mode="revert" />,
+      element: <FullPageGate><EmailChangePage mode="revert" /></FullPageGate>,
       errorElement: <RouteError />,
     },
     {

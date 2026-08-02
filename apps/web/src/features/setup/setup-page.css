@@ -37,6 +37,19 @@
   gap: var(--rect-space-3);
 }
 
+/*
+ * A link that looks like a button must also be sized like one.
+ *
+ * As a direct child of this grid it stretched to the full width of the card, so
+ * "Forgot your password?" came out as a wide bar next to two normal buttons —
+ * the inconsistency the owner reported. Applied to the row rather than to each
+ * link, so any page composing this form gets it without remembering to.
+ */
+.rect-setup-form > .rect-ui-button {
+  justify-self: start;
+  width: fit-content;
+}
+
 .rect-setup-form__error {
   color: var(--rect-color-danger);
 }

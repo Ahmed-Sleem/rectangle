@@ -175,11 +175,13 @@
 @media (min-width: 1080px) {
   .rect-activity-layout {
     /*
-     * The trail is a list of short lines — actor, action, time — so it does not
-     * earn the whole canvas. Capping it leaves the breakdowns real room instead
-     * of squeezing them into a margin.
+     * The trail is the page and takes the room. The breakdowns are a reference
+     * column beside it, so they are capped rather than sharing the width
+     * proportionally — the owner asked for the trail to use the full length
+     * available, and at 3fr/2fr it was giving away two fifths of a wide screen
+     * to four short lists.
      */
-    grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
     align-items: start;
   }
 }
@@ -189,11 +191,24 @@
   gap: var(--rect-space-5);
   min-inline-size: 0;
   /*
+   * A bordered surface like every other block on the page. It was previously
+   * bare — a list of lines floating on the canvas with nothing around it,
+   * beside cards that all had a frame — which is what the owner reported.
+   */
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-lg);
+  padding: var(--rect-space-4);
+  /*
    * The trail scrolls within itself rather than driving the whole page, so the
    * breakdowns beside it stay in view while a long history is read. Capped
    * against the viewport so it never grows taller than the screen it is in.
+   *
+   * `dvh`, not `vh`: mobile browser chrome makes `vh` taller than the visible
+   * area, so the bottom of the list sat under the address bar. This was the
+   * only `vh` left in the product.
    */
-  max-block-size: calc(100vh - var(--rect-activity-reserved));
+  max-block-size: calc(100dvh - var(--rect-activity-reserved));
   overflow-y: auto;
   /* The day headings stick inside this container now, not the page. */
   padding-inline-end: var(--rect-space-1);

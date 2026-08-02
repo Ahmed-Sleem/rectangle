@@ -52,7 +52,7 @@ export default function LoginPage() {
           <Button variant="primary" type="submit" disabled={login.isPending}>{login.isPending ? t("auth.signingIn") : t("auth.signIn")}</Button>
           <Button variant="secondary" type="button" disabled={passkeyLogin.isPending || !form.watch("email")} onClick={() => passkeyLogin.mutate()}>{passkeyLogin.isPending ? t("auth.checkingPasskey") : t("auth.usePasskey")}</Button>
         </Toolbar>
-        <Link className={buttonClassName("ghost", "sm")} to="/reset">
+        <Link className={buttonClassName("ghost")} to="/reset">
           {t("auth.forgotPassword")}
         </Link>
       </form>

@@ -5,7 +5,18 @@ import { LoadingState } from "@/shared/ui";
 import { useAuth } from "@/shared/auth";
 import { AppShellLayout } from "./AppShellLayout";
 
-function FullPageGate({ children }: { children: ReactNode }) {
+/**
+ * The centred full-page frame every pre-login screen sits in.
+ *
+ * Exported because the five pages reached from an email link — accepting an
+ * invitation, requesting a reset, confirming one, and the two email-change
+ * outcomes — are not behind any guard and so were rendering bare: no frame, no
+ * centring, the card pinned to the top-left of an empty page. That is the
+ * corrupted reset page the owner reported. They need the frame without the
+ * redirect logic, so the frame is its own export rather than something only a
+ * guard can apply.
+ */
+export function FullPageGate({ children }: { children: ReactNode }) {
   return <div className="rect-auth-screen">{children}</div>;
 }
 

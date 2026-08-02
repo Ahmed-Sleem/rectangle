@@ -728,8 +728,15 @@
 
 .rect-ai-fab {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: var(--rect-space-3);
+  /*
+   * Logical, not physical. `right` kept the launcher pinned to the right edge
+   * in Arabic while the header's own actions flipped to the left, so the
+   * launcher landed on top of the profile control — the overlap the owner
+   * reported. `inset-inline-end` follows the reading direction, so it sits
+   * opposite the actions in both languages.
+   */
+  inset-inline-end: var(--rect-space-3);
   width: 36px;
   height: 36px;
   border-radius: 999px;
@@ -776,8 +783,13 @@
   transform: scale(0.94);
 }
 
+/*
+ * Reserve the launcher's corner so the header's last control cannot slide
+ * under it. Logical for the same reason the launcher is: in Arabic the space
+ * has to be reserved on the left, which `padding-right` never did.
+ */
 .rect-app--ai-collapsed .rect-panel__header {
-  padding-right: var(--rect-space-12);
+  padding-inline-end: var(--rect-space-12);
 }
 
 @media (max-width: 768px) {
@@ -820,8 +832,8 @@
   }
 
   .rect-ai-fab {
-    top: 10px;
-    right: 10px;
+    top: var(--rect-space-2);
+    inset-inline-end: var(--rect-space-2);
     width: 34px;
     height: 34px;
   }
@@ -959,8 +971,9 @@
 .rect-nav-toggle,
 .rect-app--collapsed .rect-nav-toggle {
   position: absolute;
-  left: 14px;
-  bottom: 14px;
+  /* Logical, so it stays opposite the AI launcher in Arabic as well. */
+  inset-inline-start: var(--rect-space-3);
+  bottom: var(--rect-space-3);
   width: 36px;
   min-width: 36px;
   height: 36px;
@@ -1029,8 +1042,8 @@
 @media (max-width: 768px) {
   .rect-nav-toggle,
   .rect-app--collapsed .rect-nav-toggle {
-    left: 10px;
-    bottom: 10px;
+    inset-inline-start: var(--rect-space-2);
+    bottom: var(--rect-space-2);
     width: 34px;
     min-width: 34px;
     height: 34px;

@@ -525,7 +525,16 @@ export default function ProjectDetailPage() {
           A preview, not a second implementation. Anything longer belongs on the
           activity page, which is the one place the full trail is read.
         */}
-        <Link className={buttonClassName("secondary", "sm")} to={`/activity?projectId=${projectId}`}>
+        {/*
+          * `rect-ui-button--inline` because a Card is a grid: a link left to
+          * itself stretched across the whole card and read as a banner rather
+          * than an action. The default size, not `sm`, so it matches every
+          * other button on the page — it was the only small one.
+          */}
+        <Link
+          className={buttonClassName("secondary", "md", "rect-ui-button--inline")}
+          to={`/activity?projectId=${projectId}`}
+        >
           {t("projects.viewAllActivity")}
         </Link>
       </Card>
