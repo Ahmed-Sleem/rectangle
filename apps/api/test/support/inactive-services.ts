@@ -63,3 +63,21 @@ export const inactiveRiskService = {
   deleteRisk(): never { throw new Error("not used"); },
   summarise(): never { throw new Error("not used"); },
 };
+
+/*
+ * The assistant, for suites that are not testing it. Every method throws
+ * rather than returning a benign value: a test that reaches one of these has
+ * wandered somewhere it did not mean to, and should say so loudly instead of
+ * quietly passing against a stub.
+ */
+export const inactiveAiService = {
+  chat(): never { throw new Error("not used"); },
+  confirm(): never { throw new Error("not used"); },
+};
+
+export const inactiveAiSettingsService = {
+  getSettings(): never { throw new Error("not used"); },
+  saveSettings(): never { throw new Error("not used"); },
+  saveMyKey(): never { throw new Error("not used"); },
+  deleteMyKey(): never { throw new Error("not used"); },
+};

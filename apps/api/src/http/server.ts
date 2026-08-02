@@ -18,6 +18,8 @@ import type { ProjectService } from "../application/project-service.js";
 import type { ProjectTeamService } from "../application/project-team-service.js";
 import type { RiskService } from "../application/risk-service.js";
 import type { SearchService } from "../application/search-service.js";
+import type { AiService } from "../application/ai-service.js";
+import type { AiSettingsService } from "../application/ai-settings-service.js";
 import type { DirectoryService } from "../application/directory-service.js";
 import type { SetupService } from "../application/setup-service.js";
 import type { TaskService } from "../application/task-service.js";
@@ -38,6 +40,7 @@ import { registerSearchRoutes } from "./search-routes.js";
 import { registerSetupRoutes } from "./setup-routes.js";
 import { registerTaskRoutes } from "./tasks-routes.js";
 import { registerSettingsRoutes } from "./settings-routes.js";
+import { registerAiRoutes } from "./ai-routes.js";
 import { registerPasskeyRoutes } from "./passkey-routes.js";
 
 export interface ServerDependencies {
@@ -48,6 +51,11 @@ export interface ServerDependencies {
   projectService: ProjectService;
   riskService: Pick<RiskService, "createRisk" | "listRisks" | "getRisk" | "updateRisk" | "deleteRisk" | "summarise">;
   searchService: Pick<SearchService, "search">;
+  aiService: Pick<AiService, "chat" | "confirm">;
+  aiSettingsService: Pick<
+    AiSettingsService,
+    "getSettings" | "saveSettings" | "saveMyKey" | "deleteMyKey"
+  >;
   directoryService: Pick<
     DirectoryService,
     "listCompanyDirectory" | "listColleagues" | "availableRegisters"
@@ -200,6 +208,7 @@ export async function createServer(dependencies: ServerDependencies) {
   await registerRiskRoutes(app, dependencies.riskService);
   await registerAdminRoutes(app, dependencies.adminService);
   await registerDirectoryRoutes(app, dependencies.directoryService);
+  await registerAiRoutes(app, dependencies.aiService, dependencies.aiSettingsService);
   await registerSettingsRoutes(app, dependencies.emailSettingsService);
 
   if (dependencies.webDistPath && existsSync(join(dependencies.webDistPath, "index.html"))) {

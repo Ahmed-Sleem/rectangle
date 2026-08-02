@@ -350,7 +350,7 @@ describe("changing something", () => {
   });
 
   it("carries it out once the person confirms", async () => {
-    const create = vi.fn(async () => ({ id: "task-1" }));
+    const create: AiToolExecutor = vi.fn(async () => ({ id: "task-1" }));
     const pending = new MemoryPending();
     const { service } = build({
       replies: [
@@ -366,7 +366,7 @@ describe("changing something", () => {
     await service.confirm(author, { actionId: proposed.proposal!.id });
 
     expect(create).toHaveBeenCalledOnce();
-    expect(create.mock.calls[0]![1]).toMatchObject({ projectId, title: "Pour slab" });
+    expect(vi.mocked(create).mock.calls[0]![1]).toMatchObject({ projectId, title: "Pour slab" });
   });
 
   it("executes the arguments it stored, not the ones sent back", async () => {
@@ -375,7 +375,7 @@ describe("changing something", () => {
      * the arguments at confirmation time, the approval would be meaningless:
      * a person approves what they were shown, and something else runs.
      */
-    const create = vi.fn(async () => ({ id: "task-1" }));
+    const create: AiToolExecutor = vi.fn(async () => ({ id: "task-1" }));
     const { service } = build({
       replies: [
         { content: "", toolCalls: [toolCall("create_task", { projectId, title: "Pour slab" })] },
@@ -391,11 +391,11 @@ describe("changing something", () => {
       projectId: "99999999-9999-4999-8999-999999999999",
     } as unknown);
 
-    expect(create.mock.calls[0]![1]).toMatchObject({ projectId, title: "Pour slab" });
+    expect(vi.mocked(create).mock.calls[0]![1]).toMatchObject({ projectId, title: "Pour slab" });
   });
 
   it("runs once, however many times it is confirmed", async () => {
-    const create = vi.fn(async () => ({ id: "task-1" }));
+    const create: AiToolExecutor = vi.fn(async () => ({ id: "task-1" }));
     const { service } = build({
       replies: [
         { content: "", toolCalls: [toolCall("create_task", { projectId, title: "Pour slab" })] },

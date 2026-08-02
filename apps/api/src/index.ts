@@ -18,6 +18,10 @@ import { RiskService } from "./application/risk-service.js";
 import { SearchService } from "./application/search-service.js";
 import { DirectoryService } from "./application/directory-service.js";
 import { SetupService } from "./application/setup-service.js";
+import { AiService } from "./application/ai-service.js";
+import { AiSettingsService } from "./application/ai-settings-service.js";
+import { createAiToolExecutors } from "./application/ai-tools.js";
+import { OpenAiCompatibleProvider } from "./infrastructure/ai-provider.js";
 import { TaskService } from "./application/task-service.js";
 import { loadConfig, resolveAppBaseUrl } from "./config.js";
 import { createServer } from "./http/server.js";
@@ -30,6 +34,10 @@ import { PostgresAuthRepository } from "./infrastructure/postgres/auth-repositor
 import { assertDatabaseReady, createPostgresPool } from "./infrastructure/postgres/pool.js";
 import { PostgresEmailSettingsRepository } from "./infrastructure/postgres/email-settings-repository.js";
 import { PostgresPasskeyRepository } from "./infrastructure/postgres/passkey-repository.js";
+import {
+  PostgresAiPendingActionRepository,
+  PostgresAiSettingsRepository,
+} from "./infrastructure/postgres/ai-repository.js";
 import { PostgresActivityRepository } from "./infrastructure/postgres/activity-repository.js";
 import { PostgresOverviewRepository } from "./infrastructure/postgres/overview-repository.js";
 import { PostgresAuthTokenRepository } from "./infrastructure/postgres/auth-token-repository.js";
@@ -123,6 +131,28 @@ const passkeyService = new PasskeyService(
   config.SESSION_JWT_SECRET,
 );
 
+/*
+ * The assistant. Every tool it can run is bound here to the same service the
+ * interface uses, so it holds no privileged path of its own — the harness
+ * passes the real principal through and the service decides, exactly as it
+ * does for a request from the browser.
+ */
+const aiSettingsRepository = new PostgresAiSettingsRepository(pool);
+const aiSettingsService = new AiSettingsService(aiSettingsRepository, auditRepository);
+const aiService = new AiService(
+  aiSettingsService,
+  new OpenAiCompatibleProvider(),
+  new PostgresAiPendingActionRepository(pool),
+  auditRepository,
+  createAiToolExecutors({
+    searchService,
+    overviewService,
+    activityService,
+    taskService,
+    riskService,
+  }),
+);
+
 const server = await createServer({
   overviewService,
   activityService,
@@ -131,6 +161,8 @@ const server = await createServer({
   taskService,
   riskService,
   searchService,
+  aiService,
+  aiSettingsService,
   directoryService,
   profileService,
   authLifecycleService,

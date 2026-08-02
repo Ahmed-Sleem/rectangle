@@ -10,7 +10,7 @@ import { MemoryProjectTeamRepository } from "./support/memory-project-team-repos
 import type { CreateProjectInput, ProjectListQuery, ProjectRecord, UpdateProjectInput } from "../src/domain/project.js";
 import { createServer } from "../src/http/server.js";
 import type { PasswordHasher } from "../src/infrastructure/password.js";
-import { inactiveAuthLifecycleService, inactiveOverviewService, inactiveProfileService, inactiveRiskService, inactiveSearchService, inactiveTaskService, inactiveActivityService , inactiveDirectoryService} from "./support/inactive-services.js";
+import { inactiveAuthLifecycleService, inactiveOverviewService, inactiveProfileService, inactiveRiskService, inactiveSearchService, inactiveTaskService, inactiveActivityService , inactiveDirectoryService, inactiveAiService, inactiveAiSettingsService } from "./support/inactive-services.js";
 
 const jwtSecret = "rectangle-test-secret-must-be-at-least-32-chars";
 
@@ -88,6 +88,8 @@ async function createTestServer(webDistPath: string) {
     taskService: inactiveTaskService,
     searchService: inactiveSearchService,
     directoryService: inactiveDirectoryService,
+    aiService: inactiveAiService,
+    aiSettingsService: inactiveAiSettingsService,
     riskService: inactiveRiskService,
     profileService: inactiveProfileService,
     authLifecycleService: inactiveAuthLifecycleService,
