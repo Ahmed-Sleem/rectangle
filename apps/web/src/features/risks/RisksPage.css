@@ -151,21 +151,6 @@
   gap: var(--rect-space-2);
 }
 
-.rect-risk__link {
-  background: none;
-  border: 0;
-  color: var(--rect-text-primary);
-  cursor: pointer;
-  font: inherit;
-  font-weight: var(--rect-weight-semibold);
-  padding: 0;
-  text-align: start;
-}
-
-.rect-risk__link:hover {
-  text-decoration: underline;
-}
-
 .rect-risk__score {
   display: grid;
   gap: var(--rect-space-1);

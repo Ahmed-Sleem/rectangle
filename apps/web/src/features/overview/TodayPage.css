@@ -35,13 +35,6 @@
   gap: var(--rect-space-1);
 }
 
-.rect-today__title {
-  color: var(--rect-text-primary);
-  font-size: var(--rect-text-subsection);
-  font-weight: var(--rect-weight-bold);
-  margin: 0;
-}
-
 .rect-today__subtitle {
   color: var(--rect-text-secondary);
   font-size: var(--rect-text-label);

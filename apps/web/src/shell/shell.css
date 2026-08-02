@@ -147,18 +147,6 @@
   min-height: 36px;
 }
 
-.rect-app--collapsed .rect-nav-item__label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 /* ── Main panel (the Rectangle) — above nav so toggle is never buried ── */
 
 .rect-panel {
@@ -381,14 +369,6 @@
   text-align: center;
   max-width: 360px;
   width: 100%;
-}
-
-.rect-empty__title {
-  font-size: var(--rect-text-section);
-  font-weight: var(--rect-weight-bold);
-  color: var(--rect-text-primary);
-  letter-spacing: -0.02em;
-  line-height: var(--rect-leading-tight);
 }
 
 .rect-empty__text {
@@ -693,18 +673,6 @@
   transform: translateX(1px);
 }
 
-.rect-app--collapsed .rect-nav-toggle__label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 .rect-nav-item {
   min-height: 32px;
   padding: var(--rect-space-1) var(--rect-space-2);
@@ -828,18 +796,6 @@
     min-height: 32px;
     padding: 0;
     justify-content: center;
-  }
-
-  .rect-nav-toggle__label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
   }
 
   .rect-ai-fab {
@@ -1408,16 +1364,6 @@ html[dir="rtl"] .rect-user-menu__panel {
   color: var(--rect-text-primary);
   font-size: var(--rect-text-body);
   font-weight: var(--rect-weight-semibold);
-}
-
-.rect-user-menu__identity-email {
-  color: var(--rect-text-secondary);
-  font-size: var(--rect-text-label);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  /* An address is one logical unit and must not reorder in Arabic. */
-  unicode-bidi: plaintext;
-  white-space: nowrap;
 }
 
 .rect-user-menu__item {

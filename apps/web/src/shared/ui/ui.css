@@ -54,6 +54,29 @@
  * and reads as a banner. This is the one shared answer to that, rather than an
  * inline style repeated wherever it happens to come up.
  */
+/*
+ * A control that reads as text and behaves as a button.
+ *
+ * Inherits the surrounding type so a record title looks like a title, and
+ * carries the same focus ring as every other control so the keyboard is never
+ * left guessing. `text-align: start` because these sit in table cells, which
+ * centre their content by default in some contexts.
+ */
+.rect-ui-text-button {
+  background: none;
+  border: 0;
+  color: var(--rect-text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--rect-weight-semibold);
+  padding: 0;
+  text-align: start;
+}
+
+.rect-ui-text-button:hover {
+  text-decoration: underline;
+}
+
 .rect-ui-button--inline {
   justify-self: start;
   align-self: start;
@@ -302,12 +325,94 @@
   text-transform: uppercase;
 }
 
-.rect-ui-page-header__title {
+/*
+ * ── Named type styles ──
+ *
+ * Four roles of text recur throughout the product: the heading of a page or a
+ * section, the heading of a block inside one, a strong line such as a person's
+ * name, and the quiet explanatory line beneath any of them.
+ *
+ * They were written out wherever they were needed — the same four or five
+ * declarations restated in seven stylesheets — so "make secondary text one step
+ * darker" was seven edits, and the seventh was the one somebody would miss.
+ * Naming them makes it one edit, which is the entire point of the token layer
+ * applied one level up: tokens name the values, these name the combinations.
+ *
+ * Composed by other rules with `@extend`-style grouping rather than applied as
+ * classes in markup, so a component keeps its own semantic class name and this
+ * stays a definition rather than a utility soup.
+ */
+.rect-type-section,
+.rect-ui-page-header__title,
+.rect-empty__title,
+.rect-project-detail__header h2 {
   color: var(--rect-text-primary);
   font-size: var(--rect-text-section);
   font-weight: var(--rect-weight-bold);
   letter-spacing: -0.02em;
   line-height: var(--rect-leading-tight);
+}
+
+.rect-type-subsection,
+.rect-side-panel__title,
+.rect-today__title,
+.rect-task-detail__heading {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-subsection);
+  font-weight: var(--rect-weight-bold);
+  margin: 0;
+}
+
+.rect-type-strong,
+.rect-setting-row__label,
+.rect-toast__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  line-height: var(--rect-leading-snug);
+}
+
+.rect-type-muted,
+.rect-overlay__description,
+.rect-section__description,
+.rect-setting-row__description,
+.rect-settings-message {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-regular);
+  line-height: var(--rect-leading-snug);
+}
+
+/*
+ * A single line that must not wrap, whatever is in it. Used for names and
+ * addresses in lists, where a long value has to be cut rather than reflow the
+ * row it sits in.
+ */
+.rect-type-strong-truncated,
+.rect-person__name,
+.rect-search-palette__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * `unicode-bidi: plaintext` because these hold email addresses, which are
+ * Latin text that must keep its own direction inside an Arabic layout.
+ */
+.rect-type-muted-truncated,
+.rect-person__email,
+.rect-search-palette__subtitle,
+.rect-user-menu__identity-email {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  unicode-bidi: plaintext;
+  white-space: nowrap;
 }
 
 .rect-ui-page-header__description {

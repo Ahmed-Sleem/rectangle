@@ -19,6 +19,7 @@ export {
   SuccessState,
   Switch,
   Textarea,
+  TextButton,
   Toast,
   Toolbar,
   WarningState,
@@ -36,6 +37,7 @@ export {
   type StateBlockProps,
   type SwitchProps,
   type TextareaProps,
+  type TextButtonProps,
   type ToastProps,
 } from "./primitives";
 

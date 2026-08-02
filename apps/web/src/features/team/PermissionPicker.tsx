@@ -107,6 +107,12 @@ export function PermissionPicker({
         return (
           <section className="rect-permissions__group" key={group.id}>
             <header className="rect-permissions__head">
+              {/*
+                * A one-off: a disclosure header carrying a chevron, a group
+                * name and a count of what is ticked inside it. The shared
+                * disclosure in settings-blocks is a whole section with its own
+                * panel; this is a header inside a field.
+                */}
               <button
                 type="button"
                 className="rect-permissions__disclose"

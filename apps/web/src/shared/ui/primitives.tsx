@@ -33,6 +33,34 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   return <button ref={ref} type={type} className={buttonClassName(variant, size, className)} {...props} />;
 });
 
+/**
+ * A control that looks like text but acts like a button.
+ *
+ * A record's own title, opening that record. It is the commonest action in the
+ * product and it must not look like a button: a table of rows each carrying a
+ * bordered control is unreadable, and the title *is* the affordance.
+ *
+ * This existed twice already, as `rect-risk__link` and `rect-tasks__link`, with
+ * byte-for-byte identical declarations in two stylesheets. That is exactly the
+ * shape of drift this library exists to prevent — the day one of them gains a
+ * focus style, the other silently does not.
+ *
+ * Deliberately a `<button>`, not an anchor styled as one. It opens a panel in
+ * place rather than navigating, so it must not offer "open in new tab" or
+ * announce itself as a link. Where a control genuinely navigates, use a `Link`
+ * with `buttonClassName`.
+ */
+export interface TextButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  children: ReactNode;
+}
+
+export const TextButton = forwardRef<HTMLButtonElement, TextButtonProps>(function TextButton(
+  { className, type = "button", ...props },
+  ref,
+) {
+  return <button ref={ref} type={type} className={cn("rect-ui-text-button", className)} {...props} />;
+});
+
 export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   label: string;
   size?: Size;

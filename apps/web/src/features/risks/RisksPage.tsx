@@ -17,7 +17,7 @@ import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import { getCurrentLanguage } from "@/shared/i18n";
 import {
-  Badge, BreakdownBar, Button, buttonClassName, CardGrid, ConfirmDialog, DataTable,
+  Badge, BreakdownBar, Button, buttonClassName, CardGrid, ConfirmDialog, DataTable, TextButton,
   EmptyState, ErrorState, Field, FormDialog, InsightBanner, Input, LoadingState,
   PageToolbar, Select, SidePanel, StatCard, StatRow, Textarea,
 } from "@/shared/ui";
@@ -454,9 +454,7 @@ export default function RisksPage() {
                       </header>
 
                       {mayEdit(risk.projectId) ? (
-                        <button type="button" className="rect-risk__link" onClick={() => setEditing(risk)}>
-                          {risk.title}
-                        </button>
+                        <TextButton onClick={() => setEditing(risk)}>{risk.title}</TextButton>
                       ) : (
                         <span className="rect-risk-card__title">{risk.title}</span>
                       )}
@@ -501,9 +499,7 @@ export default function RisksPage() {
                             {t(`enums.riskKind.${risk.kind}`)}
                           </Badge>
                           {mayEdit(risk.projectId) ? (
-                            <button type="button" className="rect-risk__link" onClick={() => setEditing(risk)}>
-                              {risk.title}
-                            </button>
+                            <TextButton onClick={() => setEditing(risk)}>{risk.title}</TextButton>
                           ) : (
                             <span>{risk.title}</span>
                           )}
@@ -592,6 +588,12 @@ export default function RisksPage() {
                             const count = matrixCounts.get(`${probability}:${impact}`) ?? 0;
                             const selected = cell?.probability === probability && cell?.impact === impact;
                             return (
+                              /*
+                               * A one-off: a cell in a five-by-five risk
+                               * matrix, coloured by severity and sized by the
+                               * grid it sits in. It is a data visualisation
+                               * that happens to be clickable, not a button.
+                               */
                               <button
                                 key={`${probability}-${impact}`}
                                 type="button"

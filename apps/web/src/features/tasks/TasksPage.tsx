@@ -18,7 +18,7 @@ import { ApiClientError } from "@/shared/api/client";
 import { useOptionalAuth } from "@/shared/auth";
 import { getCurrentLanguage } from "@/shared/i18n";
 import {
-  Badge, Button, buttonClassName, ConfirmDialog, DataTable, EmptyState, ErrorState,
+  Badge, Button, buttonClassName, ConfirmDialog, DataTable, EmptyState, ErrorState, TextButton,
   Field, FormDialog, Input, LoadingState, PageToolbar, Select, StatCard, StatRow, Textarea,
 } from "@/shared/ui";
 import {
@@ -306,6 +306,11 @@ export default function TasksPage() {
   function renderCard(task: TaskRecord) {
     return (
       <article key={task.id} className="rect-task" role="listitem">
+        {/*
+          * A one-off: the whole card is the control, so the element wraps
+          * badges, a title and metadata rather than a label. TextButton is for
+          * a title inside a row; this is the row.
+          */}
         <button type="button" className="rect-task__open" onClick={() => setOpenTaskId(task.id)}>
           <span className="rect-task__head">
             <Badge tone={priorityTone(task.priority)}>{t(`enums.taskPriority.${task.priority}`)}</Badge>
@@ -452,9 +457,7 @@ export default function TasksPage() {
               id: "title",
               header: t("tasks.fieldTitle"),
               accessor: (task) => (
-                <button type="button" className="rect-tasks__link" onClick={() => setOpenTaskId(task.id)}>
-                  {task.title}
-                </button>
+                <TextButton onClick={() => setOpenTaskId(task.id)}>{task.title}</TextButton>
               ),
             },
             { id: "project", header: t("tasks.fieldProject"), accessor: (task) => task.projectCode },

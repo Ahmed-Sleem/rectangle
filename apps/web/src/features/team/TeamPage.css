@@ -44,25 +44,6 @@
   min-width: 0;
 }
 
-.rect-person__name {
-  color: var(--rect-text-primary);
-  font-size: var(--rect-text-body);
-  font-weight: var(--rect-weight-semibold);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rect-person__email {
-  color: var(--rect-text-secondary);
-  font-size: var(--rect-text-label);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  /* An address is a single logical unit and must not be re-ordered in Arabic. */
-  unicode-bidi: plaintext;
-}
-
 .rect-person__roles,
 .rect-role__permissions {
   display: flex;

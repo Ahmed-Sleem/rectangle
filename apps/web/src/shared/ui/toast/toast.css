@@ -91,13 +91,6 @@ html[dir="rtl"] .rect-toast {
   min-inline-size: 0;
 }
 
-.rect-toast__title {
-  color: var(--rect-text-primary);
-  font-size: var(--rect-text-body);
-  font-weight: var(--rect-weight-semibold);
-  line-height: var(--rect-leading-snug);
-}
-
 .rect-toast__description {
   color: var(--rect-text-secondary);
   font-size: var(--rect-text-label);

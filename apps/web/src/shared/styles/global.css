@@ -81,6 +81,37 @@ html[dir="rtl"] .rect-app {
  *  - Only `transform` is animated, on a layer that paints nothing else, so the
  *    compositor carries it and the form in front never repaints.
  */
+/*
+ * Hidden from the screen, present for a screen reader.
+ *
+ * The standard clip-rect technique, and it lives here because it is a
+ * cross-cutting utility rather than any one component's business. It was
+ * previously written out four times — once in the AI panel's stylesheet, which
+ * is where `.sr-only` had somehow come to be defined for the whole product, and
+ * three more times inside the shell for labels that collapse away with the
+ * rail. Four copies of an accessibility primitive is four chances for one of
+ * them to be subtly wrong.
+ */
+/*
+ * The collapsed rail's labels are the same fact: present for a screen reader,
+ * gone from the screen. Naming them here keeps the technique in one place
+ * rather than restating nine declarations at each site.
+ */
+.rect-visually-hidden,
+.sr-only,
+.rect-app--collapsed .rect-nav-item__label,
+.rect-app--collapsed .rect-nav-toggle__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .rect-auth-screen {
   align-items: center;
   background: var(--rect-chrome-bg);

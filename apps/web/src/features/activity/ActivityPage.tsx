@@ -75,6 +75,12 @@ function TallyList({
     <ul className="rect-tally">
       {rows.map((row) => (
         <li key={row.key}>
+          {/*
+            * A one-off, deliberately: a full-width row whose label and count
+            * sit at opposite edges and which toggles a filter. No shared
+            * primitive has that shape, and forcing it into one would make the
+            * primitive worse for everything else that uses it.
+            */}
           <button
             type="button"
             className="rect-tally__row"

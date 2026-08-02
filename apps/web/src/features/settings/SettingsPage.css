@@ -75,13 +75,6 @@
   z-index: 2;
 }
 
-.rect-settings-message {
-  color: var(--rect-text-secondary);
-  font-size: var(--rect-text-label);
-  font-weight: var(--rect-weight-regular);
-  line-height: var(--rect-leading-snug);
-}
-
 .rect-settings-message--error {
   color: var(--rect-color-danger);
   font-weight: var(--rect-weight-semibold);

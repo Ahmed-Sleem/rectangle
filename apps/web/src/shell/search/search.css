@@ -58,24 +58,6 @@
   min-inline-size: 0;
 }
 
-.rect-search-palette__title {
-  color: var(--rect-text-primary);
-  font-size: var(--rect-text-body);
-  font-weight: var(--rect-weight-semibold);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rect-search-palette__subtitle {
-  color: var(--rect-text-secondary);
-  font-size: var(--rect-text-label);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  unicode-bidi: plaintext;
-}
-
 .rect-search-palette__kind {
   background: var(--rect-card-bg);
   border: 1px solid var(--rect-card-border);

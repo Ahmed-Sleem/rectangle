@@ -137,13 +137,35 @@ describe("stacked windows", () => {
     );
     await user.keyboard("{Escape}");
 
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(__getOverlayCounters()).toEqual({
-      scrollLockCount: 0,
-      blurCount: 0,
-      stackDepth: 0,
+    /*
+     * Waited for, not asserted once. The counters are released by the
+     * surface's unmount, and unmount happens at the end of the exit
+     * transition — so a single assertion the moment the last dialog leaves the
+     * accessibility tree can run while teardown is still in progress. That
+     * raced, and produced an intermittent failure that passed in isolation and
+     * in three consecutive full runs before failing in a fourth.
+     */
+    /*
+     * Every part of teardown waited for together, because they complete
+     * together: the counters and the portal root are both released by the
+     * surface's unmount, which happens at the end of the exit transition.
+     *
+     * Asserting any of them the moment the last dialog leaves the
+     * accessibility tree is a race — the dialog stops being findable before
+     * the node is removed. That produced an intermittent failure which passed
+     * in isolation and in three consecutive full runs before failing in a
+     * fourth, and it was proved by lengthening the exit and watching the bare
+     * assertion fail every time.
+     */
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(document.querySelectorAll("[data-overlay-root]")).toHaveLength(0);
+      expect(__getOverlayCounters()).toEqual({
+        scrollLockCount: 0,
+        blurCount: 0,
+        stackDepth: 0,
+      });
     });
-    expect(document.querySelectorAll("[data-overlay-root]")).toHaveLength(0);
   });
 });
 

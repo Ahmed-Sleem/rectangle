@@ -117,21 +117,6 @@
   justify-content: space-between;
 }
 
-.rect-tasks__link {
-  background: none;
-  border: 0;
-  color: var(--rect-text-primary);
-  cursor: pointer;
-  font: inherit;
-  font-weight: var(--rect-weight-semibold);
-  padding: 0;
-  text-align: start;
-}
-
-.rect-tasks__link:hover {
-  text-decoration: underline;
-}
-
 .rect-tasks__overdue {
   color: var(--rect-color-danger);
   font-weight: var(--rect-weight-semibold);
@@ -190,13 +175,6 @@
   display: grid;
   gap: var(--rect-space-3);
   padding-block-start: var(--rect-space-3);
-}
-
-.rect-task-detail__heading {
-  color: var(--rect-text-primary);
-  font-size: var(--rect-text-subsection);
-  font-weight: var(--rect-weight-bold);
-  margin: 0;
 }
 
 .rect-task-detail__thread {
