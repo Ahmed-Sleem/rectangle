@@ -13,6 +13,7 @@
  * the button changes nothing — which is what makes the approval mean something.
  */
 import { apiRequest } from "@/shared/api/client";
+import type { AiSettingsView } from "@/features/settings/ai-api";
 
 /** A change the assistant wants to make, waiting to be approved or ignored. */
 export interface AiProposal {
@@ -202,14 +203,19 @@ export const shellAiApi = {
     apiRequest<{ deleted: true }>(`/v1/ai/conversations/${conversationId}`, { method: "DELETE" }),
 
   /** Read by the panel to explain itself when it cannot answer anything. */
-  getSettings: () =>
-    apiRequest<{
-      aiSettings: {
-        configured: boolean;
-        enabled: boolean;
-        hasCompanyKey: boolean;
-        hasPersonalKey: boolean;
-        ready: boolean;
-      };
-    }>("/v1/ai/settings"),
+  /**
+   * Read by the panel so it can explain itself when it cannot answer.
+   *
+   * The response type is imported from the settings feature rather than
+   * declared again here. It WAS declared again here, with the fields the API
+   * had in an earlier version, and when the server split the company and
+   * personal providers into two objects this copy went on describing the old
+   * shape — so `configured` was permanently undefined, the panel decided it was
+   * not set up, and it told everybody so no matter what they had configured.
+   * TypeScript could not catch it because the lie was in the type itself.
+   *
+   * One definition, two callers. That is the rule, and this is what breaking it
+   * costs.
+   */
+  getSettings: () => apiRequest<{ aiSettings: AiSettingsView }>("/v1/ai/settings"),
 };

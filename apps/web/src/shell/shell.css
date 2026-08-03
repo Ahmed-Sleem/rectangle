@@ -302,20 +302,32 @@
  * a boundary, not a dimming, and a boundary can sit over a button without
  * appearing to damage it.
  */
+/*
+ * The hairline that says "there is more below".
+ *
+ * Painted on the panel rather than inside the scroller, because a sticky
+ * pseudo-element in a flex column sticks to the end of the LAST CHILD, not to
+ * the bottom of the container. Whenever the content stopped short of the
+ * viewport — which is what happens the moment the canvas narrows and the page
+ * reflows taller and thinner — the line came to rest in the middle of the page
+ * with nothing beneath it. That is the stray horizontal line reported on the
+ * activity page twice.
+ *
+ * Absolutely positioned against the panel it belongs to, so it is always on the
+ * canvas's own bottom edge and cannot drift. The panel already establishes a
+ * containing block.
+ */
 .rect-panel__body::after {
   content: "";
-  position: sticky;
+  position: absolute;
   inset-inline: 0;
   inset-block-end: 0;
-  display: block;
   block-size: 1px;
-  margin-block-start: -1px;
   background: var(--rect-surface-divider);
   opacity: var(--rect-scroll-edge-opacity);
   transition: opacity var(--rect-motion-nav);
   z-index: 1;
   pointer-events: none;
-  flex: none;
 }
 
 /* Shown only while something is actually hidden below, so a page that fits is

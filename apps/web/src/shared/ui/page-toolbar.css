@@ -177,22 +177,73 @@
 }
 
 /*
- * Turns while a fetch is in flight, so pressing refresh visibly does something
- * even when the data comes back identical — which is the common case, and
- * without this reads as a dead button.
+ * Refreshing, as a piece of motion rather than a rotating icon.
+ *
+ * It was a 900ms linear spin, which is the default every framework ships and
+ * reads as mechanical: constant speed, no beginning, no end, and the same
+ * whether the fetch took 80ms or four seconds. Three things fix that, and all
+ * three come from the same published guidance on micro-interactions.
+ *
+ *  - **Spring easing on the press.** `--rect-ease-spring` overshoots slightly
+ *    before settling, which is what makes a control feel physical instead of
+ *    animated. The press itself is deliberately faster than the release —
+ *    quick down, bouncy up — because a slow press feels laggy while a slow
+ *    release feels soft.
+ *  - **A fade at each end.** The icon eases in as the turn begins and out as
+ *    it finishes, so the spin has a shape rather than being switched on and
+ *    off mid-rotation.
+ *  - **Whole turns, eased.** Each revolution accelerates and decelerates
+ *    rather than running flat, so the motion breathes.
+ *
+ * Only `transform` and `opacity` are animated, both of which the compositor
+ * handles without laying the page out again.
  */
 @keyframes rect-toolbar-refresh-spin {
-  to {
-    transform: rotate(360deg);
+  0% {
+    transform: rotate(0deg) scale(0.94);
+    opacity: 0.55;
+  }
+
+  /* Settles into full size just past the start: the overshoot of a spring. */
+  18% {
+    transform: rotate(70deg) scale(1.04);
+    opacity: 1;
+  }
+
+  100% {
+    transform: rotate(360deg) scale(1);
+    opacity: 1;
   }
 }
 
+/*
+ * The turn itself. `--rect-ease-spring` on a full revolution gives each one a
+ * push and a settle instead of a flat sweep.
+ */
 .rect-toolbar__refresh-icon--spinning {
-  animation: rect-toolbar-refresh-spin 900ms linear infinite;
+  animation: rect-toolbar-refresh-spin 720ms var(--rect-ease-spring) infinite;
+  transform-origin: 50% 50%;
+  /* Promoted once, so the compositor animates it off the main thread. */
+  will-change: transform, opacity;
+}
+
+/*
+ * The press. Fast down, spring back up — the asymmetry is what makes it read
+ * as a physical button rather than a fading rectangle.
+ */
+.rect-toolbar__refresh-icon {
+  transition: transform 0.5s var(--rect-ease-spring);
+}
+
+.rect-ui-icon-button:active .rect-toolbar__refresh-icon {
+  transform: scale(0.88);
+  transition: transform 90ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .rect-toolbar__refresh-icon,
   .rect-toolbar__refresh-icon--spinning {
     animation: none;
+    transition: none;
   }
 }

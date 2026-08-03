@@ -178,7 +178,13 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
           />
         ) : null}
 
-        <SettingsDivider />
+        {/*
+          * A separator separates two things. Rendered unconditionally, the
+          * first one sat at the very top of the section with nothing above it —
+          * a stray horizontal line across the panel, which is exactly what was
+          * reported. It appears only when the choice above it did.
+          */}
+        {settings?.canChoose ? <SettingsDivider /> : null}
 
         {/* ── The company's model ─────────────────────────────────────── */}
         {mayManage ? (
@@ -242,6 +248,10 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
           />
         )}
 
+        {/*
+          * This one always has the company block above it and the personal
+          * block below, so it always has two things to separate.
+          */}
         <SettingsDivider />
 
         {/*

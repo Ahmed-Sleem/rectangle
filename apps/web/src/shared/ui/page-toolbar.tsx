@@ -197,7 +197,10 @@ export function PageToolbar<T extends string>({
               size={16}
               strokeWidth={2}
               aria-hidden
-              className={cn(refresh.pending && "rect-toolbar__refresh-icon--spinning")}
+              className={cn(
+                "rect-toolbar__refresh-icon",
+                refresh.pending && "rect-toolbar__refresh-icon--spinning",
+              )}
             />
           </IconButton>
         ) : null}

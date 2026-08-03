@@ -109,12 +109,26 @@
   font-weight: 600;
 }
 
+/*
+ * The panel's own icon buttons, matched to the rest of the product.
+ *
+ * These were borderless and transparent, which made them the only icon controls
+ * in Rectangle that did not read as controls until you hovered them. Every
+ * other one — `.rect-ui-icon-button` — is a bordered circle on the card
+ * surface, so these are too: same border token, same radius, same resting
+ * background. The size stays 30px because the panel header is tighter than a
+ * page toolbar, and the shared component has no size that small.
+ *
+ * Not simply swapped for `IconButton`: these live inside the panel's own header
+ * grid and carry its hover palette. What has to match is the appearance, and
+ * that comes from the same tokens either way.
+ */
 .rect-ai-toggle {
   width: 30px;
   height: 30px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-pill-radius);
+  background: var(--rect-card-bg);
   color: var(--rect-toggle-icon);
   display: grid;
   place-items: center;
@@ -122,13 +136,15 @@
   padding: 0;
   transition:
     background var(--rect-motion-nav),
+    border-color var(--rect-motion-nav),
     color var(--rect-motion-nav),
     transform var(--rect-motion-spring);
 }
 
 .rect-ai-toggle:hover,
 .rect-ai-toggle:focus-visible {
-  background: var(--rect-card-bg);
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-border-active);
   color: var(--rect-text-primary);
 }
 
@@ -139,25 +155,6 @@
 .rect-ai-toggle svg {
   width: 18px;
   height: 18px;
-}
-
-.rect-ai-panel__context {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--rect-space-1);
-  padding: var(--rect-space-3) var(--rect-space-4);
-  border-bottom: 1px solid var(--rect-surface-divider);
-}
-
-.rect-ai-panel__chip {
-  border: 1px solid var(--rect-badge-border);
-  background: var(--rect-badge-bg);
-  color: var(--rect-badge-text);
-  border-radius: var(--rect-pill-radius);
-  padding: var(--rect-space-1) var(--rect-space-2);
-  font-size: var(--rect-text-micro);
-  font-weight: 700;
-  letter-spacing: -0.01em;
 }
 
 .rect-ai-panel__body {
@@ -265,8 +262,8 @@
   border: 1px solid var(--rect-card-border);
   background: var(--rect-card-bg);
   color: var(--rect-text-secondary);
-  height: 30px;
-  border-radius: 999px;
+  height: var(--rect-control-compact);
+  border-radius: var(--rect-pill-radius);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -353,7 +350,6 @@
 }
 
 .rect-ai-panel__header,
-.rect-ai-panel__context,
 .rect-ai-panel__body,
 .rect-ai-composer {
   animation: rect-ai-content-in 180ms ease-out both;
@@ -361,10 +357,6 @@
 
 .rect-ai-panel__header {
   animation-delay: 45ms;
-}
-
-.rect-ai-panel__context {
-  animation-delay: 65ms;
 }
 
 .rect-ai-panel__body {
@@ -376,7 +368,6 @@
 }
 
 .rect-ai-panel--closing .rect-ai-panel__header,
-.rect-ai-panel--closing .rect-ai-panel__context,
 .rect-ai-panel--closing .rect-ai-panel__body,
 .rect-ai-panel--closing .rect-ai-composer {
   animation: none;
@@ -390,7 +381,6 @@
 @media (prefers-reduced-motion: reduce) {
   .rect-ai-panel,
   .rect-ai-panel__header,
-  .rect-ai-panel__context,
   .rect-ai-panel__body,
   .rect-ai-composer {
     animation: none !important;
@@ -407,11 +397,84 @@
  * itself scroll. The list is the scrolling region now, bounded by the viewport
  * so it is always shorter than the screen it sits on.
  */
+/*
+ * Past conversations.
+ *
+ * The whole of this block was deleted by accident in session 49 — a sweep that
+ * removed the dead project-toggle styles cut from an index to the end of the
+ * file and took everything after it. What survived was a later, separate rule
+ * carrying only the scrolling, which the minifier merged into one selector, so
+ * the list rendered with no layout at all: bare list markers, buttons at their
+ * default browser appearance, nothing aligned. It looked exactly like a page
+ * with its stylesheet missing, because for these rows it was.
+ *
+ * Restored whole and merged into ONE rule rather than two, so the same accident
+ * cannot half-delete it again: there is now a single `.rect-ai-history` block
+ * and any future duplicate is visible on sight.
+ */
 .rect-ai-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Bounded by the viewport so the window is always shorter than the screen. */
   max-block-size: min(60dvh, 420px);
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+.rect-ai-history__item {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-2);
+}
+
+.rect-ai-history__open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rect-space-05);
+  border: 1px solid transparent;
+  border-radius: var(--rect-radius-md);
+  background: transparent;
+  padding: var(--rect-space-2);
+  cursor: pointer;
+  text-align: start;
+  min-width: 0;
+  transition:
+    background var(--rect-motion-nav),
+    border-color var(--rect-motion-nav);
+}
+
+.rect-ai-history__open:hover,
+.rect-ai-history__open:focus-visible {
+  background: var(--rect-card-bg);
+  border-color: var(--rect-card-border);
+}
+
+/* One line. A question can be long, and the list is an index, not the thread. */
+.rect-ai-history__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-semibold);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rect-ai-history__meta {
+  color: var(--rect-text-muted);
+  font-size: var(--rect-text-micro);
+}
+
+.rect-ai-history__note {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
 }
 
 /* Asking before deleting, without opening a window over the window. */
@@ -486,4 +549,255 @@
   color: var(--rect-color-warning);
   font-size: var(--rect-text-micro);
   font-weight: var(--rect-weight-semibold);
+}
+
+/*
+ * ── Restored, session 51 ──────────────────────────────────────────────────
+ *
+ * Thirty-two classes were deleted in one accident in session 49: a sweep that
+ * removed the dead project-toggle styles cut from an index to the end of the
+ * file and took everything after it with it. The transcript, the thinking
+ * feed, the proposal card, the unavailable state and the history list all lost
+ * their layout at once, which is why the panel looked like a page whose
+ * stylesheet had failed to load.
+ *
+ * Recovered verbatim from the commit before the sweep. The lesson is recorded
+ * in the working notes: never cut CSS to end-of-file, and diff the class list
+ * before and after any deletion.
+ */
+.rect-ai-panel__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-1);
+}
+
+.rect-ai-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rect-ai-turn {
+  border-radius: 14px;
+  padding: var(--rect-space-3);
+  font-size: var(--rect-text-table);
+  line-height: 1.5;
+  max-width: 92%;
+}
+
+.rect-ai-turn--asked {
+  align-self: flex-end;
+  background: var(--rect-badge-bg);
+  border: 1px solid var(--rect-badge-border);
+  color: var(--rect-text-primary);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-ai-turn--answered {
+  align-self: flex-start;
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  color: var(--rect-text-primary);
+}
+
+.rect-ai-turn__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.rect-ai-turn__tools {
+  margin-block-start: var(--rect-space-2);
+  font-size: var(--rect-text-micro);
+  color: var(--rect-text-secondary);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-ai-turn--thinking {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-2);
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+.rect-ai-turn__spin {
+  animation: rect-ai-spin 900ms linear infinite;
+}
+
+.rect-ai-panel__error {
+  color: var(--rect-color-danger);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-ai-panel__blocked {
+  flex: 1;
+  border: 1px dashed var(--rect-card-border);
+  border-radius: 18px;
+  background: var(--rect-card-bg);
+  color: var(--rect-text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--rect-space-6) var(--rect-space-4);
+  gap: var(--rect-space-2);
+}
+
+.rect-ai-panel__blocked svg {
+  color: var(--rect-color-warning);
+}
+
+.rect-ai-panel__blocked-link {
+  margin-block-start: var(--rect-space-2);
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-bold);
+  text-decoration: underline;
+}
+
+.rect-ai-proposal {
+  border: 1px solid var(--rect-color-warning);
+  border-radius: 16px;
+  background: var(--rect-surface-bg);
+  padding: var(--rect-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-2);
+}
+
+.rect-ai-proposal__title {
+  font-size: var(--rect-text-subsection);
+  font-weight: var(--rect-weight-bold);
+  color: var(--rect-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.rect-ai-proposal__help {
+  font-size: var(--rect-text-label);
+  color: var(--rect-text-secondary);
+}
+
+.rect-ai-proposal__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-1);
+}
+
+.rect-ai-proposal__row {
+  display: flex;
+  gap: var(--rect-space-2);
+  font-size: var(--rect-text-label);
+}
+
+.rect-ai-proposal__row dt {
+  color: var(--rect-text-secondary);
+  font-weight: var(--rect-weight-semibold);
+  min-width: 84px;
+}
+
+.rect-ai-proposal__row dd {
+  color: var(--rect-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.rect-ai-proposal__actions {
+  display: flex;
+  gap: var(--rect-space-2);
+  margin-block-start: var(--rect-space-1);
+}
+
+.rect-ai-composer__context {
+  font-size: var(--rect-text-micro);
+  color: var(--rect-text-secondary);
+  font-weight: var(--rect-weight-semibold);
+  margin-block-end: var(--rect-space-2);
+}
+
+.rect-ai-history__delete {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--rect-text-secondary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rect-ai-history__delete:hover,
+
+.rect-ai-history__delete:focus-visible {
+  background: var(--rect-card-bg);
+  color: var(--rect-color-danger);
+}
+
+.rect-ai-thinking {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-2);
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+.rect-ai-thinking__head {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-2);
+  font-weight: var(--rect-weight-semibold);
+  color: var(--rect-text-primary);
+}
+
+.rect-ai-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Aligns each step under the text of the heading, not under its spinner. */
+  padding-inline-start: var(--rect-space-5);
+}
+
+.rect-ai-steps__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rect-space-2);
+  font-size: var(--rect-text-micro);
+}
+
+.rect-ai-steps__item[data-done="false"] {
+  opacity: 0.7;
+}
+
+.rect-ai-steps__what {
+  color: var(--rect-text-secondary);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-ai-steps__outcome {
+  color: var(--rect-text-muted);
+}
+
+.rect-ai-continue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rect-space-2);
+  border: 1px dashed var(--rect-card-border);
+  border-radius: 14px;
+  background: var(--rect-card-bg);
+  padding: var(--rect-space-3);
+}
+
+.rect-ai-continue__text {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  line-height: 1.5;
 }

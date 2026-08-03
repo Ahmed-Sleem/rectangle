@@ -368,7 +368,17 @@ export function AiAssistantPanel({
     const state = settings.data?.aiSettings;
     const mayConfigure = hasPermission(auth.user, "settings.manage");
 
-    if (!state?.configured)
+    /*
+     * `ready` is the server's own answer to "could this person ask a question
+     * right now", and it already accounts for both configurations. Anything
+     * below only explains WHY not, so it must never contradict it.
+     */
+    if (state?.ready) return null;
+
+    // Their own provider is complete: nothing here is standing in their way.
+    if (state?.personal.configured) return null;
+
+    if (!state?.company.configured)
       return {
         title: t("shell.ai.blockedNotConfiguredTitle"),
         message: mayConfigure
@@ -384,11 +394,11 @@ export function AiAssistantPanel({
         fixable: mayConfigure,
       };
 
-    if (!state.hasCompanyKey && !state.hasPersonalKey)
+    if (!state.company.hasKey)
       return {
         title: t("shell.ai.blockedNoKeyTitle"),
-        // Anybody may save a key of their own, so this one is always fixable
-        // by whoever is reading it.
+        // Anybody may set up a model of their own, so this one is always
+        // fixable by whoever is reading it.
         message: t("shell.ai.blockedNoKeyText"),
         fixable: true,
       };

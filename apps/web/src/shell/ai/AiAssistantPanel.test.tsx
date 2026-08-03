@@ -20,20 +20,40 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/shared/auth";
 import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import { AiAssistantPanel } from "./AiAssistantPanel";
+import type { AiSettingsView } from "@/features/settings/ai-api";
 
-interface Settings {
-  configured: boolean;
-  enabled: boolean;
-  hasCompanyKey: boolean;
-  hasPersonalKey: boolean;
-  ready: boolean;
-}
+/*
+ * The real response type, imported rather than described again here.
+ *
+ * This file used to declare its own copy with the fields the API had in an
+ * earlier version. When the server split the company and personal providers
+ * into two objects, the copy went on describing the old shape — so the fixtures
+ * still "passed" while the panel read `configured` off an object that no longer
+ * had it and told every user the assistant was not set up. A test that mocks a
+ * type it invented cannot catch a type that changed.
+ */
+type Settings = AiSettingsView;
+
+const NO_PROVIDER = {
+  configured: false,
+  hasKey: false,
+  maxCycles: 10,
+  maxOutputTokens: 2048,
+};
 
 const WORKING: Settings = {
-  configured: true,
+  company: {
+    configured: true,
+    baseUrl: "https://api.openai.com/v1",
+    model: "gpt-4o-mini",
+    hasKey: true,
+    maxCycles: 10,
+    maxOutputTokens: 2048,
+  },
   enabled: true,
-  hasCompanyKey: true,
-  hasPersonalKey: false,
+  personal: NO_PROVIDER,
+  active: "company",
+  canChoose: false,
   ready: true,
 };
 
@@ -225,7 +245,7 @@ describe("AiAssistantPanel: when it cannot answer, it says why", () => {
    */
   it("says the assistant is not set up, and points an owner at settings", async () => {
     mockApi({
-      settings: { configured: false, enabled: false, hasCompanyKey: false, hasPersonalKey: false, ready: false },
+      settings: { ...WORKING, company: NO_PROVIDER, enabled: false, active: "none", ready: false },
     });
     renderPanel(withAiAndSettings);
 
@@ -235,7 +255,7 @@ describe("AiAssistantPanel: when it cannot answer, it says why", () => {
 
   it("tells somebody who cannot configure it who to ask, without a settings link", async () => {
     mockApi({
-      settings: { configured: false, enabled: false, hasCompanyKey: false, hasPersonalKey: false, ready: false },
+      settings: { ...WORKING, company: NO_PROVIDER, enabled: false, active: "none", ready: false },
     });
     renderPanel(withAi);
 
@@ -244,14 +264,21 @@ describe("AiAssistantPanel: when it cannot answer, it says why", () => {
   });
 
   it("distinguishes switched off from not set up", async () => {
-    mockApi({ settings: { ...WORKING, enabled: false, ready: false } });
+    mockApi({ settings: { ...WORKING, enabled: false, active: "none", ready: false } });
     renderPanel(withAi);
 
     expect(await screen.findByText("The assistant is switched off")).toBeInTheDocument();
   });
 
   it("distinguishes a missing key from both of those", async () => {
-    mockApi({ settings: { ...WORKING, hasCompanyKey: false, ready: false } });
+    mockApi({
+      settings: {
+        ...WORKING,
+        company: { ...WORKING.company, hasKey: false },
+        active: "none",
+        ready: false,
+      },
+    });
     renderPanel(withAi);
 
     expect(await screen.findByText("No API key saved")).toBeInTheDocument();
@@ -264,12 +291,53 @@ describe("AiAssistantPanel: when it cannot answer, it says why", () => {
    * person can type into and then be refused is the fault being removed.
    */
   it("offers no composer at all when the assistant is unavailable", async () => {
-    mockApi({ settings: { ...WORKING, enabled: false, ready: false } });
+    mockApi({ settings: { ...WORKING, enabled: false, active: "none", ready: false } });
     renderPanel(withAi);
 
     await screen.findByText("The assistant is switched off");
     expect(screen.queryByLabelText("Ask Rectangle AI")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /send/i })).not.toBeInTheDocument();
+  });
+
+  /*
+   * The regression that reached a user. The panel read a field the API had
+   * stopped sending, so it decided nothing was configured and said so to
+   * everybody, whatever they had set up. `ready` is the server's own answer to
+   * "could this person ask a question right now", and the panel must never
+   * contradict it.
+   */
+  it("shows no blocked state whenever the server says it is ready", async () => {
+    mockApi({ settings: WORKING });
+    renderPanel();
+
+    await screen.findByText("Ready");
+    expect(screen.queryByText(/is not set up/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Ask Rectangle AI")).toBeEnabled();
+  });
+
+  it("is usable on a personal model with no company provider at all", async () => {
+    mockApi({
+      settings: {
+        ...WORKING,
+        company: NO_PROVIDER,
+        enabled: false,
+        personal: {
+          configured: true,
+          baseUrl: "https://mine.test/v1",
+          model: "my-model",
+          hasKey: true,
+          maxCycles: 10,
+          maxOutputTokens: 2048,
+        },
+        active: "personal",
+        ready: true,
+      },
+    });
+    renderPanel();
+
+    await screen.findByText("Ready");
+    expect(screen.queryByText(/is not set up/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Ask Rectangle AI")).toBeEnabled();
   });
 
   it("says so honestly when it cannot even find out", async () => {
