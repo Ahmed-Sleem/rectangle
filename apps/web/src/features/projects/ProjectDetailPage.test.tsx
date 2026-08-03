@@ -9,6 +9,7 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RectangleI18nProvider } from "@/shared/i18n";
 import ProjectDetailPage from "./ProjectDetailPage";
+import { chooseOption } from "@/test/choose";
 
 const projectId = "33333333-3333-4333-8333-333333333333";
 const teammateId = "44444444-4444-4444-8444-444444444444";
@@ -159,8 +160,8 @@ describe("ProjectDetailPage", () => {
     await user.click(await screen.findByRole("button", { name: "Add member" }));
 
     const dialog = await screen.findByRole("dialog", { name: "Add team member" });
-    await user.selectOptions(within(dialog).getByLabelText("Person"), teammateId);
-    await user.selectOptions(within(dialog).getByLabelText("Role"), "viewer");
+    await chooseOption(user, within(dialog).getByLabelText("Person"), teammateId);
+    await chooseOption(user, within(dialog).getByLabelText("Role"), "viewer");
     await user.click(within(dialog).getByRole("button", { name: "Add member" }));
 
     await waitFor(() => {
@@ -246,11 +247,20 @@ describe("ProjectDetailPage", () => {
     renderWorkspace();
     const lifecycle = await screen.findByLabelText("Manage project");
 
-    // Only moves that change something are offered.
-    expect(within(lifecycle).queryByRole("option", { name: "Mark as active" })).toBeNull();
-    expect(within(lifecycle).getByRole("option", { name: "Archive" })).toBeInTheDocument();
+    /*
+     * Opened first, because the choices live in a portalled listbox rather than
+     * inside the closed control — and because seeing what is offered is
+     * something a person can only do by opening it too.
+     */
+    await user.click(lifecycle);
+    const moves = await screen.findByRole("listbox");
 
-    await user.selectOptions(lifecycle, "archived");
+    // Only moves that change something are offered.
+    expect(within(moves).queryByRole("option", { name: "Mark as active" })).toBeNull();
+    expect(within(moves).getByRole("option", { name: "Archive" })).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    await chooseOption(user, lifecycle, "archived");
 
     await waitFor(() => {
       const patch = calls.find((call) => call.method === "PATCH");
@@ -263,7 +273,7 @@ describe("ProjectDetailPage", () => {
     const calls = mockApi(baseState);
 
     renderWorkspace();
-    await user.selectOptions(await screen.findByLabelText("Manage project"), "delete");
+    await chooseOption(user, await screen.findByLabelText("Manage project"), "delete");
 
     const dialog = await screen.findByRole("dialog", { name: "Delete this project?" });
     // Confirmation must name the object and state the consequence.

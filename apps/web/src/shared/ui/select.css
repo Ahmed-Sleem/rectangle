@@ -1,0 +1,208 @@
+/*
+ * The dropdown, styled like the rest of the product for the first time.
+ *
+ * The trigger deliberately matches `.rect-ui-input` rather than inventing a
+ * third field appearance: a dropdown and a text box sit next to each other in
+ * almost every form here, and two different borders on one row is the thing
+ * that makes a form look assembled from parts.
+ */
+
+.rect-select {
+  display: inline-flex;
+  position: relative;
+  min-inline-size: 0;
+  /* Never wider than its column, but no longer stretched to fill it either —
+     the reported fault was `width: 100%` on the old native control. */
+  max-inline-size: 100%;
+}
+
+/*
+ * The real element, kept in the DOM and kept out of sight.
+ *
+ * Not `display: none` and not `visibility: hidden`: a hidden form control is
+ * skipped by some browsers' constraint validation, and the native element is
+ * still what React Hook Form reads and what the form submits. One pixel,
+ * clipped, non-interactive — present for the form, invisible to the person.
+ */
+.rect-select__native {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+  clip-path: inset(50%);
+  overflow: hidden;
+}
+
+.rect-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rect-space-2);
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: var(--rect-control-compact);
+  padding: 0 var(--rect-space-3);
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  color: var(--rect-text-primary);
+  font-family: var(--rect-font);
+  font-size: var(--rect-text-body);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background var(--rect-motion-nav),
+    border-color var(--rect-motion-nav),
+    box-shadow var(--rect-motion-nav);
+}
+
+.rect-select__trigger:not(:disabled):hover {
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-toggle-border-hover);
+}
+
+.rect-select__trigger:focus-visible {
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-toggle-border-hover);
+  box-shadow: var(--rect-shadow-toggle);
+  outline: none;
+}
+
+.rect-select__trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.rect-select__trigger--invalid {
+  border-color: var(--rect-color-danger);
+}
+
+/* The chosen label is the part that must give way when the column is narrow. */
+.rect-select__value {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-inline-size: 0;
+}
+
+.rect-select__chevron {
+  flex-shrink: 0;
+  color: var(--rect-text-secondary);
+  transition: transform var(--rect-motion-spring);
+}
+
+/* Points at the open list, which is the one piece of state a closed control
+   cannot otherwise show. */
+.rect-select__trigger[aria-expanded="true"] .rect-select__chevron {
+  transform: rotate(180deg);
+}
+
+/*
+ * The popup. Portalled to the body, so it is positioned in viewport
+ * coordinates by the component and needs no positioning context here.
+ */
+.rect-select__popup {
+  z-index: var(--rect-z-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-05);
+  max-block-size: min(40dvh, 320px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-block: var(--rect-space-1);
+  padding: var(--rect-space-1);
+  background: var(--rect-surface-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  box-shadow: var(--rect-shadow-panel);
+}
+
+/*
+ * Entry only. There is no exit animation, because a popup that lingers while it
+ * is unusable caused a real fault — reopened during the fade, the stale list
+ * was still in the document and still refusing clicks. A menu that vanishes at
+ * once is what a native select does anyway.
+ */
+.rect-select__popup[data-state="open"] {
+  animation: rect-select-in 140ms var(--rect-ease-out) both;
+}
+
+/*
+ * No bounce on the way in. The motion guidelines put a dropdown at 200ms
+ * ease-out with no spring: a menu that overshoots reads as playful the first
+ * time and as slow every time after, and this is a control people open dozens
+ * of times an hour.
+ */
+@keyframes rect-select-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rect-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rect-space-2);
+  min-block-size: var(--rect-control-compact);
+  padding: 0 var(--rect-space-2);
+  border-radius: var(--rect-radius-sm);
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  cursor: pointer;
+}
+
+/*
+ * One highlight, driven by the keyboard and by the pointer alike.
+ *
+ * Hover is not styled separately: pointer movement sets the active row, so a
+ * `:hover` rule would paint a second highlight and the list would appear to
+ * have two cursors whenever somebody moved the mouse after arrowing.
+ */
+.rect-select__option--active {
+  background: var(--rect-surface-bg-hover);
+}
+
+.rect-select__option--selected {
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-select__option[aria-disabled="true"] {
+  color: var(--rect-text-muted);
+  cursor: not-allowed;
+}
+
+.rect-select__option-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rect-select__tick {
+  flex-shrink: 0;
+  color: var(--rect-text-secondary);
+}
+
+/* Touch pointers get a full target, as every other control here does. */
+@media (pointer: coarse) {
+  .rect-select__trigger,
+  .rect-select__option {
+    min-block-size: var(--rect-control-touch);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-select__popup,
+  .rect-select__chevron {
+    animation: none !important;
+    transition: none !important;
+  }
+}

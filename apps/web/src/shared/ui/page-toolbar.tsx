@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/cn";
 import { Badge, Button, Checkbox, IconButton } from "./primitives";
 import { SearchInput } from "./search-input";
+import { Select } from "./select";
 import { Overlay } from "./overlay";
 import { ViewToggle, type ViewToggleOption } from "./page-blocks";
 import "./page-toolbar.css";
@@ -278,10 +279,21 @@ export function PageToolbar<T extends string>({
                 onChange={(event) => filter.onChange(event.target.checked)}
               />
             ) : (
-              <label key={filter.id} className="rect-toolbar__filter-field">
-                <span className="rect-toolbar__filter-label">{filter.label}</span>
-                <select
-                  className="rect-toolbar__filter-select"
+              /*
+               * The shared dropdown, not a second one. This was a bare
+               * `<select>`, so the filter window was the one place in the
+               * product still showing an operating-system popup — unthemed,
+               * differently shaped on every platform, and stretched to the
+               * width of its column. A `<label>` wrapping it no longer names
+               * it either, since the control a person focuses is a button, so
+               * the association is made explicitly by id.
+               */
+              <div key={filter.id} className="rect-toolbar__filter-field">
+                <label className="rect-toolbar__filter-label" htmlFor={`${filter.id}-filter`}>
+                  {filter.label}
+                </label>
+                <Select
+                  id={`${filter.id}-filter`}
                   value={filter.value}
                   onChange={(event) => filter.onChange(event.target.value)}
                 >
@@ -291,8 +303,8 @@ export function PageToolbar<T extends string>({
                       {option.label}
                     </option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </div>
             ),
           )}
         </div>

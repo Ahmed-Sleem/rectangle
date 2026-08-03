@@ -157,23 +157,12 @@
 }
 
 /*
- * Full width inside the window: there is one control per row here, so the
- * width hints used in a crowded toolbar would only look arbitrary.
+ * One control per row in this window, so the dropdown fills it. Everything
+ * else about the control — border, height, popup, touch target — belongs to
+ * the shared component and is not restated here.
  */
-.rect-toolbar__filter-select {
-  background: var(--rect-color-paper);
-  border: 1px solid var(--rect-card-border);
-  border-radius: var(--rect-radius-md);
-  block-size: var(--rect-control-standard);
-  color: var(--rect-text-primary);
-  font: inherit;
-  font-size: var(--rect-text-body);
+.rect-toolbar__filter-field .rect-select {
   inline-size: 100%;
-  padding-inline: var(--rect-space-3);
-}
-
-.rect-toolbar__filter-select:focus-visible {
-  border-color: var(--rect-border-active);
 }
 
 /*

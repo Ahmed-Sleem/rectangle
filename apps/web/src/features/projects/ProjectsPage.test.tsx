@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/shared/auth";
 import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import ProjectsPage from "./ProjectsPage";
+import { chooseOption } from "@/test/choose";
 
 const managerAuth: AuthContextValue = {
   setupRequired: false,
@@ -122,7 +123,7 @@ describe("ProjectsPage", () => {
     // it is the control people reach for most.
     await user.click(screen.getByRole("button", { name: /Filters/u }));
     const dialog = await screen.findByRole("dialog", { name: "Filters" });
-    await user.selectOptions(within(dialog).getByLabelText("Filter by status"), "active");
+    await chooseOption(user, within(dialog).getByLabelText("Filter by status"), "active");
 
     // The backend already supports these filters; the UI must use them so
     // results stay correct beyond the first page of records.

@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext, type AuthContextValue } from "@/shared/auth";
 import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import { SeparationRules } from "./SeparationRules";
+import { chooseOption } from "@/test/choose";
 
 const permissions = {
   permissions: [
@@ -147,10 +148,19 @@ describe("SeparationRules", () => {
     mockApi();
     renderRules();
 
-    await user.selectOptions(await screen.findByLabelText(/First permission/iu), "users.edit");
-    const second = screen.getByLabelText(/Second permission/iu);
-    expect(within(second).queryByRole("option", { name: "Edit people" })).not.toBeInTheDocument();
-    expect(within(second).getByRole("option", { name: "Create user types" })).toBeInTheDocument();
+    await chooseOption(user, await screen.findByLabelText(/First permission/iu), "users.edit");
+
+    /*
+     * The list has to be open to be read. The options are no longer inside the
+     * closed control: the dropdown renders its rows in a portalled listbox, so
+     * asking the trigger what it offers is asking the wrong element. Opening it
+     * is also what a person does before they can see the same thing.
+     */
+    await user.click(screen.getByLabelText(/Second permission/iu));
+    const list = await screen.findByRole("listbox");
+
+    expect(within(list).queryByRole("option", { name: "Edit people" })).not.toBeInTheDocument();
+    expect(within(list).getByRole("option", { name: "Create user types" })).toBeInTheDocument();
   });
 
   it("will not save before the cost has been checked", async () => {
@@ -162,8 +172,8 @@ describe("SeparationRules", () => {
     mockApi();
     renderRules();
 
-    await user.selectOptions(await screen.findByLabelText(/First permission/iu), "users.edit");
-    await user.selectOptions(screen.getByLabelText(/Second permission/iu), "user_types.create");
+    await chooseOption(user, await screen.findByLabelText(/First permission/iu), "users.edit");
+    await chooseOption(user, screen.getByLabelText(/Second permission/iu), "user_types.create");
     await user.type(screen.getByLabelText(/Why these must stay apart/iu), "A sufficiently long reason.");
 
     expect(screen.queryByRole("button", { name: /Add rule/iu })).not.toBeInTheDocument();
@@ -175,8 +185,8 @@ describe("SeparationRules", () => {
     mockApi({ preview: [] });
     renderRules();
 
-    await user.selectOptions(await screen.findByLabelText(/First permission/iu), "users.edit");
-    await user.selectOptions(screen.getByLabelText(/Second permission/iu), "user_types.create");
+    await chooseOption(user, await screen.findByLabelText(/First permission/iu), "users.edit");
+    await chooseOption(user, screen.getByLabelText(/Second permission/iu), "user_types.create");
     await user.click(screen.getByRole("button", { name: /Check who this affects/iu }));
 
     expect(await screen.findByText(/Nobody currently holds both/iu)).toBeInTheDocument();
@@ -187,8 +197,8 @@ describe("SeparationRules", () => {
     mockApi({ preview: [violator()] });
     renderRules();
 
-    await user.selectOptions(await screen.findByLabelText(/First permission/iu), "users.edit");
-    await user.selectOptions(screen.getByLabelText(/Second permission/iu), "user_types.create");
+    await chooseOption(user, await screen.findByLabelText(/First permission/iu), "users.edit");
+    await chooseOption(user, screen.getByLabelText(/Second permission/iu), "user_types.create");
     await user.type(screen.getByLabelText(/Why these must stay apart/iu), "A sufficiently long reason.");
     await user.click(screen.getByRole("button", { name: /Check who this affects/iu }));
 
@@ -204,13 +214,12 @@ describe("SeparationRules", () => {
     mockApi({ preview: [violator()] });
     renderRules();
 
-    await user.selectOptions(await screen.findByLabelText(/First permission/iu), "users.edit");
-    await user.selectOptions(screen.getByLabelText(/Second permission/iu), "user_types.create");
+    await chooseOption(user, await screen.findByLabelText(/First permission/iu), "users.edit");
+    await chooseOption(user, screen.getByLabelText(/Second permission/iu), "user_types.create");
     await user.type(screen.getByLabelText(/Why these must stay apart/iu), "A sufficiently long reason.");
     await user.click(screen.getByRole("button", { name: /Check who this affects/iu }));
 
-    await user.selectOptions(
-      await screen.findByLabelText(/Which permission should they give up/iu),
+    await chooseOption(user, await screen.findByLabelText(/Which permission should they give up/iu),
       "users.edit",
     );
     // The permission itself is what comes off the person now, so the sentence
@@ -230,13 +239,22 @@ describe("SeparationRules", () => {
     mockApi({ preview: [violator()] });
     renderRules();
 
-    await user.selectOptions(await screen.findByLabelText(/First permission/iu), "users.edit");
-    await user.selectOptions(screen.getByLabelText(/Second permission/iu), "user_types.create");
+    await chooseOption(user, await screen.findByLabelText(/First permission/iu), "users.edit");
+    await chooseOption(user, screen.getByLabelText(/Second permission/iu), "user_types.create");
     await user.click(screen.getByRole("button", { name: /Check who this affects/iu }));
 
-    const choice = await screen.findByLabelText(/Which permission should they give up/iu);
-    for (const option of within(choice).getAllByRole("option")) {
-      expect(option).toBeEnabled();
+    await user.click(await screen.findByLabelText(/Which permission should they give up/iu));
+    const list = await screen.findByRole("listbox");
+
+    /*
+     * `toBeEnabled` is for form controls; a listbox row is not one, and it
+     * would pass on any element that simply has no `disabled` attribute —
+     * including one the component had marked unavailable. The dropdown states
+     * that with `aria-disabled`, so that is what is asserted, and the check can
+     * still fail for the right reason.
+     */
+    for (const option of within(list).getAllByRole("option")) {
+      expect(option).not.toHaveAttribute("aria-disabled", "true");
     }
   });
 
@@ -255,11 +273,12 @@ describe("SeparationRules", () => {
     });
     renderRules();
 
-    await user.selectOptions(await screen.findByLabelText(/First permission/iu), "users.edit");
-    await user.selectOptions(screen.getByLabelText(/Second permission/iu), "user_types.create");
+    await chooseOption(user, await screen.findByLabelText(/First permission/iu), "users.edit");
+    await chooseOption(user, screen.getByLabelText(/Second permission/iu), "user_types.create");
     await user.type(screen.getByLabelText(/Why these must stay apart/iu), "A sufficiently long reason.");
     await user.click(screen.getByRole("button", { name: /Check who this affects/iu }));
-    await user.selectOptions(
+    await chooseOption(
+      user,
       await screen.findByLabelText(/Which permission should they give up/iu),
       "users.edit",
     );

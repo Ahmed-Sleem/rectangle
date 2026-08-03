@@ -10,6 +10,7 @@ import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import { PageToolbar, type ToolbarFilter } from "./page-toolbar";
 /** The slot must be absent from the source, not merely unused by callers. */
 import toolbarSource from "./page-toolbar.tsx?raw";
+import { chooseOption } from "@/test/choose";
 
 /** Mirrors how a page uses it: state lives outside, the toolbar reports changes. */
 function Harness({ onSearch }: { onSearch?: (value: string) => void } = {}) {
@@ -93,7 +94,7 @@ describe("PageToolbar", () => {
 
     await user.click(screen.getByRole("button", { name: /Filters/u }));
     const dialog = await screen.findByRole("dialog", { name: "Filters" });
-    await user.selectOptions(within(dialog).getByLabelText("Status"), "active");
+    await chooseOption(user, within(dialog).getByLabelText("Status"), "active");
     await user.click(within(dialog).getByRole("button", { name: "Done" }));
 
     // Choosing is not a transaction; closing the window must not undo it.
@@ -107,7 +108,7 @@ describe("PageToolbar", () => {
 
     await user.click(screen.getByRole("button", { name: /Filters/u }));
     const dialog = await screen.findByRole("dialog", { name: "Filters" });
-    await user.selectOptions(within(dialog).getByLabelText("Status"), "active");
+    await chooseOption(user, within(dialog).getByLabelText("Status"), "active");
     await user.click(within(dialog).getByRole("checkbox", { name: "My items" }));
     await user.click(within(dialog).getByRole("button", { name: "Done" }));
 
@@ -141,7 +142,7 @@ describe("PageToolbar", () => {
 
     await user.click(screen.getByRole("button", { name: /Filters/u }));
     const dialog = await screen.findByRole("dialog", { name: "Filters" });
-    await user.selectOptions(within(dialog).getByLabelText("Status"), "closed");
+    await chooseOption(user, within(dialog).getByLabelText("Status"), "closed");
     await user.click(within(dialog).getByRole("checkbox", { name: "My items" }));
     await user.click(within(dialog).getByRole("button", { name: "Done" }));
 

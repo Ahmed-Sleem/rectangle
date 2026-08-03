@@ -19,6 +19,7 @@ const viewerAuth: AuthContextValue = {
 };
 
 import TeamPage from "./TeamPage";
+import { chooseOption } from "@/test/choose";
 
 function jsonResponse(body: unknown, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
@@ -487,7 +488,7 @@ describe("TeamPage", () => {
 
       // An owner holds everything by standing, so the ticks would be a second
       // answer to a question already answered.
-      await user.selectOptions(within(dialog).getByLabelText("Company standing"), "owner");
+      await chooseOption(user, within(dialog).getByLabelText("Company standing"), "owner");
       expect(within(dialog).queryByText("Start from a saved list")).not.toBeInTheDocument();
       expect(
         within(dialog).getByText("Every permission, because they own the company."),
@@ -577,8 +578,15 @@ describe("TeamPage", () => {
       const dialog = await screen.findByRole("dialog", { name: "Create user" });
       await user.type(within(dialog).getByLabelText("Name"), "Nadia Samir");
       await user.type(within(dialog).getByLabelText("Email"), "nadia@example.com");
-      await user.selectOptions(
-        within(dialog).getByLabelText("Start from a saved list"),
+      /*
+       * By role, because the words now appear twice: once as the field's label
+       * and once inside the control, which shows the chosen list. Asking for
+       * the combobox names the thing being operated rather than the sentence
+       * above it.
+       */
+      await chooseOption(
+        user,
+        within(dialog).getByRole("combobox", { name: "Start from a saved list" }),
         ownerTypeId,
       );
       await user.click(within(dialog).getByRole("button", { name: "Create user" }));

@@ -78,7 +78,13 @@ describe("shared UI primitives", () => {
     await user.type(input, "New HQ");
     expect(input).toHaveValue("New HQ");
     expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /status/i })).toHaveValue("active");
+    /*
+     * The dropdown shows its choice rather than carrying a `value` attribute:
+     * the control a person sees and focuses is a button, and the real
+     * `<select>` behind it is hidden from the accessibility tree so the field
+     * is not announced twice. What matters to a reader is the label on screen.
+     */
+    expect(screen.getByRole("combobox", { name: /status/i })).toHaveTextContent("Active");
     expect(screen.getByRole("checkbox", { name: /track audit events/i })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: /enable module/i })).toBeInTheDocument();
   });

@@ -10,7 +10,6 @@ import type {
   HTMLAttributes,
   InputHTMLAttributes,
   ReactNode,
-  SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
 import { cloneElement, forwardRef, isValidElement, useId } from "react";
@@ -176,25 +175,6 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
   );
 });
 
-export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  invalid?: boolean;
-}
-
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { className, invalid, "aria-invalid": ariaInvalid, children, ...props },
-  ref,
-) {
-  return (
-    <select
-      ref={ref}
-      className={cn("rect-ui-select", invalid && "rect-ui-input--invalid", className)}
-      aria-invalid={ariaInvalid ?? invalid}
-      {...props}
-    >
-      {children}
-    </select>
-  );
-});
 
 export interface CheckboxProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;

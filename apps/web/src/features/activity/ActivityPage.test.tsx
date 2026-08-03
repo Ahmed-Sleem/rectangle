@@ -9,6 +9,7 @@ import { RectangleI18nProvider, setRectangleLanguage } from "@/shared/i18n";
 import ActivityPage from "./ActivityPage";
 import activityCss from "./ActivityPage.css?raw";
 import projectsCss from "@/features/projects/ProjectsPage.css?raw";
+import { chooseOption } from "@/test/choose";
 
 const viewerAuth: AuthContextValue = {
   setupRequired: false,
@@ -139,7 +140,7 @@ describe("ActivityPage", () => {
     await user.click(screen.getByRole("button", { name: /Filters/u }));
     // Filters apply as they are chosen, so the list behind the window has
     // already changed by the time the choice is made.
-    await user.selectOptions(screen.getByLabelText("Filter by outcome"), "failure");
+    await chooseOption(user, screen.getByLabelText("Filter by outcome"), "failure");
 
     // "Nothing has happened" would be wrong here: things happened, none matched.
     expect(await screen.findByText("No matching activity")).toBeInTheDocument();
