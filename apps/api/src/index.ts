@@ -18,6 +18,7 @@ import { RiskService } from "./application/risk-service.js";
 import { SearchService } from "./application/search-service.js";
 import { DirectoryService } from "./application/directory-service.js";
 import { SetupService } from "./application/setup-service.js";
+import { withAssistantAttribution } from "./application/ai-attribution.js";
 import { AiService } from "./application/ai-service.js";
 import { AiSettingsService } from "./application/ai-settings-service.js";
 import { createAiToolExecutors } from "./application/ai-tools.js";
@@ -68,7 +69,12 @@ if (isDerivedSecretKey(config)) {
   );
 }
 const pool = createPostgresPool(config.DATABASE_URL);
-const auditRepository = new PostgresAuditRepository(pool);
+/*
+ * Wrapped so that anything written while the assistant is carrying out an
+ * approved action is marked as such. Every service shares this instance, so
+ * the rule holds everywhere without any of them knowing about it.
+ */
+const auditRepository = withAssistantAttribution(new PostgresAuditRepository(pool));
 const projectsRepository = new PostgresProjectsRepository(pool);
 const overviewService = new OverviewService(new PostgresOverviewRepository(pool));
 const activityRepository = new PostgresActivityRepository(pool);
@@ -166,6 +172,10 @@ const aiService = new AiService(
     activityService,
     taskService,
     riskService,
+    projectService,
+    projectTeamService,
+    directoryService,
+    adminService,
   }),
   new PostgresAiConversationRepository(pool),
 );

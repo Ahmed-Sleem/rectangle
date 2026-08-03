@@ -61,8 +61,23 @@ export interface AiChatRequest {
   /** Absent starts a new thread. */
   conversationId?: string;
   message: string;
-  /** The project being looked at, so "how is it going" means something. */
-  projectId?: string;
+  /**
+   * What is on the person's screen.
+   *
+   * Sent with the request but NOT put in the prompt: the model reads it only if
+   * it calls `current_screen`, which it does when a question says "this" or
+   * "here" and not otherwise. That replaced a toggle in the composer that
+   * attached the current project to every message — which spent tokens on
+   * context most questions did not need and could only ever carry a project, so
+   * on Tasks or Team the assistant knew nothing at all.
+   */
+  screen?: {
+    route?: string;
+    pageName?: string;
+    projectId?: string;
+    taskId?: string;
+    riskId?: string;
+  };
   /** Set when the person asked it to keep going after it ran out of steps. */
   continue?: boolean;
 }

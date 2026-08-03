@@ -349,48 +349,36 @@ describe("AiAssistantPanel: page context and history", () => {
     await setRectangleLanguage("en");
   });
 
-  it("attaches the project when there is one, and says which", async () => {
+  /*
+   * The toggle is gone. It attached the current project to every message,
+   * which spent tokens on context most questions did not need and could only
+   * ever carry a project — so on Tasks or Team the assistant knew nothing.
+   * The context now travels with the request and the model reads it only if it
+   * calls `current_screen`.
+   */
+  it("sends where the person is standing, without a toggle", async () => {
     mockApi({});
     const user = userEvent.setup();
     renderPanel(withAi, "/projects/p-77");
 
     await screen.findByText("Ready");
-    expect(screen.getByText("Answering about the project you are looking at.")).toBeInTheDocument();
-
     await user.type(screen.getByLabelText("Ask Rectangle AI"), "how is it going");
     await user.click(screen.getByRole("button", { name: /send/i }));
 
     await waitFor(() => expect(asked).toHaveLength(1));
-    expect((JSON.parse(asked[0] ?? "{}") as Record<string, unknown>).projectId).toBe("p-77");
+    const body = JSON.parse(asked[0] ?? "{}") as { screen?: Record<string, unknown> };
+    expect(body.screen?.projectId).toBe("p-77");
+    // The route too, so the assistant can say which page rather than guessing.
+    expect(body.screen?.route).toContain("/projects/");
   });
 
-  it("stops attaching it when the control is turned off", async () => {
+  it("offers nothing to toggle, on a project page or anywhere else", async () => {
     mockApi({});
-    const user = userEvent.setup();
     renderPanel(withAi, "/projects/p-77");
 
     await screen.findByText("Ready");
-    await user.click(screen.getByRole("button", { name: /using this project as context/i }));
-    expect(screen.getByText("Answering about your work in general.")).toBeInTheDocument();
-
-    await user.type(screen.getByLabelText("Ask Rectangle AI"), "anything");
-    await user.click(screen.getByRole("button", { name: /send/i }));
-
-    await waitFor(() => expect(asked).toHaveLength(1));
-    expect(JSON.parse(asked[0] ?? "{}")).not.toHaveProperty("projectId");
-  });
-
-  /*
-   * The control exists only where there is something for it to do, so it is
-   * never a button that cannot act.
-   */
-  it("offers no context control away from a project", async () => {
-    mockApi({});
-    renderPanel(withAi, "/");
-
-    await screen.findByText("Ready");
     expect(
-      screen.queryByRole("button", { name: /using this project as context/i }),
+      screen.queryByRole("button", { name: /context/i }),
     ).not.toBeInTheDocument();
   });
 

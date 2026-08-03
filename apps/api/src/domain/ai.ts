@@ -27,6 +27,8 @@
  *     the model gets to make per call.
  */
 import { z } from "zod";
+import { riskCategorySchema, riskKindSchema, riskStatusSchema } from "./risk.js";
+import { taskPrioritySchema, taskStatusSchema } from "./task.js";
 import type { Permission } from "./permissions.js";
 import { hasPermission, type UserPrincipal } from "./auth.js";
 
@@ -83,6 +85,23 @@ export interface AiToolDefinition {
   /** False means the loop stops and a person must confirm. */
   readOnly: boolean;
   /**
+   * Cannot be undone from inside the product.
+   *
+   * Separate from `readOnly` because they answer different questions. A write
+   * is something a person must approve; a *destructive* write is something they
+   * must approve **every single time**, with no option to stop being asked.
+   * Deleting a project, removing somebody's access or disabling an account
+   * cannot be walked back by pressing undo, and the research on agent approval
+   * is unanimous that a blanket "never ask again" over that class is how the
+   * headline incidents happen — the gate becomes theatre and one wrong
+   * irreversible act costs more than every click it saved.
+   *
+   * Only meaningful when `readOnly` is false. Declared per tool rather than
+   * inferred from the name so that adding `purge_everything` is a decision
+   * somebody had to write down.
+   */
+  destructive?: boolean;
+  /**
    * What the caller must already hold. The tool is not offered without it, and
    * the executor checks again — the list the model saw is a convenience, not
    * the authority.
@@ -108,11 +127,55 @@ const projectIdSchema = z.object({
  * already do in the product.
  */
 export const aiTools: readonly AiToolDefinition[] = [
+  /* ── Knowing where it is and who it is helping ───────────────────────── */
+  {
+    name: "whoami",
+    description:
+      "Who you are helping and what they may do. Returns their name, their standing in the company, and the list of permissions they hold. Call this first when a request depends on whether they are allowed to do something, or when you need their own name or id. Takes no arguments.",
+    schema: z.object({}),
+    readOnly: true,
+    // Everyone who may use the assistant may learn about themselves.
+    requiredPermission: "ai.use",
+  },
+  {
+    name: "current_screen",
+    description:
+      "What the person is looking at in the product right now: which page, and which project, task or risk is open if any. Call this whenever they say 'this', 'here', 'it' or ask something without naming what they mean. Takes no arguments.",
+    schema: z.object({}),
+    readOnly: true,
+    requiredPermission: "ai.use",
+  },
+  {
+    name: "my_activity",
+    description:
+      "What this person has done recently, newest first. Use for 'what did I do', 'what did I change yesterday', or to recall something they worked on. This is their own history and needs no special permission. Takes no arguments.",
+    schema: z.object({}),
+    readOnly: true,
+    requiredPermission: "ai.use",
+  },
+
+  /* ── Reading the work ────────────────────────────────────────────────── */
   {
     name: "search_projects",
     description:
       "Search this company's projects by name or code. Use when asked which projects exist, or to find a project's id before using another tool. Returns name, code, status and id.",
     schema: searchSchema,
+    readOnly: true,
+    requiredPermission: "projects.read",
+  },
+  {
+    name: "get_project",
+    description:
+      "Read one project in full: its status, dates, budget, description and code. Use after search_projects when the summary is not enough to answer. Needs the project id.",
+    schema: projectIdSchema,
+    readOnly: true,
+    requiredPermission: "projects.read",
+  },
+  {
+    name: "project_overview",
+    description:
+      "Read the headline figures for the company: how many projects by status, budgets by currency, and which projects need attention. Takes no arguments. Use for 'how are we doing' questions.",
+    schema: z.object({}),
     readOnly: true,
     requiredPermission: "projects.read",
   },
@@ -125,6 +188,22 @@ export const aiTools: readonly AiToolDefinition[] = [
     requiredPermission: "tasks.read",
   },
   {
+    name: "list_tasks",
+    description:
+      "List the tasks on one project, optionally filtered by status. Use to see everything outstanding on a project rather than searching by word. Needs the project id.",
+    schema: projectIdSchema.extend({ status: taskStatusSchema.optional() }),
+    readOnly: true,
+    requiredPermission: "tasks.read",
+  },
+  {
+    name: "get_task",
+    description:
+      "Read one task in full: description, status, priority, dates, and who it is assigned to. Needs the task id, which search_tasks or list_tasks returns.",
+    schema: z.object({ taskId: z.uuid() }),
+    readOnly: true,
+    requiredPermission: "tasks.read",
+  },
+  {
     name: "search_risks",
     description:
       "Search risks and issues by title. Use for questions about what threatens a project. Returns title, severity, status and the project it belongs to.",
@@ -133,21 +212,49 @@ export const aiTools: readonly AiToolDefinition[] = [
     requiredPermission: "risks.read",
   },
   {
-    name: "project_overview",
+    name: "list_risks",
     description:
-      "Read the headline figures for the company: how many projects by status, budgets by currency, and which projects need attention. Takes no arguments. Use for 'how are we doing' questions.",
+      "List the risks and issues on one project. Use to review exposure on a project rather than searching by word. Needs the project id.",
+    schema: projectIdSchema,
+    readOnly: true,
+    requiredPermission: "risks.read",
+  },
+  {
+    name: "get_risk",
+    description:
+      "Read one risk in full: description, probability, impact, mitigation and owner. Needs the risk id, which search_risks or list_risks returns.",
+    schema: z.object({ riskId: z.uuid() }),
+    readOnly: true,
+    requiredPermission: "risks.read",
+  },
+
+  /* ── Reading people ──────────────────────────────────────────────────── */
+  {
+    name: "list_colleagues",
+    description:
+      "The people this person works with, with their names and ids. Use to find who to assign work to, or to answer 'who is on this'. Takes no arguments.",
     schema: z.object({}),
     readOnly: true,
-    requiredPermission: "projects.read",
+    requiredPermission: "ai.use",
+  },
+  {
+    name: "project_team",
+    description:
+      "Who is on one project and what role they hold there. Use before assigning work, to check somebody is actually on the project. Needs the project id.",
+    schema: projectIdSchema,
+    readOnly: true,
+    requiredPermission: "project_team.read",
   },
   {
     name: "recent_activity",
     description:
-      "Read what has happened recently — who changed what, and when. Use for questions about progress or history. Returns the most recent entries the person is allowed to see.",
+      "What the team has done recently — who changed what, and when. Use for questions about progress or history across people. For the person's own history use my_activity instead.",
     schema: z.object({}),
     readOnly: true,
     requiredPermission: "activity.read_team",
   },
+
+  /* ── Changing the work. Every one of these only ever proposes. ───────── */
   {
     name: "create_task",
     description:
@@ -155,20 +262,158 @@ export const aiTools: readonly AiToolDefinition[] = [
     schema: projectIdSchema.extend({
       title: z.string().trim().min(2).max(200),
       description: z.string().trim().max(2000).optional(),
+      priority: taskPrioritySchema.optional(),
+      dueDate: z.iso.date().optional(),
+      assigneeUserId: z.uuid().optional(),
     }),
     readOnly: false,
     requiredPermission: "tasks.create",
   },
   {
+    name: "update_task",
+    description:
+      "Propose changing a task: its status, priority, dates, assignee, title or description. Send only the fields that change. Use to mark work done, move a deadline, or hand something to somebody. Does NOT change it until the person approves.",
+    schema: z
+      .object({
+        taskId: z.uuid(),
+        title: z.string().trim().min(2).max(200).optional(),
+        description: z.string().trim().max(2000).optional(),
+        status: taskStatusSchema.optional(),
+        priority: taskPrioritySchema.optional(),
+        assigneeUserId: z.uuid().nullable().optional(),
+        startDate: z.iso.date().nullable().optional(),
+        dueDate: z.iso.date().nullable().optional(),
+      })
+      .refine(
+        (value) => Object.keys(value).some((key) => key !== "taskId"),
+        { message: "Name at least one field to change." },
+      ),
+    readOnly: false,
+    requiredPermission: "tasks.edit",
+  },
+  {
     name: "create_risk",
     description:
-      "Propose recording a risk on a project. Does NOT record it: the person is shown what you propose and must approve it. Find the project id with search_projects first.",
+      "Propose recording a risk or issue on a project. Does NOT record it: the person is shown what you propose and must approve it. Find the project id with search_projects first.",
     schema: projectIdSchema.extend({
       title: z.string().trim().min(2).max(200),
       description: z.string().trim().max(2000).optional(),
+      kind: riskKindSchema.optional(),
+      category: riskCategorySchema.optional(),
+      probability: z.number().int().min(1).max(5).optional(),
+      impact: z.number().int().min(1).max(5).optional(),
     }),
     readOnly: false,
     requiredPermission: "risks.create",
+  },
+  {
+    name: "update_risk",
+    description:
+      "Propose changing a risk: its status, probability, impact, mitigation, owner or title. Send only the fields that change. Does NOT change it until the person approves.",
+    schema: z
+      .object({
+        riskId: z.uuid(),
+        title: z.string().trim().min(2).max(200).optional(),
+        description: z.string().trim().max(2000).optional(),
+        status: riskStatusSchema.optional(),
+        category: riskCategorySchema.optional(),
+        probability: z.number().int().min(1).max(5).optional(),
+        impact: z.number().int().min(1).max(5).optional(),
+        mitigation: z.string().trim().max(2000).optional(),
+        ownerUserId: z.uuid().nullable().optional(),
+        dueDate: z.iso.date().nullable().optional(),
+      })
+      .refine(
+        (value) => Object.keys(value).some((key) => key !== "riskId"),
+        { message: "Name at least one field to change." },
+      ),
+    readOnly: false,
+    requiredPermission: "risks.edit",
+  },
+  {
+    name: "create_project",
+    description:
+      "Propose creating a project. Does NOT create it: the person is shown what you propose and must approve it.",
+    schema: z.object({
+      name: z.string().trim().min(2).max(200),
+      code: z.string().trim().min(1).max(40).optional(),
+      description: z.string().trim().max(2000).optional(),
+    }),
+    readOnly: false,
+    requiredPermission: "projects.create",
+  },
+  {
+    name: "update_project",
+    description:
+      "Propose changing a project's name, code, description, status or dates. Send only the fields that change. Does NOT change it until the person approves.",
+    schema: z
+      .object({
+        projectId: z.uuid(),
+        name: z.string().trim().min(2).max(200).optional(),
+        code: z.string().trim().min(1).max(40).optional(),
+        description: z.string().trim().max(2000).optional(),
+        status: z.string().trim().min(1).max(40).optional(),
+      })
+      .refine(
+        (value) => Object.keys(value).some((key) => key !== "projectId"),
+        { message: "Name at least one field to change." },
+      ),
+    readOnly: false,
+    requiredPermission: "projects.edit",
+  },
+  {
+    name: "add_project_member",
+    description:
+      "Propose adding somebody to a project with a role: owner, manager, member or viewer. Check they are a colleague first with list_colleagues. Does NOT add them until the person approves.",
+    schema: projectIdSchema.extend({
+      userId: z.uuid(),
+      role: z.enum(["owner", "manager", "member", "viewer"]),
+    }),
+    readOnly: false,
+    requiredPermission: "project_team.manage",
+  },
+  {
+    name: "create_user",
+    description:
+      "Propose adding a new person to the company, with the permissions they should hold. They are sent an invitation. Does NOT create the account until the person approves.",
+    schema: z.object({
+      name: z.string().trim().min(2).max(160),
+      email: z.email().max(254),
+      permissions: z.array(z.string().trim().min(1).max(64)).max(64).optional(),
+    }),
+    readOnly: false,
+    requiredPermission: "users.create",
+  },
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * Destructive. Approved every single time, with no way to stop being asked.
+   * ────────────────────────────────────────────────────────────────────── */
+  {
+    name: "delete_task",
+    description:
+      "Propose deleting a task. This cannot be undone. Only propose it when the person has clearly asked for the task to be removed rather than closed — if they mean 'it is finished', use update_task with a done status instead.",
+    schema: z.object({ taskId: z.uuid() }),
+    readOnly: false,
+    destructive: true,
+    requiredPermission: "tasks.delete",
+  },
+  {
+    name: "delete_risk",
+    description:
+      "Propose deleting a risk. This cannot be undone. Prefer closing it with update_risk unless the person explicitly wants it removed.",
+    schema: z.object({ riskId: z.uuid() }),
+    readOnly: false,
+    destructive: true,
+    requiredPermission: "risks.delete",
+  },
+  {
+    name: "remove_project_member",
+    description:
+      "Propose removing somebody from a project. They lose access to everything in it. Cannot be undone without adding them back.",
+    schema: projectIdSchema.extend({ userId: z.uuid() }),
+    readOnly: false,
+    destructive: true,
+    requiredPermission: "project_team.manage",
   },
 ];
 
@@ -232,6 +477,26 @@ export const aiMessageSchema = z.object({
  */
 export const AI_CONTEXT_TURNS = 20;
 
+/**
+ * Where the person is standing, sent with the question.
+ *
+ * Advisory in the strictest sense. It names a route and some ids they are
+ * already looking at; every tool that reads one of those ids re-authorises it
+ * from scratch, so a client that lied about being on a project would gain
+ * nothing — naming a project is not the same as being allowed to open it.
+ *
+ * It is not put in the prompt. The model asks for it with `current_screen` if
+ * and when a question is ambiguous, which spends nothing on the questions that
+ * were never about "this".
+ */
+export const aiScreenContextSchema = z.object({
+  route: z.string().trim().max(200).optional(),
+  pageName: z.string().trim().max(120).optional(),
+  projectId: z.uuid().optional(),
+  taskId: z.uuid().optional(),
+  riskId: z.uuid().optional(),
+});
+
 export const aiChatInputSchema = z.object({
   /**
    * The thread to continue. Absent starts a new one.
@@ -244,12 +509,8 @@ export const aiChatInputSchema = z.object({
   conversationId: z.uuid().optional(),
   /** The one new thing the person said. */
   message: z.string().trim().min(1).max(4000),
-  /**
-   * Which page the person is on, so "what needs attention here" can mean
-   * something. Advisory only — it names a project the tools would let them
-   * read anyway, and every tool re-checks reach for itself.
-   */
-  projectId: z.uuid().optional(),
+  /** What is on their screen, for `current_screen` to report if asked. */
+  screen: aiScreenContextSchema.optional(),
   /**
    * The person asked it to keep going after it ran out of steps.
    *

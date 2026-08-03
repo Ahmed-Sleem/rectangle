@@ -37,6 +37,7 @@ import {
   aiChatInputSchema,
   aiConfirmInputSchema,
   aiConversationIdSchema,
+  aiScreenContextSchema,
   aiRenameConversationSchema,
   deriveConversationTitle,
   findTool,
@@ -50,7 +51,6 @@ import {
   SYSTEM_PROMPT,
   TOOL_MESSAGES,
   cycleBudgetPrompt,
-  pageContextPrompt,
 } from "../domain/ai-prompts.js";
 import { hasPermission, requirePermission, type UserPrincipal } from "../domain/auth.js";
 import { DomainError } from "../domain/errors.js";
@@ -59,6 +59,8 @@ import type {
   ProviderMessage,
   ProviderTool,
 } from "../infrastructure/ai-provider.js";
+import { runAsAssistant } from "./ai-attribution.js";
+import { screenContextStore } from "./ai-tools.js";
 import type { AiSettingsService } from "./ai-settings-service.js";
 import type { AuditRepository } from "./project-service.js";
 
@@ -230,11 +232,31 @@ export class AiService {
     private readonly conversations: AiConversationRepository,
   ) {}
 
+  /**
+   * One turn.
+   *
+   * Split into a public method that establishes request-scoped state and a
+   * private one that does the work, so the screen context is in place for
+   * every path through the loop — including the ones that return early —
+   * without a `run(...)` wrapper indenting the whole body by two.
+   */
   async chat(
     actor: UserPrincipal,
     rawInput: unknown,
-    /** Called as work happens, so a screen can show it. Optional: the
-     *  non-streaming route passes nothing and behaves exactly as before. */
+    onProgress?: AiProgressSink,
+  ): Promise<AiChatResult> {
+    const screen = aiScreenContextSchema.safeParse(
+      (rawInput as { screen?: unknown } | null)?.screen ?? {},
+    );
+
+    return screenContextStore.run(screen.success ? screen.data : {}, () =>
+      this.runChat(actor, rawInput, onProgress),
+    );
+  }
+
+  private async runChat(
+    actor: UserPrincipal,
+    rawInput: unknown,
     onProgress?: AiProgressSink,
   ): Promise<AiChatResult> {
     requirePermission(actor, "ai.use");
@@ -244,7 +266,12 @@ export class AiService {
       throw new DomainError("VALIDATION_FAILED", "That message could not be read.");
     }
 
-    const projectId = parsed.data.projectId ?? null;
+    /*
+     * The project the thread is filed against, if the person happened to start
+     * it on a project page. A label for the conversation list — nothing is told
+     * to the model about it, and nothing is scoped by it.
+     */
+    const projectId = parsed.data.screen?.projectId ?? null;
 
     /*
      * The thread is resolved before the provider is even asked for, and a
@@ -300,9 +327,18 @@ export class AiService {
       AI_CONTEXT_TURNS,
     );
 
+    /*
+     * The system prompt once, at the top, under the system role — and nothing
+     * else pushed in front of the conversation.
+     *
+     * There used to be a second system message naming the project the person
+     * had open, sent on every turn whether or not the question was about it.
+     * It is gone: the model asks `current_screen` when a question is ambiguous
+     * and pays for that context only then. Same reasoning for everything else
+     * it might want — no identity, no project list, no activity digest. It asks.
+     */
     const messages: ProviderMessage[] = [
       { role: "system", content: SYSTEM_PROMPT },
-      ...(projectId ? [{ role: "system" as const, content: pageContextPrompt(projectId) }] : []),
       ...(parsed.data.continue ? [{ role: "system" as const, content: CONTINUATION_PROMPT }] : []),
       ...history.map((message) => ({ role: message.role, content: message.content })),
     ];
@@ -654,7 +690,16 @@ export class AiService {
       throw new DomainError("CONFLICT", "That suggestion has already been carried out.");
     }
 
-    await executor(actor, action.arguments);
+    /*
+     * Everything the service audits inside this call is stamped as the
+     * assistant's doing, with the proposal it came from. The person remains the
+     * actor — they approved it — but the log can now answer "did a human type
+     * this or did the assistant propose it", which is the first question
+     * anybody asks when a record looks wrong.
+     */
+    await runAsAssistant({ tool: action.tool, actionId: action.id }, () =>
+      executor(actor, action.arguments),
+    );
 
     await this.audit.append({
       tenantId: actor.tenantId,

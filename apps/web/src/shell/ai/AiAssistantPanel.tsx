@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router";
+import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiClientError } from "@/shared/api/client";
 import { useAuth } from "@/shared/auth";
@@ -53,6 +53,7 @@ import {
   type AiStoredMessage,
 } from "./ai-api";
 import type { AiAssistantPanelProps } from "./ai-types";
+import { useScreenContext } from "./useScreenContext";
 import "./ai-panel.css";
 
 const EXIT_ANIMATION_MS = 260;
@@ -104,13 +105,12 @@ export function AiAssistantPanel({
   const { t } = useTranslation();
   const auth = useAuth();
   const queryClient = useQueryClient();
-  const { projectId } = useParams();
+  const screen = useScreenContext();
 
   const mayUse = hasPermission(auth.user, "ai.use");
 
   const [shouldRender, setShouldRender] = useState(!collapsed);
   const [isClosing, setIsClosing] = useState(false);
-  const [useCurrentPageContext, setUseCurrentPageContext] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -119,6 +119,7 @@ export function AiAssistantPanel({
   const [progress, setProgress] = useState<ProgressLine[]>([]);
   const [cycle, setCycle] = useState<{ current: number; total: number } | null>(null);
   const [exhausted, setExhausted] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const exitTimerRef = useRef<number | undefined>(undefined);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
 
@@ -239,7 +240,7 @@ export function AiAssistantPanel({
         {
           ...(conversationId ? { conversationId } : {}),
           message: input.message,
-          ...(projectId && useCurrentPageContext ? { projectId } : {}),
+          ...(Object.keys(screen).length > 0 ? { screen } : {}),
           ...(input.continuing ? { continue: true } : {}),
         },
         handleProgress,
@@ -371,10 +372,6 @@ export function AiAssistantPanel({
 
     return null;
   }, [auth.user, mayUse, settings.data, settings.isError, settings.isPending, t]);
-
-  const currentPageLabel = useCurrentPageContext
-    ? t("shell.ai.currentPageOn")
-    : t("shell.ai.currentPageOff");
 
   const failureMessage = (error: unknown): string | null => {
     if (!error) return null;
@@ -618,19 +615,6 @@ export function AiAssistantPanel({
             {t("shell.ai.composerLabel")}
           </label>
 
-          {/*
-            * Named only where there is something to name. The control appears
-            * on a project page and nowhere else, so it is never a dead button,
-            * and the project it will attach is stated rather than implied.
-            */}
-          {projectId ? (
-            <p className="rect-ai-composer__context">
-              {useCurrentPageContext
-                ? t("shell.ai.contextAttached")
-                : t("shell.ai.contextDetached")}
-            </p>
-          ) : null}
-
           <textarea
             id="rect-ai-message"
             className="rect-ai-composer__input"
@@ -647,26 +631,12 @@ export function AiAssistantPanel({
               }
             }}
           />
+          {/*
+            * No context toggle. The assistant asks what page somebody is on
+            * when a question needs it, which covers every page rather than
+            * only a project, and costs nothing on the questions that do not.
+            */}
           <div className="rect-ai-composer__footer">
-            <div className="rect-ai-composer__tools">
-              {projectId ? (
-                <button
-                  type="button"
-                  className={cn(
-                    "rect-ai-composer__tool",
-                    "rect-ai-composer__tool--context",
-                    useCurrentPageContext && "rect-ai-composer__tool--active",
-                  )}
-                  aria-pressed={useCurrentPageContext}
-                  aria-label={currentPageLabel}
-                  title={currentPageLabel}
-                  onClick={() => setUseCurrentPageContext((value) => !value)}
-                >
-                  <Sparkles size={15} strokeWidth={2} aria-hidden />
-                  <span className="sr-only">{t("shell.ai.currentPage")}</span>
-                </button>
-              ) : null}
-            </div>
             <button
               type="submit"
               className="rect-ai-composer__send"
@@ -689,7 +659,10 @@ export function AiAssistantPanel({
         title={t("shell.ai.history")}
         description={t("shell.ai.historyHelp")}
         size="sm"
-        onClose={() => setHistoryOpen(false)}
+        onClose={() => {
+          setHistoryOpen(false);
+          setPendingDelete(null);
+        }}
       >
         {history.isPending ? (
           <p className="rect-ai-history__note">{t("common.loading")}</p>
@@ -713,16 +686,45 @@ export function AiAssistantPanel({
                     {new Date(conversation.updatedAt).toLocaleDateString()}
                   </span>
                 </button>
-                <button
-                  type="button"
-                  className="rect-ai-history__delete"
-                  onClick={() => removeConversation.mutate(conversation.id)}
-                  disabled={removeConversation.isPending}
-                  aria-label={t("shell.ai.deleteConversation", { title: conversation.title })}
-                  title={t("shell.ai.deleteConversation", { title: conversation.title })}
-                >
-                  <Trash2 size={15} strokeWidth={2} aria-hidden />
-                </button>
+                {/*
+                  * Confirmed in place rather than in a window over the window.
+                  * A conversation cannot be recovered, so it must be asked; but
+                  * stacking a dialog on top of the history list to ask a
+                  * one-word question moves the person away from the thing they
+                  * are deciding about.
+                  */}
+                {pendingDelete === conversation.id ? (
+                  <span className="rect-ai-history__confirm">
+                    <button
+                      type="button"
+                      className="rect-ai-history__confirm-yes"
+                      onClick={() => {
+                        removeConversation.mutate(conversation.id);
+                        setPendingDelete(null);
+                      }}
+                      disabled={removeConversation.isPending}
+                    >
+                      {t("shell.ai.deleteConfirm")}
+                    </button>
+                    <button
+                      type="button"
+                      className="rect-ai-history__confirm-no"
+                      onClick={() => setPendingDelete(null)}
+                    >
+                      {t("common.cancel")}
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="rect-ai-history__delete"
+                    onClick={() => setPendingDelete(conversation.id)}
+                    aria-label={t("shell.ai.deleteConversation", { title: conversation.title })}
+                    title={t("shell.ai.deleteConversation", { title: conversation.title })}
+                  >
+                    <Trash2 size={15} strokeWidth={2} aria-hidden />
+                  </button>
+                )}
               </li>
             ))}
           </ul>

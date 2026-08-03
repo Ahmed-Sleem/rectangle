@@ -249,26 +249,18 @@
 }
 
 .rect-ai-composer__input:disabled,
-.rect-ai-composer__tool:disabled,
 .rect-ai-composer__send:disabled {
   cursor: not-allowed;
 }
 
 .rect-ai-composer__footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: var(--rect-space-2);
   margin-top: var(--rect-space-2);
 }
 
-.rect-ai-composer__tools {
-  display: flex;
-  align-items: center;
-  gap: var(--rect-space-1);
-}
-
-.rect-ai-composer__tool,
 .rect-ai-composer__send {
   border: 1px solid var(--rect-card-border);
   background: var(--rect-card-bg);
@@ -280,15 +272,38 @@
   justify-content: center;
 }
 
-.rect-ai-composer__tool {
-  width: 30px;
-}
-
 .rect-ai-composer__send {
   gap: var(--rect-space-1);
   padding: 0 var(--rect-space-3);
   font-size: var(--rect-text-label);
   font-weight: var(--rect-weight-bold);
+  cursor: pointer;
+  transition:
+    background var(--rect-motion-nav),
+    border-color var(--rect-motion-nav),
+    color var(--rect-motion-nav),
+    transform var(--rect-motion-spring);
+}
+
+/*
+ * The send control had no hover, no pressed state and nothing on focus, so it
+ * read as a label rather than a button — the one control in the panel a person
+ * is meant to press.
+ */
+.rect-ai-composer__send:hover:not(:disabled),
+.rect-ai-composer__send:focus-visible:not(:disabled) {
+  background: var(--rect-orb-bg);
+  border-color: var(--rect-orb-bg);
+  color: var(--rect-orb-text);
+}
+
+.rect-ai-composer__send:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Disabled here means "nothing typed yet", which the person fixes themselves. */
+.rect-ai-composer__send:disabled {
+  opacity: 0.55;
 }
 
 @media (max-width: 1100px) {
@@ -384,373 +399,60 @@
   }
 }
 
-/* Composer current-page context toggle — replaces attachment/voice tools. */
-.rect-ai-composer__tool--context {
-  cursor: pointer;
-  transition:
-    background var(--rect-motion-nav),
-    border-color var(--rect-motion-nav),
-    color var(--rect-motion-nav),
-    transform var(--rect-motion-spring),
-    box-shadow var(--rect-motion-nav);
-}
-
-.rect-ai-composer__tool--context:hover,
-.rect-ai-composer__tool--context:focus-visible {
-  background: var(--rect-surface-bg-hover);
-  border-color: var(--rect-toggle-border-hover);
-  color: var(--rect-text-primary);
-  transform: translateY(-1px) scale(1.03);
-}
-
-.rect-ai-composer__tool--context:active {
-  transform: scale(0.94);
-}
-
-.rect-ai-composer__tool--active {
-  background: var(--rect-orb-bg);
-  border-color: var(--rect-orb-bg);
-  color: var(--rect-orb-text);
-  box-shadow: inset 0 0 0 1px var(--rect-orb-inner-ring);
-}
-
-.rect-ai-composer__tool--active:hover,
-.rect-ai-composer__tool--active:focus-visible {
-  background: var(--rect-orb-bg-hover);
-  border-color: var(--rect-orb-bg-hover);
-  color: var(--rect-surface-bg-hover);
-}
-
-/* ── The conversation ─────────────────────────────────────────────────────
- *
- * The panel body used to hold one centred empty state and nothing else, so it
- * was a flex row with the child stretched. A transcript scrolls and stacks, so
- * the body now lays its children out in a column and the empty state keeps its
- * own growth rather than inheriting it from the container.
- */
-.rect-ai-panel__body {
-  flex-direction: column;
-  gap: var(--rect-space-3);
-}
-
-.rect-ai-panel__controls {
-  display: flex;
-  align-items: center;
-  gap: var(--rect-space-1);
-}
-
-.rect-ai-thread {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rect-space-3);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.rect-ai-turn {
-  border-radius: 14px;
-  padding: var(--rect-space-3);
-  font-size: var(--rect-text-table);
-  line-height: 1.5;
-  max-width: 92%;
-}
-
 /*
- * Asked and answered are told apart by weight and alignment rather than by
- * colour alone, so the distinction survives a monochrome screen and does not
- * depend on somebody distinguishing two tints.
- */
-.rect-ai-turn--asked {
-  align-self: flex-end;
-  background: var(--rect-badge-bg);
-  border: 1px solid var(--rect-badge-border);
-  color: var(--rect-text-primary);
-  font-weight: var(--rect-weight-semibold);
-}
-
-.rect-ai-turn--answered {
-  align-self: flex-start;
-  background: var(--rect-card-bg);
-  border: 1px solid var(--rect-card-border);
-  color: var(--rect-text-primary);
-}
-
-.rect-ai-turn__text {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* What the answer was read from. Quiet, because it qualifies rather than speaks. */
-.rect-ai-turn__tools {
-  margin-block-start: var(--rect-space-2);
-  font-size: var(--rect-text-micro);
-  color: var(--rect-text-secondary);
-  font-weight: var(--rect-weight-semibold);
-}
-
-.rect-ai-turn--thinking {
-  display: flex;
-  align-items: center;
-  gap: var(--rect-space-2);
-  color: var(--rect-text-secondary);
-  font-size: var(--rect-text-label);
-}
-
-.rect-ai-turn__spin {
-  animation: rect-ai-spin 900ms linear infinite;
-}
-
-@keyframes rect-ai-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.rect-ai-panel__error {
-  color: var(--rect-color-danger);
-  font-size: var(--rect-text-label);
-  font-weight: var(--rect-weight-semibold);
-}
-
-/* ── Unavailable, with a reason ──────────────────────────────────────────── */
-.rect-ai-panel__blocked {
-  flex: 1;
-  border: 1px dashed var(--rect-card-border);
-  border-radius: 18px;
-  background: var(--rect-card-bg);
-  color: var(--rect-text-secondary);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: var(--rect-space-6) var(--rect-space-4);
-  gap: var(--rect-space-2);
-}
-
-.rect-ai-panel__blocked svg {
-  color: var(--rect-color-warning);
-}
-
-.rect-ai-panel__blocked-link {
-  margin-block-start: var(--rect-space-2);
-  color: var(--rect-text-primary);
-  font-size: var(--rect-text-label);
-  font-weight: var(--rect-weight-bold);
-  text-decoration: underline;
-}
-
-/* ── The confirmation card ───────────────────────────────────────────────
+ * The history scrolls.
  *
- * Deliberately the loudest thing in the panel. It is the only place where the
- * assistant can change data, and it must not read like another paragraph of
- * chat that somebody scrolls past and approves without looking.
+ * It listed every conversation and let the window grow, so once somebody had a
+ * few dozen the older ones were off the bottom of a surface that does not
+ * itself scroll. The list is the scrolling region now, bounded by the viewport
+ * so it is always shorter than the screen it sits on.
  */
-.rect-ai-proposal {
-  border: 1px solid var(--rect-color-warning);
-  border-radius: 16px;
-  background: var(--rect-surface-bg);
-  padding: var(--rect-space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--rect-space-2);
-}
-
-.rect-ai-proposal__title {
-  font-size: var(--rect-text-subsection);
-  font-weight: var(--rect-weight-bold);
-  color: var(--rect-text-primary);
-  letter-spacing: -0.02em;
-}
-
-.rect-ai-proposal__help {
-  font-size: var(--rect-text-label);
-  color: var(--rect-text-secondary);
-}
-
-.rect-ai-proposal__fields {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rect-space-1);
-}
-
-.rect-ai-proposal__row {
-  display: flex;
-  gap: var(--rect-space-2);
-  font-size: var(--rect-text-label);
-}
-
-.rect-ai-proposal__row dt {
-  color: var(--rect-text-secondary);
-  font-weight: var(--rect-weight-semibold);
-  min-width: 84px;
-}
-
-.rect-ai-proposal__row dd {
-  color: var(--rect-text-primary);
-  overflow-wrap: anywhere;
-}
-
-.rect-ai-proposal__actions {
-  display: flex;
-  gap: var(--rect-space-2);
-  margin-block-start: var(--rect-space-1);
-}
-
-/* The line naming which project a question will be answered against. */
-.rect-ai-composer__context {
-  font-size: var(--rect-text-micro);
-  color: var(--rect-text-secondary);
-  font-weight: var(--rect-weight-semibold);
-  margin-block-end: var(--rect-space-2);
-}
-
-/* ── Past conversations ──────────────────────────────────────────────────── */
 .rect-ai-history {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rect-space-1);
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  max-block-size: min(60dvh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
-.rect-ai-history__item {
-  display: flex;
+/* Asking before deleting, without opening a window over the window. */
+.rect-ai-history__confirm {
+  display: inline-flex;
   align-items: center;
-  gap: var(--rect-space-2);
-}
-
-.rect-ai-history__open {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--rect-space-05);
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: transparent;
-  padding: var(--rect-space-2);
-  cursor: pointer;
-  text-align: start;
-  min-width: 0;
-}
-
-.rect-ai-history__open:hover,
-.rect-ai-history__open:focus-visible {
-  background: var(--rect-card-bg);
-  border-color: var(--rect-card-border);
-}
-
-.rect-ai-history__title {
-  color: var(--rect-text-primary);
-  font-size: var(--rect-text-label);
-  font-weight: var(--rect-weight-semibold);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rect-ai-history__meta {
-  color: var(--rect-text-muted);
-  font-size: var(--rect-text-micro);
-}
-
-.rect-ai-history__delete {
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--rect-text-secondary);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
+  gap: var(--rect-space-1);
   flex-shrink: 0;
 }
 
-.rect-ai-history__delete:hover,
-.rect-ai-history__delete:focus-visible {
+.rect-ai-history__confirm-yes,
+.rect-ai-history__confirm-no {
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-pill-radius);
   background: var(--rect-card-bg);
+  padding: var(--rect-space-1) var(--rect-space-2);
+  font-size: var(--rect-text-micro);
+  font-weight: var(--rect-weight-semibold);
+  cursor: pointer;
+  transition:
+    background var(--rect-motion-nav),
+    color var(--rect-motion-nav);
+}
+
+/* The destructive choice is the one that looks destructive. */
+.rect-ai-history__confirm-yes {
+  border-color: var(--rect-color-danger);
   color: var(--rect-color-danger);
 }
 
-.rect-ai-history__note {
-  color: var(--rect-text-secondary);
-  font-size: var(--rect-text-label);
+.rect-ai-history__confirm-yes:hover:not(:disabled),
+.rect-ai-history__confirm-yes:focus-visible:not(:disabled) {
+  background: var(--rect-color-danger);
+  color: var(--rect-surface-bg);
 }
 
-/* ── What it is doing, while it does it ───────────────────────────────────
- *
- * A spinner says "wait" and nothing else, so a model that is working and one
- * that has hung look identical — and people reload the page and lose the
- * answer. These lines say which step is running and what came back, and stay
- * on screen once done so the route to the answer is visible.
- */
-.rect-ai-thinking {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rect-space-2);
+.rect-ai-history__confirm-no {
   color: var(--rect-text-secondary);
-  font-size: var(--rect-text-label);
 }
 
-.rect-ai-thinking__head {
-  display: flex;
-  align-items: center;
-  gap: var(--rect-space-2);
-  font-weight: var(--rect-weight-semibold);
+.rect-ai-history__confirm-no:hover,
+.rect-ai-history__confirm-no:focus-visible {
   color: var(--rect-text-primary);
-}
-
-.rect-ai-steps {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rect-space-1);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  /* Aligns each step under the text of the heading, not under its spinner. */
-  padding-inline-start: var(--rect-space-5);
-}
-
-.rect-ai-steps__item {
-  display: flex;
-  align-items: baseline;
-  gap: var(--rect-space-2);
-  font-size: var(--rect-text-micro);
-}
-
-/* A finished step is stated plainly; one still running stays quiet. */
-.rect-ai-steps__item[data-done="false"] {
-  opacity: 0.7;
-}
-
-.rect-ai-steps__what {
-  color: var(--rect-text-secondary);
-  font-weight: var(--rect-weight-semibold);
-}
-
-.rect-ai-steps__outcome {
-  color: var(--rect-text-muted);
-}
-
-/* ── The offer to keep going ─────────────────────────────────────────────── */
-.rect-ai-continue {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--rect-space-2);
-  border: 1px dashed var(--rect-card-border);
-  border-radius: 14px;
-  background: var(--rect-card-bg);
-  padding: var(--rect-space-3);
-}
-
-.rect-ai-continue__text {
-  color: var(--rect-text-secondary);
-  font-size: var(--rect-text-label);
-  line-height: 1.5;
 }

@@ -186,3 +186,96 @@ describe("the loop's limits", () => {
     expect(AI_LIMITS.proposalTtlMs).toBeGreaterThan(0);
   });
 });
+
+describe("the tools the assistant is given", () => {
+  /*
+   * The owner's requirement was parity: anything a person may do in Rectangle,
+   * the assistant may propose on their behalf. These check the registry against
+   * the permission catalogue rather than against a list written here, so a new
+   * permission with no tool behind it shows up as a failure instead of as
+   * nothing at all.
+   */
+  it("covers reading and changing every kind of record a person works with", () => {
+    const names = aiTools.map((tool) => tool.name);
+
+    for (const expected of [
+      "whoami",
+      "current_screen",
+      "my_activity",
+      "search_projects",
+      "get_project",
+      "list_tasks",
+      "get_task",
+      "list_risks",
+      "get_risk",
+      "list_colleagues",
+      "project_team",
+      "create_task",
+      "update_task",
+      "create_risk",
+      "update_risk",
+      "create_project",
+      "update_project",
+      "add_project_member",
+      "create_user",
+    ]) {
+      expect(names).toContain(expected);
+    }
+  });
+
+  it("asks for context rather than being handed it", () => {
+    // Both take no arguments: the model calls them when it needs them, and the
+    // harness answers from the request rather than from the prompt.
+    for (const name of ["whoami", "current_screen", "my_activity"]) {
+      const tool = findTool(name);
+      expect(tool?.readOnly).toBe(true);
+      expect(tool?.schema.safeParse({}).success).toBe(true);
+    }
+  });
+
+  /*
+   * A person's own history must not need a permission that governs seeing
+   * other people's. This was a real gap: `recent_activity` is team-scoped, so
+   * somebody without `activity.read_team` had no way to ask what they
+   * themselves had done.
+   */
+  it("lets anybody read their own history, and gates the team's", () => {
+    expect(findTool("my_activity")?.requiredPermission).toBe("ai.use");
+    expect(findTool("recent_activity")?.requiredPermission).toBe("activity.read_team");
+  });
+
+  it("marks every write as needing approval, and never marks a read", () => {
+    for (const tool of aiTools) {
+      const writes = tool.name.startsWith("create_") ||
+        tool.name.startsWith("update_") ||
+        tool.name.startsWith("delete_") ||
+        tool.name.startsWith("add_") ||
+        tool.name.startsWith("remove_");
+      expect(tool.readOnly).toBe(!writes);
+    }
+  });
+
+  /*
+   * `destructive` is what Session B's per-tool "don't ask again" will read to
+   * decide which tools may never be silenced. Getting it wrong there means a
+   * deletion happening without anybody seeing it, so it is pinned here.
+   */
+  it("names the irreversible tools, and only those", () => {
+    const destructive = aiTools.filter((tool) => tool.destructive).map((tool) => tool.name);
+    expect(destructive.sort()).toEqual(
+      ["delete_risk", "delete_task", "remove_project_member"].sort(),
+    );
+    // Nothing read-only can be destructive: there would be nothing to destroy.
+    for (const tool of aiTools) {
+      if (tool.readOnly) expect(tool.destructive).toBeUndefined();
+    }
+  });
+
+  it("refuses an update that names no field to change", () => {
+    const update = findTool("update_task");
+    expect(update?.schema.safeParse({ taskId: crypto.randomUUID() }).success).toBe(false);
+    expect(
+      update?.schema.safeParse({ taskId: crypto.randomUUID(), status: "done" }).success,
+    ).toBe(true);
+  });
+});
