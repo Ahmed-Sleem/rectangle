@@ -10,6 +10,7 @@ import type pg from "pg";
 import type {
   AiSettingsRecord,
   AiSettingsRepository,
+  AiUserProviderRecord,
 } from "../../application/ai-settings-service.js";
 import type {
   AiConversationRepository,
@@ -25,6 +26,7 @@ function mapSettings(row: Record<string, unknown>): AiSettingsRecord {
     model: String(row.model),
     encryptedApiKey: row.api_key_cipher == null ? null : String(row.api_key_cipher),
     enabled: Boolean(row.enabled),
+    ...(row.max_cycles == null ? {} : { maxCycles: Number(row.max_cycles) }),
     updatedAt: new Date(String(row.updated_at)).toISOString(),
   };
 }
@@ -34,7 +36,7 @@ export class PostgresAiSettingsRepository implements AiSettingsRepository {
 
   async get(tenantId: string): Promise<AiSettingsRecord | null> {
     const result = await this.pool.query(
-      "select base_url, model, api_key_cipher, enabled, updated_at from ai_settings where tenant_id = $1",
+      "select base_url, model, api_key_cipher, enabled, max_cycles, updated_at from ai_settings where tenant_id = $1",
       [tenantId],
     );
     return result.rows[0] ? mapSettings(result.rows[0] as Record<string, unknown>) : null;
@@ -47,52 +49,82 @@ export class PostgresAiSettingsRepository implements AiSettingsRepository {
       model: string;
       encryptedApiKey: string | null;
       enabled: boolean;
+      maxCycles?: number;
       updatedByUserId: string;
     },
   ): Promise<AiSettingsRecord> {
     const result = await this.pool.query(
-      `insert into ai_settings (tenant_id, base_url, model, api_key_cipher, enabled, updated_at, updated_by_user_id)
-       values ($1, $2, $3, $4, $5, now(), $6)
+      `insert into ai_settings (tenant_id, base_url, model, api_key_cipher, enabled, max_cycles, updated_at, updated_by_user_id)
+       values ($1, $2, $3, $4, $5, coalesce($6, 10), now(), $7)
        on conflict (tenant_id) do update set
          base_url = excluded.base_url,
          model = excluded.model,
          api_key_cipher = excluded.api_key_cipher,
          enabled = excluded.enabled,
+         -- Absent keeps the saved budget: changing a model name must not
+         -- silently reset a limit somebody tuned.
+         max_cycles = coalesce($6, ai_settings.max_cycles),
          updated_at = now(),
          updated_by_user_id = excluded.updated_by_user_id
-       returning base_url, model, api_key_cipher, enabled, updated_at`,
+       returning base_url, model, api_key_cipher, enabled, max_cycles, updated_at`,
       [
         tenantId,
         input.baseUrl,
         input.model,
         input.encryptedApiKey,
         input.enabled,
+        input.maxCycles ?? null,
         input.updatedByUserId,
       ],
     );
     return mapSettings(result.rows[0] as Record<string, unknown>);
   }
 
-  async getUserKey(tenantId: string, userId: string): Promise<string | null> {
-    const result = await this.pool.query<{ api_key_cipher: string }>(
-      "select api_key_cipher from ai_user_keys where tenant_id = $1 and user_id = $2",
+  async getUserProvider(tenantId: string, userId: string): Promise<AiUserProviderRecord | null> {
+    const result = await this.pool.query<{
+      base_url: string | null;
+      model: string | null;
+      api_key_cipher: string | null;
+    }>(
+      "select base_url, model, api_key_cipher from ai_user_keys where tenant_id = $1 and user_id = $2",
       [tenantId, userId],
     );
-    return result.rows[0]?.api_key_cipher ?? null;
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      baseUrl: row.base_url,
+      model: row.model,
+      encryptedApiKey: row.api_key_cipher,
+    };
   }
 
-  async saveUserKey(tenantId: string, userId: string, encryptedApiKey: string): Promise<void> {
+  /**
+   * Writes only what was sent.
+   *
+   * `coalesce(excluded.x, ai_user_keys.x)` is what makes a partial save
+   * partial: a column the caller did not mention arrives as null and the
+   * existing value is kept. Assigning `excluded.x` directly would mean saving a
+   * model silently erased the key saved last week, which is the kind of data
+   * loss nobody reports because they assume they did it themselves.
+   */
+  async saveUserProvider(
+    tenantId: string,
+    userId: string,
+    input: { baseUrl?: string; model?: string; encryptedApiKey?: string },
+  ): Promise<void> {
     await this.pool.query(
-      `insert into ai_user_keys (tenant_id, user_id, api_key_cipher, updated_at)
-       values ($1, $2, $3, now())
+      `insert into ai_user_keys (tenant_id, user_id, base_url, model, api_key_cipher, updated_at)
+       values ($1, $2, $3, $4, $5, now())
        on conflict (tenant_id, user_id) do update set
-         api_key_cipher = excluded.api_key_cipher,
+         base_url = coalesce(excluded.base_url, ai_user_keys.base_url),
+         model = coalesce(excluded.model, ai_user_keys.model),
+         api_key_cipher = coalesce(excluded.api_key_cipher, ai_user_keys.api_key_cipher),
          updated_at = now()`,
-      [tenantId, userId, encryptedApiKey],
+      [tenantId, userId, input.baseUrl ?? null, input.model ?? null, input.encryptedApiKey ?? null],
     );
   }
 
-  async deleteUserKey(tenantId: string, userId: string): Promise<boolean> {
+  async deleteUserProvider(tenantId: string, userId: string): Promise<boolean> {
     const result = await this.pool.query(
       "delete from ai_user_keys where tenant_id = $1 and user_id = $2",
       [tenantId, userId],

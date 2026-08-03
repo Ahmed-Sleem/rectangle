@@ -9,6 +9,7 @@
  * whole reason a person gets to approve anything.
  */
 import type { FastifyInstance } from "fastify";
+import { DomainError } from "../domain/errors.js";
 import type { AiService } from "../application/ai-service.js";
 import type { AiSettingsService } from "../application/ai-settings-service.js";
 
@@ -23,7 +24,7 @@ export async function registerAiRoutes(
     | "renameConversation"
     | "deleteConversation"
   >,
-  aiSettingsService: Pick<AiSettingsService, "getSettings" | "saveSettings" | "saveMyKey" | "deleteMyKey">,
+  aiSettingsService: Pick<AiSettingsService, "getSettings" | "saveSettings" | "saveMyProvider" | "deleteMyProvider">,
 ): Promise<void> {
   /*
    * One turn of the conversation. Stateless: the client sends the history it
@@ -33,6 +34,60 @@ export async function registerAiRoutes(
    * model reaches for something that changes data.
    */
   app.post("/v1/ai/chat", async (request) => aiService.chat(request.principal, request.body));
+
+  /*
+   * The same turn, reported as it happens.
+   *
+   * Server-sent events rather than a websocket: the traffic is one-directional
+   * and short-lived, SSE survives proxies that mangle upgrades, and it needs no
+   * connection state on the server. The browser posts the question and reads
+   * the steps back off the same response.
+   *
+   * A POST, despite SSE conventionally being a GET, because the request carries
+   * a message body and putting somebody's question in a query string would put
+   * it in every access log between here and them.
+   *
+   * The non-streaming route above stays. This one is an addition, so a client
+   * that cannot stream — or a test that does not want to — still works.
+   */
+  app.post("/v1/ai/chat/stream", async (request, reply) => {
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      // Nginx and several PaaS proxies buffer responses by default, which
+      // holds every event until the request ends and turns a live progress
+      // feed into one silent wait followed by everything at once.
+      "X-Accel-Buffering": "no",
+    });
+
+    const send = (event: unknown) => {
+      // One JSON object per event, newline-delimited as the protocol requires.
+      reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+
+    try {
+      await aiService.chat(request.principal, request.body, send);
+    } catch (error) {
+      /*
+       * The status line has already gone, so a failure cannot become a 4xx or
+       * 5xx any more. It is reported as a final event instead, and the client
+       * shows it the same way it shows any other failure. Swallowing it would
+       * leave the person watching a feed that simply stopped.
+       */
+      send({
+        type: "failed",
+        message:
+          error instanceof DomainError
+            ? error.message
+            : "The assistant could not finish that. Please try again.",
+      });
+    } finally {
+      reply.raw.end();
+    }
+
+    return reply;
+  });
 
   /*
    * Approving a proposed change. The body carries only an identifier: the
@@ -72,8 +127,16 @@ export async function registerAiRoutes(
     aiSettings: await aiSettingsService.saveSettings(request.principal, request.body),
   }));
 
-  /* A person's own key. No id in the path: it acts on whoever is asking. */
-  app.put("/v1/ai/key", async (request) => aiSettingsService.saveMyKey(request.principal, request.body));
+  /*
+   * A person's own provider. No id in the path: it acts on whoever is asking,
+   * so there is nowhere to name somebody else's settings and therefore no way
+   * to change them.
+   */
+  app.put("/v1/ai/me", async (request) => ({
+    aiSettings: await aiSettingsService.saveMyProvider(request.principal, request.body),
+  }));
 
-  app.delete("/v1/ai/key", async (request) => aiSettingsService.deleteMyKey(request.principal));
+  app.delete("/v1/ai/me", async (request) => ({
+    aiSettings: await aiSettingsService.deleteMyProvider(request.principal),
+  }));
 }

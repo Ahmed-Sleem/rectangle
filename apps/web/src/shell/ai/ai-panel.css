@@ -681,3 +681,76 @@
   color: var(--rect-text-secondary);
   font-size: var(--rect-text-label);
 }
+
+/* ── What it is doing, while it does it ───────────────────────────────────
+ *
+ * A spinner says "wait" and nothing else, so a model that is working and one
+ * that has hung look identical — and people reload the page and lose the
+ * answer. These lines say which step is running and what came back, and stay
+ * on screen once done so the route to the answer is visible.
+ */
+.rect-ai-thinking {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-2);
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+.rect-ai-thinking__head {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-2);
+  font-weight: var(--rect-weight-semibold);
+  color: var(--rect-text-primary);
+}
+
+.rect-ai-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Aligns each step under the text of the heading, not under its spinner. */
+  padding-inline-start: var(--rect-space-5);
+}
+
+.rect-ai-steps__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--rect-space-2);
+  font-size: var(--rect-text-micro);
+}
+
+/* A finished step is stated plainly; one still running stays quiet. */
+.rect-ai-steps__item[data-done="false"] {
+  opacity: 0.7;
+}
+
+.rect-ai-steps__what {
+  color: var(--rect-text-secondary);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-ai-steps__outcome {
+  color: var(--rect-text-muted);
+}
+
+/* ── The offer to keep going ─────────────────────────────────────────────── */
+.rect-ai-continue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rect-space-2);
+  border: 1px dashed var(--rect-card-border);
+  border-radius: 14px;
+  background: var(--rect-card-bg);
+  padding: var(--rect-space-3);
+}
+
+.rect-ai-continue__text {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  line-height: 1.5;
+}

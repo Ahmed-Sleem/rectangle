@@ -16,9 +16,10 @@
  */
 import {
   aiSettingsInputSchema,
-  aiUserKeyInputSchema,
+  AI_CYCLE_BOUNDS,
+  aiUserProviderInputSchema,
   type AiSettingsInput,
-  type AiUserKeyInput,
+  type AiUserProviderInput,
 } from "../domain/ai.js";
 import { requirePermission, type UserPrincipal } from "../domain/auth.js";
 import { DomainError } from "../domain/errors.js";
@@ -26,6 +27,8 @@ import { decryptSecret, encryptSecret } from "../infrastructure/secret-crypto.js
 import type { AuditRepository } from "./project-service.js";
 
 export interface AiSettingsRecord {
+  /** Reasoning steps allowed per question. */
+  maxCycles?: number;
   baseUrl: string;
   model: string;
   encryptedApiKey: string | null;
@@ -43,9 +46,25 @@ export interface PublicAiSettings {
   hasCompanyKey: boolean;
   /** Whether *this* person has saved one of their own. */
   hasPersonalKey: boolean;
+  /** This person's own endpoint, when they have chosen one. */
+  personalBaseUrl?: string;
+  /** This person's own model, when they have chosen one. */
+  personalModel?: string;
+  /** What their questions actually go to, once overrides are applied. */
+  effectiveBaseUrl?: string;
+  effectiveModel?: string;
   /** Whether asking a question would work right now, for this person. */
   ready: boolean;
+  /** Reasoning steps per question, so an owner can see and change it. */
+  maxCycles: number;
   updatedAt?: string;
+}
+
+/** What a person has chosen for themselves. Null fields follow the company. */
+export interface AiUserProviderRecord {
+  baseUrl: string | null;
+  model: string | null;
+  encryptedApiKey: string | null;
 }
 
 export interface AiSettingsRepository {
@@ -55,18 +74,28 @@ export interface AiSettingsRepository {
     input: {
       baseUrl: string;
       model: string;
+      /** Absent keeps the saved budget rather than resetting it. */
+      maxCycles?: number;
       encryptedApiKey: string | null;
       enabled: boolean;
       updatedByUserId: string;
     },
   ): Promise<AiSettingsRecord>;
-  getUserKey(tenantId: string, userId: string): Promise<string | null>;
-  saveUserKey(tenantId: string, userId: string, encryptedApiKey: string): Promise<void>;
-  deleteUserKey(tenantId: string, userId: string): Promise<boolean>;
+  /** A person's overrides. Any field may be null, meaning "follow the company". */
+  getUserProvider(tenantId: string, userId: string): Promise<AiUserProviderRecord | null>;
+  /** Writes only the fields present; the others keep whatever they held. */
+  saveUserProvider(
+    tenantId: string,
+    userId: string,
+    input: { baseUrl?: string; model?: string; encryptedApiKey?: string },
+  ): Promise<void>;
+  deleteUserProvider(tenantId: string, userId: string): Promise<boolean>;
 }
 
 /** Everything the harness needs to call a provider, decrypted at the last moment. */
 export interface ResolvedAiProvider {
+  /** The reasoning budget this company chose. */
+  maxCycles?: number;
   baseUrl: string;
   model: string;
   apiKey: string;
@@ -89,12 +118,31 @@ export class AiSettingsService {
     requirePermission(actor, "ai.use");
 
     const record = await this.repository.get(actor.tenantId);
-    const personalKey = await this.repository.getUserKey(actor.tenantId, actor.userId);
+    const personal = await this.repository.getUserProvider(actor.tenantId, actor.userId);
     const hasCompanyKey = Boolean(record?.encryptedApiKey);
-    const hasPersonalKey = Boolean(personalKey);
+    const hasPersonalKey = Boolean(personal?.encryptedApiKey);
+
+    /*
+     * What this person's questions would actually be sent to, after the
+     * overrides are applied. Reported rather than left for the screen to work
+     * out: the fallback happens field by field in `resolveProvider`, and a
+     * second implementation of that in the browser is a second answer waiting
+     * to disagree with the first.
+     */
+    const effectiveBaseUrl = personal?.baseUrl ?? record?.baseUrl;
+    const effectiveModel = personal?.model ?? record?.model;
 
     if (!record) {
-      return { configured: false, enabled: false, hasCompanyKey, hasPersonalKey, ready: false };
+      return {
+        configured: false,
+        enabled: false,
+        hasCompanyKey,
+        hasPersonalKey,
+        ready: false,
+        maxCycles: AI_CYCLE_BOUNDS.default,
+        ...(personal?.baseUrl ? { personalBaseUrl: personal.baseUrl } : {}),
+        ...(personal?.model ? { personalModel: personal.model } : {}),
+      };
     }
 
     return {
@@ -104,6 +152,11 @@ export class AiSettingsService {
       model: record.model,
       hasCompanyKey,
       hasPersonalKey,
+      ...(personal?.baseUrl ? { personalBaseUrl: personal.baseUrl } : {}),
+      ...(personal?.model ? { personalModel: personal.model } : {}),
+      ...(effectiveBaseUrl ? { effectiveBaseUrl } : {}),
+      ...(effectiveModel ? { effectiveModel } : {}),
+      maxCycles: record.maxCycles ?? AI_CYCLE_BOUNDS.default,
       // Enabled is not the same as usable: a company can switch it on and have
       // nobody able to use it because no key was ever saved.
       ready: record.enabled && (hasCompanyKey || hasPersonalKey),
@@ -134,6 +187,7 @@ export class AiSettingsService {
     const record = await this.repository.upsert(actor.tenantId, {
       baseUrl: input.baseUrl,
       model: input.model,
+      ...(input.maxCycles === undefined ? {} : { maxCycles: input.maxCycles }),
       encryptedApiKey,
       enabled: input.enabled,
       updatedByUserId: actor.userId,
@@ -153,64 +207,91 @@ export class AiSettingsService {
         model: input.model,
         enabled: input.enabled,
         keyChanged: Boolean(input.apiKey),
+        ...(input.maxCycles === undefined ? {} : { maxCycles: input.maxCycles }),
       },
     });
 
-    const personalKey = await this.repository.getUserKey(actor.tenantId, actor.userId);
-    return {
-      configured: true,
-      enabled: record.enabled,
-      baseUrl: record.baseUrl,
-      model: record.model,
-      hasCompanyKey: Boolean(record.encryptedApiKey),
-      hasPersonalKey: Boolean(personalKey),
-      ready: record.enabled && Boolean(record.encryptedApiKey || personalKey),
-      updatedAt: record.updatedAt,
-    };
+    /*
+     * Read back through the same method the screen uses, rather than assembled
+     * a second time here. The response after saving and the response on the
+     * next page load are now literally the same computation, so they cannot
+     * disagree about what is configured — which they would the moment somebody
+     * added a field to one and forgot the other.
+     */
+    return this.getSettings(actor);
   }
 
-  /** A person's own key, which they may set and remove without an administrator. */
-  async saveMyKey(actor: UserPrincipal, rawInput: unknown): Promise<{ hasPersonalKey: true }> {
+  /**
+   * A person's own provider: any of endpoint, model and key.
+   *
+   * Every field is optional and only what is sent is written, so setting a
+   * model does not silently clear a key that was saved last week. Sending
+   * nothing at all is refused rather than treated as "clear everything":
+   * removing an override is what `deleteMyProvider` is for, and guessing which
+   * of the two an empty request meant would eventually guess wrong.
+   */
+  async saveMyProvider(
+    actor: UserPrincipal,
+    rawInput: unknown,
+  ): Promise<PublicAiSettings> {
     requirePermission(actor, "ai.use");
 
-    const parsed = aiUserKeyInputSchema.safeParse(rawInput);
+    const parsed = aiUserProviderInputSchema.safeParse(rawInput);
     if (!parsed.success) {
-      throw new DomainError("VALIDATION_FAILED", "That API key is not valid.");
+      throw new DomainError("VALIDATION_FAILED", "Those assistant settings are not valid.");
     }
-    const input: AiUserKeyInput = parsed.data;
+    const input: AiUserProviderInput = parsed.data;
 
-    await this.repository.saveUserKey(actor.tenantId, actor.userId, encryptSecret(input.apiKey));
+    if (!input.baseUrl && !input.model && !input.apiKey) {
+      throw new DomainError(
+        "VALIDATION_FAILED",
+        "Choose an endpoint, a model or a key. Nothing was set.",
+      );
+    }
+
+    await this.repository.saveUserProvider(actor.tenantId, actor.userId, {
+      ...(input.baseUrl ? { baseUrl: input.baseUrl } : {}),
+      ...(input.model ? { model: input.model } : {}),
+      ...(input.apiKey ? { encryptedApiKey: encryptSecret(input.apiKey) } : {}),
+    });
 
     await this.audit.append({
       tenantId: actor.tenantId,
       actorUserId: actor.userId,
-      action: "ai.key.update",
+      action: "ai.user_provider.update",
       entityType: "ai_user_key",
       entityId: actor.userId,
       result: "success",
+      // The choices are worth recording. The key never is, anywhere.
+      metadata: {
+        baseUrlChanged: Boolean(input.baseUrl),
+        modelChanged: Boolean(input.model),
+        keyChanged: Boolean(input.apiKey),
+      },
     });
 
-    return { hasPersonalKey: true };
+    return this.getSettings(actor);
   }
 
-  async deleteMyKey(actor: UserPrincipal): Promise<{ hasPersonalKey: false }> {
+  /** Removes every personal override, so this person follows the company again. */
+  async deleteMyProvider(actor: UserPrincipal): Promise<PublicAiSettings> {
     requirePermission(actor, "ai.use");
 
-    const removed = await this.repository.deleteUserKey(actor.tenantId, actor.userId);
+    const removed = await this.repository.deleteUserProvider(actor.tenantId, actor.userId);
     if (removed) {
       await this.audit.append({
         tenantId: actor.tenantId,
         actorUserId: actor.userId,
-        action: "ai.key.delete",
+        action: "ai.user_provider.delete",
         entityType: "ai_user_key",
         entityId: actor.userId,
         result: "success",
       });
     }
 
-    // Idempotent: removing a key that is not there is a request that has
+    // Idempotent: removing an override that is not there is a request that has
     // already been satisfied, not a failure worth showing somebody.
-    return { hasPersonalKey: false };
+    return this.getSettings(actor);
   }
 
   /**
@@ -233,8 +314,15 @@ export class AiSettingsService {
       throw new DomainError("CONFIGURATION_REQUIRED", "The assistant is switched off.");
     }
 
-    const personalKey = await this.repository.getUserKey(actor.tenantId, actor.userId);
-    const cipher = personalKey ?? record.encryptedApiKey;
+    /*
+     * Field by field, not all-or-nothing. Somebody who set only a model keeps
+     * the company's endpoint and key; somebody who set only a key keeps the
+     * company's choice of model. Treating the personal row as a single unit
+     * would force a person to restate settings they were happy with, and would
+     * stop them tracking the company when an owner changed provider.
+     */
+    const personal = await this.repository.getUserProvider(actor.tenantId, actor.userId);
+    const cipher = personal?.encryptedApiKey ?? record.encryptedApiKey;
     if (!cipher) {
       throw new DomainError(
         "CONFIGURATION_REQUIRED",
@@ -242,6 +330,13 @@ export class AiSettingsService {
       );
     }
 
-    return { baseUrl: record.baseUrl, model: record.model, apiKey: decryptSecret(cipher) };
+    return {
+      baseUrl: personal?.baseUrl ?? record.baseUrl,
+      model: personal?.model ?? record.model,
+      apiKey: decryptSecret(cipher),
+      // Company-wide deliberately: the budget is a spending decision, so it is
+      // the owner's to make even where the model is somebody's own choice.
+      ...(record.maxCycles === undefined ? {} : { maxCycles: record.maxCycles }),
+    };
   }
 }

@@ -114,7 +114,13 @@ describe("AppShell", () => {
     expect(
       screen.queryByRole("heading", { level: 1, name: "RECTANGLE" }),
     ).not.toBeInTheDocument();
-    expect(document.title).toBe("Today · Rectangle");
+    /*
+     * Waited for rather than read once. The title is written in an effect, so
+     * asserting it immediately races the effect — which passed when this file
+     * ran alone and failed intermittently in the full suite, where the machine
+     * is busier. A flake in a title assertion is still a flake.
+     */
+    await waitFor(() => expect(document.title).toBe("Today · Rectangle"));
   });
 
   it("renders Arabic shell labels and RTL document direction", async () => {
@@ -130,9 +136,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "الإعدادات" })).toBeInTheDocument();
     expect(document.documentElement).toHaveAttribute("lang", "ar");
     expect(document.documentElement).toHaveAttribute("dir", "rtl");
-    await waitFor(() => {
-      expect(document.title).toBe("المشاريع · Rectangle");
-    });
+    await waitFor(() => expect(document.title).toBe("المشاريع · Rectangle"));
   });
 
   it("toggles the icon-only navigation control", async () => {
@@ -173,9 +177,7 @@ describe("AppShell", () => {
       "aria-current",
       "page",
     );
-    await waitFor(() => {
-      expect(document.title).toBe("Projects · Rectangle");
-    });
+    await waitFor(() => expect(document.title).toBe("Projects · Rectangle"));
   });
 
   it("renders a live assistant panel, not a disabled placeholder", async () => {

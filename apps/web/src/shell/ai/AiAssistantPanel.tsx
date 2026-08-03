@@ -45,7 +45,13 @@ import { hasPermission } from "@/shared/auth/authority";
 import { Button, EmptyState, Overlay } from "@/shared/ui";
 import { cn } from "@/shared/lib/cn";
 import { AiPanelToggle } from "./AiPanelToggle";
-import { shellAiApi, type AiProposal, type AiStoredMessage } from "./ai-api";
+import {
+  shellAiApi,
+  streamChat,
+  type AiProgressEvent,
+  type AiProposal,
+  type AiStoredMessage,
+} from "./ai-api";
 import type { AiAssistantPanelProps } from "./ai-types";
 import "./ai-panel.css";
 
@@ -63,6 +69,22 @@ interface DisplayMessage {
   role: "user" | "assistant";
   content: string;
   usedTools: string[];
+}
+
+/**
+ * One line of the running commentary.
+ *
+ * Every field is a fact the harness reported — which step, which tool, what
+ * came back — so nothing shown here can be something the model asserted. That
+ * matters: a progress feed the model could write into would be a second place
+ * for it to make things up, and one that nobody would think to check.
+ */
+interface ProgressLine {
+  id: string;
+  cycle: number;
+  total: number;
+  tool?: string;
+  outcome?: string;
 }
 
 function fromStored(message: AiStoredMessage): DisplayMessage {
@@ -94,6 +116,9 @@ export function AiAssistantPanel({
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [proposal, setProposal] = useState<AiProposal | null>(null);
   const [draft, setDraft] = useState("");
+  const [progress, setProgress] = useState<ProgressLine[]>([]);
+  const [cycle, setCycle] = useState<{ current: number; total: number } | null>(null);
+  const [exhausted, setExhausted] = useState(false);
   const exitTimerRef = useRef<number | undefined>(undefined);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
 
@@ -154,13 +179,76 @@ export function AiAssistantPanel({
    */
   const ready = settings.data?.aiSettings?.ready ?? false;
 
+  /**
+   * Asks, and narrates.
+   *
+   * The progress events land in state as they arrive, so the panel shows what
+   * the assistant is doing rather than a spinner. A spinner cannot distinguish
+   * a model that is working from one that has hung, so people reload and lose
+   * the answer; a line saying which search is running at step two of ten is
+   * both honest and reassuring.
+   */
+  /*
+   * Kept out of the mutation so it is a stable function rather than something
+   * rebuilt on every keystroke, and so the shape of each line is described in
+   * one place instead of inside three switch arms.
+   */
+  const handleProgress = (event: AiProgressEvent) => {
+    if (event.type === "cycle") {
+      setCycle({ current: event.cycle, total: event.total });
+      return;
+    }
+    if (event.type === "tool") {
+      setProgress((current) => [
+        ...current,
+        {
+          id: `${event.cycle}-${event.tool}-${current.length}`,
+          cycle: event.cycle,
+          total: cycle?.total ?? 0,
+          tool: event.tool,
+        },
+      ]);
+      return;
+    }
+    if (event.type === "observation") {
+      // Completes the line it belongs to rather than adding another, so the
+      // feed reads as a list of steps and not a list of half-steps.
+      setProgress((current) => {
+        // The most recent unfinished line for this tool. Searched backwards
+        // because the same tool may legitimately run more than once, and the
+        // observation belongs to the latest call rather than the first.
+        let target = -1;
+        for (let index = current.length - 1; index >= 0; index -= 1) {
+          const line = current[index];
+          if (line && line.tool === event.tool && !line.outcome) {
+            target = index;
+            break;
+          }
+        }
+        if (target === -1) return current;
+        return current.map((line, index) =>
+          index === target ? { ...line, outcome: event.summary } : line,
+        );
+      });
+    }
+  };
+
   const ask = useMutation({
-    mutationFn: (message: string) =>
-      shellAiApi.chat({
-        ...(conversationId ? { conversationId } : {}),
-        message,
-        ...(projectId && useCurrentPageContext ? { projectId } : {}),
-      }),
+    mutationFn: (input: { message: string; continuing?: boolean }) =>
+      streamChat(
+        {
+          ...(conversationId ? { conversationId } : {}),
+          message: input.message,
+          ...(projectId && useCurrentPageContext ? { projectId } : {}),
+          ...(input.continuing ? { continue: true } : {}),
+        },
+        handleProgress,
+      ),
+    onMutate: () => {
+      setProgress([]);
+      setCycle(null);
+      setExhausted(false);
+    },
     onSuccess: (result) => {
       setConversationId(result.conversationId);
       setMessages((current) => [
@@ -173,6 +261,8 @@ export function AiAssistantPanel({
         },
       ]);
       setProposal(result.proposal ?? null);
+      setExhausted(Boolean(result.exhausted));
+      setCycle(null);
       // The thread has moved to the top of the list and may have just been
       // created, so a list fetched earlier is now wrong.
       void queryClient.invalidateQueries({ queryKey: ["ai", "conversations"] });
@@ -222,6 +312,9 @@ export function AiAssistantPanel({
     setMessages([]);
     setProposal(null);
     setDraft("");
+    setProgress([]);
+    setCycle(null);
+    setExhausted(false);
     ask.reset();
     confirm.reset();
   }
@@ -306,7 +399,7 @@ export function AiAssistantPanel({
       { id: `asked-${current.length}`, role: "user", content: message, usedTools: [] },
     ]);
     setDraft("");
-    ask.mutate(message);
+    ask.mutate({ message });
   };
 
   return (
@@ -397,13 +490,64 @@ export function AiAssistantPanel({
             ))}
 
             {ask.isPending ? (
-              <li className="rect-ai-turn rect-ai-turn--answered rect-ai-turn--thinking">
-                <Loader2 size={15} strokeWidth={2.2} aria-hidden className="rect-ai-turn__spin" />
-                <span>{t("shell.ai.thinking")}</span>
+              /*
+               * What it is doing, not merely that it is doing something. Each
+               * completed step stays on screen so the person can see the route
+               * the answer took, and the cycle counter says how much budget is
+               * left — which turns "it is taking a while" into a fact rather
+               * than a worry.
+               */
+              <li className="rect-ai-turn rect-ai-turn--answered rect-ai-thinking">
+                <p className="rect-ai-thinking__head">
+                  <Loader2 size={15} strokeWidth={2.2} aria-hidden className="rect-ai-turn__spin" />
+                  <span>
+                    {cycle
+                      ? t("shell.ai.thinkingStep", { current: cycle.current, total: cycle.total })
+                      : t("shell.ai.thinking")}
+                  </span>
+                </p>
+
+                {progress.length > 0 ? (
+                  <ol className="rect-ai-steps">
+                    {progress.map((line) => (
+                      <li key={line.id} className="rect-ai-steps__item" data-done={line.outcome ? "true" : "false"}>
+                        <span className="rect-ai-steps__what">
+                          {t("shell.ai.stepUsing", {
+                            tool: t(`shell.ai.tool.${line.tool}`, { defaultValue: line.tool ?? "" }),
+                          })}
+                        </span>
+                        {line.outcome ? (
+                          <span className="rect-ai-steps__outcome">{line.outcome}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
               </li>
             ) : null}
           </ol>
         )}
+
+        {exhausted && !ask.isPending ? (
+          /*
+           * It ran out of steps rather than finishing. Continuing is offered,
+           * never automatic: another run is more of somebody's money, and
+           * spending it without being asked is the same fault as writing data
+           * without approval.
+           */
+          <div className="rect-ai-continue" role="status">
+            <p className="rect-ai-continue__text">{t("shell.ai.continueHelp")}</p>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setExhausted(false);
+                ask.mutate({ message: t("shell.ai.continueMessage"), continuing: true });
+              }}
+            >
+              {t("shell.ai.continueAction")}
+            </Button>
+          </div>
+        ) : null}
 
         {proposal ? (
           <section className="rect-ai-proposal" aria-label={t("shell.ai.proposalLabel")}>

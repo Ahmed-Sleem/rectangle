@@ -2,7 +2,7 @@
  * Hosts the active feature inside the brand-defining white rectangle while the
  * shell keeps route/page identity and universal assistant access outside feature code.
  */
-import { Menu, Search, Sparkles } from "lucide-react";
+import { Menu, Search, Sparkles, X } from "lucide-react";
 import type { ReactNode, MouseEvent } from "react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -114,15 +114,28 @@ export function MainPanel({
 
       <header className="rect-panel__header">
         {isHandset ? (
+          /*
+           * One control for both directions. The sheet has no close button of
+           * its own any more: the way out is the button that opened it, in the
+           * place it was pressed, showing an X once there is something to
+           * close. A dismiss control floating over the content put the exit
+           * somewhere different from the entrance and read as a thing stuck on
+           * top of the page rather than part of the chrome.
+           */
           <button
             type="button"
             className="rect-panel__sheet-open"
             onClick={onToggle}
             aria-expanded={!navCollapsed}
             aria-controls={navId}
-            aria-label={t("shell.nav.openMenu")}
+            aria-label={navCollapsed ? t("shell.nav.openMenu") : t("shell.nav.closeMenu")}
+            title={navCollapsed ? t("shell.nav.openMenu") : t("shell.nav.closeMenu")}
           >
-            <Menu size={18} strokeWidth={2} aria-hidden />
+            {navCollapsed ? (
+              <Menu size={18} strokeWidth={2} aria-hidden />
+            ) : (
+              <X size={18} strokeWidth={2} aria-hidden />
+            )}
           </button>
         ) : null}
         <div className="rect-panel__heading">
@@ -146,9 +159,14 @@ export function MainPanel({
               onClick={onToggleAi}
               aria-expanded={!aiCollapsed}
               aria-controls="rectangle-ai-panel-body"
-              aria-label={t("shell.ai.open")}
+              aria-label={aiCollapsed ? t("shell.ai.open") : t("shell.ai.close")}
+              title={aiCollapsed ? t("shell.ai.open") : t("shell.ai.close")}
             >
-              <Sparkles size={18} strokeWidth={2} aria-hidden />
+              {aiCollapsed ? (
+                <Sparkles size={18} strokeWidth={2} aria-hidden />
+              ) : (
+                <X size={18} strokeWidth={2} aria-hidden />
+              )}
             </button>
           ) : null}
           <UserMenu />

@@ -42,6 +42,14 @@ import { hasPermission, type UserPrincipal } from "./auth.js";
  * down because Rectangle's tools are local database reads rather than remote
  * calls — nothing here should legitimately need fifteen turns.
  */
+/**
+ * The bounds an owner may choose between for the reasoning budget.
+ *
+ * Declared here rather than only in the migration so the API, the screen and
+ * the database agree without three people remembering the same two numbers.
+ */
+export const AI_CYCLE_BOUNDS = { min: 1, max: 30, default: 10 } as const;
+
 export const AI_LIMITS = {
   /** Model round trips per message. Past this the loop returns what it has. */
   maxIterations: 6,
@@ -242,6 +250,14 @@ export const aiChatInputSchema = z.object({
    * read anyway, and every tool re-checks reach for itself.
    */
   projectId: z.uuid().optional(),
+  /**
+   * The person asked it to keep going after it ran out of steps.
+   *
+   * A flag rather than a separate endpoint: it is the same turn in the same
+   * thread with the same budget rules, and the only difference is that the
+   * model is told why it suddenly has room again.
+   */
+  continue: z.boolean().optional(),
 });
 
 export const aiConversationIdSchema = z.object({ conversationId: z.uuid() });
@@ -296,15 +312,47 @@ export const aiSettingsInputSchema = z.object({
   /** Absent means "keep the key already saved". Empty string is refused. */
   apiKey: z.string().trim().min(1).max(512).optional(),
   enabled: z.boolean(),
+  /**
+   * Reasoning steps per question. Absent keeps whatever is saved, so an owner
+   * changing the model does not silently reset a budget they had tuned.
+   */
+  maxCycles: z
+    .number()
+    .int()
+    .min(AI_CYCLE_BOUNDS.min)
+    .max(AI_CYCLE_BOUNDS.max)
+    .optional(),
 });
 
-/** A person's own key. There is nothing else to configure — the rest is the company's. */
+/**
+ * A person's own settings. Every field is an override.
+ *
+ * Absent means "follow the company", which is why nothing here is required:
+ * somebody who wants the company's provider with their own key sends only the
+ * key, and somebody who wants a different model on the company's account sends
+ * only the model. An empty object would clear nothing and save nothing, so the
+ * service refuses it rather than writing a row that means nothing.
+ */
+export const aiUserProviderInputSchema = z.object({
+  baseUrl: z
+    .url()
+    .max(512)
+    .refine((value) => value.startsWith("https://"), {
+      message: "The endpoint must use https, because the request carries your API key.",
+    })
+    .optional(),
+  model: z.string().trim().min(1).max(200).optional(),
+  apiKey: z.string().trim().min(1).max(512).optional(),
+});
+
+/** Kept for the key-only path, which is still a legitimate thing to send. */
 export const aiUserKeyInputSchema = z.object({
   apiKey: z.string().trim().min(1).max(512),
 });
 
 export type AiSettingsInput = z.infer<typeof aiSettingsInputSchema>;
 export type AiUserKeyInput = z.infer<typeof aiUserKeyInputSchema>;
+export type AiUserProviderInput = z.infer<typeof aiUserProviderInputSchema>;
 export type AiChatInput = z.infer<typeof aiChatInputSchema>;
 export type AiRenameConversationInput = z.infer<typeof aiRenameConversationSchema>;
 export type AiConfirmInput = z.infer<typeof aiConfirmInputSchema>;

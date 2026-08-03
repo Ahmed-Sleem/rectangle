@@ -64,6 +64,24 @@ function mockApi(options: {
       if (options.settingsFails) return json({ message: "no" }, 500);
       return json({ aiSettings: options.settings ?? WORKING });
     }
+    if (url.includes("/v1/ai/chat/stream")) {
+      asked.push(String(init?.body));
+      /*
+       * A real event stream, not a JSON body. The panel reads the response
+       * with a reader and parses `data:` frames, so a plain object here would
+       * exercise the fallback path instead of the streaming one — and the
+       * streaming path is the one that ships.
+       */
+      const result = options.chat ?? { conversationId: "c1", answer: "Four.", usedTools: [] };
+      const frames = [
+        { type: "cycle", cycle: 1, total: 10 },
+        { type: "answer", result },
+      ];
+      const body = frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("");
+      return Promise.resolve(
+        new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } }),
+      );
+    }
     if (url.includes("/v1/ai/chat")) {
       asked.push(String(init?.body));
       return json(options.chat ?? { conversationId: "c1", answer: "Four.", usedTools: [] });
@@ -430,5 +448,134 @@ describe("AiAssistantPanel: page context and history", () => {
 
     expect(await screen.findByText("جاهز")).toBeInTheDocument();
     expect(screen.getByText("اسأل عن عملك")).toBeInTheDocument();
+  });
+});
+
+describe("AiAssistantPanel: showing the work", () => {
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    await setRectangleLanguage("en");
+  });
+
+  /** An event stream that pauses before the answer, so the feed can be read. */
+  function mockSlowStream(frames: unknown[]) {
+    asked = [];
+    let release = () => undefined as void;
+    const gate = new Promise<void>((resolve) => {
+      release = () => resolve();
+    });
+
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.includes("/v1/ai/settings")) return json({ aiSettings: WORKING });
+      if (url.includes("/v1/ai/conversations")) return json({ conversations: [] });
+      if (url.includes("/v1/ai/chat/stream")) {
+        asked.push(String(init?.body));
+        const encoder = new TextEncoder();
+        const body = new ReadableStream({
+          async start(controller) {
+            for (const frame of frames) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(frame)}\n\n`));
+            }
+            // Held open so the pending state can be inspected before the
+            // answer arrives and the feed is replaced.
+            await gate;
+            controller.close();
+          },
+        });
+        return Promise.resolve(
+          new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } }),
+        );
+      }
+      return json({});
+    });
+
+    return { release: () => release() };
+  }
+
+  it("says which step it is on and what it is using", async () => {
+    const { release } = mockSlowStream([
+      { type: "cycle", cycle: 2, total: 10 },
+      { type: "tool", cycle: 2, tool: "search_risks", arguments: { query: "delay" } },
+    ]);
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByText("Ready");
+    await user.type(screen.getByLabelText("Ask Rectangle AI"), "any delays?");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    // The budget, so a slow answer is a fact rather than a worry.
+    expect(await screen.findByText("Step 2 of 10")).toBeInTheDocument();
+    // And what it is actually doing, named.
+    expect(await screen.findByText("Using risk search")).toBeInTheDocument();
+
+    release();
+  });
+
+  it("completes a step with what came back rather than adding another line", async () => {
+    const { release } = mockSlowStream([
+      { type: "cycle", cycle: 1, total: 10 },
+      { type: "tool", cycle: 1, tool: "search_risks", arguments: { query: "delay" } },
+      { type: "observation", cycle: 1, tool: "search_risks", summary: "3 found" },
+    ]);
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByText("Ready");
+    await user.type(screen.getByLabelText("Ask Rectangle AI"), "any delays?");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(await screen.findByText("3 found")).toBeInTheDocument();
+    // One step, finished — not two half-steps.
+    expect(screen.getAllByText("Using risk search")).toHaveLength(1);
+
+    release();
+  });
+
+  /*
+   * Running out of steps is an offer, not a dead end — and continuing is never
+   * automatic, because another run is more of somebody's money.
+   */
+  it("offers to keep going when it runs out of steps, and only then", async () => {
+    mockApi({
+      chat: {
+        conversationId: "c1",
+        answer: "I ran out of steps before I finished.",
+        usedTools: [],
+        exhausted: true,
+        cyclesUsed: 10,
+        cycleLimit: 10,
+      },
+    });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByText("Ready");
+    await user.type(screen.getByLabelText("Ask Rectangle AI"), "something hard");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    const keepGoing = await screen.findByRole("button", { name: "Keep going" });
+
+    // Nothing continued on its own: one turn has been asked for, and one sent.
+    expect(asked).toHaveLength(1);
+
+    await user.click(keepGoing);
+
+    await waitFor(() => expect(asked).toHaveLength(2));
+    expect(JSON.parse(asked[1] ?? "{}")).toMatchObject({ continue: true });
+  });
+
+  it("does not offer to continue when it finished normally", async () => {
+    mockApi({ chat: { conversationId: "c1", answer: "Done.", usedTools: [] } });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByText("Ready");
+    await user.type(screen.getByLabelText("Ask Rectangle AI"), "easy one");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    await screen.findByText("Done.");
+    expect(screen.queryByRole("button", { name: "Keep going" })).not.toBeInTheDocument();
   });
 });

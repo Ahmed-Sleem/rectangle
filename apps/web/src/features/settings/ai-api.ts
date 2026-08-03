@@ -18,6 +18,14 @@ export interface AiSettingsView {
   hasCompanyKey: boolean;
   /** Whether the person asking has saved one of their own. */
   hasPersonalKey: boolean;
+  /** This person's own endpoint and model, when they have chosen them. */
+  personalBaseUrl?: string;
+  personalModel?: string;
+  /** What their questions actually go to, once overrides are applied. */
+  effectiveBaseUrl?: string;
+  effectiveModel?: string;
+  /** Reasoning steps per question. The owner's choice, company-wide. */
+  maxCycles: number;
   /** Whether asking a question would work right now, for this person. */
   ready: boolean;
   updatedAt?: string;
@@ -29,6 +37,15 @@ export interface AiSettingsPayload {
   /** Omitted means "keep the key already saved". */
   apiKey?: string;
   enabled: boolean;
+  /** Omitted keeps the saved budget rather than resetting it. */
+  maxCycles?: number;
+}
+
+/** A person's own overrides. Every field is optional; absent follows the company. */
+export interface AiPersonalPayload {
+  baseUrl?: string;
+  model?: string;
+  apiKey?: string;
 }
 
 export const aiApi = {
@@ -40,11 +57,13 @@ export const aiApi = {
       body: JSON.stringify(payload),
     }),
 
-  saveMyKey: (apiKey: string) =>
-    apiRequest<{ hasPersonalKey: true }>("/v1/ai/key", {
+  saveMine: (payload: AiPersonalPayload) =>
+    apiRequest<{ aiSettings: AiSettingsView }>("/v1/ai/me", {
       method: "PUT",
-      body: JSON.stringify({ apiKey }),
+      body: JSON.stringify(payload),
     }),
 
-  deleteMyKey: () => apiRequest<{ hasPersonalKey: false }>("/v1/ai/key", { method: "DELETE" }),
+  /** Clears every personal override, so this person follows the company again. */
+  deleteMine: () =>
+    apiRequest<{ aiSettings: AiSettingsView }>("/v1/ai/me", { method: "DELETE" }),
 };

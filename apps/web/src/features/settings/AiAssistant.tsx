@@ -17,56 +17,27 @@
  * never has one to render: it renders whether a key is saved, which is the only
  * honest thing an empty box can mean.
  */
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, PencilLine, Sparkles, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
 import { ApiClientError } from "@/shared/api/client";
 import { useAuth } from "@/shared/auth";
 import { hasPermission } from "@/shared/auth/authority";
-import {
-  Badge,
-  Button,
-  Field,
-  FormDialog,
-  Input,
-  SettingRow,
-  SettingsSection,
-  Switch,
-  WizardDialog,
-  type WizardStep,
-} from "@/shared/ui";
+import { Badge, Button, SettingRow, SettingsSection, Switch } from "@/shared/ui";
 import { aiApi } from "./ai-api";
-
-/*
- * https is required rather than preferred: the request carries an API key, and
- * over plain http that key is readable by anything on the path. The server
- * refuses it too — this copy exists so the person is told before they submit,
- * not after.
- */
-const providerSchema = z.object({
-  baseUrl: z
-    .url()
-    .max(512)
-    .refine((value) => value.startsWith("https://"), { message: "httpsRequired" }),
-  model: z.string().trim().min(1).max(200),
-  apiKey: z.string().trim().max(512).optional(),
-});
-
-const personalKeySchema = z.object({ apiKey: z.string().trim().min(1).max(512) });
-
-type ProviderForm = z.infer<typeof providerSchema>;
-type PersonalKeyForm = z.infer<typeof personalKeySchema>;
+import {
+  AiProviderWizard,
+  type CompanyProviderValues,
+  type PersonalProviderValues,
+} from "./AiProviderWizard";
 
 export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const { t } = useTranslation();
   const auth = useAuth();
   const queryClient = useQueryClient();
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [keyDialogOpen, setKeyDialogOpen] = useState(false);
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const [personalOpen, setPersonalOpen] = useState(false);
 
   const mayManage = hasPermission(auth.user, "settings.manage");
 
@@ -78,37 +49,15 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
 
   const settings = query.data?.aiSettings;
   const configured = settings?.configured ?? false;
-
-  const form = useForm<ProviderForm>({
-    resolver: zodResolver(providerSchema),
-    mode: "onChange",
-    defaultValues: { baseUrl: "", model: "", apiKey: "" },
-  });
-
-  const keyForm = useForm<PersonalKeyForm>({
-    resolver: zodResolver(personalKeySchema),
-    defaultValues: { apiKey: "" },
-  });
-
-  useEffect(() => {
-    if (!settings?.configured) return;
-    form.reset({
-      baseUrl: settings.baseUrl ?? "",
-      model: settings.model ?? "",
-      // Never prefilled. The server does not return it, and an empty box that
-      // means "keep the saved one" is the only truthful representation.
-      apiKey: "",
-    });
-  }, [form, settings]);
-
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["ai", "settings"] });
 
-  const save = useMutation({
-    mutationFn: (values: ProviderForm) =>
+  const saveCompany = useMutation({
+    mutationFn: (values: CompanyProviderValues) =>
       aiApi.saveSettings({
         baseUrl: values.baseUrl,
         model: values.model,
         ...(values.apiKey ? { apiKey: values.apiKey } : {}),
+        maxCycles: values.maxCycles,
         // Saving a provider switches it on. Somebody who has just typed an
         // endpoint and a key has said what they want; making them find a
         // second control afterwards is a step that exists for no reason.
@@ -116,15 +65,31 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
       }),
     onSuccess: async () => {
       await invalidate();
-      form.setValue("apiKey", "");
+      setCompanyOpen(false);
+      saveCompany.reset();
     },
   });
 
+  const savePersonal = useMutation({
+    mutationFn: (values: PersonalProviderValues) =>
+      aiApi.saveMine({
+        ...(values.baseUrl ? { baseUrl: values.baseUrl } : {}),
+        ...(values.model ? { model: values.model } : {}),
+        ...(values.apiKey ? { apiKey: values.apiKey } : {}),
+      }),
+    onSuccess: async () => {
+      await invalidate();
+      setPersonalOpen(false);
+      savePersonal.reset();
+    },
+  });
+
+  const clearPersonal = useMutation({ mutationFn: aiApi.deleteMine, onSuccess: invalidate });
+
   /*
-   * Turning the assistant on or off is one decision and saves on its own. The
-   * endpoint and model come from what is already stored rather than the form,
-   * so pausing the assistant cannot silently rewrite a provider somebody edited
-   * in the window and abandoned without saving.
+   * Switching the assistant on or off is one decision and saves on its own.
+   * The endpoint and model come from what is already stored rather than from a
+   * form, so pausing cannot silently rewrite a provider somebody was editing.
    */
   const setEnabled = useMutation({
     mutationFn: (enabled: boolean) =>
@@ -136,117 +101,13 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
     onSuccess: invalidate,
   });
 
-  const savePersonalKey = useMutation({
-    mutationFn: (values: PersonalKeyForm) => aiApi.saveMyKey(values.apiKey),
-    onSuccess: async () => {
-      await invalidate();
-      setKeyDialogOpen(false);
-      keyForm.reset({ apiKey: "" });
-    },
-  });
-
-  const removePersonalKey = useMutation({
-    mutationFn: aiApi.deleteMyKey,
-    onSuccess: invalidate,
-  });
-
   const message = (error: unknown, fallback: string) =>
     error instanceof ApiClientError ? error.message : error ? fallback : null;
-
-  const values = form.watch();
-  const errors = form.formState.errors;
-
-  const endpointReady = Boolean(values.baseUrl) && Boolean(values.model) && !errors.baseUrl && !errors.model;
-
-  /*
-   * A company that has never saved a key must supply one now; a company that
-   * already has one may leave the box empty to keep it. The step knows which
-   * situation it is in rather than always demanding a key, which would mean
-   * re-entering a working credential to change a model name.
-   */
-  const keyReady = settings?.hasCompanyKey ? !errors.apiKey : Boolean(values.apiKey) && !errors.apiKey;
-
-  const steps: WizardStep[] = [
-    {
-      id: "endpoint",
-      title: t("settings.aiStepEndpoint"),
-      description: t("settings.aiStepEndpointHelp"),
-      isComplete: endpointReady,
-      content: (
-        <>
-          <Field
-            label={t("settings.aiBaseUrl")}
-            hint={t("settings.aiBaseUrlHint")}
-            error={errors.baseUrl ? t("settings.aiBaseUrlInvalid") : undefined}
-            required
-          >
-            <Input
-              data-autofocus="true"
-              aria-label={t("settings.aiBaseUrl")}
-              placeholder="https://api.openai.com/v1"
-              {...form.register("baseUrl")}
-            />
-          </Field>
-          <Field
-            label={t("settings.aiModel")}
-            hint={t("settings.aiModelHint")}
-            error={errors.model?.message}
-            required
-          >
-            <Input aria-label={t("settings.aiModel")} {...form.register("model")} />
-          </Field>
-        </>
-      ),
-    },
-    {
-      id: "key",
-      title: t("settings.aiStepKey"),
-      description: t("settings.aiStepKeyHelp"),
-      isComplete: keyReady,
-      content: (
-        <Field
-          label={t("settings.aiCompanyKey")}
-          hint={settings?.hasCompanyKey ? t("settings.aiKeyKeep") : t("settings.aiKeyHint")}
-          error={errors.apiKey?.message}
-          required={!settings?.hasCompanyKey}
-        >
-          <Input
-            data-autofocus="true"
-            aria-label={t("settings.aiCompanyKey")}
-            type="password"
-            autoComplete="new-password"
-            {...form.register("apiKey")}
-          />
-        </Field>
-      ),
-    },
-    {
-      id: "review",
-      title: t("settings.aiStepReview"),
-      description: t("settings.aiStepReviewHelp"),
-      content: (
-        <dl className="rect-email-review">
-          <div className="rect-email-review__row">
-            <dt>{t("settings.aiBaseUrl")}</dt>
-            <dd>{values.baseUrl}</dd>
-          </div>
-          <div className="rect-email-review__row">
-            <dt>{t("settings.aiModel")}</dt>
-            <dd>{values.model}</dd>
-          </div>
-          <div className="rect-email-review__row">
-            <dt>{t("settings.aiCompanyKey")}</dt>
-            <dd>{values.apiKey ? t("settings.aiKeyNew") : t("settings.aiKeyUnchanged")}</dd>
-          </div>
-        </dl>
-      ),
-    },
-  ];
 
   /*
    * One sentence for the state the whole thing is in, because "why is the
    * assistant not answering" has four different causes and a person should not
-   * have to work out which one applies to them. The order matters: it names the
+   * have to work out which applies to them. The order matters: it names the
    * first thing standing in the way, not every one at once.
    */
   const statusLabel = (): { text: string; tone: "success" | "neutral" | "warning" } => {
@@ -258,6 +119,9 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
   };
 
   const status = statusLabel();
+  const hasPersonalOverride = Boolean(
+    settings?.hasPersonalKey || settings?.personalBaseUrl || settings?.personalModel,
+  );
 
   return (
     <>
@@ -290,11 +154,17 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
                 label={t("settings.aiProvider")}
                 description={`${settings?.model ?? ""} · ${settings?.baseUrl ?? ""}`}
                 control={
-                  <Button variant="secondary" onClick={() => setWizardOpen(true)}>
+                  <Button variant="secondary" onClick={() => setCompanyOpen(true)}>
                     <PencilLine size={16} strokeWidth={2} aria-hidden />
                     {t("settings.aiEdit")}
                   </Button>
                 }
+              />
+
+              {/* The spend control, stated as a fact rather than buried in the form. */}
+              <SettingRow
+                label={t("settings.aiMaxCycles")}
+                description={t("settings.aiMaxCyclesSummary", { count: settings?.maxCycles ?? 10 })}
               />
             </>
           ) : (
@@ -302,7 +172,7 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
               label={t("settings.aiNotConfigured")}
               description={t("settings.aiSetUpHelp")}
               control={
-                <Button variant="primary" onClick={() => setWizardOpen(true)}>
+                <Button variant="primary" onClick={() => setCompanyOpen(true)}>
                   {t("settings.aiSetUp")}
                 </Button>
               }
@@ -325,94 +195,73 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
           />
         )}
 
+        {/*
+          * Everybody who may use the assistant gets this row, including the
+          * owner: wanting a different model for your own questions has nothing
+          * to do with whether you administer the company.
+          */}
         <SettingRow
-          label={t("settings.aiPersonalKey")}
+          label={t("settings.aiMineTitle")}
           description={
-            settings?.hasPersonalKey
-              ? t("settings.aiPersonalKeySaved")
-              : t("settings.aiPersonalKeyHelp")
+            hasPersonalOverride
+              ? t("settings.aiMineUsing", {
+                  model: settings?.personalModel ?? settings?.model ?? "",
+                  endpoint: settings?.personalBaseUrl ?? settings?.baseUrl ?? "",
+                })
+              : t("settings.aiMineNone")
           }
           control={
             <div className="rect-settings-actions rect-settings-actions--inline">
-              <Button variant="secondary" onClick={() => setKeyDialogOpen(true)}>
+              <Button variant="secondary" onClick={() => setPersonalOpen(true)}>
                 <KeyRound size={16} strokeWidth={2} aria-hidden />
-                {settings?.hasPersonalKey
-                  ? t("settings.aiPersonalKeyReplace")
-                  : t("settings.aiPersonalKeyAdd")}
+                {hasPersonalOverride ? t("settings.aiMineEdit") : t("settings.aiMineAdd")}
               </Button>
-              {settings?.hasPersonalKey ? (
+              {hasPersonalOverride ? (
                 <Button
                   variant="ghost"
-                  onClick={() => removePersonalKey.mutate()}
-                  disabled={removePersonalKey.isPending}
+                  onClick={() => clearPersonal.mutate()}
+                  disabled={clearPersonal.isPending}
                 >
                   <Trash2 size={16} strokeWidth={2} aria-hidden />
-                  {t("settings.aiPersonalKeyRemove")}
+                  {t("settings.aiMineClear")}
                 </Button>
               ) : null}
             </div>
           }
         />
 
-        {removePersonalKey.error ? (
+        {clearPersonal.error ? (
           <p className="rect-settings-message rect-settings-message--error" role="alert">
-            {message(removePersonalKey.error, t("settings.aiPersonalKeyRemoveFailed"))}
+            {message(clearPersonal.error, t("settings.aiMineClearFailed"))}
           </p>
         ) : null}
       </SettingsSection>
 
-      <WizardDialog
-        open={wizardOpen}
-        title={configured ? t("settings.aiEditTitle") : t("settings.aiSetUpTitle")}
-        description={t("settings.aiDescription")}
-        size="lg"
-        steps={steps}
+      <AiProviderWizard
+        open={companyOpen}
+        scope="company"
+        settings={settings}
         onClose={() => {
-          setWizardOpen(false);
-          save.reset();
+          setCompanyOpen(false);
+          saveCompany.reset();
         }}
-        onFinish={() =>
-          form.handleSubmit((formValues) =>
-            save.mutateAsync(formValues).then(() => {
-              setWizardOpen(false);
-              save.reset();
-            }),
-          )()
-        }
-        finishLabel={t("settings.aiSave")}
-        pending={save.isPending}
-        error={message(save.error, t("settings.aiSaveFailed"))}
+        onSave={(values) => saveCompany.mutateAsync(values as CompanyProviderValues)}
+        pending={saveCompany.isPending}
+        error={message(saveCompany.error, t("settings.aiSaveFailed"))}
       />
 
-      <FormDialog
-        open={keyDialogOpen}
-        title={t("settings.aiPersonalKeyTitle")}
-        description={t("settings.aiPersonalKeyDialogHelp")}
-        size="sm"
+      <AiProviderWizard
+        open={personalOpen}
+        scope="personal"
+        settings={settings}
         onClose={() => {
-          setKeyDialogOpen(false);
-          savePersonalKey.reset();
+          setPersonalOpen(false);
+          savePersonal.reset();
         }}
-        onSubmit={keyForm.handleSubmit((formValues) => savePersonalKey.mutate(formValues))}
-        submitLabel={t("settings.aiPersonalKeySave")}
-        pending={savePersonalKey.isPending}
-        error={message(savePersonalKey.error, t("settings.aiPersonalKeySaveFailed"))}
-      >
-        <Field
-          label={t("settings.aiPersonalKey")}
-          hint={t("settings.aiPersonalKeyFieldHint")}
-          error={keyForm.formState.errors.apiKey?.message}
-          required
-        >
-          <Input
-            data-autofocus="true"
-            aria-label={t("settings.aiPersonalKey")}
-            type="password"
-            autoComplete="new-password"
-            {...keyForm.register("apiKey")}
-          />
-        </Field>
-      </FormDialog>
+        onSave={(values) => savePersonal.mutateAsync(values as PersonalProviderValues)}
+        pending={savePersonal.isPending}
+        error={message(savePersonal.error, t("settings.aiMineSaveFailed"))}
+      />
     </>
   );
 }

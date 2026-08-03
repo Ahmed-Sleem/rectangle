@@ -57,3 +57,22 @@ svg {
   display: block;
   max-width: 100%;
 }
+
+/*
+ * The `hidden` attribute must actually hide.
+ *
+ * Its user-agent rule is `display: none` at the lowest possible precedence, so
+ * any class that sets `display` on the same element silently defeats it — and
+ * the element stays on screen while every test that asks "is it hidden" reads
+ * the attribute and says yes. That is exactly how the setup wizard shipped
+ * showing all of its steps at once with a Next button that appeared to do
+ * nothing: each step carried `hidden`, and the class beside it said
+ * `display: grid`.
+ *
+ * `!important` is deliberate and is the standard remedy. `hidden` is not a
+ * style, it is a statement that the element is not part of the page yet;
+ * nothing should be able to overrule it by accident.
+ */
+[hidden] {
+  display: none !important;
+}

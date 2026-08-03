@@ -62,7 +62,7 @@ export interface ServerDependencies {
   >;
   aiSettingsService: Pick<
     AiSettingsService,
-    "getSettings" | "saveSettings" | "saveMyKey" | "deleteMyKey"
+    "getSettings" | "saveSettings" | "saveMyProvider" | "deleteMyProvider"
   >;
   directoryService: Pick<
     DirectoryService,

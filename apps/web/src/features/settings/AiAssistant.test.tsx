@@ -37,13 +37,13 @@ function mockApi(state: AiSettingsView) {
   keyMethods = [];
   return vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
     const url = String(input);
-    if (url.includes("/v1/ai/key")) {
+    if (url.includes("/v1/ai/me")) {
       keyMethods.push(String(init?.method));
       if (init?.method === "PUT") {
         keyed.push(String(init.body));
-        return json({ hasPersonalKey: true });
+        return json({ aiSettings: { ...state, hasPersonalKey: true } });
       }
-      return json({ hasPersonalKey: false });
+      return json({ aiSettings: { ...state, hasPersonalKey: false } });
     }
     if (url.includes("/v1/ai/settings") && init?.method === "PUT") {
       saved.push(String(init.body));
@@ -88,6 +88,7 @@ const CONFIGURED: AiSettingsView = {
   hasCompanyKey: true,
   hasPersonalKey: false,
   ready: true,
+  maxCycles: 10,
 };
 
 const UNCONFIGURED: AiSettingsView = {
@@ -96,6 +97,7 @@ const UNCONFIGURED: AiSettingsView = {
   hasCompanyKey: false,
   hasPersonalKey: false,
   ready: false,
+  maxCycles: 10,
 };
 
 describe("AiAssistant settings", () => {
@@ -139,7 +141,7 @@ describe("AiAssistant settings", () => {
     await screen.findByText("Ready");
 
     expect(container.innerHTML).not.toContain("sk-");
-    expect(screen.getByText("Your key is saved and is being used instead of the company's.")).toBeInTheDocument();
+    expect(screen.getByText(/Using .* for your questions/)).toBeInTheDocument();
   });
 
   it("keeps the saved key when the box is left empty", async () => {
@@ -152,6 +154,8 @@ describe("AiAssistant settings", () => {
 
     await user.clear(within(wizard).getByLabelText("Model"));
     await user.type(within(wizard).getByLabelText("Model"), "gpt-4o");
+    // Endpoint, key, budget, review: four steps for the company scope.
+    await user.click(within(wizard).getByRole("button", { name: /next/i }));
     await user.click(within(wizard).getByRole("button", { name: /next/i }));
     await user.click(within(wizard).getByRole("button", { name: /next/i }));
     await user.click(within(wizard).getByRole("button", { name: "Save and switch on" }));
@@ -185,28 +189,56 @@ describe("AiAssistant settings", () => {
     const user = userEvent.setup();
     renderSection();
 
-    await user.click(await screen.findByRole("button", { name: "Add a key" }));
+    await user.click(await screen.findByRole("button", { name: "Use my own" }));
     const dialog = await screen.findByRole("dialog");
+
+    // Endpoint and model left blank: this person wants the company's provider
+    // with their own account, which must send neither field.
+    await user.click(within(dialog).getByRole("button", { name: /next/i }));
     await user.type(within(dialog).getByLabelText("Your own key"), "sk-personal-secret");
-    await user.click(within(dialog).getByRole("button", { name: "Save key" }));
+    await user.click(within(dialog).getByRole("button", { name: /next/i }));
+    await user.click(within(dialog).getByRole("button", { name: "Save my settings" }));
 
     await waitFor(() => expect(keyed).toHaveLength(1));
     expect(JSON.parse(keyed[0] ?? "{}")).toEqual({ apiKey: "sk-personal-secret" });
     expect(saved).toHaveLength(0);
   });
 
-  it("offers removal only when a personal key exists", async () => {
+  /*
+   * The capability the owner asked for: a person choosing a different model,
+   * not merely a different key. Blank fields must be omitted rather than sent
+   * as empty strings, or the server would store "" as an override and the
+   * person would stop following the company without asking to.
+   */
+  it("lets a person override only the model, and sends nothing else", async () => {
+    mockApi(CONFIGURED);
+    const user = userEvent.setup();
+    renderSection();
+
+    await user.click(await screen.findByRole("button", { name: "Use my own" }));
+    const dialog = await screen.findByRole("dialog");
+
+    await user.type(within(dialog).getByLabelText("Model"), "gpt-4o");
+    await user.click(within(dialog).getByRole("button", { name: /next/i }));
+    await user.click(within(dialog).getByRole("button", { name: /next/i }));
+    await user.click(within(dialog).getByRole("button", { name: "Save my settings" }));
+
+    await waitFor(() => expect(keyed).toHaveLength(1));
+    expect(JSON.parse(keyed[0] ?? "{}")).toEqual({ model: "gpt-4o" });
+  });
+
+  it("offers a way back to the company's settings only when there is an override", async () => {
     mockApi(CONFIGURED);
     const { unmount } = renderSection();
     await screen.findByText("Ready");
-    expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Use the company's" })).not.toBeInTheDocument();
     unmount();
 
     mockApi({ ...CONFIGURED, hasPersonalKey: true });
     const user = userEvent.setup();
     renderSection();
 
-    await user.click(await screen.findByRole("button", { name: "Remove" }));
+    await user.click(await screen.findByRole("button", { name: "Use the company's" }));
     await waitFor(() => expect(keyMethods).toContain("DELETE"));
   });
 
@@ -226,7 +258,7 @@ describe("AiAssistant settings", () => {
     // Still told whether it works, because that is not a secret from them.
     expect(screen.getByText(/Your company has set up the assistant/)).toBeInTheDocument();
     // And can still manage their own key.
-    expect(screen.getByRole("button", { name: "Add a key" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Use my own" })).toBeInTheDocument();
   });
 
   it("reads in Arabic", async () => {

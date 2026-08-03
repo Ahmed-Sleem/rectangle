@@ -150,7 +150,12 @@ describe("the shell on a phone", () => {
     expect(sheet.closest("#main-content")).not.toBeNull();
     expect(document.querySelector("[data-overlay-root]")).toBeNull();
 
-    await user.click(within(sheet).getByRole("button", { name: "Close" }));
+    /*
+     * Closed from the header, not from inside the sheet. The way out is the
+     * control that opened it, which now shows an X and says "Close menu" —
+     * one control in one place doing the obvious opposite of what it just did.
+     */
+    await user.click(screen.getByRole("button", { name: "Close menu" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
@@ -186,7 +191,7 @@ describe("the shell on a phone", () => {
     // inside a sheet that already supplies an X.
     expect(within(sheet).queryByRole("button", { name: /Close AI panel/iu })).not.toBeInTheDocument();
 
-    await user.click(within(sheet).getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("button", { name: "Close AI panel" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

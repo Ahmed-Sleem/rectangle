@@ -475,9 +475,37 @@
     padding: 0;
   }
 
+  /*
+   * The rail's own palette is written for the dark page behind the canvas, not
+   * for the canvas. Its text token is near-white at 52% — correct against the
+   * shell background it normally sits on, and invisible the moment the same
+   * markup is rendered inside the light panel. That is the "menu shows nothing"
+   * fault: the items were present, laid out, the right size and fully opaque,
+   * painted white on white.
+   *
+   * Re-pointing the tokens rather than overriding each rule keeps one source of
+   * truth for what a nav item looks like; only the palette it resolves against
+   * changes.
+   */
+  .rect-canvas-sheet .rect-nav {
+    --rect-nav-text: var(--rect-text-secondary);
+    --rect-nav-text-emphasis: var(--rect-text-primary);
+    --rect-nav-item-active-bg: var(--rect-card-bg);
+    --rect-nav-item-hover-bg: var(--rect-card-bg);
+    color: var(--rect-text-primary);
+  }
+
   .rect-canvas-sheet .rect-nav-item {
     min-height: var(--rect-control-touch);
     font-size: var(--rect-text-body);
+    color: var(--rect-text-secondary);
+  }
+
+  .rect-canvas-sheet .rect-nav-item[aria-current="page"],
+  .rect-canvas-sheet .rect-nav-item:hover,
+  .rect-canvas-sheet .rect-nav-item:focus-visible {
+    background: var(--rect-card-bg);
+    color: var(--rect-text-primary);
   }
 
   /*
@@ -556,52 +584,26 @@
  * Two nested scrollers on a phone is how a list ends up unreachable, which is
  * half of what was reported.
  */
+/*
+ * A canvas holding a sheet gives up its scrolling, but NOT its gutters.
+ *
+ * An earlier version bled the sheet out past the panel to the glass, on the
+ * reasoning that a full-screen surface should not appear to sit inside
+ * anything. Seen on a phone that was wrong: it made the menu and the assistant
+ * the only two screens in the product that ignore the frame every page
+ * respects, so they read as something that had taken over the app rather than
+ * as somewhere you had navigated to. They keep the frame now, and are as wide
+ * as a page is, because they ARE pages — the point is that they look like the
+ * rest of the product, not that they cover the most pixels.
+ *
+ * What is dropped is the padding and the scroller: a sheet lays out its own
+ * content and brings its own scrolling region, and two nested scrollers on a
+ * phone is how a list ends up unreachable.
+ */
 .rect-panel__body[data-has-sheet="true"] {
   padding: 0;
   overflow: hidden;
   scroll-padding-block-end: 0;
-
-  /*
-   * Out to the real edges of the screen.
-   *
-   * Two gutters sit between this element and the device: the app frame's
-   * `--rect-body-padding-mobile` and the panel's own
-   * `--rect-panel-padding-mobile`. They are right for a page — content should
-   * not touch the glass — and wrong for a surface standing in for the whole
-   * screen, which is why the assistant measured 336px on a 390px phone and
-   * looked like a card rather than the app. Cancelling both with a negative
-   * inline margin, and adding the same amount back as width, is what makes
-   * "fills the screen" literally true.
-   */
-  margin-inline: calc(-1 * var(--rect-sheet-bleed));
-  width: calc(100% + 2 * var(--rect-sheet-bleed));
-  margin-block-end: calc(-1 * var(--rect-sheet-bleed));
-}
-
-/*
- * How far the sheet has to reach to escape the frame: both gutters plus the
- * panel's own border, which is drawn outside its padding box. Named once so the
- * bleed and the thing being bled through cannot drift apart.
- */
-.rect-app--handset {
-  --rect-sheet-bleed: calc(
-    var(--rect-body-padding-mobile) + var(--rect-panel-padding-mobile) +
-      var(--rect-panel-border-width)
-  );
-}
-
-/*
- * The card stops being a card while a sheet is open.
- *
- * The rounded corner and the border are what make the canvas read as a panel
- * sitting on a page. A surface that is standing in for the whole screen must
- * not appear to sit inside anything, and the radius also clips the sheet's
- * corners, which is what the remaining few pixels of the measured width were.
- */
-.rect-app--handset .rect-panel:has(> .rect-panel__body[data-has-sheet="true"]) {
-  border-color: transparent;
-  border-radius: 0;
-  box-shadow: none;
 }
 
 /* The gradient hairline belongs to a scrolling page, and there is not one. */
@@ -687,15 +689,14 @@
 }
 
 /*
- * The way out, in the corner of the canvas rather than in a window's title bar.
- * Positioned with logical properties so it lands on the correct side in Arabic.
+ * There is no close control inside the sheet any more.
+ *
+ * It used to float in the corner of the canvas, over the content, which put the
+ * way out somewhere different from the way in and made it look like a dismiss
+ * button stuck on top of the page. Opening and closing are now the same control
+ * in the same place in the header: the button that opened the sheet closes it,
+ * and says so.
  */
-.rect-canvas-sheet__close {
-  position: absolute;
-  inset-block-start: var(--rect-space-2);
-  inset-inline-end: var(--rect-space-2);
-  z-index: 1;
-}
 
 @media (prefers-reduced-motion: reduce) {
   .rect-canvas-sheet {

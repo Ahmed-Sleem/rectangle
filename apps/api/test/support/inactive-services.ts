@@ -82,6 +82,6 @@ export const inactiveAiService = {
 export const inactiveAiSettingsService = {
   getSettings(): never { throw new Error("not used"); },
   saveSettings(): never { throw new Error("not used"); },
-  saveMyKey(): never { throw new Error("not used"); },
-  deleteMyKey(): never { throw new Error("not used"); },
+  saveMyProvider(): never { throw new Error("not used"); },
+  deleteMyProvider(): never { throw new Error("not used"); },
 };

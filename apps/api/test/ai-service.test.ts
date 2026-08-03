@@ -418,7 +418,14 @@ describe("the model asking for tools", () => {
     });
 
     expect(provider.requests.length).toBeLessThanOrEqual(6);
-    expect(result.answer).toMatch(/could not work that out/iu);
+    /*
+     * Running out of steps is now an offer rather than a dead end: the reply
+     * says it can pick up where it left off, and `exhausted` is what puts the
+     * Keep going button on the screen.
+     */
+    expect(result.answer).toMatch(/ran out of steps/iu);
+    expect(result.exhausted).toBe(true);
+    expect(result.cyclesUsed).toBe(result.cycleLimit);
   });
 });
 
@@ -722,7 +729,7 @@ describe("conversations are kept", () => {
 
     const result = await service.chat(person(["ai.use", "projects.read"]), { message: "round and round" });
 
-    expect(result.answer).toContain("could not work that out");
+    expect(result.answer).toMatch(/ran out of steps/iu);
     expect(conversations.said[1]?.content).toBe(result.answer);
   });
 
@@ -843,5 +850,195 @@ describe("a conversation belongs to one person", () => {
 
     expect(conversations.rows).toHaveLength(0);
     expect(conversations.said).toHaveLength(0);
+  });
+});
+
+describe("the reasoning budget", () => {
+  /** A provider that always reaches for a tool, so the loop can only end on a limit. */
+  function neverConverges(maxCycles?: number) {
+    const conversations = new MemoryConversations();
+    const provider: AiProviderClient = {
+      async complete(request: ProviderRequest) {
+        // The last turn withdraws the tools, so the model can only answer.
+        if ((request.tools ?? []).length === 0) {
+          return { content: "Here is what I found so far.", toolCalls: [] };
+        }
+        return { content: "", toolCalls: [toolCall("search_projects", { query: "a" })] };
+      },
+    };
+    const service = new AiService(
+      {
+        resolveProvider: async () => ({
+          baseUrl: "https://p.test",
+          model: "m",
+          apiKey: "k",
+          ...(maxCycles === undefined ? {} : { maxCycles }),
+        }),
+      } as unknown as AiSettingsService,
+      provider,
+      new MemoryPending(),
+      new MemoryAudit(),
+      { search_projects: (async () => ({ found: 0 })) as unknown as AiToolExecutor },
+      conversations,
+    );
+    return { service, conversations, provider };
+  }
+
+  it("honours the company's configured limit rather than a constant", async () => {
+    const { service } = neverConverges(3);
+
+    const result = await service.chat(person(["ai.use", "projects.read"]), { message: "dig" });
+
+    expect(result.cycleLimit).toBe(3);
+    expect(result.cyclesUsed).toBe(3);
+  });
+
+  it("falls back to the shipped default when a company has not chosen one", async () => {
+    const { service } = neverConverges();
+
+    const result = await service.chat(person(["ai.use", "projects.read"]), { message: "dig" });
+
+    expect(result.cycleLimit).toBe(AI_LIMITS.maxIterations);
+  });
+
+  /*
+   * The owner asked that the model know where it is in the budget. Telling it
+   * is what lets it prioritise and write a useful summary on its last turn
+   * instead of being cut off mid-investigation.
+   */
+  it("tells the model which step it is on and how many remain", async () => {
+    const conversations = new MemoryConversations();
+    const seen: string[] = [];
+    const provider: AiProviderClient = {
+      async complete(request: ProviderRequest) {
+        const budget = request.messages.filter((m) => m.role === "system").at(-1);
+        seen.push(String(budget?.content ?? ""));
+        if ((request.tools ?? []).length === 0) return { content: "done", toolCalls: [] };
+        return { content: "", toolCalls: [toolCall("search_projects", { query: "a" })] };
+      },
+    };
+    const service = new AiService(
+      { resolveProvider: async () => ({ baseUrl: "https://p.test", model: "m", apiKey: "k", maxCycles: 3 }) } as unknown as AiSettingsService,
+      provider,
+      new MemoryPending(),
+      new MemoryAudit(),
+      { search_projects: (async () => ({ found: 0 })) as unknown as AiToolExecutor },
+      conversations,
+    );
+
+    await service.chat(person(["ai.use", "projects.read"]), { message: "dig" });
+
+    expect(seen[0]).toContain("Step 1 of 3");
+    expect(seen[0]).toContain("2 steps left");
+    // The final turn is told it is final, in as many words.
+    expect(seen[seen.length - 1]).toMatch(/last step/iu);
+  });
+
+  /*
+   * Handing a model the means to call a tool while telling it it must answer
+   * invites the call that gets cut off. The ability is withdrawn, not merely
+   * discouraged.
+   */
+  it("offers no tools at all on the final step", async () => {
+    const toolCounts: number[] = [];
+    const conversations = new MemoryConversations();
+    const provider: AiProviderClient = {
+      async complete(request: ProviderRequest) {
+        toolCounts.push((request.tools ?? []).length);
+        if ((request.tools ?? []).length === 0) return { content: "final", toolCalls: [] };
+        return { content: "", toolCalls: [toolCall("search_projects", { query: "a" })] };
+      },
+    };
+    const service = new AiService(
+      { resolveProvider: async () => ({ baseUrl: "https://p.test", model: "m", apiKey: "k", maxCycles: 2 }) } as unknown as AiSettingsService,
+      provider,
+      new MemoryPending(),
+      new MemoryAudit(),
+      { search_projects: (async () => ({ found: 0 })) as unknown as AiToolExecutor },
+      conversations,
+    );
+
+    await service.chat(person(["ai.use", "projects.read"]), { message: "dig" });
+
+    expect(toolCounts[0]).toBeGreaterThan(0);
+    expect(toolCounts[toolCounts.length - 1]).toBe(0);
+  });
+
+  it("tells a continuing turn why it has room again", async () => {
+    const conversations = new MemoryConversations();
+    const seen: string[][] = [];
+    const provider: AiProviderClient = {
+      async complete(request: ProviderRequest) {
+        seen.push(request.messages.filter((m) => m.role === "system").map((m) => String(m.content)));
+        return { content: "ok", toolCalls: [] };
+      },
+    };
+    const service = new AiService(
+      { resolveProvider: async () => ({ baseUrl: "https://p.test", model: "m", apiKey: "k" }) } as unknown as AiSettingsService,
+      provider,
+      new MemoryPending(),
+      new MemoryAudit(),
+      {},
+      conversations,
+    );
+    const actor = person(["ai.use"]);
+
+    const first = await service.chat(actor, { message: "start" });
+    await service.chat(actor, { conversationId: first.conversationId, message: "more", continue: true });
+
+    expect(seen[0]?.join(" ")).not.toMatch(/keep going/iu);
+    expect(seen[1]?.join(" ")).toMatch(/keep going/iu);
+  });
+
+  /*
+   * The progress feed. Each event is a fact the harness knows — which cycle,
+   * which tool, what came back — so nothing on the screen can be a claim the
+   * model invented.
+   */
+  it("reports each step as it happens", async () => {
+    const events: string[] = [];
+    const { service } = build({
+      replies: [
+        { content: "", toolCalls: [toolCall("search_projects", { query: "Nile" })] },
+        { content: "One match.", toolCalls: [] },
+      ],
+      executors: { search_projects: (async () => ({ found: 1 })) as unknown as AiToolExecutor },
+    });
+
+    await service.chat(
+      person(["ai.use", "projects.read"]),
+      { message: "find Nile" },
+      (event) => events.push(event.type),
+    );
+
+    expect(events).toContain("cycle");
+    expect(events).toContain("tool");
+    expect(events).toContain("observation");
+    // The answer is the last thing said, always.
+    expect(events[events.length - 1]).toBe("answer");
+  });
+
+  it("names the tool and what came back, not what the model claimed", async () => {
+    const events: Array<Record<string, unknown>> = [];
+    const { service } = build({
+      replies: [
+        { content: "I will look.", toolCalls: [toolCall("search_projects", { query: "Nile" })] },
+        { content: "Nothing.", toolCalls: [] },
+      ],
+      executors: { search_projects: (async () => ({ found: 0 })) as unknown as AiToolExecutor },
+    });
+
+    await service.chat(
+      person(["ai.use", "projects.read"]),
+      { message: "find Nile" },
+      (event) => events.push(event as unknown as Record<string, unknown>),
+    );
+
+    const tool = events.find((event) => event.type === "tool");
+    expect(tool?.tool).toBe("search_projects");
+    expect(tool?.arguments).toMatchObject({ query: "Nile" });
+
+    const observation = events.find((event) => event.type === "observation");
+    expect(observation?.summary).toBe("nothing found");
   });
 });

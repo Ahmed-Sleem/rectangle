@@ -23,7 +23,8 @@ import { AiSettingsService } from "./application/ai-settings-service.js";
 import { createAiToolExecutors } from "./application/ai-tools.js";
 import { OpenAiCompatibleProvider } from "./infrastructure/ai-provider.js";
 import { TaskService } from "./application/task-service.js";
-import { loadConfig, resolveAppBaseUrl } from "./config.js";
+import { isDerivedSecretKey, loadConfig, resolveAppBaseUrl, resolveSecretKey } from "./config.js";
+import { configureSecretKey } from "./infrastructure/secret-crypto.js";
 import { createServer } from "./http/server.js";
 import { NodemailerEmailSender } from "./infrastructure/email-sender.js";
 import { ScryptPasswordHasher } from "./infrastructure/password.js";
@@ -52,6 +53,20 @@ import { PostgresSetupRepository } from "./infrastructure/postgres/setup-reposit
 import { PostgresTaskRepository } from "./infrastructure/postgres/task-repository.js";
 
 const config = loadConfig();
+
+/*
+ * Decided at startup, not at the moment somebody saves a password. A process
+ * that cannot keep a secret should say so while an operator is watching it
+ * start, rather than months later in a 503 that reaches an owner mid-wizard.
+ */
+configureSecretKey(resolveSecretKey(config));
+if (isDerivedSecretKey(config)) {
+  console.warn(
+    "[config] APP_SECRET_KEY is not set. Stored SMTP and assistant keys are " +
+      "encrypted with a key derived from SESSION_JWT_SECRET, so rotating that " +
+      "secret would make them unreadable. Set APP_SECRET_KEY to a dedicated value.",
+  );
+}
 const pool = createPostgresPool(config.DATABASE_URL);
 const auditRepository = new PostgresAuditRepository(pool);
 const projectsRepository = new PostgresProjectsRepository(pool);

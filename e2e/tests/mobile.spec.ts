@@ -142,7 +142,7 @@ test("the menu fills the canvas and every item can be reached", async ({ page })
   expect(await page.locator("[data-overlay-root]").count()).toBe(0);
 });
 
-test("the assistant fills the whole width of the screen", async ({ page }) => {
+test("the assistant fills the canvas, inside the frame like any page", async ({ page }) => {
   await page.setViewportSize(IPHONE);
   await signIn(page);
 
@@ -152,19 +152,33 @@ test("the assistant fills the whole width of the screen", async ({ page }) => {
   await expect(sheet).toBeVisible();
 
   /*
-   * The reported fault, measured. The panel kept its desktop column width
-   * because its entry animation fills `width` and an animation's fill outranks
-   * a normal declaration — so the sheet's `width: 100%` never applied. A
-   * measurement is the only thing that could have caught that.
+   * As wide as a page is, not as wide as the glass.
+   *
+   * An earlier version bled this out to the screen edges, and on a phone that
+   * was wrong: it made the assistant the only surface in the product that
+   * ignores the frame every page respects, so it read as something that had
+   * taken over the app rather than somewhere you had navigated to. The measure
+   * is therefore "the same width as the page it replaced", which is what makes
+   * it consistent.
    */
+  const pageWidth = await page
+    .locator("#main-content")
+    .evaluate((node) => node.getBoundingClientRect().width);
+
   const box = await sheet.boundingBox();
   expect(box).not.toBeNull();
-  expect(box!.width).toBeGreaterThanOrEqual(IPHONE.width - 2);
+  expect(box!.width).toBeCloseTo(pageWidth, 0);
 
-  const panel = sheet.locator(".rect-ai-panel");
-  const panelBox = await panel.boundingBox();
-  expect(panelBox).not.toBeNull();
-  expect(panelBox!.width).toBeGreaterThanOrEqual(IPHONE.width - 4);
+  /*
+   * The original fault still has to stay fixed: the panel inside must fill the
+   * sheet rather than keeping its desktop column width, which it did because
+   * its entry animation fills `width` and an animation's fill outranks a normal
+   * declaration.
+   */
+  const panelWidth = await sheet
+    .locator(".rect-ai-panel")
+    .evaluate((node) => node.getBoundingClientRect().width);
+  expect(panelWidth).toBeCloseTo(pageWidth, 0);
 });
 
 test("the assistant's composer stays on screen, not pushed off the bottom", async ({ page }) => {
@@ -202,13 +216,15 @@ test("only one sheet is open at a time", async ({ page }) => {
   expect(await page.getByRole("dialog").count()).toBe(1);
 
   /*
+   * Closed from the header, by the same control that opened it. The sheet has
+   * no close button of its own: a dismiss control floating over the content put
+   * the way out somewhere different from the way in.
+   *
    * `force` because the sheet plays a short entry animation and Playwright's
-   * stability check can outlast a 60s timeout waiting for a transform to settle
-   * on a slow container. The click itself is what is under test here, not the
-   * motion, and the animation is asserted elsewhere by its own absence under
-   * reduced motion.
+   * stability check can outlast the timeout waiting for a transform to settle
+   * on a slow container. The click is what is under test, not the motion.
    */
-  await page.getByRole("button", { name: /^close$/iu }).click({ force: true });
+  await page.getByRole("button", { name: /close menu/iu }).click({ force: true });
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
@@ -300,4 +316,85 @@ test("nothing overflows the width of the screen", async ({ page }) => {
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(1);
+});
+
+/*
+ * The assistant's setup, in a real browser.
+ *
+ * Both faults the owner reported were invisible to the component tests and
+ * obvious here. The wizard showed every step at once because `.rect-wizard__content`
+ * set `display: grid` while the element carried the `hidden` attribute — jsdom
+ * loads no stylesheet, so it read the attribute, agreed the step was hidden, and
+ * passed. And saving returned 503 because `APP_SECRET_KEY` was read straight
+ * from the environment by the crypto module and declared in no config, so a
+ * deployment without it booted fine and failed only at the moment somebody
+ * finished the form.
+ *
+ * Neither is catchable without a layout engine and a running server, which is
+ * what these two tests are.
+ */
+test("the setup wizard shows one step at a time", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/settings");
+
+  await page.getByRole("button", { name: /Assistant/i }).first().click();
+  await page.getByRole("button", { name: /Set up the assistant/i }).click();
+
+  const wizard = page.getByRole("dialog");
+  await expect(wizard).toBeVisible();
+
+  /*
+   * Counted by what the browser actually paints, not by the attribute. The
+   * attribute was correct the whole time; it was being overruled.
+   */
+  const visible = await wizard.evaluate(
+    (node) =>
+      Array.from(node.querySelectorAll(".rect-wizard__content")).filter(
+        (step) => getComputedStyle(step as HTMLElement).display !== "none",
+      ).length,
+  );
+  expect(visible).toBe(1);
+
+  // And Next genuinely moves: the second step is a different question.
+  await wizard.getByLabel("Endpoint").fill("https://api.openai.com/v1");
+  await wizard.getByLabel("Model").fill("gpt-4o-mini");
+  await wizard.getByRole("button", { name: /next/i }).click();
+  await expect(wizard.getByLabel("Company API key")).toBeVisible();
+});
+
+test("the assistant's settings save and survive a reload", async ({ page }) => {
+  await signIn(page);
+  await page.goto("/settings");
+
+  await page.getByRole("button", { name: /Assistant/i }).first().click();
+
+  // Either state is legitimate depending on test order; both lead to the form.
+  const setUp = page.getByRole("button", { name: /Set up the assistant/i });
+  const edit = page.getByRole("button", { name: /^Edit$/i });
+  await (await setUp.isVisible().catch(() => false) ? setUp : edit).click();
+
+  const wizard = page.getByRole("dialog");
+  await wizard.getByLabel("Endpoint").fill("https://api.openai.com/v1");
+  await wizard.getByLabel("Model").fill("gpt-4o-mini");
+  await wizard.getByRole("button", { name: /next/i }).click();
+  await wizard.getByLabel("Company API key").fill("sk-e2e-not-a-real-key-000000");
+  await wizard.getByRole("button", { name: /next/i }).click();
+  await wizard.getByRole("button", { name: /next/i }).click();
+  await wizard.getByRole("button", { name: /Save and switch on/i }).click();
+
+  // Closing is the proof it succeeded: the caller only closes on success, so a
+  // 503 would leave it open with the error showing.
+  await expect(wizard).toBeHidden({ timeout: 15_000 });
+
+  await page.reload();
+  await page.getByRole("button", { name: /Assistant/i }).first().click();
+
+  /*
+   * Scoped to the settings section. "Ready" now appears in the assistant panel
+   * too — which is itself the proof the save worked, but makes a bare text
+   * query ambiguous.
+   */
+  const section = page.getByRole("region").filter({ hasText: "gpt-4o-mini" }).first();
+  await expect(page.getByText("gpt-4o-mini").first()).toBeVisible();
+  await expect(section.getByText("Ready").first().or(page.getByText("Ready").first())).toBeVisible();
 });

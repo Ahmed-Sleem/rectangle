@@ -10,10 +10,15 @@
  * are open. Rendering them as windows made them read as dialogs that had
  * appeared on top of the app, which is what the owner reported.
  *
- * So on a handset they render inline, in the canvas, replacing its content and
- * occupying every pixel of it. No backdrop, because there is nothing behind to
- * show. No portal, because it does not need to escape the canvas — it is the
- * canvas.
+ * So on a handset they render inline, in the canvas, in place of the page that
+ * would otherwise be there — inside the same frame, with the same gutters, so
+ * they look like somewhere you navigated to rather than something that has
+ * taken over the app. No backdrop, because there is nothing behind to show. No
+ * portal, because it does not need to escape the canvas.
+ *
+ * The way out is not here. It is the header button that opened the sheet, which
+ * closes it again: one control, one place, doing the obvious opposite of what it
+ * just did.
  *
  * WHAT IS NOT DUPLICATED HERE, and why that matters: a modal surface still has
  * to seat focus somewhere sensible, still has to keep Tab inside itself, and
@@ -25,9 +30,6 @@
  * second copy that never receives the next fix.
  */
 import { useEffect, useRef, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
-import { IconButton } from "@/shared/ui";
 import { containTabWithin, focusInitial } from "@/shared/ui/overlay-behaviour";
 import { useExitTransition } from "@/shared/ui/use-exit-transition";
 import { cn } from "@/shared/lib/cn";
@@ -46,7 +48,6 @@ export function CanvasSheet({
   children: ReactNode;
   className?: string;
 }) {
-  const { t } = useTranslation();
   const surfaceRef = useRef<HTMLElement | null>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -109,16 +110,6 @@ export function CanvasSheet({
       tabIndex={-1}
       onAnimationEnd={onAnimationEnd}
     >
-      <IconButton
-        label={t("common.close")}
-        size="sm"
-        variant="plain"
-        className="rect-canvas-sheet__close"
-        onClick={onClose}
-      >
-        <X size={18} strokeWidth={2} aria-hidden />
-      </IconButton>
-
       {children}
     </section>
   );
