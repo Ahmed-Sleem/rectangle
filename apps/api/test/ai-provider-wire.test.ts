@@ -11,7 +11,7 @@ import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { OpenAiCompatibleProvider } from "../src/infrastructure/ai-provider.js";
 import { describeToolForProvider } from "../src/application/ai-service.js";
-import { findTool } from "../src/domain/ai.js";
+import { aiTools, findTool } from "../src/domain/ai.js";
 
 /** The real description the harness would send for a named tool. */
 function describeTool(name: string) {
@@ -222,6 +222,37 @@ describe("the tool schema a provider is given", () => {
     });
 
     expect(received.body.tools[0].function.parameters).not.toHaveProperty("$schema");
+  });
+
+  /*
+   * The fault this guards broke the assistant completely for every person, and
+   * it is worth stating precisely because the shape of the failure is what made
+   * it hard to see. Zod emits a `pattern` for `z.email()` and `z.uuid()` built
+   * from negative lookahead. JSON Schema requires `pattern` to be ECMA-262, but
+   * most providers validate with RE2 — Go and Rust both — and RE2 refuses
+   * lookahead by design, since forbidding it is what buys linear-time matching.
+   *
+   * Groq therefore rejected the whole request with 400 before the model ran, so
+   * a single unusable regex inside `create_user` made every question from every
+   * person fail, whatever it was about. Asserted across the entire registry
+   * rather than on one tool, because the blast radius is the entire registry:
+   * any tool that grows an email or a uuid field would put it back.
+   */
+  it("sends no regex pattern in any tool, because providers validate with RE2", () => {
+    const patternsIn = (node: unknown, path: string): string[] => {
+      if (Array.isArray(node)) return node.flatMap((entry, index) => patternsIn(entry, `${path}[${index}]`));
+      if (node === null || typeof node !== "object") return [];
+
+      return Object.entries(node).flatMap(([key, value]) =>
+        key === "pattern" ? [`${path}.pattern`] : patternsIn(value, `${path}.${key}`),
+      );
+    };
+
+    const offenders = aiTools.flatMap((tool) =>
+      patternsIn(describeToolForProvider(tool).function.parameters, tool.name),
+    );
+
+    expect(offenders).toEqual([]);
   });
 
   it("sends the reply ceiling when one is configured, and omits it otherwise", async () => {

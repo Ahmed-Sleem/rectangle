@@ -1112,13 +1112,60 @@ function toJsonSchema(tool: AiToolDefinition): Record<string, unknown> {
   if (!schema.properties) schema.properties = {};
   if (!schema.type) schema.type = "object";
 
-  return schema;
+  return withoutUnsupportedPatterns(schema) as Record<string, unknown>;
+}
+
+/**
+ * Removes every `pattern` from a generated schema, at any depth.
+ *
+ * This is not tidying. Zod emits a `pattern` for `z.email()` and `z.uuid()`
+ * that uses negative lookahead, and the JSON Schema specification requires
+ * `pattern` to be an ECMA-262 regular expression — which most providers do not
+ * run. Groq, and everything else built on Go or Rust, validates with RE2, and
+ * RE2 has no lookahead by design because it is what guarantees linear time.
+ *
+ * The consequence was total rather than partial, which is why it was hard to
+ * read as a schema problem: the tool list is validated as a whole before the
+ * model is invoked, so one unusable regex in `create_user` made every request
+ * fail with 400 for every person, on every question, whatever they asked. The
+ * panel reported that the question could not be answered, which was true and
+ * said nothing about why.
+ *
+ * Dropping the pattern loses nothing that matters. A `pattern` in a tool schema
+ * is advisory — it is a hint to the model about the shape of a string — and the
+ * authority on whether an argument is acceptable is the Zod schema itself, which
+ * re-parses every argument when the call comes back. The format keyword survives
+ * and carries the same hint in a vocabulary providers accept.
+ */
+function withoutUnsupportedPatterns(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(withoutUnsupportedPatterns);
+
+  if (node !== null && typeof node === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(node)) {
+      if (key === "pattern") continue;
+      result[key] = withoutUnsupportedPatterns(value);
+    }
+    return result;
+  }
+
+  return node;
 }
 
 /** Parses the model's argument string without throwing on nonsense. */
 function safeJson(raw: string): unknown {
   try {
-    return JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
+    /*
+     * Observed from a real provider: a model calling a tool it believes takes
+     * no arguments sends the four characters `null`, which parses to null and
+     * then fails the schema with "expected object, received null" — a complaint
+     * about the wrong thing, which sends the model off correcting an argument
+     * list rather than supplying the one field it actually omitted. An absent
+     * argument object and an explicitly null one mean the same thing here.
+     */
+    if (parsed === null || typeof parsed !== "object") return {};
+    return parsed;
   } catch {
     // An empty object fails the schema with a readable message, which is a
     // better next turn for the model than a parse error it cannot see.

@@ -137,6 +137,40 @@
 .rect-ui-icon-button--soft { background: var(--rect-card-bg); color: var(--rect-text-primary); }
 .rect-ui-icon-button--dark { background: var(--rect-orb-bg); border-color: var(--rect-orb-bg); color: var(--rect-orb-text); }
 
+/*
+ * Every icon button answers the pointer.
+ *
+ * None of the three variants had a hover state. The transition above listed
+ * background, border and colour and then nothing ever changed them, so the
+ * control was inert until it was clicked — reported against the window close
+ * button, which is the `plain` variant and the worst case of the three, since
+ * transparent on transparent gives a person nothing at all to aim at.
+ *
+ * Written here, against the variants, rather than on the close button that was
+ * reported: the fault is the library's and every caller has it. Fixing the one
+ * instance would have left the same dead control on the panel header, the
+ * toolbar and the toast.
+ *
+ * `plain` surfaces on hover because it has no resting surface to deepen; the
+ * other two deepen the one they already have, so the button does not appear to
+ * change size or weight under the cursor.
+ */
+.rect-ui-icon-button--plain:not(:disabled):hover {
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-card-border);
+  color: var(--rect-text-primary);
+}
+
+.rect-ui-icon-button--soft:not(:disabled):hover {
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-border-active);
+}
+
+.rect-ui-icon-button--dark:not(:disabled):hover {
+  background: var(--rect-orb-bg-hover);
+  border-color: var(--rect-orb-bg-hover);
+}
+
 .rect-ui-field {
   display: grid;
   gap: var(--rect-space-1);

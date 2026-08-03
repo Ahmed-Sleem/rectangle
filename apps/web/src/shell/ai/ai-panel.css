@@ -157,12 +157,33 @@
   height: 18px;
 }
 
+/*
+ * The direction is the load-bearing declaration here, not the display.
+ *
+ * This was `display: flex` with no direction, so it took the initial value —
+ * `row`. The body holds the transcript, the continuation offer, the proposal
+ * card and the error, all siblings meant to stack. Laid out in a row they
+ * became columns beside each other, and the transcript, being a flex item with
+ * nothing forcing its width, collapsed to its minimum: measured at 15px, with
+ * message bubbles 13.8px wide, which is what turns a sentence into one
+ * character per line. The empty and blocked states never showed the fault
+ * because each is an only child carrying `flex: 1`, and a single stretched item
+ * looks identical whichever way the axis runs.
+ *
+ * It also destroyed the two sides of the conversation. `--asked` uses
+ * `align-self: flex-end` and `--answered` `flex-start`, which place a bubble on
+ * the trailing or leading edge only while the cross axis is horizontal. In a
+ * row they align vertically instead, so both sides landed at the same x and the
+ * question stopped being distinguishable from the answer.
+ */
 .rect-ai-panel__body {
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding: var(--rect-space-4);
   display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-3);
 }
 
 .rect-ai-panel__empty {
@@ -412,6 +433,25 @@
  * cannot half-delete it again: there is now a single `.rect-ai-history` block
  * and any future duplicate is visible on sight.
  */
+/*
+ * The list does not scroll. The window it sits in does.
+ *
+ * It used to carry `max-block-size: min(60dvh, 420px)` and its own
+ * `overflow-y: auto`, nested inside `.rect-overlay__body`, which is already
+ * the one scrolling region of a window. That produced two scrollbars and a
+ * list that stopped at 420px however tall the screen was — so on a desktop the
+ * window sat in a mostly empty surface with the conversations crammed into a
+ * box in the middle of it, and a person with sixty threads scrolled a small
+ * pane inside a large still one.
+ *
+ * The window already solves this, for every window: `.rect-overlay__surface`
+ * is capped against the viewport and `.rect-overlay__body` scrolls whatever
+ * overflows, with `overscroll-behavior` and the keyboard allowance handled in
+ * one place. Deleting the inner scroller is what makes the history behave like
+ * the rest of the product rather than like a special case — the same method,
+ * as the owner put it, and the §0.3 test: the height of every window's scroll
+ * region is one edit, in ui.css, not two.
+ */
 .rect-ai-history {
   display: flex;
   flex-direction: column;
@@ -419,11 +459,6 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  /* Bounded by the viewport so the window is always shorter than the screen. */
-  max-block-size: min(60dvh, 420px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
 }
 
 .rect-ai-history__item {

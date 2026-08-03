@@ -48,6 +48,7 @@ run_step "design token usage" node scripts/checks/token-usage.mjs
 run_step "spacing scale" node scripts/checks/spacing-scale.mjs
 run_step "logical properties" node scripts/checks/logical-properties.mjs
 run_step "duplicate css" node scripts/checks/duplicate-css.mjs
+run_step "flex axis" node scripts/checks/flex-axis.mjs
 run_step "pglite budget" node scripts/checks/pglite-budget.mjs
 run_step "one search engine" node scripts/checks/search-engine.mjs
 run_step "permission visibility" node scripts/checks/permission-visibility.mjs

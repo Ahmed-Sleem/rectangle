@@ -402,6 +402,35 @@ describe("the model asking for tools", () => {
     expect(result.answer).toContain("What should I search for?");
   });
 
+  /*
+   * Observed from a real provider, not imagined. Asked a question that needed a
+   * no-argument tool, Groq sent the four characters `null` as the arguments
+   * string. That parses, so the JSON guard let it through, and Zod then failed
+   * with "expected object, received null" — a complaint about the wrong thing.
+   * The model read it as an argument-list problem, could not see what to
+   * correct, and burned its remaining steps re-sending the same call.
+   */
+  it("treats a null argument payload as an empty one", async () => {
+    const whoami = vi.fn(async () => ({ name: "Mona" }));
+    const { service } = build({
+      replies: [
+        {
+          content: "",
+          toolCalls: [
+            { id: "call-whoami", type: "function" as const, function: { name: "whoami", arguments: "null" } },
+          ],
+        },
+        { content: "You are Mona.", toolCalls: [] },
+      ],
+      executors: { whoami },
+    });
+
+    const result = await service.chat(person(["ai.use"]), { message: "who am I?" });
+
+    expect(whoami).toHaveBeenCalledOnce();
+    expect(result.answer).toContain("Mona");
+  });
+
   it("survives a tool that fails", async () => {
     // A tool must never take the whole message down with it.
     const { service } = build({

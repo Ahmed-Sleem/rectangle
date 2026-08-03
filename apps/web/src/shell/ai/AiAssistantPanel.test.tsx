@@ -63,6 +63,8 @@ let asked: string[] = [];
 let confirmed: string[] = [];
 /** Bodies posted to the auto-approval endpoint. */
 let autoApproved: string[] = [];
+/** How many times the conversation LIST was fetched, as opposed to one thread. */
+let conversationListReads = 0;
 
 function json(body: unknown, status = 200) {
   return Promise.resolve(
@@ -82,6 +84,7 @@ function mockApi(options: {
   asked = [];
   confirmed = [];
   autoApproved = [];
+  conversationListReads = 0;
   return vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
     const url = String(input);
 
@@ -127,6 +130,7 @@ function mockApi(options: {
       });
     }
     if (url.includes("/v1/ai/conversations")) {
+      conversationListReads += 1;
       return json({ conversations: options.conversations ?? [] });
     }
     return json({});
@@ -151,8 +155,19 @@ const withoutAi: AuthContextValue = {
 };
 
 function renderPanel(auth: AuthContextValue = withAi, path = "/") {
+  /*
+   * The workspace's real `staleTime` is mirrored here deliberately. Without it
+   * every query in this file refetches on demand, which is not how the product
+   * behaves — and it is precisely the difference that hid a reported bug: the
+   * conversation list was served from a thirty-second cache, so a thread
+   * created after the window was last opened was missing from it. A test
+   * harness with no cache could not express that fault.
+   */
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: 30_000 },
+      mutations: { retry: false },
+    },
   });
   const router = createMemoryRouter(
     [
@@ -508,6 +523,45 @@ describe("AiAssistantPanel: page context and history", () => {
     await user.click(screen.getByRole("button", { name: /send/i }));
     await waitFor(() => expect(asked).toHaveLength(2));
     expect(JSON.parse(asked[1] ?? "{}")).not.toHaveProperty("conversationId");
+  });
+
+  /*
+   * Reported: the history was "never updated, always outdated".
+   *
+   * The invalidation that runs when an answer lands was already correct, and a
+   * test built around it passed with the fix removed — so it proved nothing and
+   * was replaced by this one, which isolates the part that was genuinely
+   * broken. The workspace caches every query for thirty seconds. Anything that
+   * changes the list WITHOUT this panel knowing — a thread created in another
+   * tab, on a phone, or by a turn whose response never arrived — left the
+   * window showing a list it had no reason to believe was stale.
+   *
+   * So the guarantee is stated as the owner stated it: opening the window reads
+   * the list. Counting the reads is what makes the assertion able to fail,
+   * because a cached second open is indistinguishable from a fresh one by
+   * content alone when nothing happened in between.
+   */
+  it("re-reads the list every time the window is opened", async () => {
+    mockApi({
+      conversations: [
+        { id: "old", title: "Older thread", projectId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+      ],
+    });
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("Ready");
+
+    await user.click(screen.getByRole("button", { name: "Past conversations" }));
+    await screen.findByRole("dialog");
+    await waitFor(() => expect(conversationListReads).toBe(1));
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("button", { name: "Past conversations" }));
+    await screen.findByRole("dialog");
+
+    // Nothing changed in between, which is exactly the case a cache would serve
+    // from memory and the case in which the list can silently be wrong.
+    await waitFor(() => expect(conversationListReads).toBe(2));
   });
 
   it("reads in Arabic", async () => {

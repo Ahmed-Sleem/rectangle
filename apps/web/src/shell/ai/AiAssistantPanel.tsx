@@ -167,11 +167,28 @@ export function AiAssistantPanel({
     retry: false,
   });
 
+  /*
+   * Fetched afresh every time the window opens.
+   *
+   * The list is invalidated when a turn completes, but the workspace sets a
+   * thirty-second `staleTime` for every query, and an invalidated query that is
+   * disabled does not refetch until something re-enables it. So opening the
+   * history, asking a question, closing it and opening it again inside that
+   * window showed the list as it was before the thread existed — the new
+   * conversation simply missing, which is the staleness that was reported.
+   *
+   * `staleTime: 0` is right for this one rather than a change to the default:
+   * the list is small, it is read only when somebody deliberately opens a
+   * window to look at it, and it is the index of a thing they are actively
+   * changing. Everything else in the product is served from a cache on purpose.
+   */
   const history = useQuery({
     queryKey: ["ai", "conversations"],
     queryFn: shellAiApi.listConversations,
     enabled: mayUse && historyOpen,
     retry: false,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   /*
