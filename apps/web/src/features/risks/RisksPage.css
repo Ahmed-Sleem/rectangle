@@ -53,17 +53,37 @@
   grid-template-areas:
     "axis-y grid"
     ".      axis-x";
-  grid-template-columns: auto auto;
+  /* `minmax(0, auto)` on the grid column so it may shrink; `auto` alone
+     refuses to go below its content and pushes the whole layout wider. */
+  grid-template-columns: auto minmax(0, auto);
   align-items: center;
   justify-self: center;
+  max-inline-size: 100%;
 }
 
+/*
+ * Five columns that can shrink.
+ *
+ * They were `repeat(5, var(--rect-control-standard))` — five fixed 40px cells,
+ * which is right until the canvas narrows. Opening the assistant takes roughly
+ * a third of the width, and a grid that cannot give any of it back simply
+ * overflows: the last column disappears past the panel edge with no scrollbar
+ * to reach it, which is what was reported.
+ *
+ * `minmax(0, ...)` lets each cell fall below its preferred size rather than
+ * forcing the track wider than the container, and the clamp keeps them square
+ * and tappable down to 28px before they stop shrinking. The matrix is five
+ * cells wide whatever happens; only their size changes.
+ */
 .rect-matrix__grid {
   display: grid;
   gap: var(--rect-space-1);
   grid-area: grid;
-  grid-template-columns: repeat(5, var(--rect-control-standard));
+  grid-template-columns: repeat(5, minmax(0, var(--rect-control-standard)));
+  /* Never wider than the space it was given. */
+  max-inline-size: 100%;
 }
+
 
 .rect-matrix__axis {
   color: var(--rect-text-secondary);
@@ -84,6 +104,10 @@
 }
 
 .rect-matrix__cell {
+  /* Square, and never smaller than a finger can reliably hit, so the grid can
+     give width back to a narrowed canvas without becoming unusable. */
+  aspect-ratio: 1;
+  min-inline-size: 28px;
   align-items: center;
   background: var(--rect-matrix-fill);
   border: 1px solid transparent;
@@ -94,7 +118,9 @@
   font: inherit;
   font-size: var(--rect-text-label);
   font-weight: var(--rect-weight-bold);
-  block-size: var(--rect-control-standard);
+  /* No fixed block-size: `aspect-ratio` derives the height from the width the
+     column was actually given, so the cell stays square while it shrinks. A
+     fixed height would hold it tall as the grid narrowed and skew every cell. */
   justify-content: center;
   transition: transform var(--rect-motion-spring), box-shadow var(--rect-motion-spring);
 }
