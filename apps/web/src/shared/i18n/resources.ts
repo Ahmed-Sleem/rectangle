@@ -197,6 +197,14 @@ export const resources = {
         aiMineEdit: "Change mine",
         aiMineClear: "Remove mine",
         aiMineClearFailed: "Your settings could not be removed.",
+        aiAutoApprovals: "Changes you approved in advance",
+        aiAutoApprovalsNone:
+          "None. The assistant asks before every change it wants to make. You can tick \"do not ask again\" on a change to add it here.",
+        aiAutoApprovalsSome:
+          "The assistant makes these changes without asking. Everything it does is still recorded in Activity.",
+        aiAutoApprovalsFailed: "Your preferences could not be loaded.",
+        aiAutoApprovalRevoke: "Ask me again about {{tool}}",
+        aiAutoApprovalRevokeFailed: "That preference could not be removed.",
         aiMineSave: "Save my settings",
         aiMineSaveFailed: "Your settings could not be saved.",
         aiMineStepEndpointHelp: "Your own provider, complete and independent of the company's.",
@@ -584,6 +592,14 @@ export const resources = {
         aiMineEdit: "تعديل إعداداتي",
         aiMineClear: "إزالة إعداداتي",
         aiMineClearFailed: "تعذّر مسح إعداداتك.",
+        aiAutoApprovals: "تغييرات وافقت عليها مسبقًا",
+        aiAutoApprovalsNone:
+          "لا شيء. يسأل المساعد قبل كل تغيير يريد إجراءه. يمكنك تحديد \"لا تسأل مرة أخرى\" على أي تغيير لإضافته هنا.",
+        aiAutoApprovalsSome:
+          "يُجري المساعد هذه التغييرات دون سؤال. يبقى كل ما يفعله مسجَّلًا في سجل النشاط.",
+        aiAutoApprovalsFailed: "تعذّر تحميل تفضيلاتك.",
+        aiAutoApprovalRevoke: "اسألني مرة أخرى عن {{tool}}",
+        aiAutoApprovalRevokeFailed: "تعذّر إزالة هذا التفضيل.",
         aiMineSave: "حفظ إعداداتي",
         aiMineSaveFailed: "تعذّر حفظ إعداداتك.",
         aiMineStepEndpointHelp: "مزوّدك الخاص، كامل ومستقل عن إعدادات الشركة.",

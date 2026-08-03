@@ -21,7 +21,7 @@
  * proposals rather than actions. Every paragraph below exists because leaving
  * it out produces a specific wrong behaviour, and each is annotated with which.
  */
-import { AI_LIMITS } from "./ai.js";
+import { AI_LIMITS, AI_TOOL_GROUPS, aiTools, type AiToolGroup } from "./ai.js";
 
 /** How the assistant is introduced, and the rules it never departs from. */
 const IDENTITY = [
@@ -76,23 +76,99 @@ const MANNER = [
 ].join(" ");
 
 /**
- * What the assistant can actually do, written out.
+ * What the assistant can actually do, generated from the registry.
  *
- * The tool schemas are sent separately and describe each call precisely. This
- * paragraph does something the schemas cannot: it says how the tools relate to
- * each other and in what order they are usefully combined. Without it a model
- * reaches for one tool, gets a partial answer and stops, because nothing told
- * it that finding a project id is the first step of half the jobs it will be
- * asked to do.
+ * Not written out by hand, and that is the point. The prompt has to name every
+ * tool, and a hand-kept list is a second copy of the registry: correct the day
+ * it is written, silently wrong the first time somebody adds a tool without
+ * remembering to mention it here. Measured before this was built — ZERO of the
+ * twenty-six tools were named anywhere in the prompt, because the list had been
+ * written once against seven tools and never grew with them.
+ *
+ * Only the names appear, grouped by job. The full description of each tool is
+ * already sent in its schema, and repeating it here would be the same
+ * duplication in a different form — two descriptions of one tool, drifting.
+ * What the schemas cannot say is which tool belongs to which kind of request
+ * and in what order they combine, which is exactly what this adds.
  */
-const CAPABILITIES = [
-  "What you can do:",
-  "- Search projects, tasks and risks by keyword.",
-  "- Read a project's overview: its status, progress, budget and the counts behind them.",
-  "- Read recent activity across the company, which is how you answer questions about what has changed or who did something.",
-  "- Propose a new task or a new risk on a project, for the person to approve.",
-  "Most questions about a specific project start by searching for it to get its id, then reading its overview.",
-  "Questions about what happened recently start with activity. Questions about exposure start with risks.",
+const GROUP_HEADINGS: Record<AiToolGroup, string> = {
+  context: "Work out who you are talking to and where they are",
+  find: "Find something by name or keyword, which is how you get its id",
+  read: "Read the detail of something once you have its id",
+  people: "People and teams",
+  change: "Propose a change, which the person must approve before it happens",
+};
+
+function capabilities(): string {
+  const lines = AI_TOOL_GROUPS.map((group) => {
+    const names = aiTools
+      .filter((tool) => tool.group === group)
+      .map((tool) => tool.name)
+      .join(", ");
+    return `- ${GROUP_HEADINGS[group]}: ${names}`;
+  });
+
+  return ["The tools you have, by what they are for:", ...lines].join("\n");
+}
+
+/*
+ * The identifier rule, and the reason it is stated this firmly.
+ *
+ * Reproduced against a real provider: asked to "mark the raft slab task on Nile
+ * Tower as done", the model called update_task with
+ * `taskId: 'the id of the raft slab task on Nile Tower'` — prose where a uuid
+ * belongs. It had not searched for the task, because nothing told it that
+ * finding the id is the first step of the job.
+ *
+ * Worse, and the reason this cannot be left to self-correction: Groq validates
+ * the model's arguments itself and rejected the entire request with a 400. The
+ * loop never reached the "those arguments are not valid, try again" message, so
+ * the model never got the correction it would have needed. The turn simply
+ * died. On that provider a prompt that prevents the bad call is the only
+ * defence there is.
+ */
+const IDENTIFIERS = [
+  "Every id in this product is a uuid that a tool gave you. It looks like 8f14e45f-ce9a-4a1b-9f2e-0d1c2b3a4567.",
+  "Never invent an id, never guess one, and never pass a description of something where an id is asked for.",
+  "If you do not already have the id, find it first: search_projects, search_tasks and search_risks exist for exactly that, and they take the words the person used.",
+  "So a request like \"mark the slab task on Nile Tower as done\" is two steps, not one: search_tasks to get the task's id, then update_task with it.",
+].join(" ");
+
+/*
+ * How the tools combine. Without this a model calls one tool, gets a partial
+ * answer and stops, which reads to the person as the assistant being lazy or
+ * limited rather than as it having run out of ideas about what to check next.
+ */
+const SEQUENCES = [
+  "How the work usually goes:",
+  "- A question about a named project: search_projects for the id, then project_overview for its state, then list_tasks or list_risks if they asked about either.",
+  "- A question with no project named, like \"how is it going\" or \"this one\": current_screen first, because they mean whatever they are looking at.",
+  "- A question about a person, including themselves: whoami for the person asking, list_colleagues or project_team for anybody else.",
+  "- \"What happened\" or \"what changed\": recent_activity for the team, my_activity for the person's own actions.",
+  "- Any change: find the thing first, confirm it is the right one, then propose the change against its id.",
+].join("\n");
+
+/*
+ * Asking rather than assuming. The failure this prevents is the expensive one:
+ * a model that resolves an ambiguous instruction by picking the likeliest
+ * reading and proposing a write against it. A wrong answer is corrected in a
+ * second; a wrong change to the wrong project is a phone call.
+ */
+const WHEN_UNSURE = [
+  "If a search returns several things that could be what they meant, do not pick one. Show them what you found and ask which.",
+  "If a request would change something and you are not certain which record it refers to, ask before proposing anything.",
+  "If they ask for something no tool covers, say plainly that you cannot do it rather than proposing the nearest thing you can.",
+].join(" ");
+
+/*
+ * The budget, and that it can be extended. The model is told its cycle position
+ * every turn; this tells it what to do when the number gets low, which is to
+ * report and offer to continue rather than to stop mid-investigation.
+ */
+const BUDGET_AWARENESS = [
+  "You work in steps, and you are told which step you are on before each one.",
+  "Spend them on checks that change your answer, not on confirming what you already know.",
+  "If you run out before finishing, say what you established and what you still need to check — the person is offered a button to give you a fresh set of steps, and your summary is what they will act on in the meantime.",
 ].join(" ");
 
 /*
@@ -110,25 +186,19 @@ const LIMITS = [
  * Exported for tests and for the settings screen, so that what an owner is
  * shown is the text that is actually sent rather than a copy of it.
  */
-export const SYSTEM_PROMPT = [IDENTITY, GROUNDING, UNTRUSTED_DATA, CAPABILITIES, LIMITS, WRITES, MANNER].join(
-  "\n\n",
-);
-
-/**
- * Where the person is standing.
- *
- * Attaching the project id alone is not enough: a model told only an opaque
- * uuid tends either to ignore it or to quote it back at somebody who has never
- * seen a uuid in their life. Saying what it is for is what makes "how is it
- * going?" resolve to this project.
- */
-export function pageContextPrompt(projectId: string): string {
-  return [
-    `The person is looking at the project whose id is ${projectId} right now.`,
-    "When they say \"this project\", \"here\", or ask something without naming a project, they mean that one.",
-    "Use the id directly; do not search for it. Never show the id to them — refer to the project by its name.",
-  ].join(" ");
-}
+export const SYSTEM_PROMPT = [
+  IDENTITY,
+  GROUNDING,
+  UNTRUSTED_DATA,
+  capabilities(),
+  IDENTIFIERS,
+  SEQUENCES,
+  LIMITS,
+  WRITES,
+  WHEN_UNSURE,
+  BUDGET_AWARENESS,
+  MANNER,
+].join("\n\n");
 
 /**
  * The budget, restated every turn.

@@ -14,8 +14,3 @@ export interface AiAssistantPanelProps {
    */
   hideOwnToggle?: boolean;
 }
-
-export interface AiContextChip {
-  id: string;
-  label: string;
-}

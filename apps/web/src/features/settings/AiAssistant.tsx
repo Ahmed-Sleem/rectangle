@@ -52,6 +52,27 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
   });
 
   const settings = query.data?.aiSettings;
+
+  /*
+   * Only fetched once the section is open. It is a small list, but a closed
+   * accordion should not be issuing requests for something nobody is looking
+   * at, and every other block here follows the same rule.
+   */
+  const autoApprovals = useQuery({
+    queryKey: ["ai", "auto-approvals"],
+    queryFn: aiApi.listAutoApprovals,
+    enabled: open,
+    retry: false,
+  });
+
+  const revokeAutoApproval = useMutation({
+    mutationFn: (tool: string) => aiApi.revokeAutoApproval(tool),
+    onSuccess: (result) => {
+      // The server's list is authoritative rather than one edited here, so a
+      // preference removed in another tab cannot linger on this screen.
+      queryClient.setQueryData(["ai", "auto-approvals"], result);
+    },
+  });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["ai", "settings"] });
 
   const saveCompany = useMutation({
@@ -299,9 +320,67 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
             {message(clearPersonal.error, t("settings.aiMineClearFailed"))}
           </p>
         ) : null}
+
         {choose.error ? (
           <p className="rect-settings-message rect-settings-message--error" role="alert">
             {message(choose.error, t("settings.aiChooseFailed"))}
+          </p>
+        ) : null}
+
+        {/*
+          * ── Changes approved in advance ────────────────────────────────
+          *
+          * Granting happens on the confirmation card, in the moment somebody
+          * decides they are tired of being asked about a particular kind of
+          * change. Revoking has to live here, because a person who wants to
+          * undo it is not in the middle of a conversation — they are looking
+          * for the setting. Without this screen the tick was permanent as far
+          * as anybody could tell, which made a small control a much larger
+          * decision than it looked.
+          *
+          * Irreversible tools never appear, and cannot: the server refuses to
+          * record a preference for them at all, so there is nothing to revoke
+          * and nothing here to suggest otherwise.
+          */}
+        <SettingsDivider />
+
+        <SettingRow
+          label={t("settings.aiAutoApprovals")}
+          description={
+            (autoApprovals.data?.tools.length ?? 0) === 0
+              ? t("settings.aiAutoApprovalsNone")
+              : t("settings.aiAutoApprovalsSome")
+          }
+          control={
+            autoApprovals.isError ? (
+              <p className="rect-settings-message rect-settings-message--error" role="alert">
+                {t("settings.aiAutoApprovalsFailed")}
+              </p>
+            ) : (
+              <div className="rect-settings-actions rect-settings-actions--inline">
+                {(autoApprovals.data?.tools ?? []).map((tool) => (
+                  <Button
+                    key={tool}
+                    variant="ghost"
+                    onClick={() => revokeAutoApproval.mutate(tool)}
+                    disabled={revokeAutoApproval.isPending}
+                  >
+                    <Trash2 size={16} strokeWidth={2} aria-hidden />
+                    {t("settings.aiAutoApprovalRevoke", {
+                      // The same labels the confirmation card uses, so somebody
+                      // recognises here exactly what they ticked there.
+                      tool: t(`shell.ai.tool.${tool}`, { defaultValue: tool }),
+                    })}
+                  </Button>
+                ))}
+              </div>
+            )
+          }
+        />
+
+        {revokeAutoApproval.error ? (
+          <p className="rect-settings-message rect-settings-message--error" role="alert">
+            {message(revokeAutoApproval.error, t("settings.aiAutoApprovalRevokeFailed"))}
           </p>
         ) : null}
       </SettingsSection>

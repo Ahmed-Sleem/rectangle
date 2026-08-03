@@ -92,4 +92,21 @@ export const aiApi = {
   /** Removes the personal configuration entirely. */
   deleteMine: () =>
     apiRequest<{ aiSettings: AiSettingsView }>("/v1/ai/me", { method: "DELETE" }),
+
+  /*
+   * The tools this person has agreed the assistant may use without asking.
+   *
+   * Granting happens on the confirmation card, in the moment; revoking belongs
+   * here, because somebody who wants to undo it is not in the middle of a
+   * conversation — they are looking for the setting. Without this screen a tick
+   * on the card was permanent from the person's point of view, which makes
+   * "don't ask again" a much bigger decision than it looks.
+   */
+  listAutoApprovals: () => apiRequest<{ tools: string[] }>("/v1/ai/auto-approvals"),
+
+  revokeAutoApproval: (tool: string) =>
+    apiRequest<{ tools: string[] }>("/v1/ai/auto-approvals", {
+      method: "DELETE",
+      body: JSON.stringify({ tool }),
+    }),
 };

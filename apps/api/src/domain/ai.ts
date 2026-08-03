@@ -83,6 +83,18 @@ export const AI_LIMITS = {
  * name: somebody adding `archive_project` must state what it is, and the
  * harness refuses to run anything that is not read-only without a human.
  */
+/**
+ * The jobs tools are grouped under when the model is told what it can do.
+ *
+ * Ordered as the instructions present them, which is roughly the order a real
+ * request travels: work out who and where, find the thing, read it, then change
+ * it. `people` sits before the writes because knowing who somebody is usually
+ * precedes assigning work to them.
+ */
+export const AI_TOOL_GROUPS = ["context", "find", "read", "people", "change"] as const;
+
+export type AiToolGroup = (typeof AI_TOOL_GROUPS)[number];
+
 export interface AiToolDefinition {
   name: string;
   /**
@@ -93,6 +105,16 @@ export interface AiToolDefinition {
   description: string;
   /** Validates the model's arguments before anything is executed. */
   schema: z.ZodType<Record<string, unknown>>;
+  /**
+   * Which job this tool belongs to, for the instructions the model is given.
+   *
+   * Declared here rather than listed in the prompt because the prompt has to
+   * name all 26 tools and a hand-written list is a second definition of the
+   * registry — it would be correct on the day it was written and silently wrong
+   * the first time somebody added a tool and did not think to mention it. The
+   * §0.3 test: to add a tool and have the model know about it, one file.
+   */
+  group: AiToolGroup;
   /** False means the loop stops and a person must confirm. */
   readOnly: boolean;
   /**
@@ -144,6 +166,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "Who you are helping and what they may do. Returns their name, their standing in the company, and the list of permissions they hold. Call this first when a request depends on whether they are allowed to do something, or when you need their own name or id. Takes no arguments.",
     schema: z.object({}),
+    group: "context",
     readOnly: true,
     // Everyone who may use the assistant may learn about themselves.
     requiredPermission: "ai.use",
@@ -153,6 +176,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "What the person is looking at in the product right now: which page, and which project, task or risk is open if any. Call this whenever they say 'this', 'here', 'it' or ask something without naming what they mean. Takes no arguments.",
     schema: z.object({}),
+    group: "context",
     readOnly: true,
     requiredPermission: "ai.use",
   },
@@ -161,6 +185,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "What this person has done recently, newest first. Use for 'what did I do', 'what did I change yesterday', or to recall something they worked on. This is their own history and needs no special permission. Takes no arguments.",
     schema: z.object({}),
+    group: "context",
     readOnly: true,
     requiredPermission: "ai.use",
   },
@@ -171,6 +196,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "Search this company's projects by name or code. Use when asked which projects exist, or to find a project's id before using another tool. Returns name, code, status and id.",
     schema: searchSchema,
+    group: "find",
     readOnly: true,
     requiredPermission: "projects.read",
   },
@@ -179,6 +205,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "Read one project in full: its status, dates, budget, description and code. Use after search_projects when the summary is not enough to answer. Needs the project id.",
     schema: projectIdSchema,
+    group: "read",
     readOnly: true,
     requiredPermission: "projects.read",
   },
@@ -187,14 +214,16 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "Read the headline figures for the company: how many projects by status, budgets by currency, and which projects need attention. Takes no arguments. Use for 'how are we doing' questions.",
     schema: z.object({}),
+    group: "read",
     readOnly: true,
     requiredPermission: "projects.read",
   },
   {
     name: "search_tasks",
     description:
-      "Search tasks by title across projects the person can reach. Use for questions about what work is open, overdue, or assigned. Returns title, status, due date and the project it belongs to.",
+      "Search tasks by title across projects the person can reach. Use for questions about what work is open, overdue or assigned, and to find a task's id before reading or changing it. Returns the id of each match, with its title, status, due date and project.",
     schema: searchSchema,
+    group: "find",
     readOnly: true,
     requiredPermission: "tasks.read",
   },
@@ -203,6 +232,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "List the tasks on one project, optionally filtered by status. Use to see everything outstanding on a project rather than searching by word. Needs the project id.",
     schema: projectIdSchema.extend({ status: taskStatusSchema.optional() }),
+    group: "read",
     readOnly: true,
     requiredPermission: "tasks.read",
   },
@@ -211,14 +241,16 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "Read one task in full: description, status, priority, dates, and who it is assigned to. Needs the task id, which search_tasks or list_tasks returns.",
     schema: z.object({ taskId: z.uuid() }),
+    group: "read",
     readOnly: true,
     requiredPermission: "tasks.read",
   },
   {
     name: "search_risks",
     description:
-      "Search risks and issues by title. Use for questions about what threatens a project. Returns title, severity, status and the project it belongs to.",
+      "Search risks and issues by title. Use for questions about what threatens a project, and to find a risk's id before reading or changing it. Returns the id of each match, with its title, severity, status and project.",
     schema: searchSchema,
+    group: "find",
     readOnly: true,
     requiredPermission: "risks.read",
   },
@@ -227,6 +259,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "List the risks and issues on one project. Use to review exposure on a project rather than searching by word. Needs the project id.",
     schema: projectIdSchema,
+    group: "read",
     readOnly: true,
     requiredPermission: "risks.read",
   },
@@ -235,6 +268,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "Read one risk in full: description, probability, impact, mitigation and owner. Needs the risk id, which search_risks or list_risks returns.",
     schema: z.object({ riskId: z.uuid() }),
+    group: "read",
     readOnly: true,
     requiredPermission: "risks.read",
   },
@@ -245,6 +279,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "The people this person works with, with their names and ids. Use to find who to assign work to, or to answer 'who is on this'. Takes no arguments.",
     schema: z.object({}),
+    group: "people",
     readOnly: true,
     requiredPermission: "ai.use",
   },
@@ -253,6 +288,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "Who is on one project and what role they hold there. Use before assigning work, to check somebody is actually on the project. Needs the project id.",
     schema: projectIdSchema,
+    group: "people",
     readOnly: true,
     requiredPermission: "project_team.read",
   },
@@ -261,6 +297,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "What the team has done recently — who changed what, and when. Use for questions about progress or history across people. For the person's own history use my_activity instead.",
     schema: z.object({}),
+    group: "read",
     readOnly: true,
     requiredPermission: "activity.read_team",
   },
@@ -277,6 +314,7 @@ export const aiTools: readonly AiToolDefinition[] = [
       dueDate: z.iso.date().optional(),
       assigneeUserId: z.uuid().optional(),
     }),
+    group: "change",
     readOnly: false,
     requiredPermission: "tasks.create",
   },
@@ -299,6 +337,7 @@ export const aiTools: readonly AiToolDefinition[] = [
         (value) => Object.keys(value).some((key) => key !== "taskId"),
         { message: "Name at least one field to change." },
       ),
+    group: "change",
     readOnly: false,
     requiredPermission: "tasks.edit",
   },
@@ -314,6 +353,7 @@ export const aiTools: readonly AiToolDefinition[] = [
       probability: z.number().int().min(1).max(5).optional(),
       impact: z.number().int().min(1).max(5).optional(),
     }),
+    group: "change",
     readOnly: false,
     requiredPermission: "risks.create",
   },
@@ -338,6 +378,7 @@ export const aiTools: readonly AiToolDefinition[] = [
         (value) => Object.keys(value).some((key) => key !== "riskId"),
         { message: "Name at least one field to change." },
       ),
+    group: "change",
     readOnly: false,
     requiredPermission: "risks.edit",
   },
@@ -350,6 +391,7 @@ export const aiTools: readonly AiToolDefinition[] = [
       code: z.string().trim().min(1).max(40).optional(),
       description: z.string().trim().max(2000).optional(),
     }),
+    group: "change",
     readOnly: false,
     requiredPermission: "projects.create",
   },
@@ -369,6 +411,7 @@ export const aiTools: readonly AiToolDefinition[] = [
         (value) => Object.keys(value).some((key) => key !== "projectId"),
         { message: "Name at least one field to change." },
       ),
+    group: "change",
     readOnly: false,
     requiredPermission: "projects.edit",
   },
@@ -380,6 +423,7 @@ export const aiTools: readonly AiToolDefinition[] = [
       userId: z.uuid(),
       role: z.enum(["owner", "manager", "member", "viewer"]),
     }),
+    group: "change",
     readOnly: false,
     requiredPermission: "project_team.manage",
   },
@@ -392,6 +436,7 @@ export const aiTools: readonly AiToolDefinition[] = [
       email: z.email().max(254),
       permissions: z.array(z.string().trim().min(1).max(64)).max(64).optional(),
     }),
+    group: "change",
     readOnly: false,
     requiredPermission: "users.create",
   },
@@ -404,6 +449,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "Propose deleting a task. This cannot be undone. Only propose it when the person has clearly asked for the task to be removed rather than closed — if they mean 'it is finished', use update_task with a done status instead.",
     schema: z.object({ taskId: z.uuid() }),
+    group: "change",
     readOnly: false,
     destructive: true,
     requiredPermission: "tasks.delete",
@@ -413,6 +459,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "Propose deleting a risk. This cannot be undone. Prefer closing it with update_risk unless the person explicitly wants it removed.",
     schema: z.object({ riskId: z.uuid() }),
+    group: "change",
     readOnly: false,
     destructive: true,
     requiredPermission: "risks.delete",
@@ -422,6 +469,7 @@ export const aiTools: readonly AiToolDefinition[] = [
     description:
       "Propose removing somebody from a project. They lose access to everything in it. Cannot be undone without adding them back.",
     schema: projectIdSchema.extend({ userId: z.uuid() }),
+    group: "change",
     readOnly: false,
     destructive: true,
     requiredPermission: "project_team.manage",

@@ -24,6 +24,10 @@ let saved: string[] = [];
 let keyed: string[] = [];
 /** Methods used against the personal-key endpoint. */
 let keyMethods: string[] = [];
+/** Bodies sent to revoke a standing approval. */
+let revoked: string[] = [];
+/** What the auto-approval endpoint reports, so a test can set it up. */
+let autoApprovedTools: string[] = [];
 
 function json(body: unknown, status = 200) {
   return Promise.resolve(
@@ -35,6 +39,8 @@ function mockApi(state: AiSettingsView) {
   saved = [];
   keyed = [];
   keyMethods = [];
+  revoked = [];
+  autoApprovedTools = [];
   return vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
     const url = String(input);
     if (url.includes("/v1/ai/me")) {
@@ -44,6 +50,17 @@ function mockApi(state: AiSettingsView) {
         return json({ aiSettings: { ...state, personal: { ...state.personal, configured: true, hasKey: true } } });
       }
       return json({ aiSettings: { ...state, personal: NO_PROVIDER } });
+    }
+    /*
+     * Answered before the catch-all, because the catch-all returns a settings
+     * payload and this endpoint returns a list of tool names. A mock that
+     * replies with the wrong shape does not fail honestly — the component reads
+     * `tools` off an object that has none and renders nothing, which looks like
+     * a component fault rather than a fixture one.
+     */
+    if (url.includes("/v1/ai/auto-approvals")) {
+      if (init?.method === "DELETE") revoked.push(String(init.body));
+      return json({ tools: init?.method === "DELETE" ? [] : autoApprovedTools });
     }
     if (url.includes("/v1/ai/settings") && init?.method === "PUT") {
       saved.push(String(init.body));
@@ -310,6 +327,47 @@ describe("AiAssistant settings", () => {
     expect(screen.getByText(/Your company has set up the assistant/)).toBeInTheDocument();
     // And can still manage their own key.
     expect(screen.getByRole("button", { name: "Use my own" })).toBeInTheDocument();
+  });
+
+  /*
+   * Until this screen existed, "do not ask again" was permanent as far as
+   * anybody could tell: it was granted on the confirmation card and there was
+   * nowhere in the product to take it back. That made a small tick a much
+   * larger decision than it looked, which is the opposite of what a graduated
+   * approval model is for.
+   */
+  it("lists the changes approved in advance and takes one back", async () => {
+    mockApi(CONFIGURED);
+    // After mockApi, which resets the fixtures.
+    autoApprovedTools = ["create_task", "update_risk"];
+    const user = userEvent.setup();
+    renderSection();
+
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /Ask me again about/ })).toHaveLength(2),
+    );
+
+    // The first is create_task, which is the one the assertion below names.
+    await user.click(screen.getAllByRole("button", { name: /Ask me again about/ })[0]!);
+
+    await waitFor(() => expect(revoked).toHaveLength(1));
+    expect(JSON.parse(revoked[0] ?? "{}")).toEqual({ tool: "create_task" });
+    // The server's answer is what the screen shows, so a preference removed
+    // elsewhere cannot linger here.
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Ask me again about/ })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("says plainly when nothing has been approved in advance", async () => {
+    mockApi(CONFIGURED);
+    autoApprovedTools = [];
+    renderSection();
+
+    expect(
+      await screen.findByText(/The assistant asks before every change/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Ask me again about/ })).not.toBeInTheDocument();
   });
 
   it("reads in Arabic", async () => {
