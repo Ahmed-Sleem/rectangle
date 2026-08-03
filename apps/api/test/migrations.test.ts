@@ -35,6 +35,7 @@ describe("PostgreSQL migrations", () => {
       "021_ai_conversations.sql",
       "022_ai_user_provider.sql",
       "023_ai_auto_approvals.sql",
+      "024_ai_separate_providers.sql",
     ]);
 
     for (const file of files) {

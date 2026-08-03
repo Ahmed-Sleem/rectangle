@@ -27,7 +27,7 @@ export async function registerAiRoutes(
     | "grantAutoApproval"
     | "revokeAutoApproval"
   >,
-  aiSettingsService: Pick<AiSettingsService, "getSettings" | "saveSettings" | "saveMyProvider" | "deleteMyProvider">,
+  aiSettingsService: Pick<AiSettingsService, "getSettings" | "saveSettings" | "saveMyProvider" | "deleteMyProvider" | "chooseProvider">,
 ): Promise<void> {
   /*
    * One turn of the conversation. Stateless: the client sends the history it
@@ -154,6 +154,11 @@ export async function registerAiRoutes(
    */
   app.put("/v1/ai/me", async (request) => ({
     aiSettings: await aiSettingsService.saveMyProvider(request.principal, request.body),
+  }));
+
+  /* Choosing between two configurations that both exist. */
+  app.put("/v1/ai/me/preferred", async (request) => ({
+    aiSettings: await aiSettingsService.chooseProvider(request.principal, request.body),
   }));
 
   app.delete("/v1/ai/me", async (request) => ({

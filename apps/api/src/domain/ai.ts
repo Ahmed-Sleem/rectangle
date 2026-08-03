@@ -52,6 +52,17 @@ import { hasPermission, type UserPrincipal } from "./auth.js";
  */
 export const AI_CYCLE_BOUNDS = { min: 1, max: 30, default: 10 } as const;
 
+/**
+ * How long a single reply may be, in tokens.
+ *
+ * The floor is not zero: a model given fifty tokens produces a truncated
+ * sentence, which reads as a bug rather than as a budget. The ceiling is
+ * generous because a long answer is occasionally the right one — a summary of a
+ * project's risks legitimately runs long — and the real protection against
+ * spend is the reasoning budget, which governs how many calls happen at all.
+ */
+export const AI_OUTPUT_TOKEN_BOUNDS = { min: 256, max: 32_000, default: 2048 } as const;
+
 export const AI_LIMITS = {
   /** Model round trips per message. Past this the loop returns what it has. */
   maxIterations: 6,
@@ -602,6 +613,13 @@ export const aiSettingsInputSchema = z.object({
     .min(AI_CYCLE_BOUNDS.min)
     .max(AI_CYCLE_BOUNDS.max)
     .optional(),
+  /** Longest reply the company model may generate. Absent keeps the saved one. */
+  maxOutputTokens: z
+    .number()
+    .int()
+    .min(AI_OUTPUT_TOKEN_BOUNDS.min)
+    .max(AI_OUTPUT_TOKEN_BOUNDS.max)
+    .optional(),
 });
 
 /**
@@ -614,15 +632,37 @@ export const aiSettingsInputSchema = z.object({
  * service refuses it rather than writing a row that means nothing.
  */
 export const aiUserProviderInputSchema = z.object({
+  /**
+   * A personal provider is complete or it is nothing.
+   *
+   * These were optional when a personal row was a set of overrides onto the
+   * company's. It is not: it is a second, independent configuration, so it
+   * needs its own endpoint and its own model. A key may be omitted on a later
+   * save to mean "keep the one I already stored", which is the same rule the
+   * company form follows and the only way to change a model without retyping a
+   * secret nobody can read back.
+   */
   baseUrl: z
     .url()
     .max(512)
     .refine((value) => value.startsWith("https://"), {
       message: "The endpoint must use https, because the request carries your API key.",
-    })
-    .optional(),
-  model: z.string().trim().min(1).max(200).optional(),
+    }),
+  model: z.string().trim().min(1).max(200),
   apiKey: z.string().trim().min(1).max(512).optional(),
+  /** This person's own budgets, because they are paying for these calls. */
+  maxCycles: z.number().int().min(AI_CYCLE_BOUNDS.min).max(AI_CYCLE_BOUNDS.max).optional(),
+  maxOutputTokens: z
+    .number()
+    .int()
+    .min(AI_OUTPUT_TOKEN_BOUNDS.min)
+    .max(AI_OUTPUT_TOKEN_BOUNDS.max)
+    .optional(),
+});
+
+/** Which configuration to use, for somebody who has both. */
+export const aiPreferredProviderSchema = z.object({
+  preferred: z.enum(["company", "personal"]),
 });
 
 /** Kept for the key-only path, which is still a legitimate thing to send. */
@@ -633,6 +673,7 @@ export const aiUserKeyInputSchema = z.object({
 export type AiSettingsInput = z.infer<typeof aiSettingsInputSchema>;
 export type AiUserKeyInput = z.infer<typeof aiUserKeyInputSchema>;
 export type AiUserProviderInput = z.infer<typeof aiUserProviderInputSchema>;
+export type AiPreferredProviderInput = z.infer<typeof aiPreferredProviderSchema>;
 export type AiChatInput = z.infer<typeof aiChatInputSchema>;
 export type AiRenameConversationInput = z.infer<typeof aiRenameConversationSchema>;
 export type AiConfirmInput = z.infer<typeof aiConfirmInputSchema>;

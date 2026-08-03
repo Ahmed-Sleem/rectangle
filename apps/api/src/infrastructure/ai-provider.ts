@@ -58,6 +58,8 @@ export interface ProviderRequest {
   messages: ProviderMessage[];
   tools: ProviderTool[];
   timeoutMs: number;
+  /** Longest reply to generate. Omitted leaves the provider's own default. */
+  maxOutputTokens?: number;
 }
 
 export interface ProviderReply {
@@ -116,6 +118,12 @@ export class OpenAiCompatibleProvider implements AiProviderClient {
            * without loosening its grip on the facts.
            */
           temperature: 0.2,
+          /*
+           * Omitted rather than defaulted when unset. Every provider has its
+           * own sensible ceiling, and inventing one here would silently cut
+           * answers short on a model whose limit was higher.
+           */
+          ...(request.maxOutputTokens ? { max_tokens: request.maxOutputTokens } : {}),
         }),
         signal: controller.signal,
       });

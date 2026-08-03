@@ -37,7 +37,7 @@ export class PostgresAiSettingsRepository implements AiSettingsRepository {
 
   async get(tenantId: string): Promise<AiSettingsRecord | null> {
     const result = await this.pool.query(
-      "select base_url, model, api_key_cipher, enabled, max_cycles, updated_at from ai_settings where tenant_id = $1",
+      "select base_url, model, api_key_cipher, enabled, max_cycles, max_output_tokens, updated_at from ai_settings where tenant_id = $1",
       [tenantId],
     );
     return result.rows[0] ? mapSettings(result.rows[0] as Record<string, unknown>) : null;
@@ -51,12 +51,13 @@ export class PostgresAiSettingsRepository implements AiSettingsRepository {
       encryptedApiKey: string | null;
       enabled: boolean;
       maxCycles?: number;
+      maxOutputTokens?: number;
       updatedByUserId: string;
     },
   ): Promise<AiSettingsRecord> {
     const result = await this.pool.query(
-      `insert into ai_settings (tenant_id, base_url, model, api_key_cipher, enabled, max_cycles, updated_at, updated_by_user_id)
-       values ($1, $2, $3, $4, $5, coalesce($6, 10), now(), $7)
+      `insert into ai_settings (tenant_id, base_url, model, api_key_cipher, enabled, max_cycles, max_output_tokens, updated_at, updated_by_user_id)
+       values ($1, $2, $3, $4, $5, coalesce($6, 10), coalesce($7, 2048), now(), $8)
        on conflict (tenant_id) do update set
          base_url = excluded.base_url,
          model = excluded.model,
@@ -65,9 +66,10 @@ export class PostgresAiSettingsRepository implements AiSettingsRepository {
          -- Absent keeps the saved budget: changing a model name must not
          -- silently reset a limit somebody tuned.
          max_cycles = coalesce($6, ai_settings.max_cycles),
+         max_output_tokens = coalesce($7, ai_settings.max_output_tokens),
          updated_at = now(),
          updated_by_user_id = excluded.updated_by_user_id
-       returning base_url, model, api_key_cipher, enabled, max_cycles, updated_at`,
+       returning base_url, model, api_key_cipher, enabled, max_cycles, max_output_tokens, updated_at`,
       [
         tenantId,
         input.baseUrl,
@@ -75,6 +77,7 @@ export class PostgresAiSettingsRepository implements AiSettingsRepository {
         input.encryptedApiKey,
         input.enabled,
         input.maxCycles ?? null,
+        input.maxOutputTokens ?? null,
         input.updatedByUserId,
       ],
     );
@@ -86,8 +89,12 @@ export class PostgresAiSettingsRepository implements AiSettingsRepository {
       base_url: string | null;
       model: string | null;
       api_key_cipher: string | null;
+      max_cycles: number | null;
+      max_output_tokens: number | null;
+      preferred: string | null;
     }>(
-      "select base_url, model, api_key_cipher from ai_user_keys where tenant_id = $1 and user_id = $2",
+      `select base_url, model, api_key_cipher, max_cycles, max_output_tokens, preferred
+         from ai_user_keys where tenant_id = $1 and user_id = $2`,
       [tenantId, userId],
     );
     const row = result.rows[0];
@@ -96,6 +103,9 @@ export class PostgresAiSettingsRepository implements AiSettingsRepository {
       baseUrl: row.base_url,
       model: row.model,
       encryptedApiKey: row.api_key_cipher,
+      ...(row.max_cycles == null ? {} : { maxCycles: Number(row.max_cycles) }),
+      ...(row.max_output_tokens == null ? {} : { maxOutputTokens: Number(row.max_output_tokens) }),
+      ...(row.preferred == null ? {} : { preferred: row.preferred as "company" | "personal" }),
     };
   }
 
@@ -111,17 +121,63 @@ export class PostgresAiSettingsRepository implements AiSettingsRepository {
   async saveUserProvider(
     tenantId: string,
     userId: string,
-    input: { baseUrl?: string; model?: string; encryptedApiKey?: string },
+    input: {
+      baseUrl?: string;
+      model?: string;
+      encryptedApiKey?: string;
+      maxCycles?: number;
+      maxOutputTokens?: number;
+      preferred?: "company" | "personal";
+    },
   ): Promise<void> {
     await this.pool.query(
-      `insert into ai_user_keys (tenant_id, user_id, base_url, model, api_key_cipher, updated_at)
-       values ($1, $2, $3, $4, $5, now())
+      `insert into ai_user_keys (
+         tenant_id, user_id, base_url, model, api_key_cipher,
+         max_cycles, max_output_tokens, preferred, updated_at
+       )
+       values ($1, $2, $3, $4, $5, $6, $7, $8, now())
        on conflict (tenant_id, user_id) do update set
          base_url = coalesce(excluded.base_url, ai_user_keys.base_url),
          model = coalesce(excluded.model, ai_user_keys.model),
          api_key_cipher = coalesce(excluded.api_key_cipher, ai_user_keys.api_key_cipher),
+         max_cycles = coalesce(excluded.max_cycles, ai_user_keys.max_cycles),
+         max_output_tokens = coalesce(excluded.max_output_tokens, ai_user_keys.max_output_tokens),
+         preferred = coalesce(excluded.preferred, ai_user_keys.preferred),
          updated_at = now()`,
-      [tenantId, userId, input.baseUrl ?? null, input.model ?? null, input.encryptedApiKey ?? null],
+      [
+        tenantId,
+        userId,
+        input.baseUrl ?? null,
+        input.model ?? null,
+        input.encryptedApiKey ?? null,
+        input.maxCycles ?? null,
+        input.maxOutputTokens ?? null,
+        input.preferred ?? null,
+      ],
+    );
+  }
+
+  /**
+   * Records which configuration a person is using.
+   *
+   * An upsert rather than an update: somebody may prefer the company's provider
+   * without ever having configured one of their own, and that choice still has
+   * to be stored somewhere. The row then holds a preference and nothing else,
+   * which `getUserProvider` reports as an unconfigured personal provider — the
+   * correct answer.
+   */
+  async setPreferredProvider(
+    tenantId: string,
+    userId: string,
+    preferred: "company" | "personal",
+  ): Promise<void> {
+    await this.pool.query(
+      `insert into ai_user_keys (tenant_id, user_id, preferred, updated_at)
+       values ($1, $2, $3, now())
+       on conflict (tenant_id, user_id) do update set
+         preferred = excluded.preferred,
+         updated_at = now()`,
+      [tenantId, userId, preferred],
     );
   }
 

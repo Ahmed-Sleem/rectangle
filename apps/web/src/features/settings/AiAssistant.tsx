@@ -24,13 +24,17 @@ import { useTranslation } from "react-i18next";
 import { ApiClientError } from "@/shared/api/client";
 import { useAuth } from "@/shared/auth";
 import { hasPermission } from "@/shared/auth/authority";
-import { Badge, Button, SettingRow, SettingsSection, Switch } from "@/shared/ui";
-import { aiApi } from "./ai-api";
 import {
-  AiProviderWizard,
-  type CompanyProviderValues,
-  type PersonalProviderValues,
-} from "./AiProviderWizard";
+  Badge,
+  Button,
+  ChoiceGroup,
+  SettingRow,
+  SettingsDivider,
+  SettingsSection,
+  Switch,
+} from "@/shared/ui";
+import { aiApi } from "./ai-api";
+import { AiProviderWizard, type ProviderValues } from "./AiProviderWizard";
 
 export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const { t } = useTranslation();
@@ -48,16 +52,16 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
   });
 
   const settings = query.data?.aiSettings;
-  const configured = settings?.configured ?? false;
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["ai", "settings"] });
 
   const saveCompany = useMutation({
-    mutationFn: (values: CompanyProviderValues) =>
+    mutationFn: (values: ProviderValues) =>
       aiApi.saveSettings({
         baseUrl: values.baseUrl,
         model: values.model,
         ...(values.apiKey ? { apiKey: values.apiKey } : {}),
         maxCycles: values.maxCycles,
+        maxOutputTokens: values.maxOutputTokens,
         // Saving a provider switches it on. Somebody who has just typed an
         // endpoint and a key has said what they want; making them find a
         // second control afterwards is a step that exists for no reason.
@@ -71,11 +75,13 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
   });
 
   const savePersonal = useMutation({
-    mutationFn: (values: PersonalProviderValues) =>
+    mutationFn: (values: ProviderValues) =>
       aiApi.saveMine({
-        ...(values.baseUrl ? { baseUrl: values.baseUrl } : {}),
-        ...(values.model ? { model: values.model } : {}),
+        baseUrl: values.baseUrl,
+        model: values.model,
         ...(values.apiKey ? { apiKey: values.apiKey } : {}),
+        maxCycles: values.maxCycles,
+        maxOutputTokens: values.maxOutputTokens,
       }),
     onSuccess: async () => {
       await invalidate();
@@ -85,6 +91,10 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
   });
 
   const clearPersonal = useMutation({ mutationFn: aiApi.deleteMine, onSuccess: invalidate });
+  const choose = useMutation({
+    mutationFn: (preferred: "company" | "personal") => aiApi.choose(preferred),
+    onSuccess: invalidate,
+  });
 
   /*
    * Switching the assistant on or off is one decision and saves on its own.
@@ -94,8 +104,8 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
   const setEnabled = useMutation({
     mutationFn: (enabled: boolean) =>
       aiApi.saveSettings({
-        baseUrl: settings?.baseUrl ?? "",
-        model: settings?.model ?? "",
+        baseUrl: settings?.company.baseUrl ?? "",
+        model: settings?.company.model ?? "",
         enabled,
       }),
     onSuccess: invalidate,
@@ -106,22 +116,23 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
 
   /*
    * One sentence for the state the whole thing is in, because "why is the
-   * assistant not answering" has four different causes and a person should not
-   * have to work out which applies to them. The order matters: it names the
-   * first thing standing in the way, not every one at once.
+   * assistant not answering" has several causes and a person should not have to
+   * work out which applies to them. `active` is resolved by the server, so this
+   * reports the answer rather than recomputing it.
    */
   const statusLabel = (): { text: string; tone: "success" | "neutral" | "warning" } => {
-    if (!configured) return { text: t("settings.aiNotConfigured"), tone: "neutral" };
-    if (!settings?.enabled) return { text: t("settings.aiPaused"), tone: "neutral" };
-    if (!settings.hasCompanyKey && !settings.hasPersonalKey)
+    if (settings?.active === "personal") return { text: t("settings.aiOnMine"), tone: "success" };
+    if (settings?.active === "company") return { text: t("settings.aiOnCompany"), tone: "success" };
+    if (settings?.company.configured && !settings.enabled)
+      return { text: t("settings.aiPaused"), tone: "neutral" };
+    if (settings?.company.configured && !settings.company.hasKey)
       return { text: t("settings.aiNoKey"), tone: "warning" };
-    return { text: t("settings.aiReady"), tone: "success" };
+    return { text: t("settings.aiNotConfigured"), tone: "neutral" };
   };
 
   const status = statusLabel();
-  const hasPersonalOverride = Boolean(
-    settings?.hasPersonalKey || settings?.personalBaseUrl || settings?.personalModel,
-  );
+  const companyConfigured = settings?.company.configured ?? false;
+  const personalConfigured = settings?.personal.configured ?? false;
 
   return (
     <>
@@ -133,8 +144,45 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
         open={open}
         onToggle={onToggle}
       >
+        {/*
+          * The choice, and only when there is one to make.
+          *
+          * A radio group with a single option is not a choice — it is a control
+          * that cannot change anything, which the rules say to hide rather than
+          * show. `canChoose` is the server's answer to "are there two usable
+          * configurations", so the browser does not compute it a second time.
+          */}
+        {settings?.canChoose ? (
+          <SettingRow
+            label={t("settings.aiWhichModel")}
+            description={t("settings.aiWhichModelHelp")}
+            control={
+              <ChoiceGroup<"company" | "personal">
+                label={t("settings.aiWhichModel")}
+                value={settings.active === "personal" ? "personal" : "company"}
+                onChange={(next) => choose.mutate(next)}
+                options={[
+                  {
+                    value: "company",
+                    label: t("settings.aiCompanyModel"),
+                    hint: settings.company.model ?? "",
+                  },
+                  {
+                    value: "personal",
+                    label: t("settings.aiMyModel"),
+                    hint: settings.personal.model ?? "",
+                  },
+                ]}
+              />
+            }
+          />
+        ) : null}
+
+        <SettingsDivider />
+
+        {/* ── The company's model ─────────────────────────────────────── */}
         {mayManage ? (
-          configured ? (
+          companyConfigured ? (
             <>
               <SettingRow
                 label={t("settings.aiEnable")}
@@ -151,20 +199,19 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
               />
 
               <SettingRow
-                label={t("settings.aiProvider")}
-                description={`${settings?.model ?? ""} · ${settings?.baseUrl ?? ""}`}
+                label={t("settings.aiCompanyModel")}
+                description={t("settings.aiProviderSummary", {
+                  model: settings?.company.model ?? "",
+                  endpoint: settings?.company.baseUrl ?? "",
+                  cycles: settings?.company.maxCycles ?? 0,
+                  tokens: settings?.company.maxOutputTokens ?? 0,
+                })}
                 control={
                   <Button variant="secondary" onClick={() => setCompanyOpen(true)}>
                     <PencilLine size={16} strokeWidth={2} aria-hidden />
                     {t("settings.aiEdit")}
                   </Button>
                 }
-              />
-
-              {/* The spend control, stated as a fact rather than buried in the form. */}
-              <SettingRow
-                label={t("settings.aiMaxCycles")}
-                description={t("settings.aiMaxCyclesSummary", { count: settings?.maxCycles ?? 10 })}
               />
             </>
           ) : (
@@ -181,32 +228,39 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
         ) : (
           /*
            * Somebody who cannot configure the company provider is still told
-           * whether it is working, because that is the answer to "why can I not
-           * ask anything" and it is not a secret from the people expected to
-           * use it. What is absent is the means to change it, not the fact.
+           * whether it works, because that is the answer to "why can I not ask
+           * anything" and it is not a secret from the people expected to use
+           * it. What is absent is the means to change it, not the fact.
            */
           <SettingRow
-            label={t("settings.aiCompanyProvider")}
+            label={t("settings.aiCompanyModel")}
             description={
-              configured && settings?.enabled
+              companyConfigured && settings?.enabled
                 ? t("settings.aiCompanyProviderOn")
                 : t("settings.aiCompanyProviderOff")
             }
           />
         )}
 
+        <SettingsDivider />
+
         {/*
-          * Everybody who may use the assistant gets this row, including the
-          * owner: wanting a different model for your own questions has nothing
-          * to do with whether you administer the company.
+          * ── This person's own model ───────────────────────────────────
+          *
+          * Offered to everybody who may use the assistant, including the owner:
+          * wanting your own model for your own questions has nothing to do with
+          * whether you administer the company. It works with no company
+          * configuration at all, which is the point of it standing alone.
           */}
         <SettingRow
-          label={t("settings.aiMineTitle")}
+          label={t("settings.aiMyModel")}
           description={
-            hasPersonalOverride
-              ? t("settings.aiMineUsing", {
-                  model: settings?.personalModel ?? settings?.model ?? "",
-                  endpoint: settings?.personalBaseUrl ?? settings?.baseUrl ?? "",
+            personalConfigured
+              ? t("settings.aiProviderSummary", {
+                  model: settings?.personal.model ?? "",
+                  endpoint: settings?.personal.baseUrl ?? "",
+                  cycles: settings?.personal.maxCycles ?? 0,
+                  tokens: settings?.personal.maxOutputTokens ?? 0,
                 })
               : t("settings.aiMineNone")
           }
@@ -214,9 +268,9 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
             <div className="rect-settings-actions rect-settings-actions--inline">
               <Button variant="secondary" onClick={() => setPersonalOpen(true)}>
                 <KeyRound size={16} strokeWidth={2} aria-hidden />
-                {hasPersonalOverride ? t("settings.aiMineEdit") : t("settings.aiMineAdd")}
+                {personalConfigured ? t("settings.aiMineEdit") : t("settings.aiMineAdd")}
               </Button>
-              {hasPersonalOverride ? (
+              {personalConfigured ? (
                 <Button
                   variant="ghost"
                   onClick={() => clearPersonal.mutate()}
@@ -235,6 +289,11 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
             {message(clearPersonal.error, t("settings.aiMineClearFailed"))}
           </p>
         ) : null}
+        {choose.error ? (
+          <p className="rect-settings-message rect-settings-message--error" role="alert">
+            {message(choose.error, t("settings.aiChooseFailed"))}
+          </p>
+        ) : null}
       </SettingsSection>
 
       <AiProviderWizard
@@ -245,7 +304,7 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
           setCompanyOpen(false);
           saveCompany.reset();
         }}
-        onSave={(values) => saveCompany.mutateAsync(values as CompanyProviderValues)}
+        onSave={(values) => saveCompany.mutateAsync(values)}
         pending={saveCompany.isPending}
         error={message(saveCompany.error, t("settings.aiSaveFailed"))}
       />
@@ -258,7 +317,7 @@ export function AiAssistant({ open, onToggle }: { open: boolean; onToggle: () =>
           setPersonalOpen(false);
           savePersonal.reset();
         }}
-        onSave={(values) => savePersonal.mutateAsync(values as PersonalProviderValues)}
+        onSave={(values) => savePersonal.mutateAsync(values)}
         pending={savePersonal.isPending}
         error={message(savePersonal.error, t("settings.aiMineSaveFailed"))}
       />

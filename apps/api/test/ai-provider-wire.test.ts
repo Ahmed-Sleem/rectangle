@@ -8,8 +8,17 @@
  * a tool call, which is the part with the most room to be subtly wrong.
  */
 import { createServer, type Server } from "node:http";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { OpenAiCompatibleProvider } from "../src/infrastructure/ai-provider.js";
+import { describeToolForProvider } from "../src/application/ai-service.js";
+import { findTool } from "../src/domain/ai.js";
+
+/** The real description the harness would send for a named tool. */
+function describeTool(name: string) {
+  const tool = findTool(name);
+  if (!tool) throw new Error(`no such tool: ${name}`);
+  return describeToolForProvider(tool);
+}
 
 let server: Server;
 let baseUrl = "";
@@ -133,5 +142,95 @@ describe("the request a real provider receives", () => {
     expect(failure?.message).toContain("[redacted]");
 
     status = 200;
+  });
+});
+
+describe("the tool schema a provider is given", () => {
+  /*
+   * The suite above deliberately leaves a tool-call reply and an error status
+   * behind. Resetting here rather than relying on order keeps each block
+   * independent — a test that only passes when its neighbours ran first is a
+   * test of the file, not of the code.
+   */
+  beforeEach(() => {
+    status = 200;
+    reply = { choices: [{ message: { role: "assistant", content: "ok" } }] };
+  });
+
+  /*
+   * These were all wrong until session 50. The schema was written by hand and
+   * declared every parameter `type: "string"`, so a model was told a status
+   * enum was free text and a 1-5 score was a word. It guessed, the guesses
+   * failed Zod on the way back, and the model saw an unexplained refusal.
+   */
+  it("describes an enum as an enum, not as free text", async () => {
+    await new OpenAiCompatibleProvider().complete({
+      ...request(),
+      tools: [describeTool("update_task")],
+    });
+
+    const properties = received.body.tools[0].function.parameters.properties;
+    expect(properties.status.enum).toContain("done");
+    expect(properties.status.type).toBe("string");
+  });
+
+  it("describes a bounded integer as an integer with its bounds", async () => {
+    await new OpenAiCompatibleProvider().complete({
+      ...request(),
+      tools: [describeTool("create_risk")],
+    });
+
+    const properties = received.body.tools[0].function.parameters.properties;
+    expect(properties.probability.type).toBe("integer");
+    expect(properties.probability.minimum).toBe(1);
+    expect(properties.probability.maximum).toBe(5);
+  });
+
+  /*
+   * The update tools wrap their object in `.refine()` to require at least one
+   * field. The hand-written converter read `.shape` off the wrapper and found
+   * nothing, so those tools were advertised as taking no arguments at all.
+   */
+  it("sees through a refined schema to the fields inside it", async () => {
+    await new OpenAiCompatibleProvider().complete({
+      ...request(),
+      tools: [describeTool("update_risk")],
+    });
+
+    const parameters = received.body.tools[0].function.parameters;
+    expect(Object.keys(parameters.properties)).toContain("riskId");
+    expect(Object.keys(parameters.properties)).toContain("mitigation");
+    expect(parameters.required).toEqual(["riskId"]);
+  });
+
+  it("gives a no-argument tool an empty properties object, not nothing", async () => {
+    await new OpenAiCompatibleProvider().complete({
+      ...request(),
+      tools: [describeTool("whoami")],
+    });
+
+    const parameters = received.body.tools[0].function.parameters;
+    expect(parameters.type).toBe("object");
+    expect(parameters.properties).toEqual({});
+  });
+
+  /* Some providers reject unknown top-level keys in a parameters object. */
+  it("does not send a $schema key", async () => {
+    await new OpenAiCompatibleProvider().complete({
+      ...request(),
+      tools: [describeTool("create_task")],
+    });
+
+    expect(received.body.tools[0].function.parameters).not.toHaveProperty("$schema");
+  });
+
+  it("sends the reply ceiling when one is configured, and omits it otherwise", async () => {
+    await new OpenAiCompatibleProvider().complete({ ...request(), maxOutputTokens: 1500 });
+    expect(received.body.max_tokens).toBe(1500);
+
+    await new OpenAiCompatibleProvider().complete(request());
+    // Omitted rather than defaulted: every provider has its own sensible
+    // ceiling and inventing one here would cut answers short.
+    expect(received.body).not.toHaveProperty("max_tokens");
   });
 });

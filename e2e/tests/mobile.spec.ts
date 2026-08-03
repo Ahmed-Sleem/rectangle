@@ -378,6 +378,8 @@ test("the assistant's settings save and survive a reload", async ({ page }) => {
   await wizard.getByLabel("Model").fill("gpt-4o-mini");
   await wizard.getByRole("button", { name: /next/i }).click();
   await wizard.getByLabel("Company API key").fill("sk-e2e-not-a-real-key-000000");
+  // Endpoint, key, budget, review: four steps since the budget step gained the
+  // reply ceiling alongside the reasoning limit.
   await wizard.getByRole("button", { name: /next/i }).click();
   await wizard.getByRole("button", { name: /next/i }).click();
   await wizard.getByRole("button", { name: /Save and switch on/i }).click();
@@ -390,11 +392,11 @@ test("the assistant's settings save and survive a reload", async ({ page }) => {
   await page.getByRole("button", { name: /Assistant/i }).first().click();
 
   /*
-   * Scoped to the settings section. "Ready" now appears in the assistant panel
-   * too — which is itself the proof the save worked, but makes a bare text
-   * query ambiguous.
+   * The status names which model is in use rather than saying "Ready", because
+   * a person with two configurations needs to know which one their questions
+   * are going to. Both facts are asserted: the model was stored, and the
+   * assistant reports itself as running on it.
    */
-  const section = page.getByRole("region").filter({ hasText: "gpt-4o-mini" }).first();
   await expect(page.getByText("gpt-4o-mini").first()).toBeVisible();
-  await expect(section.getByText("Ready").first().or(page.getByText("Ready").first())).toBeVisible();
+  await expect(page.getByText(/Using the company/).first()).toBeVisible();
 });

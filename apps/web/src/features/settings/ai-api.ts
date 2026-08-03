@@ -9,24 +9,31 @@
  */
 import { apiRequest } from "@/shared/api/client";
 
-export interface AiSettingsView {
-  /** Whether a provider has ever been saved for this company. */
+/** One configuration, as the browser is allowed to see it. Never the key. */
+export interface AiProviderView {
   configured: boolean;
-  enabled: boolean;
   baseUrl?: string;
   model?: string;
-  hasCompanyKey: boolean;
-  /** Whether the person asking has saved one of their own. */
-  hasPersonalKey: boolean;
-  /** This person's own endpoint and model, when they have chosen them. */
-  personalBaseUrl?: string;
-  personalModel?: string;
-  /** What their questions actually go to, once overrides are applied. */
-  effectiveBaseUrl?: string;
-  effectiveModel?: string;
-  /** Reasoning steps per question. The owner's choice, company-wide. */
+  hasKey: boolean;
   maxCycles: number;
-  /** Whether asking a question would work right now, for this person. */
+  maxOutputTokens: number;
+}
+
+/**
+ * The assistant's configuration for this person.
+ *
+ * Two independent providers, not one with overrides. The company's is shared;
+ * a personal one is complete in itself and paid for by whoever set it up.
+ * `active` says which is in use and `canChoose` whether there is a decision to
+ * make — both resolved by the server, because a second implementation of that
+ * rule in the browser is a second answer waiting to disagree with the first.
+ */
+export interface AiSettingsView {
+  company: AiProviderView;
+  enabled: boolean;
+  personal: AiProviderView;
+  active: "company" | "personal" | "none";
+  canChoose: boolean;
   ready: boolean;
   updatedAt?: string;
 }
@@ -39,13 +46,25 @@ export interface AiSettingsPayload {
   enabled: boolean;
   /** Omitted keeps the saved budget rather than resetting it. */
   maxCycles?: number;
+  /** Longest reply the model may generate. Omitted keeps the saved value. */
+  maxOutputTokens?: number;
 }
 
-/** A person's own overrides. Every field is optional; absent follows the company. */
+/**
+ * A person's own provider. Complete, not a set of overrides.
+ *
+ * Endpoint and model are required because a personal configuration stands
+ * alone: it does not borrow the company's endpoint, and half of one is not a
+ * provider. The key may be omitted on a later save to keep the stored one,
+ * which is the only way to change a model without retyping a secret nobody can
+ * read back.
+ */
 export interface AiPersonalPayload {
-  baseUrl?: string;
-  model?: string;
+  baseUrl: string;
+  model: string;
   apiKey?: string;
+  maxCycles?: number;
+  maxOutputTokens?: number;
 }
 
 export const aiApi = {
@@ -63,7 +82,14 @@ export const aiApi = {
       body: JSON.stringify(payload),
     }),
 
-  /** Clears every personal override, so this person follows the company again. */
+  /** Chooses between two configurations that both exist. */
+  choose: (preferred: "company" | "personal") =>
+    apiRequest<{ aiSettings: AiSettingsView }>("/v1/ai/me/preferred", {
+      method: "PUT",
+      body: JSON.stringify({ preferred }),
+    }),
+
+  /** Removes the personal configuration entirely. */
   deleteMine: () =>
     apiRequest<{ aiSettings: AiSettingsView }>("/v1/ai/me", { method: "DELETE" }),
 };

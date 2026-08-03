@@ -41,13 +41,13 @@ function mockApi(state: AiSettingsView) {
       keyMethods.push(String(init?.method));
       if (init?.method === "PUT") {
         keyed.push(String(init.body));
-        return json({ aiSettings: { ...state, hasPersonalKey: true } });
+        return json({ aiSettings: { ...state, personal: { ...state.personal, configured: true, hasKey: true } } });
       }
-      return json({ aiSettings: { ...state, hasPersonalKey: false } });
+      return json({ aiSettings: { ...state, personal: NO_PROVIDER } });
     }
     if (url.includes("/v1/ai/settings") && init?.method === "PUT") {
       saved.push(String(init.body));
-      return json({ aiSettings: { ...state, configured: true } });
+      return json({ aiSettings: { ...state, company: { ...state.company, configured: true } } });
     }
     return json({ aiSettings: state });
   });
@@ -80,24 +80,38 @@ function renderSection(auth: AuthContextValue = manager) {
   );
 }
 
-const CONFIGURED: AiSettingsView = {
+const NO_PROVIDER = {
+  configured: false,
+  hasKey: false,
+  maxCycles: 10,
+  maxOutputTokens: 2048,
+};
+
+const COMPANY_PROVIDER = {
   configured: true,
-  enabled: true,
   baseUrl: "https://api.openai.com/v1",
   model: "gpt-4o-mini",
-  hasCompanyKey: true,
-  hasPersonalKey: false,
-  ready: true,
+  hasKey: true,
   maxCycles: 10,
+  maxOutputTokens: 2048,
+};
+
+const CONFIGURED: AiSettingsView = {
+  company: COMPANY_PROVIDER,
+  enabled: true,
+  personal: NO_PROVIDER,
+  active: "company",
+  canChoose: false,
+  ready: true,
 };
 
 const UNCONFIGURED: AiSettingsView = {
-  configured: false,
+  company: NO_PROVIDER,
   enabled: false,
-  hasCompanyKey: false,
-  hasPersonalKey: false,
+  personal: NO_PROVIDER,
+  active: "none",
+  canChoose: false,
   ready: false,
-  maxCycles: 10,
 };
 
 describe("AiAssistant settings", () => {
@@ -115,7 +129,7 @@ describe("AiAssistant settings", () => {
   });
 
   it("states what is standing in the way rather than only that it is off", async () => {
-    mockApi({ ...CONFIGURED, hasCompanyKey: false, ready: false });
+    mockApi({ ...CONFIGURED, company: { ...COMPANY_PROVIDER, hasKey: false }, active: "none", ready: false });
     renderSection();
 
     expect(await screen.findByText("No key saved")).toBeInTheDocument();
@@ -125,7 +139,7 @@ describe("AiAssistant settings", () => {
     mockApi(CONFIGURED);
     renderSection();
 
-    expect(await screen.findByText("Ready")).toBeInTheDocument();
+    expect(await screen.findByText(/Using the company/)).toBeInTheDocument();
     expect(screen.getByText(/gpt-4o-mini/)).toBeInTheDocument();
     expect(screen.getByLabelText("Assistant")).toBeChecked();
   });
@@ -135,13 +149,15 @@ describe("AiAssistant settings", () => {
    * absent, since the server never sends it.
    */
   it("never renders a key", async () => {
-    mockApi({ ...CONFIGURED, hasPersonalKey: true });
+    mockApi({ ...CONFIGURED, personal: { ...COMPANY_PROVIDER, model: "my-model" }, active: "personal", canChoose: true });
     const { container } = renderSection();
 
-    await screen.findByText("Ready");
+    await screen.findByText(/Using (the company|your own)/);
 
     expect(container.innerHTML).not.toContain("sk-");
-    expect(screen.getByText(/Using .* for your questions/)).toBeInTheDocument();
+    // Named in more than one place — the radio hint and the summary line — so
+    // the assertion is that it is shown at all, not that it is shown once.
+    expect(screen.getAllByText(/my-model/).length).toBeGreaterThan(0);
   });
 
   it("keeps the saved key when the box is left empty", async () => {
@@ -184,7 +200,11 @@ describe("AiAssistant settings", () => {
     expect(within(wizard).getByRole("button", { name: /next/i })).toBeDisabled();
   });
 
-  it("saves a personal key and never sends it to the company endpoint", async () => {
+  /*
+   * A personal configuration is complete, not a set of overrides. It carries
+   * its own endpoint and model, so "who is paying for this" has an answer.
+   */
+  it("saves a complete personal provider, and nothing to the company endpoint", async () => {
     mockApi(CONFIGURED);
     const user = userEvent.setup();
     renderSection();
@@ -192,53 +212,84 @@ describe("AiAssistant settings", () => {
     await user.click(await screen.findByRole("button", { name: "Use my own" }));
     const dialog = await screen.findByRole("dialog");
 
-    // Endpoint and model left blank: this person wants the company's provider
-    // with their own account, which must send neither field.
+    await user.type(within(dialog).getByLabelText("Endpoint"), "https://mine.test/v1");
+    await user.type(within(dialog).getByLabelText("Model"), "my-model");
     await user.click(within(dialog).getByRole("button", { name: /next/i }));
     await user.type(within(dialog).getByLabelText("Your own key"), "sk-personal-secret");
+    await user.click(within(dialog).getByRole("button", { name: /next/i }));
     await user.click(within(dialog).getByRole("button", { name: /next/i }));
     await user.click(within(dialog).getByRole("button", { name: "Save my settings" }));
 
     await waitFor(() => expect(keyed).toHaveLength(1));
-    expect(JSON.parse(keyed[0] ?? "{}")).toEqual({ apiKey: "sk-personal-secret" });
+    const body = JSON.parse(keyed[0] ?? "{}") as Record<string, unknown>;
+    expect(body.baseUrl).toBe("https://mine.test/v1");
+    expect(body.model).toBe("my-model");
+    expect(body.apiKey).toBe("sk-personal-secret");
+    // Nothing went to the company's endpoint.
     expect(saved).toHaveLength(0);
   });
 
   /*
-   * The capability the owner asked for: a person choosing a different model,
-   * not merely a different key. Blank fields must be omitted rather than sent
-   * as empty strings, or the server would store "" as an override and the
-   * person would stop following the company without asking to.
+   * The reported bug, at the interface. Somebody with no company provider must
+   * still be able to set up their own — this used to be impossible.
    */
-  it("lets a person override only the model, and sends nothing else", async () => {
-    mockApi(CONFIGURED);
+  it("lets a person set up their own model when the company has none", async () => {
+    mockApi(UNCONFIGURED);
     const user = userEvent.setup();
-    renderSection();
+    renderSection(ordinary);
 
     await user.click(await screen.findByRole("button", { name: "Use my own" }));
     const dialog = await screen.findByRole("dialog");
 
-    await user.type(within(dialog).getByLabelText("Model"), "gpt-4o");
+    await user.type(within(dialog).getByLabelText("Endpoint"), "https://mine.test/v1");
+    await user.type(within(dialog).getByLabelText("Model"), "my-model");
+    await user.click(within(dialog).getByRole("button", { name: /next/i }));
+    await user.type(within(dialog).getByLabelText("Your own key"), "sk-mine");
     await user.click(within(dialog).getByRole("button", { name: /next/i }));
     await user.click(within(dialog).getByRole("button", { name: /next/i }));
     await user.click(within(dialog).getByRole("button", { name: "Save my settings" }));
 
     await waitFor(() => expect(keyed).toHaveLength(1));
-    expect(JSON.parse(keyed[0] ?? "{}")).toEqual({ model: "gpt-4o" });
   });
 
-  it("offers a way back to the company's settings only when there is an override", async () => {
+  /*
+   * A radio group with one option is a control that cannot change anything.
+   * It appears only when there are genuinely two usable configurations.
+   */
+  it("offers the choice only when both models exist", async () => {
     mockApi(CONFIGURED);
     const { unmount } = renderSection();
-    await screen.findByText("Ready");
-    expect(screen.queryByRole("button", { name: "Use the company's" })).not.toBeInTheDocument();
+    await screen.findByText(/Using (the company|your own)/);
+    expect(
+      screen.queryByRole("radiogroup", { name: "Which model to use" }),
+    ).not.toBeInTheDocument();
     unmount();
 
-    mockApi({ ...CONFIGURED, hasPersonalKey: true });
+    mockApi({
+      ...CONFIGURED,
+      personal: { ...COMPANY_PROVIDER, model: "my-model" },
+      active: "personal",
+      canChoose: true,
+    });
+    renderSection();
+
+    expect(
+      await screen.findByRole("radiogroup", { name: "Which model to use" }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers removal only when a personal model exists", async () => {
+    mockApi(CONFIGURED);
+    const { unmount } = renderSection();
+    await screen.findByText(/Using (the company|your own)/);
+    expect(screen.queryByRole("button", { name: "Remove mine" })).not.toBeInTheDocument();
+    unmount();
+
+    mockApi({ ...CONFIGURED, personal: { ...COMPANY_PROVIDER, model: "my-model" }, active: "personal", canChoose: true });
     const user = userEvent.setup();
     renderSection();
 
-    await user.click(await screen.findByRole("button", { name: "Use the company's" }));
+    await user.click(await screen.findByRole("button", { name: "Remove mine" }));
     await waitFor(() => expect(keyMethods).toContain("DELETE"));
   });
 
@@ -251,7 +302,7 @@ describe("AiAssistant settings", () => {
     mockApi(CONFIGURED);
     renderSection(ordinary);
 
-    await screen.findByText("Ready");
+    await screen.findByText(/Using (the company|your own)/);
 
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Assistant")).not.toBeInTheDocument();
@@ -266,7 +317,7 @@ describe("AiAssistant settings", () => {
     mockApi(CONFIGURED);
     renderSection();
 
-    expect(await screen.findByText("جاهز")).toBeInTheDocument();
+    expect(await screen.findByText("يستخدم نموذج الشركة")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "تعديل" })).toBeInTheDocument();
   });
 });
