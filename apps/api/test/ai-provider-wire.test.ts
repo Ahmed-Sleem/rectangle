@@ -128,6 +128,57 @@ describe("the request a real provider receives", () => {
     status = 200;
   });
 
+  /*
+   * A conversation that outgrew the model is not the provider being broken, and
+   * the person has a real remedy the other failures do not offer, so it must
+   * arrive as its own code.
+   *
+   * Both bodies below were copied from real responses rather than imagined.
+   * OpenAI and Azure set code "context_length_exceeded"; Groq, measured against
+   * the live endpoint, sets NO code at all and returns only the sentence. A
+   * detector keyed on the code alone would therefore have missed every Groq
+   * user, which is most of the reason this is asserted twice.
+   */
+  it.each([
+    [
+      "openai",
+      {
+        error: {
+          message: "This model's maximum context length is 8192 tokens. However, your messages resulted in 9000 tokens.",
+          type: "invalid_request_error",
+          code: "context_length_exceeded",
+        },
+      },
+    ],
+    [
+      "groq",
+      {
+        error: {
+          message: "Please reduce the length of the messages or completion.",
+          type: "invalid_request_error",
+          param: "messages",
+        },
+      },
+    ],
+  ])("recognises %s telling it the conversation is too long", async (_name, body) => {
+    status = 400;
+    reply = body;
+
+    await expect(new OpenAiCompatibleProvider().complete(request())).rejects.toMatchObject({
+      code: "CONTEXT_TOO_LONG",
+    });
+  });
+
+  /* A different 400 must NOT be mistaken for one, or the panel offers the wrong way out. */
+  it("does not mistake an ordinary bad request for an overlong conversation", async () => {
+    status = 400;
+    reply = { error: { message: "unknown model", type: "invalid_request_error" } };
+
+    await expect(new OpenAiCompatibleProvider().complete(request())).rejects.toMatchObject({
+      code: "UPSTREAM_UNAVAILABLE",
+    });
+  });
+
   it("never lets the key reach an error message", async () => {
     status = 500;
     // A provider echoing the key back is the case this defends against.

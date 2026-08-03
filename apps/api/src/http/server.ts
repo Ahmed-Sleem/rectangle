@@ -56,6 +56,7 @@ export interface ServerDependencies {
     | "chat"
     | "confirm"
     | "listConversations"
+    | "branchConversation"
     | "readConversation"
     | "renameConversation"
     | "deleteConversation"

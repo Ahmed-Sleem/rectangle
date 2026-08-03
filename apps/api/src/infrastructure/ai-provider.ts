@@ -80,6 +80,28 @@ function withoutSecret(text: string, apiKey: string): string {
   return text.split(apiKey).join("[redacted]");
 }
 
+/**
+ * Whether a rejected request was rejected for being too long.
+ *
+ * Kept beside the provider because it is a fact about what providers send, not
+ * a rule about what Rectangle does, and it is deliberately generous. Every
+ * phrase here was taken from a real response: the OpenAI family sets the code
+ * and describes a maximum context length, Groq sets no code and asks only that
+ * the messages be shortened. Anything OpenAI-compatible tends to echo one or
+ * the other, since most of them were written against OpenAI's own wording.
+ */
+function looksLikeContextOverflow(body: string): boolean {
+  const text = body.toLowerCase();
+
+  return (
+    text.includes("context_length_exceeded") ||
+    text.includes("maximum context length") ||
+    text.includes("context window") ||
+    text.includes("reduce the length of the messages") ||
+    text.includes("too many tokens")
+  );
+}
+
 /** Joins a base URL to a path without caring whether it ends in a slash. */
 function endpointFor(baseUrl: string): string {
   const trimmed = baseUrl.replace(/\/+$/u, "");
@@ -146,6 +168,30 @@ export class OpenAiCompatibleProvider implements AiProviderClient {
 
     if (!response.ok) {
       const body = withoutSecret(await response.text().catch(() => ""), request.apiKey);
+
+      /*
+       * The conversation no longer fits, which is a different thing from the
+       * provider being broken and needs a different offer: the person can carry
+       * on in a new thread, and only they can decide to.
+       *
+       * Detected on two signals because one is not enough, and this was checked
+       * against real providers rather than assumed. OpenAI and Azure set
+       * `code: "context_length_exceeded"` and say "This model's maximum context
+       * length is N tokens". Groq, measured directly, sets NO code at all and
+       * returns only "Please reduce the length of the messages or completion."
+       * — so a code-only test would have missed every Groq user, and a
+       * message-only test would break the moment a provider rewrote its prose.
+       *
+       * Both are matched loosely and neither is required. A false positive
+       * costs somebody an offer to start a fresh thread, which is harmless; a
+       * false negative is the dead end this exists to remove.
+       */
+      if (response.status === 400 && looksLikeContextOverflow(body)) {
+        throw new DomainError(
+          "CONTEXT_TOO_LONG",
+          "This conversation has grown longer than the model can read in one go.",
+        );
+      }
       /*
        * 401 and 403 are the two a person can actually fix, so they get their
        * own sentence instead of a status code. Everything else carries the

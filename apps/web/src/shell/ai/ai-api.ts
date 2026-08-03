@@ -12,7 +12,7 @@
  * made, so editing them in the browser between being shown the card and pressing
  * the button changes nothing — which is what makes the approval mean something.
  */
-import { apiRequest } from "@/shared/api/client";
+import { ApiClientError, apiRequest } from "@/shared/api/client";
 import type { AiSettingsView } from "@/features/settings/ai-api";
 
 /** A change the assistant wants to make, waiting to be approved or ignored. */
@@ -35,7 +35,7 @@ export type AiProgressEvent =
   | { type: "tool"; cycle: number; tool: string; arguments: Record<string, unknown> }
   | { type: "observation"; cycle: number; tool: string; summary: string }
   | { type: "answer"; result: AiChatResponse }
-  | { type: "failed"; message: string };
+  | { type: "failed"; message: string; code?: string };
 
 export interface AiChatResponse {
   conversationId: string;
@@ -58,6 +58,13 @@ export interface AiStoredMessage {
   content: string;
   usedTools: string[];
   createdAt: string;
+}
+
+/** A page of threads, with the bookmark for the next one. */
+export interface AiConversationPage {
+  conversations: AiConversationSummary[];
+  /** Null when this is the last page. */
+  nextCursor: string | null;
 }
 
 export interface AiConversationSummary {
@@ -128,7 +135,7 @@ export async function streamChat(
   const decoder = new TextDecoder();
   let buffer = "";
   let answer: AiChatResponse | undefined;
-  let failure: string | undefined;
+  let failure: { message: string; code?: string } | undefined;
 
   for (;;) {
     const { done, value } = await reader.read();
@@ -154,14 +161,26 @@ export async function streamChat(
         const event = JSON.parse(line.slice(5).trim()) as AiProgressEvent;
         onEvent(event);
         if (event.type === "answer") answer = event.result;
-        if (event.type === "failed") failure = event.message;
+        if (event.type === "failed") {
+          failure = { message: event.message, ...(event.code ? { code: event.code } : {}) };
+        }
       } catch {
         // A malformed frame is not worth losing the rest of the stream over.
       }
     }
   }
 
-  if (failure) throw new Error(failure);
+  /*
+   * Rethrown as an ApiClientError rather than a bare Error so the panel reads a
+   * streamed failure exactly as it reads one from the plain endpoint. A second
+   * error shape here would mean a second place deciding what each failure means,
+   * and the streaming path is the normal path — so the copy would be the one
+   * that mattered. 0 for the status because there was never a failing status
+   * line: the response was a healthy 200 that failed partway through.
+   */
+  if (failure) {
+    throw new ApiClientError(0, failure.code ?? "UPSTREAM_UNAVAILABLE", failure.message);
+  }
   if (!answer) throw new Error("The assistant stopped before answering.");
   return answer;
 }
@@ -191,8 +210,29 @@ export const shellAiApi = {
       body: JSON.stringify({ tool }),
     }),
 
-  listConversations: () =>
-    apiRequest<{ conversations: AiConversationSummary[] }>("/v1/ai/conversations"),
+  /**
+   * One page of threads, optionally filtered.
+   *
+   * The cursor is whatever the previous page returned and is never built here:
+   * it names the last row the server actually sent, which is what keeps paging
+   * correct while the list reorders underneath it — and asking the assistant
+   * anything reorders it, since the list is sorted by last activity.
+   */
+  listConversations: (params: { cursor?: string; query?: string } = {}) => {
+    const search = new URLSearchParams();
+    if (params.cursor) search.set("cursor", params.cursor);
+    if (params.query?.trim()) search.set("query", params.query.trim());
+    const suffix = search.size > 0 ? `?${search.toString()}` : "";
+
+    return apiRequest<AiConversationPage>(`/v1/ai/conversations${suffix}`);
+  },
+
+  /** Starts a fresh thread carrying the tail of one that outgrew the model. */
+  branchConversation: (conversationId: string) =>
+    apiRequest<{ conversation: AiConversationSummary; messages: AiStoredMessage[] }>(
+      `/v1/ai/conversations/${conversationId}/branch`,
+      { method: "POST" },
+    ),
 
   readConversation: (conversationId: string) =>
     apiRequest<{ conversation: AiConversationSummary; messages: AiStoredMessage[] }>(

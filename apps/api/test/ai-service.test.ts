@@ -117,7 +117,15 @@ function toolCall(name: string, args: unknown) {
  * gets nothing here for the same reason it would get nothing from Postgres.
  */
 class MemoryConversations implements AiConversationRepository {
-  rows: Array<{ id: string; tenantId: string; userId: string; title: string; projectId: string | null }> = [];
+  rows: Array<{
+    id: string;
+    tenantId: string;
+    userId: string;
+    title: string;
+    projectId: string | null;
+    /** Optional so the many tests that do not care about ordering need not set it. */
+    updatedAt?: string;
+  }> = [];
   said: Array<{
     id: string;
     tenantId: string;
@@ -142,16 +150,65 @@ class MemoryConversations implements AiConversationRepository {
     return row ? { id: row.id, title: row.title, projectId: row.projectId } : null;
   }
 
-  async list(tenantId: string, userId: string, limit: number) {
-    return this.rows
+  /*
+   * Faithful to the real repository in the two respects the service depends on:
+   * the rows come back newest first, and `before` excludes everything at or
+   * after the cursor. A fake that ignored the cursor would let a paging bug
+   * through while looking green, which is the whole failure mode this stands in
+   * for.
+   */
+  async list(
+    tenantId: string,
+    userId: string,
+    options: {
+      limit: number;
+      before?: { updatedAt: string; id: string };
+      query?: string;
+      mode?: "exact" | "fuzzy";
+    },
+  ) {
+    const ordered = this.rows
       .filter((row) => row.tenantId === tenantId && row.userId === userId)
-      .slice(0, limit)
       .map((row) => ({
         id: row.id,
         title: row.title,
         projectId: row.projectId,
-        updatedAt: new Date(0).toISOString(),
-      }));
+        updatedAt: row.updatedAt ?? new Date(0).toISOString(),
+      }))
+      .sort((a, b) =>
+        a.updatedAt === b.updatedAt
+          ? b.id.localeCompare(a.id)
+          : b.updatedAt.localeCompare(a.updatedAt),
+      );
+
+    const after = options.before
+      ? ordered.filter((row) => {
+          const cursor = options.before as { updatedAt: string; id: string };
+          return row.updatedAt === cursor.updatedAt
+            ? row.id < cursor.id
+            : row.updatedAt < cursor.updatedAt;
+        })
+      : ordered;
+
+    /*
+     * Exact is a substring test and fuzzy additionally forgives one wrong
+     * letter. Not the real engine — that is Postgres — but it preserves the one
+     * property the service's logic turns on: fuzzy matches strictly more than
+     * exact, so "fall back only when exact found nothing" is observable.
+     */
+    const matched = options.query
+      ? after.filter((row) => {
+          const title = row.title.toLowerCase();
+          const term = (options.query ?? "").toLowerCase();
+          if (title.includes(term)) return true;
+          if (options.mode !== "fuzzy") return false;
+          return [...term].some((_, index) =>
+            title.includes(term.slice(0, index) + term.slice(index + 1)),
+          );
+        })
+      : after;
+
+    return matched.slice(0, options.limit);
   }
 
   async messages(tenantId: string, conversationId: string, limit?: number) {
@@ -886,12 +943,168 @@ describe("a conversation belongs to one person", () => {
     expect(listed.conversations.map((row) => row.title)).toEqual(["mine"]);
   });
 
+  /*
+   * Paging is keyed on the last row seen rather than on an offset, because
+   * using the assistant is what changes `updated_at` — so the list reorders
+   * itself while somebody is scrolling it. This asserts the property that
+   * matters: no thread appears on two pages and none is skipped between them.
+   */
+  it("pages without repeating or losing a thread when the list reorders", async () => {
+    const conversations = new MemoryConversations();
+    const { service } = build({ replies: [], conversations });
+    const owner = person(["ai.use"]);
+
+    for (let index = 0; index < 45; index += 1) {
+      conversations.rows.push({
+        id: `eeeeeeee-0000-4000-8000-${String(index).padStart(12, "0")}`,
+        tenantId,
+        userId,
+        title: `thread ${index}`,
+        projectId: null,
+        updatedAt: new Date(2026, 0, 1, 0, index).toISOString(),
+      });
+    }
+
+    const first = await service.listConversations(owner);
+    expect(first.conversations).toHaveLength(30);
+    expect(first.nextCursor).not.toBeNull();
+
+    /*
+     * The thread at the very bottom is touched between the two reads, which is
+     * exactly what asking a question does. Under an offset this shifts every
+     * boundary; under a cursor it must not.
+     */
+    const moved = conversations.rows[0];
+    if (moved) moved.updatedAt = new Date(2026, 0, 2).toISOString();
+
+    const second = await service.listConversations(owner, { cursor: first.nextCursor });
+
+    const seen = [...first.conversations, ...second.conversations].map((row) => row.id);
+    expect(new Set(seen).size).toBe(seen.length);
+  });
+
+  it("finds a thread by a word in its title, and says so when nothing matches", async () => {
+    const conversations = new MemoryConversations();
+    const { service } = build({ replies: [], conversations });
+    const owner = person(["ai.use"]);
+
+    for (const [index, title] of ["steel delivery", "concrete pour", "crane permit"].entries()) {
+      conversations.rows.push({
+        id: `eeeeeeee-0000-4000-8000-${String(index).padStart(12, "0")}`,
+        tenantId,
+        userId,
+        title,
+        projectId: null,
+        updatedAt: new Date(2026, 0, 1, 0, index).toISOString(),
+      });
+    }
+
+    const found = await service.listConversations(owner, { query: "concrete" });
+    expect(found.conversations.map((row) => row.title)).toEqual(["concrete pour"]);
+
+    const missing = await service.listConversations(owner, { query: "scaffolding" });
+    expect(missing.conversations).toEqual([]);
+    expect(missing.nextCursor).toBeNull();
+  });
+
+  /*
+   * The two-stage contract from search-sql.ts: fuzzy is a second query, run
+   * only when the exact stage found nothing. Running both together would drag
+   * every near-miss in beside a term that matched something perfectly.
+   */
+  it("only guesses at a misspelling when the exact search found nothing", async () => {
+    const conversations = new MemoryConversations();
+    const { service } = build({ replies: [], conversations });
+    const owner = person(["ai.use"]);
+
+    conversations.rows.push({
+      id: "eeeeeeee-0000-4000-8000-000000000001",
+      tenantId,
+      userId,
+      title: "concrete pour",
+      projectId: null,
+      updatedAt: new Date(2026, 0, 1).toISOString(),
+    });
+
+    const attempts: Array<string | undefined> = [];
+    const underlying = conversations.list.bind(conversations);
+    conversations.list = async (tenant, user, options) => {
+      attempts.push(options.mode);
+      return underlying(tenant, user, options);
+    };
+
+    // Matches exactly, so the fuzzy stage must never be reached.
+    await service.listConversations(owner, { query: "concrete" });
+    expect(attempts).toEqual(["exact"]);
+
+    // Mistyped, so nothing matches exactly and the second stage earns its turn.
+    attempts.length = 0;
+    const guessed = await service.listConversations(owner, { query: "concretr" });
+    expect(attempts).toEqual(["exact", "fuzzy"]);
+    expect(guessed.conversations.map((row) => row.title)).toEqual(["concrete pour"]);
+  });
+
+  it("starts a new thread carrying the last ten turns, leaving the old one whole", async () => {
+    const conversations = new MemoryConversations();
+    const { service } = build({ replies: [], conversations });
+    const owner = person(["ai.use"]);
+
+    const source = await conversations.create({
+      tenantId,
+      userId,
+      title: "the long one",
+      projectId: null,
+    });
+
+    for (let index = 0; index < 14; index += 1) {
+      await conversations.appendMessage({
+        tenantId,
+        conversationId: source.id,
+        role: index % 2 === 0 ? "user" : "assistant",
+        content: `turn ${index}`,
+        usedTools: [],
+      });
+    }
+
+    const branched = await service.branchConversation(owner, { conversationId: source.id });
+
+    expect(branched.messages).toHaveLength(10);
+    // The TAIL, in order — the four oldest turns are the ones left behind.
+    expect(branched.messages[0]?.content).toBe("turn 4");
+    expect(branched.messages[9]?.content).toBe("turn 13");
+    expect(branched.conversation.id).not.toBe(source.id);
+
+    // Copied, never moved: losing the record to a technical limit the person
+    // did not cause would be the product destroying their work.
+    const original = await service.readConversation(owner, { conversationId: source.id });
+    expect(original.messages).toHaveLength(14);
+  });
+
+  it("will not branch somebody else's conversation", async () => {
+    const conversations = new MemoryConversations();
+    const { service } = build({ replies: [], conversations });
+
+    const source = await conversations.create({
+      tenantId,
+      userId,
+      title: "mine",
+      projectId: null,
+    });
+
+    const colleague: UserPrincipal = { ...person(["ai.use"]), userId: otherUserId };
+
+    await expect(
+      service.branchConversation(colleague, { conversationId: source.id }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
   it("refuses the whole conversation surface without the permission", async () => {
     const { service } = build({ replies: [] });
     const stranger = person([]);
     const anyId = "eeeeeeee-0000-4000-8000-000000000002";
 
     await expect(service.listConversations(stranger)).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(service.branchConversation(stranger, { conversationId: anyId })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(service.readConversation(stranger, { conversationId: anyId })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(service.renameConversation(stranger, { conversationId: anyId, title: "x" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(service.deleteConversation(stranger, { conversationId: anyId })).rejects.toMatchObject({ code: "FORBIDDEN" });

@@ -20,6 +20,7 @@ export async function registerAiRoutes(
     | "chat"
     | "confirm"
     | "listConversations"
+    | "branchConversation"
     | "readConversation"
     | "renameConversation"
     | "deleteConversation"
@@ -84,6 +85,17 @@ export async function registerAiRoutes(
           error instanceof DomainError
             ? error.message
             : "The assistant could not finish that. Please try again.",
+        /*
+         * The code travels with the message because some failures have a
+         * remedy the client can offer and most do not. A conversation that
+         * outgrew the model is the case in point: the panel can propose
+         * carrying on in a fresh thread, but only if it can tell that failure
+         * apart from the provider simply being down. On the plain endpoint the
+         * HTTP body carries the code; on this one the status line has already
+         * gone, so without this the streaming path — which is the normal path —
+         * would lose the distinction entirely.
+         */
+        ...(error instanceof DomainError ? { code: error.code } : {}),
       });
     } finally {
       reply.raw.end();
@@ -122,7 +134,19 @@ export async function registerAiRoutes(
     aiService.revokeAutoApproval(request.principal, request.body),
   );
 
-  app.get("/v1/ai/conversations", async (request) => aiService.listConversations(request.principal));
+  app.get("/v1/ai/conversations", async (request) =>
+    aiService.listConversations(request.principal, request.query),
+  );
+
+  /*
+   * POST because it creates a thread. Named for what it does to the record
+   * rather than for the failure that prompts it: the same operation is useful
+   * whenever somebody wants to carry on from a point without dragging the
+   * whole history along.
+   */
+  app.post("/v1/ai/conversations/:conversationId/branch", async (request) =>
+    aiService.branchConversation(request.principal, request.params),
+  );
 
   app.get("/v1/ai/conversations/:conversationId", async (request) =>
     aiService.readConversation(request.principal, request.params),

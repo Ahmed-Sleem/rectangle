@@ -38,11 +38,11 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiClientError } from "@/shared/api/client";
 import { useAuth } from "@/shared/auth";
 import { hasPermission } from "@/shared/auth/authority";
-import { Button, Checkbox, EmptyState, Overlay } from "@/shared/ui";
+import { Button, Checkbox, EmptyState, Overlay, SearchInput } from "@/shared/ui";
 import { cn } from "@/shared/lib/cn";
 import { AiPanelToggle } from "./AiPanelToggle";
 import {
@@ -122,6 +122,14 @@ export function AiAssistantPanel({
   const [cycle, setCycle] = useState<{ current: number; total: number } | null>(null);
   const [exhausted, setExhausted] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  /*
+   * What is typed, and what has been asked for. Two pieces of state rather than
+   * one because a request per keystroke would put a query on the database for
+   * every letter of a word nobody has finished typing. The field stays instant;
+   * the search follows a beat later.
+   */
+  const [searchTerm, setSearchTerm] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const exitTimerRef = useRef<number | undefined>(undefined);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
 
@@ -168,7 +176,7 @@ export function AiAssistantPanel({
   });
 
   /*
-   * Fetched afresh every time the window opens.
+   * Fetched afresh every time the window opens, and a page at a time.
    *
    * The list is invalidated when a turn completes, but the workspace sets a
    * thirty-second `staleTime` for every query, and an invalidated query that is
@@ -181,15 +189,70 @@ export function AiAssistantPanel({
    * the list is small, it is read only when somebody deliberately opens a
    * window to look at it, and it is the index of a thing they are actively
    * changing. Everything else in the product is served from a cache on purpose.
+   *
+   * The search term is part of the key, so changing it starts a new list rather
+   * than appending results to the previous one.
    */
-  const history = useQuery({
-    queryKey: ["ai", "conversations"],
-    queryFn: shellAiApi.listConversations,
+  /*
+   * 250ms: long enough that an ordinary typing rhythm produces one request
+   * rather than eight, short enough that it still feels like the list is
+   * answering as you type rather than after you stop.
+   */
+  useEffect(() => {
+    const timer = window.setTimeout(() => setAppliedSearch(searchTerm.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
+  const history = useInfiniteQuery({
+    queryKey: ["ai", "conversations", appliedSearch],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
+      shellAiApi.listConversations({
+        ...(pageParam ? { cursor: pageParam } : {}),
+        ...(appliedSearch ? { query: appliedSearch } : {}),
+      }),
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: mayUse && historyOpen,
     retry: false,
     staleTime: 0,
     refetchOnMount: "always",
   });
+
+  const conversations = useMemo(
+    () => (history.data?.pages ?? []).flatMap((page) => page.conversations),
+    [history.data],
+  );
+
+  /*
+   * Older pages arrive by scrolling rather than by pressing a button, which is
+   * what the owner asked for. The sentinel sits after the last row inside the
+   * window's own scrolling region; when it comes into view there is more list
+   * below the fold than above it, which is the moment to fetch.
+   *
+   * `rootMargin` starts the fetch a little before the sentinel is actually
+   * visible, so on a normal scroll the next page is already there and the list
+   * does not stutter at the boundary.
+   */
+  const sentinelRef = useRef<HTMLLIElement | null>(null);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !historyOpen || !history.hasNextPage) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Guarded rather than trusted: the observer can fire again while the
+        // previous page is still in flight, which would ask for it twice.
+        if (entries.some((entry) => entry.isIntersecting) && !history.isFetchingNextPage) {
+          void history.fetchNextPage();
+        }
+      },
+      { rootMargin: "120px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [historyOpen, history.hasNextPage, history.isFetchingNextPage, history.fetchNextPage]);
 
   /*
    * Optional all the way down. A reply that does not carry the settings is a
@@ -326,6 +389,26 @@ export function AiAssistantPanel({
     },
   });
 
+  /*
+   * The way out of a conversation that has outgrown the model.
+   *
+   * The old thread is left alone and the new one opens in the panel already
+   * carrying the last ten turns, so the person carries on from where they were
+   * rather than retyping the context. Only offered when the server says that is
+   * what went wrong — proposing it after an unrelated failure would send
+   * somebody to a fresh thread that fails in exactly the same way.
+   */
+  const continueInNewConversation = useMutation({
+    mutationFn: (id: string) => shellAiApi.branchConversation(id),
+    onSuccess: async (result) => {
+      setConversationId(result.conversation.id);
+      setMessages(result.messages.map(fromStored));
+      setProposals([]);
+      ask.reset();
+      await queryClient.invalidateQueries({ queryKey: ["ai", "conversations"] });
+    },
+  });
+
   const openConversation = useMutation({
     mutationFn: (id: string) => shellAiApi.readConversation(id),
     onSuccess: (result) => {
@@ -422,6 +505,15 @@ export function AiAssistantPanel({
 
     return null;
   }, [auth.user, mayUse, settings.data, settings.isError, settings.isPending, t]);
+
+  /*
+   * Told apart by the server's code, never by matching on the message. The text
+   * is written for a person and is translated; a client that recognised a
+   * failure by its wording would stop recognising it the moment somebody
+   * improved the sentence, and would never recognise it in Arabic at all.
+   */
+  const isTooLong = (error: unknown): boolean =>
+    error instanceof ApiClientError && error.code === "CONTEXT_TOO_LONG";
 
   const failureMessage = (error: unknown): string | null => {
     if (!error) return null;
@@ -692,7 +784,35 @@ export function AiAssistantPanel({
           </section>
         ) : null}
 
-        {ask.error ? (
+        {isTooLong(ask.error) && conversationId ? (
+          /*
+            * A dead end with a way out of it. The transcript is intact above
+            * this and stays saved; what is offered is a fresh thread carrying
+            * the tail, because the provider's API is stateless and a
+            * conversation that no longer fits will never fit again.
+            */
+          <div className="rect-ai-toolong" role="alert">
+            <p className="rect-ai-toolong__title">{t("shell.ai.tooLongTitle")}</p>
+            <p className="rect-ai-toolong__text">{t("shell.ai.tooLongText")}</p>
+            {/*
+              * Not disabled when there is nothing to carry: the whole block is
+              * absent instead, and the ordinary error is shown. A dead button
+              * offering a way out that cannot be taken is worse than not
+              * offering one, and there is genuinely nothing to branch from
+              * until a thread exists.
+              */}
+            <Button
+              variant="primary"
+              disabled={continueInNewConversation.isPending}
+              onClick={() => continueInNewConversation.mutate(conversationId)}
+            >
+              {t("shell.ai.tooLongAction")}
+            </Button>
+            {continueInNewConversation.error ? (
+              <p className="rect-ai-panel__error">{t("shell.ai.tooLongFailed")}</p>
+            ) : null}
+          </div>
+        ) : ask.error ? (
           <p className="rect-ai-panel__error" role="alert">
             {failureMessage(ask.error)}
           </p>
@@ -767,17 +887,44 @@ export function AiAssistantPanel({
           setPendingDelete(null);
         }}
       >
+        {/*
+          * The field is outside every branch below, so it does not vanish the
+          * moment a search returns nothing — which is precisely when somebody
+          * needs it, to correct what they typed.
+          */}
+        <SearchInput
+          className="rect-ai-history__search"
+          label={t("shell.ai.historySearch")}
+          placeholder={t("shell.ai.historySearchPlaceholder")}
+          value={searchTerm}
+          onChange={setSearchTerm}
+        />
+
         {history.isPending ? (
           <p className="rect-ai-history__note">{t("common.loading")}</p>
         ) : history.isError ? (
           <p className="rect-ai-history__note" role="alert">
             {t("shell.ai.historyFailed")}
           </p>
-        ) : (history.data?.conversations.length ?? 0) === 0 ? (
-          <EmptyState title={t("shell.ai.historyEmptyTitle")} message={t("shell.ai.historyEmptyText")} />
+        ) : conversations.length === 0 ? (
+          /*
+            * Two different facts, two different sentences. "You have none yet"
+            * invites a first question; "nothing matched" tells somebody who
+            * plainly does have conversations to try another word. Showing the
+            * first to a person whose search missed would be telling them their
+            * history had been lost.
+            */
+          appliedSearch ? (
+            <EmptyState
+              title={t("shell.ai.historyNoMatchTitle")}
+              message={t("shell.ai.historyNoMatchText")}
+            />
+          ) : (
+            <EmptyState title={t("shell.ai.historyEmptyTitle")} message={t("shell.ai.historyEmptyText")} />
+          )
         ) : (
           <ul className="rect-ai-history">
-            {history.data?.conversations.map((conversation) => (
+            {conversations.map((conversation) => (
               <li key={conversation.id} className="rect-ai-history__item">
                 <button
                   type="button"
@@ -830,6 +977,19 @@ export function AiAssistantPanel({
                 )}
               </li>
             ))}
+
+            {/*
+              * Watched rather than pressed. It sits after the last row inside
+              * the window's own scroll region, so reaching it means there is
+              * more list below than above and the next page is worth fetching.
+              */}
+            {history.hasNextPage ? (
+              <li ref={sentinelRef} className="rect-ai-history__more" aria-hidden={!history.isFetchingNextPage}>
+                {history.isFetchingNextPage ? t("shell.ai.historyLoadingMore") : null}
+              </li>
+            ) : (
+              <li className="rect-ai-history__end">{t("shell.ai.historyEnd")}</li>
+            )}
           </ul>
         )}
       </Overlay>

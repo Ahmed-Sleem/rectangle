@@ -534,6 +534,19 @@ export const aiChatInputSchema = z.object({
 
 export const aiConversationIdSchema = z.object({ conversationId: z.uuid() });
 
+/**
+ * Reading a page of the conversation list.
+ *
+ * Both fields optional: no cursor means the first page and no query means all
+ * of them, which is the common case and should need no parameters at all. The
+ * query is bounded because it goes into a search clause, and an unbounded one
+ * would let somebody push an arbitrarily large string through the text engine.
+ */
+export const aiConversationListSchema = z.object({
+  cursor: z.string().max(200).optional(),
+  query: z.string().trim().max(200).optional(),
+});
+
 export const aiRenameConversationSchema = z.object({
   conversationId: z.uuid(),
   title: z.string().trim().min(1).max(200),

@@ -13,7 +13,7 @@
  * card shows is the argument that will run rather than a sentence about it.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -63,6 +63,27 @@ let asked: string[] = [];
 let confirmed: string[] = [];
 /** Bodies posted to the auto-approval endpoint. */
 let autoApproved: string[] = [];
+
+/**
+ * Every IntersectionObserver the component under test created.
+ *
+ * jsdom implements the constructor but never calls the callback, because it has
+ * no layout and so nothing is ever visible. That means an infinite list would
+ * pass every test here whether it was wired up or not — the observer simply
+ * never fires. Keeping the instances lets a test say "the foot of the list came
+ * into view" explicitly, which is the event the code is actually waiting for.
+ */
+let observers: Array<{ callback: IntersectionObserverCallback; targets: Element[] }> = [];
+
+/** Reports every watched element as visible, as a real scroll to the end would. */
+function triggerIntersection() {
+  for (const observer of observers) {
+    const entries = observer.targets.map(
+      (target) => ({ isIntersecting: true, target }) as IntersectionObserverEntry,
+    );
+    if (entries.length > 0) act(() => observer.callback(entries, {} as IntersectionObserver));
+  }
+}
 /** How many times the conversation LIST was fetched, as opposed to one thread. */
 let conversationListReads = 0;
 
@@ -70,6 +91,47 @@ function json(body: unknown, status = 200) {
   return Promise.resolve(
     new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }),
   );
+}
+
+/**
+ * A recording stand-in for the browser's observer.
+ *
+ * Installed for every test rather than only the paging one, because a component
+ * that constructs an observer must not throw in the tests that do not care
+ * about it.
+ */
+function stubIntersectionObserver() {
+  observers = [];
+
+  class RecordingObserver implements IntersectionObserver {
+    readonly root = null;
+    readonly rootMargin = "";
+    readonly thresholds: ReadonlyArray<number> = [];
+    private readonly entry: { callback: IntersectionObserverCallback; targets: Element[] };
+
+    constructor(callback: IntersectionObserverCallback) {
+      this.entry = { callback, targets: [] };
+      observers.push(this.entry);
+    }
+
+    observe(target: Element) {
+      this.entry.targets.push(target);
+    }
+
+    unobserve(target: Element) {
+      this.entry.targets = this.entry.targets.filter((candidate) => candidate !== target);
+    }
+
+    disconnect() {
+      this.entry.targets = [];
+    }
+
+    takeRecords(): IntersectionObserverEntry[] {
+      return [];
+    }
+  }
+
+  vi.stubGlobal("IntersectionObserver", RecordingObserver);
 }
 
 function mockApi(options: {
@@ -131,7 +193,9 @@ function mockApi(options: {
     }
     if (url.includes("/v1/ai/conversations")) {
       conversationListReads += 1;
-      return json({ conversations: options.conversations ?? [] });
+      // The real endpoint pages, so the fixture carries a cursor field too. A
+      // mock of the previous shape would let a paging mistake through unseen.
+      return json({ conversations: options.conversations ?? [], nextCursor: null });
     }
     return json({});
   });
@@ -195,6 +259,7 @@ function renderPanel(auth: AuthContextValue = withAi, path = "/") {
 describe("AiAssistantPanel", () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
+    stubIntersectionObserver();
     await setRectangleLanguage("en");
   });
 
@@ -251,6 +316,7 @@ describe("AiAssistantPanel", () => {
 describe("AiAssistantPanel: when it cannot answer, it says why", () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
+    stubIntersectionObserver();
     await setRectangleLanguage("en");
   });
 
@@ -380,6 +446,7 @@ describe("AiAssistantPanel: proposed changes wait for a person", () => {
 
   beforeEach(async () => {
     vi.restoreAllMocks();
+    stubIntersectionObserver();
     await setRectangleLanguage("en");
   });
 
@@ -442,6 +509,7 @@ describe("AiAssistantPanel: proposed changes wait for a person", () => {
 describe("AiAssistantPanel: page context and history", () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
+    stubIntersectionObserver();
     await setRectangleLanguage("en");
   });
 
@@ -564,6 +632,240 @@ describe("AiAssistantPanel: page context and history", () => {
     await waitFor(() => expect(conversationListReads).toBe(2));
   });
 
+  it("searches the list by title, and says so when nothing matches", async () => {
+    const queries: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = typeof input === "string" ? input : String(input);
+
+      if (url.includes("/v1/ai/conversations")) {
+        const query = new URL(url, "http://x").searchParams.get("query") ?? "";
+        queries.push(query);
+        const all = [
+          { id: "c-1", title: "steel delivery", projectId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+          { id: "c-2", title: "concrete pour", projectId: null, updatedAt: "2026-01-02T00:00:00.000Z" },
+        ];
+        const conversations = query
+          ? all.filter((row) => row.title.includes(query))
+          : all;
+        return json({ conversations, nextCursor: null });
+      }
+
+      return json({ aiSettings: WORKING });
+    });
+
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("Ready");
+    await user.click(screen.getByRole("button", { name: "Past conversations" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText("steel delivery")).toBeInTheDocument();
+
+    await user.type(within(dialog).getByLabelText("Search your conversations"), "concrete");
+
+    expect(await within(dialog).findByText("concrete pour")).toBeInTheDocument();
+    await waitFor(() => expect(within(dialog).queryByText("steel delivery")).not.toBeInTheDocument());
+    // The term reached the server rather than being filtered in the browser,
+    // which would silently miss every thread beyond the first page.
+    expect(queries).toContain("concrete");
+
+    await user.clear(within(dialog).getByLabelText("Search your conversations"));
+    await user.type(within(dialog).getByLabelText("Search your conversations"), "scaffolding");
+
+    // A search that found nothing must not read as "you have no conversations".
+    expect(await within(dialog).findByText("Nothing matched")).toBeInTheDocument();
+  });
+
+  it("loads an older page when the foot of the list is reached", async () => {
+    const cursors: Array<string | null> = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = typeof input === "string" ? input : String(input);
+
+      if (url.includes("/v1/ai/conversations")) {
+        const cursor = new URL(url, "http://x").searchParams.get("cursor");
+        cursors.push(cursor);
+        return cursor
+          ? json({
+              conversations: [
+                { id: "old-1", title: "an older thread", projectId: null, updatedAt: "2025-01-01T00:00:00.000Z" },
+              ],
+              nextCursor: null,
+            })
+          : json({
+              conversations: [
+                { id: "new-1", title: "a recent thread", projectId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+              ],
+              nextCursor: "page-two",
+            });
+      }
+
+      return json({ aiSettings: WORKING });
+    });
+
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("Ready");
+    await user.click(screen.getByRole("button", { name: "Past conversations" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByText("a recent thread")).toBeInTheDocument();
+
+    /*
+     * jsdom has no layout and never fires an IntersectionObserver, so the
+     * sentinel is triggered directly through the stub installed in setup. This
+     * asserts the wiring — the cursor is carried and the older page is appended
+     * — which is the part that can be wrong in a way a person would notice.
+     */
+    triggerIntersection();
+
+    expect(await within(dialog).findByText("an older thread")).toBeInTheDocument();
+    // Still there: pages accumulate rather than replacing one another.
+    expect(within(dialog).getByText("a recent thread")).toBeInTheDocument();
+    expect(cursors).toEqual([null, "page-two"]);
+  });
+
+  it("offers a fresh thread when the conversation outgrows the model", async () => {
+    let branched = false;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = typeof input === "string" ? input : String(input);
+
+      if (url.includes("/branch")) {
+        branched = true;
+        return json({
+          conversation: { id: "fresh", title: "carried over", projectId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+          messages: [
+            { id: "m1", role: "user", content: "the tail of it", usedTools: [], createdAt: "2026-01-01T00:00:00.000Z" },
+          ],
+        });
+      }
+
+      if (url.includes("/v1/ai/chat/stream")) {
+        const frames = [
+          {
+            type: "failed",
+            message: "This conversation has grown longer than the model can read in one go.",
+            code: "CONTEXT_TOO_LONG",
+          },
+        ];
+        return Promise.resolve(
+          new Response(frames.map((f) => `data: ${JSON.stringify(f)}\n\n`).join(""), {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          }),
+        );
+      }
+
+      if (url.match(/\/v1\/ai\/conversations\/[^/]+$/)) {
+        return json({
+          conversation: { id: "long", title: "the long one", projectId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+          messages: [],
+        });
+      }
+
+      if (url.includes("/v1/ai/conversations")) {
+        return json({
+          conversations: [
+            { id: "long", title: "the long one", projectId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+          ],
+          nextCursor: null,
+        });
+      }
+
+      return json({ aiSettings: WORKING });
+    });
+
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("Ready");
+
+    /*
+     * Opened from the history first, because that is the shape of the real
+     * case: a thread long enough to overflow is one that already exists. It
+     * also gives the panel the id it needs to branch from — without a thread
+     * there is nothing to carry over, and the offer is correctly absent.
+     */
+    await user.click(screen.getByRole("button", { name: "Past conversations" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByText("the long one"));
+
+    await user.type(await screen.findByLabelText("Ask Rectangle AI"), "one more question");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(await screen.findByText("This conversation is too long to continue")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Continue in a new conversation" }));
+
+    await waitFor(() => expect(branched).toBe(true));
+    // The tail is carried into the panel, so the person continues rather than
+    // starting from nothing.
+    expect(await screen.findByText("the tail of it")).toBeInTheDocument();
+  });
+
+  /*
+   * An ordinary failure must NOT offer the branch, or somebody is sent to a
+   * fresh thread that will fail in exactly the same way.
+   *
+   * A thread is opened first, and that detail is what gives the test its teeth.
+   * The banner needs both a too-long code AND a conversation to branch from, so
+   * a version of this that never opened one passed even when the code check was
+   * removed entirely — the second condition was carrying it. Opening the thread
+   * satisfies everything except the code, which isolates the code.
+   */
+  it("does not offer a fresh thread for an unrelated failure", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = typeof input === "string" ? input : String(input);
+
+      if (url.includes("/v1/ai/chat/stream")) {
+        const frame = {
+          type: "failed",
+          message: "Rectangle could not reach the model endpoint.",
+          code: "UPSTREAM_UNAVAILABLE",
+        };
+        return Promise.resolve(
+          new Response(`data: ${JSON.stringify(frame)}\n\n`, {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          }),
+        );
+      }
+
+      if (url.match(/\/v1\/ai\/conversations\/[^/]+$/)) {
+        return json({
+          conversation: { id: "open", title: "an open thread", projectId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+          messages: [],
+        });
+      }
+
+      if (url.includes("/v1/ai/conversations")) {
+        return json({
+          conversations: [
+            { id: "open", title: "an open thread", projectId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+          ],
+          nextCursor: null,
+        });
+      }
+
+      return json({ aiSettings: WORKING });
+    });
+
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("Ready");
+
+    await user.click(screen.getByRole("button", { name: "Past conversations" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByText("an open thread"));
+
+    await user.type(await screen.findByLabelText("Ask Rectangle AI"), "anything");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(await screen.findByText("Rectangle could not reach the model endpoint.")).toBeInTheDocument();
+    expect(screen.queryByText("This conversation is too long to continue")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Continue in a new conversation" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("reads in Arabic", async () => {
     await setRectangleLanguage("ar");
     mockApi({});
@@ -577,6 +879,7 @@ describe("AiAssistantPanel: page context and history", () => {
 describe("AiAssistantPanel: showing the work", () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
+    stubIntersectionObserver();
     await setRectangleLanguage("en");
   });
 
@@ -706,6 +1009,7 @@ describe("AiAssistantPanel: showing the work", () => {
 describe("AiAssistantPanel: approving several changes at once", () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
+    stubIntersectionObserver();
     await setRectangleLanguage("en");
   });
 

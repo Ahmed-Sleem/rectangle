@@ -20,6 +20,7 @@ import type {
   PendingAction,
   StoredAiMessage,
 } from "../../application/ai-service.js";
+import { buildExpressionSearchClause, type SearchMode } from "./search-sql.js";
 
 function mapSettings(row: Record<string, unknown>): AiSettingsRecord {
   return {
@@ -327,7 +328,63 @@ export class PostgresAiConversationRepository implements AiConversationRepositor
     return { id: String(row.id), title: String(row.title), projectId: row.project_id };
   }
 
-  async list(tenantId: string, userId: string, limit: number): Promise<AiConversationSummary[]> {
+  /**
+   * A page of this person's conversations, newest activity first.
+   *
+   * Keyed-set pagination rather than an offset, and the reason is specific to
+   * this list rather than a general preference. The rows are ordered by when
+   * they were last active, and using the assistant is what changes that — so
+   * asking a question while scrolling reorders the very list being paged. With
+   * an offset, page two would then repeat a thread that had moved down or skip
+   * one that had moved up. A cursor names the last row actually seen, so the
+   * next page continues from there whatever has moved in the meantime.
+   *
+   * The tuple comparison is on `(updated_at, id)` because `updated_at` alone is
+   * not unique: two threads touched in the same millisecond would make the
+   * boundary ambiguous and one of them would be lost between pages. The id
+   * breaks the tie, and the index is on the pair.
+   *
+   * Search goes through `buildExpressionSearchClause` rather than any matching
+   * written here. That is the single search engine the product consolidated on,
+   * and it is what gives this list Arabic folding, prefix matching while
+   * somebody types, and typo tolerance without any of it being reimplemented.
+   */
+  async list(
+    tenantId: string,
+    userId: string,
+    options: { limit: number; before?: { updatedAt: string; id: string }; query?: string; mode?: SearchMode },
+  ): Promise<AiConversationSummary[]> {
+    const values: unknown[] = [tenantId, userId];
+    const conditions = ["tenant_id = $1", "user_id = $2"];
+
+    if (options.before) {
+      values.push(options.before.updatedAt, options.before.id);
+      conditions.push(`(updated_at, id) < ($${values.length - 1}, $${values.length})`);
+    }
+
+    let rank = "";
+    if (options.query?.trim()) {
+      const clause = buildExpressionSearchClause(
+        options.query,
+        ["coalesce(title, '')"],
+        values.length + 1,
+        options.mode ?? "exact",
+      );
+      if (clause) {
+        conditions.push(clause.where);
+        values.push(...clause.values);
+        /*
+         * Recency still decides, with relevance only breaking ties. Somebody
+         * searching their own conversations is looking for one they remember
+         * having, and "most recent among the things that matched" is closer to
+         * how they remember it than a rank over a short title ever is.
+         */
+        rank = `${clause.rank} desc,`;
+      }
+    }
+
+    values.push(options.limit);
+
     const result = await this.pool.query<{
       id: string;
       title: string;
@@ -336,11 +393,12 @@ export class PostgresAiConversationRepository implements AiConversationRepositor
     }>(
       `select id, title, project_id, updated_at
          from ai_conversations
-        where tenant_id = $1 and user_id = $2
-        order by updated_at desc
-        limit $3`,
-      [tenantId, userId, limit],
+        where ${conditions.join(" and ")}
+        order by updated_at desc, ${rank} id desc
+        limit $${values.length}`,
+      values,
     );
+
     return result.rows.map((row) => ({
       id: String(row.id),
       title: String(row.title),
@@ -349,14 +407,6 @@ export class PostgresAiConversationRepository implements AiConversationRepositor
     }));
   }
 
-  /**
-   * The turns of a thread.
-   *
-   * With a limit it returns the LAST n in chronological order, which needs the
-   * inner query to sort backwards and the outer one to put them right again.
-   * Taking the first n instead would hand the model the beginning of a long
-   * conversation and none of what was just said — the opposite of useful.
-   */
   async messages(
     tenantId: string,
     conversationId: string,

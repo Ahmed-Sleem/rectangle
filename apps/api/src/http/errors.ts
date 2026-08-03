@@ -16,6 +16,12 @@ const statusByCode = {
   UPSTREAM_UNAVAILABLE: 502,
   /* 504: the same, but it was slowness rather than a refusal. */
   UPSTREAM_TIMEOUT: 504,
+  /*
+   * 413: the request itself was too large to process. Not 502, because nothing
+   * upstream is wrong, and not a bare 400, because the caller sent exactly what
+   * was asked of it — the transcript simply grew past what the model can read.
+   */
+  CONTEXT_TOO_LONG: 413,
   RATE_LIMITED: 429,
 } as const;
 

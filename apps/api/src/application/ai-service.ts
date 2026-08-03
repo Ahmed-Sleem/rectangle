@@ -39,6 +39,7 @@ import {
   aiAutoApprovalInputSchema,
   aiConfirmInputSchema,
   aiConversationIdSchema,
+  aiConversationListSchema,
   aiScreenContextSchema,
   aiRenameConversationSchema,
   deriveConversationTitle,
@@ -139,7 +140,17 @@ export interface AiConversationRepository {
     userId: string,
     id: string,
   ): Promise<{ id: string; title: string; projectId: string | null } | null>;
-  list(tenantId: string, userId: string, limit: number): Promise<AiConversationSummary[]>;
+  list(
+    tenantId: string,
+    userId: string,
+    options: {
+      limit: number;
+      /** The last row the caller already has. Keyed-set paging, never offset. */
+      before?: { updatedAt: string; id: string };
+      query?: string;
+      mode?: "exact" | "fuzzy";
+    },
+  ): Promise<AiConversationSummary[]>;
   /** In the order they were said. `limit` keeps only the most recent turns. */
   messages(tenantId: string, conversationId: string, limit?: number): Promise<StoredAiMessage[]>;
   appendMessage(input: {
@@ -169,7 +180,14 @@ export type AiProgressEvent =
   | { type: "cycle"; cycle: number; total: number }
   | { type: "tool"; cycle: number; tool: string; arguments: Record<string, unknown> }
   | { type: "observation"; cycle: number; tool: string; summary: string }
-  | { type: "answer"; result: AiChatResult };
+  | { type: "answer"; result: AiChatResult }
+  /*
+   * Only the route emits this, after the loop has thrown. The code travels with
+   * the message because a few failures have a remedy the client can offer —
+   * a conversation too long to continue can be carried into a fresh thread —
+   * and the panel cannot propose that unless it can tell which failure it is.
+   */
+  | { type: "failed"; message: string; code?: string };
 
 export type AiProgressSink = (event: AiProgressEvent) => void;
 
@@ -242,7 +260,41 @@ export interface AiChatResult {
  * box rather than a longer list. The cap exists so that a heavy user cannot
  * make the panel slow to open.
  */
-const CONVERSATION_LIST_LIMIT = 50;
+const CONVERSATION_PAGE_SIZE = 30;
+
+/**
+ * The cursor is the last row seen, not a position in a list.
+ *
+ * Encoded as opaque text so that it is obvious to anybody reading a request
+ * that this is a bookmark to hand back rather than a number to arithmetic on.
+ * Anything unreadable is treated as no cursor at all: a corrupted bookmark
+ * should return the first page, which is recoverable, rather than an error
+ * about a value the person never typed.
+ */
+function encodeCursor(row: { updatedAt: string; id: string }): string {
+  return Buffer.from(`${row.updatedAt}|${row.id}`, "utf8").toString("base64url");
+}
+
+function decodeCursor(cursor?: string): { updatedAt: string; id: string } | undefined {
+  if (!cursor) return undefined;
+
+  try {
+    const [updatedAt, id] = Buffer.from(cursor, "base64url").toString("utf8").split("|");
+    if (!updatedAt || !id) return undefined;
+    return { updatedAt, id };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * How much of an outgrown conversation a fresh one inherits.
+ *
+ * Ten because the owner asked for ten, and the number is a reasonable one: it
+ * is enough for the model to know what is being discussed and short enough that
+ * the new thread cannot inherit the problem that ended the old one.
+ */
+const CONVERSATION_SEED_MESSAGES = 10;
 
 /**
  * A tool's result, in a few words, for the progress line.
@@ -611,10 +663,147 @@ export class AiService {
    * nowhere to say whose. Ordered by last activity rather than creation, since
    * the thread somebody is in the middle of is the one they are looking for.
    */
-  async listConversations(actor: UserPrincipal): Promise<{ conversations: AiConversationSummary[] }> {
+  async listConversations(
+    actor: UserPrincipal,
+    rawInput?: unknown,
+  ): Promise<{ conversations: AiConversationSummary[]; nextCursor: string | null }> {
     requirePermission(actor, "ai.use");
+
+    const parsed = aiConversationListSchema.safeParse(rawInput ?? {});
+    if (!parsed.success) {
+      throw new DomainError("VALIDATION_FAILED", "That list could not be read.");
+    }
+
+    const { cursor, query } = parsed.data;
+    const before = decodeCursor(cursor);
+
+    /*
+     * One more than a page, so whether another page exists is known from the
+     * rows themselves. Counting the whole table to answer the same question
+     * would scan everything a person has ever said to find out only whether
+     * there is more.
+     */
+    const limit = CONVERSATION_PAGE_SIZE + 1;
+
+    let rows = await this.conversations.list(actor.tenantId, actor.userId, {
+      limit,
+      ...(before ? { before } : {}),
+      ...(query ? { query, mode: "exact" as const } : {}),
+    });
+
+    /*
+     * Fuzzy runs only when exact found nothing, and it runs HERE rather than
+     * inside the query. search-sql.ts explains why: expressed as an `or` the
+     * condition can only ask "is this row an exact match", which says nothing
+     * about whether some other row matched perfectly — so one right answer
+     * arrives surrounded by near-misses. Asking "did anything match" needs the
+     * whole result set, and this is the nearest place to the repository where
+     * the question can be asked without losing the tenant and user scoping.
+     *
+     * Not attempted on a later page: a search that found nothing on page one
+     * never produced a cursor, so a cursor means the exact stage was working.
+     */
+    if (query && rows.length === 0 && !before) {
+      rows = await this.conversations.list(actor.tenantId, actor.userId, {
+        limit,
+        query,
+        mode: "fuzzy",
+      });
+    }
+
+    const hasMore = rows.length > CONVERSATION_PAGE_SIZE;
+    const page = hasMore ? rows.slice(0, CONVERSATION_PAGE_SIZE) : rows;
+    const last = page[page.length - 1];
+
     return {
-      conversations: await this.conversations.list(actor.tenantId, actor.userId, CONVERSATION_LIST_LIMIT),
+      conversations: page,
+      nextCursor: hasMore && last ? encodeCursor(last) : null,
+    };
+  }
+
+  /**
+   * Starts a fresh thread carrying the tail of an old one.
+   *
+   * The remedy for a conversation that has outgrown the model. A provider's API
+   * is stateless: every request carries the whole transcript, so a thread that
+   * no longer fits will never fit again, and without this the only way forward
+   * is to start from nothing and retype the context by hand.
+   *
+   * The tail rather than a summary, and that is deliberate. Summarising would
+   * mean asking the model to compress the very transcript that just failed to
+   * fit, which is the one call that cannot be made — and a summary is the
+   * model's account of what was said, which is exactly the kind of quiet
+   * fabrication the grounding rules exist to prevent. Ten real turns are ten
+   * things that were actually said.
+   *
+   * The messages are copied, not moved. The old thread is left intact and
+   * readable, because it is the person's record and losing it to a technical
+   * limit they did not cause would be the product destroying their work.
+   */
+  async branchConversation(
+    actor: UserPrincipal,
+    rawInput: unknown,
+  ): Promise<{ conversation: AiConversationSummary; messages: StoredAiMessage[] }> {
+    requirePermission(actor, "ai.use");
+
+    const parsed = aiConversationIdSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      throw new DomainError("VALIDATION_FAILED", "That conversation could not be continued.");
+    }
+
+    const source = await this.conversations.find(
+      actor.tenantId,
+      actor.userId,
+      parsed.data.conversationId,
+    );
+    if (!source) {
+      throw new DomainError("NOT_FOUND", "That conversation could not be found.");
+    }
+
+    /*
+     * Read with the same cap the new thread will hold. Asking the repository
+     * for the tail is what keeps a transcript too large to fit in the model
+     * also out of this process's memory.
+     */
+    const tail = await this.conversations.messages(
+      actor.tenantId,
+      source.id,
+      CONVERSATION_SEED_MESSAGES,
+    );
+
+    const created = await this.conversations.create({
+      tenantId: actor.tenantId,
+      userId: actor.userId,
+      title: source.title,
+      projectId: source.projectId,
+    });
+
+    /*
+     * Sequentially, because the order of a conversation is its meaning and
+     * these rows are ordered by when they were written. Ten inserts is not
+     * worth the risk of a concurrent write interleaving them.
+     */
+    const seeded: StoredAiMessage[] = [];
+    for (const message of tail) {
+      seeded.push(
+        await this.conversations.appendMessage({
+          tenantId: actor.tenantId,
+          conversationId: created.id,
+          role: message.role,
+          content: message.content,
+          usedTools: message.usedTools,
+        }),
+      );
+    }
+
+    return {
+      conversation: {
+        id: created.id,
+        title: source.title,
+        projectId: source.projectId,
+        updatedAt: new Date().toISOString(),
+      },
+      messages: seeded,
     };
   }
 

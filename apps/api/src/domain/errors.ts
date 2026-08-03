@@ -16,6 +16,13 @@ export type DomainErrorCode =
    */
   | "UPSTREAM_UNAVAILABLE"
   | "UPSTREAM_TIMEOUT"
+  /*
+   * The conversation outgrew what the model can read at once. Not an upstream
+   * failure: the provider is healthy and answered correctly, and the person has
+   * a real remedy — carry on in a new thread — which the other codes do not
+   * imply and the client must be able to distinguish in order to offer it.
+   */
+  | "CONTEXT_TOO_LONG"
   | "RATE_LIMITED";
 
 export class DomainError extends Error {

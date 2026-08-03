@@ -461,6 +461,40 @@
   padding: 0;
 }
 
+/*
+ * The field is pinned above the list rather than scrolling away with it. It is
+ * how somebody narrows a long list, so it has to stay reachable once they are
+ * a hundred rows down — which is exactly when they want it.
+ */
+.rect-ai-history__search {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  margin-block-end: var(--rect-space-3);
+  background: var(--rect-surface-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-radius-md);
+  padding: 0 var(--rect-space-3);
+  min-block-size: var(--rect-control-standard);
+}
+
+/*
+ * The watched row at the foot of the list. It carries text only while a page
+ * is actually loading, but it keeps its height either way: a sentinel that
+ * collapses to nothing can sit permanently inside the observer's margin and
+ * fetch every page in one go, which is the whole list at once and the opposite
+ * of what paging is for.
+ */
+.rect-ai-history__more,
+.rect-ai-history__end {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--rect-control-standard);
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
 .rect-ai-history__item {
   display: flex;
   align-items: center;
@@ -660,6 +694,38 @@
 
 .rect-ai-turn__spin {
   animation: rect-ai-spin 900ms linear infinite;
+}
+
+/*
+ * The dead end, and the way out of it.
+ *
+ * Warning-toned rather than danger-toned on purpose: nothing has been lost and
+ * nothing has gone wrong with the product — the conversation simply grew past
+ * what the model can read, and there is a button here that fixes it. Painting
+ * it red would tell somebody their transcript was in trouble when it is saved
+ * and intact directly above.
+ */
+.rect-ai-toolong {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rect-space-2);
+  border: 1px solid var(--rect-color-warning);
+  border-radius: var(--rect-radius-lg);
+  background: var(--rect-card-bg);
+  padding: var(--rect-space-3);
+}
+
+.rect-ai-toolong__title {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-body);
+  font-weight: var(--rect-weight-semibold);
+}
+
+.rect-ai-toolong__text {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+  line-height: var(--rect-leading-body);
 }
 
 .rect-ai-panel__error {
