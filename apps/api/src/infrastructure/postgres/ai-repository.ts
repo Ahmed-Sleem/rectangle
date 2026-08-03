@@ -13,6 +13,7 @@ import type {
   AiUserProviderRecord,
 } from "../../application/ai-settings-service.js";
 import type {
+  AiAutoApprovalRepository,
   AiConversationRepository,
   AiConversationSummary,
   AiPendingActionRepository,
@@ -401,6 +402,45 @@ export class PostgresAiConversationRepository implements AiConversationRepositor
     const result = await this.pool.query(
       "delete from ai_conversations where id = $1 and tenant_id = $2 and user_id = $3",
       [id, tenantId, userId],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+}
+
+/**
+ * Tools a person has chosen not to be asked about.
+ *
+ * Three statements and no cleverness, which is right for a table whose entire
+ * job is to answer one boolean question quickly. The rule about which tools may
+ * be stored here is not enforced in SQL: the database has no way to know which
+ * tools are irreversible, and duplicating that list in a check constraint would
+ * create a second answer to drift from the registry. The service refuses them.
+ */
+export class PostgresAiAutoApprovalRepository implements AiAutoApprovalRepository {
+  constructor(private readonly pool: pg.Pool) {}
+
+  async list(tenantId: string, userId: string): Promise<string[]> {
+    const result = await this.pool.query<{ tool: string }>(
+      "select tool from ai_auto_approvals where tenant_id = $1 and user_id = $2 order by tool",
+      [tenantId, userId],
+    );
+    return result.rows.map((row) => String(row.tool));
+  }
+
+  async grant(tenantId: string, userId: string, tool: string): Promise<void> {
+    // Idempotent: agreeing twice is the same standing decision, not a conflict.
+    await this.pool.query(
+      `insert into ai_auto_approvals (tenant_id, user_id, tool)
+       values ($1, $2, $3)
+       on conflict (tenant_id, user_id, tool) do nothing`,
+      [tenantId, userId, tool],
+    );
+  }
+
+  async revoke(tenantId: string, userId: string, tool: string): Promise<boolean> {
+    const result = await this.pool.query(
+      "delete from ai_auto_approvals where tenant_id = $1 and user_id = $2 and tool = $3",
+      [tenantId, userId, tool],
     );
     return (result.rowCount ?? 0) > 0;
   }

@@ -191,6 +191,14 @@ export const TOOL_MESSAGES = {
   timedOut: `That took longer than ${Math.round(AI_LIMITS.toolTimeoutMs / 1000)} seconds and was stopped. Try a narrower search, or answer without it.`,
   failed: "That lookup failed. Do not repeat it; either try a different approach or tell the person you could not check.",
   empty: "Nothing matched that search.",
+  /*
+   * Sent back for a change that is now waiting on a person. Without it a model
+   * sees no result for its call, assumes the call failed, and proposes the same
+   * change again on the next turn — producing three identical cards for one
+   * instruction.
+   */
+  proposed:
+    "Proposed and shown to the person for approval. Do not propose it again. Do not say it is done; say it is waiting for them.",
 } as const;
 
 /** What the person is told when the loop ends without the model concluding. */

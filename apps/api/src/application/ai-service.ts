@@ -35,6 +35,7 @@ import {
   AI_CONTEXT_TURNS,
   AI_LIMITS,
   aiChatInputSchema,
+  aiAutoApprovalInputSchema,
   aiConfirmInputSchema,
   aiConversationIdSchema,
   aiScreenContextSchema,
@@ -171,6 +172,32 @@ export type AiProgressEvent =
 
 export type AiProgressSink = (event: AiProgressEvent) => void;
 
+/** A change the assistant wants to make, as the screen is shown it. */
+export interface AiProposal {
+  id: string;
+  tool: string;
+  /** The validated arguments, so the person approves exactly what will run. */
+  summary: Record<string, unknown>;
+  /**
+   * Cannot be undone. The card never offers "do not ask again" for these, and
+   * the service refuses to record such a preference even if one is sent.
+   */
+  destructive: boolean;
+}
+
+/**
+ * Tools a person has chosen not to be asked about.
+ *
+ * Deliberately narrow: list, grant, revoke. There is no "grant for everyone"
+ * and no "grant all tools", because neither is a thing anybody should be able
+ * to do in one click.
+ */
+export interface AiAutoApprovalRepository {
+  list(tenantId: string, userId: string): Promise<string[]>;
+  grant(tenantId: string, userId: string, tool: string): Promise<void>;
+  revoke(tenantId: string, userId: string, tool: string): Promise<boolean>;
+}
+
 export interface AiChatResult {
   /** Which thread this turn belongs to. New when the request carried no id. */
   conversationId: string;
@@ -178,8 +205,23 @@ export interface AiChatResult {
   answer: string;
   /** What it looked at, so the person can judge the answer. */
   usedTools: string[];
-  /** Present when it wants to change something and is waiting to be told to. */
-  proposal?: { id: string; tool: string; summary: Record<string, unknown> };
+  /**
+   * Changes it wants to make, waiting to be told to.
+   *
+   * A list, because one instruction often means several changes — "close these
+   * three and reassign the fourth" — and asking four separate times in a row is
+   * how an approval becomes a reflex. Each entry is still stored, re-read and
+   * re-authorised individually; batching changes how often somebody is
+   * interrupted, never how carefully each action is checked.
+   */
+  proposals?: AiProposal[];
+  /**
+   * Changes that ran without being asked about, because this person had already
+   * said they did not want to be asked for that tool. Reported so the answer can
+   * say what happened rather than leaving it silent — an auto-approval that is
+   * invisible is indistinguishable from an agent acting on its own.
+   */
+  performed?: { tool: string; summary: Record<string, unknown> }[];
   /**
    * True when the loop stopped because it ran out of steps rather than because
    * it had finished. The screen offers to continue; nothing continues on its
@@ -230,6 +272,7 @@ export class AiService {
     /** Keyed by tool name. Missing means the tool is declared but not wired. */
     private readonly executors: Record<string, AiToolExecutor>,
     private readonly conversations: AiConversationRepository,
+    private readonly autoApprovals: AiAutoApprovalRepository,
   ) {}
 
   /**
@@ -344,6 +387,19 @@ export class AiService {
     ];
 
     const usedTools: string[] = [];
+    /** Changes waiting for approval, gathered across the whole turn. */
+    const proposals: AiProposal[] = [];
+    /** Changes that ran because this person had already agreed to that tool. */
+    const performed: { tool: string; summary: Record<string, unknown> }[] = [];
+
+    /*
+     * Read once per turn rather than per tool call: it is a small table, the
+     * answer cannot change mid-turn in any way that should take effect, and a
+     * query inside the loop would be a query per proposed action.
+     */
+    const preApproved = new Set(
+      await this.autoApprovals.list(actor.tenantId, actor.userId),
+    );
 
     /*
      * Every exit from the loop below stores the answer and reports the thread.
@@ -352,6 +408,9 @@ export class AiService {
      * which are the ones a person most wants to find in the record later.
      */
     const finish = async (result: Omit<AiChatResult, "conversationId">): Promise<AiChatResult> => {
+      // Attached here rather than at each exit, so no path can drop them.
+      if (proposals.length > 0) result = { ...result, proposals };
+      if (performed.length > 0) result = { ...result, performed };
       await this.conversations.appendMessage({
         tenantId: actor.tenantId,
         conversationId: thread.id,
@@ -456,19 +515,48 @@ export class AiService {
 
         if (!tool.readOnly) {
           /*
-           * The loop stops here. Nothing is executed, the arguments are stored
-           * server-side, and the person is shown what was proposed. This is the
-           * only path by which the assistant can change anything, and it always
-           * passes through a human.
+           * A change. It is never executed here.
+           *
+           * Two outcomes, and the difference between them is a standing
+           * decision the person made earlier, never anything the model said.
+           * If they have asked not to be prompted for this tool it runs now,
+           * and the answer reports that it happened. Otherwise the arguments
+           * are stored server-side and it waits.
+           *
+           * The loop does NOT stop either way. It used to return on the first
+           * write, so "close these three" produced one card, then another turn,
+           * then another — three interruptions for one instruction. Collecting
+           * them lets the person approve the set in one act, while each entry
+           * is still stored, re-read and re-authorised on its own.
            */
+          if (!tool.destructive && preApproved.has(tool.name)) {
+            const outcome = await this.runPreApproved(actor, tool, args.data);
+            performed.push({ tool: tool.name, summary: args.data });
+            messages.push(toolResult(call.id, outcome));
+            onProgress?.({
+              type: "observation",
+              cycle: cyclesUsed,
+              tool: tool.name,
+              summary: describeObservation(outcome),
+            });
+            continue;
+          }
+
           const proposal = await this.propose(actor, tool, args.data);
-          return finish({
-            answer: reply.content.trim(),
-            usedTools,
-            proposal,
-            cyclesUsed,
-            cycleLimit,
-          });
+          proposals.push(proposal);
+
+          /*
+           * The model is told the proposal is pending so it stops re-proposing
+           * the same change on the next turn, and so it can write an answer
+           * that says what is waiting rather than claiming it is done.
+           */
+          messages.push(
+            toolResult(call.id, {
+              status: "awaiting approval",
+              note: TOOL_MESSAGES.proposed,
+            }),
+          );
+          continue;
         }
 
         usedTools.push(tool.name);
@@ -644,15 +732,24 @@ export class AiService {
   }
 
   /**
-   * Executes a change a person has approved.
+   * Executes the changes a person has approved.
    *
-   * The request carries only an identifier. The arguments come from the
-   * database row written when the proposal was made, so what runs is what was
-   * shown — editing the payload in the browser between the two steps changes
-   * nothing, which is what makes the approval meaningful rather than
-   * decorative.
+   * The request carries only identifiers. Every argument comes from the row
+   * written when the proposal was made, so what runs is what was shown —
+   * editing a payload in the browser between the two steps changes nothing,
+   * which is what makes the approval meaningful rather than decorative.
+   *
+   * A batch is a convenience for the person, not a relaxation. Each action is
+   * found, re-authorised, claimed and executed on its own exactly as a single
+   * one would be; approving four at once is four approvals delivered in one
+   * gesture, not one approval spread over four actions. One failing does not
+   * roll back the others, because they are unrelated changes that happened to
+   * be agreed together — so each reports its own outcome.
    */
-  async confirm(actor: UserPrincipal, rawInput: unknown): Promise<{ done: true; tool: string }> {
+  async confirm(
+    actor: UserPrincipal,
+    rawInput: unknown,
+  ): Promise<{ done: true; tool: string; results: { tool: string; ok: boolean; error?: string }[] }> {
     requirePermission(actor, "ai.use");
 
     const parsed = aiConfirmInputSchema.safeParse(rawInput);
@@ -660,9 +757,42 @@ export class AiService {
       throw new DomainError("VALIDATION_FAILED", "That confirmation could not be read.");
     }
 
+    const ids = parsed.data.actionIds ?? (parsed.data.actionId ? [parsed.data.actionId] : []);
+    const results: { tool: string; ok: boolean; error?: string }[] = [];
+
+    for (const id of ids) {
+      try {
+        const tool = await this.confirmOne(actor, id);
+        results.push({ tool, ok: true });
+      } catch (error) {
+        /*
+         * One refusal must not discard the rest. A proposal that expired while
+         * the person was reading, or one whose permission was withdrawn in the
+         * meantime, is a fact about that proposal alone.
+         */
+        if (ids.length === 1) throw error;
+        results.push({
+          tool: "unknown",
+          ok: false,
+          error: error instanceof DomainError ? error.message : "That change could not be carried out.",
+        });
+      }
+    }
+
+    const firstOk = results.find((entry) => entry.ok);
+    if (!firstOk) {
+      throw new DomainError("CONFLICT", "None of those changes could be carried out.");
+    }
+
+    // `tool` is kept for the single-action case, which is most of them.
+    return { done: true, tool: firstOk.tool, results };
+  }
+
+  /** One approved change: found, re-authorised, claimed, executed, recorded. */
+  private async confirmOne(actor: UserPrincipal, actionId: string): Promise<string> {
     // Scoped to this person: a proposal drafted in somebody else's session is
     // not found here, so one person cannot approve another's action.
-    const action = await this.pending.findClaimable(actor.tenantId, actor.userId, parsed.data.actionId);
+    const action = await this.pending.findClaimable(actor.tenantId, actor.userId, actionId);
     if (!action) {
       throw new DomainError(
         "NOT_FOUND",
@@ -711,7 +841,130 @@ export class AiService {
       metadata: { tool: action.tool },
     });
 
-    return { done: true, tool: action.tool };
+    return action.tool;
+  }
+
+  /**
+   * Runs a change the person had already agreed not to be asked about.
+   *
+   * It still goes through `requirePermission` and still writes an audit entry
+   * marked as the assistant's doing. What it skips is the interruption, and
+   * nothing else — an auto-approved action is as authorised and as traceable as
+   * a confirmed one. A failure becomes an observation rather than an exception,
+   * because the loop must be able to tell the model what went wrong and carry
+   * on with the rest of the turn.
+   */
+  private async runPreApproved(
+    actor: UserPrincipal,
+    tool: AiToolDefinition,
+    args: Record<string, unknown>,
+  ): Promise<unknown> {
+    requirePermission(actor, tool.requiredPermission);
+
+    const executor = this.executors[tool.name];
+    if (!executor) return { error: TOOL_MESSAGES.unknown };
+
+    try {
+      await runAsAssistant({ tool: tool.name, actionId: "auto" }, () => executor(actor, args));
+    } catch (error) {
+      return {
+        error: error instanceof DomainError ? error.message : TOOL_MESSAGES.failed,
+      };
+    }
+
+    await this.audit.append({
+      tenantId: actor.tenantId,
+      actorUserId: actor.userId,
+      action: "ai.action.auto",
+      entityType: "ai_pending_action",
+      entityId: tool.name,
+      result: "success",
+      // Recorded as auto so a review can tell which actions nobody was shown.
+      metadata: { tool: tool.name, autoApproved: true },
+    });
+
+    return { done: true };
+  }
+
+  /** Which tools this person has stopped being asked about. */
+  async listAutoApprovals(actor: UserPrincipal): Promise<{ tools: string[] }> {
+    requirePermission(actor, "ai.use");
+    return { tools: await this.autoApprovals.list(actor.tenantId, actor.userId) };
+  }
+
+  /**
+   * Stops asking about a tool.
+   *
+   * Refuses outright for anything irreversible. That is the one rule the whole
+   * tiered design rests on: a blanket "never ask again" over deletions is the
+   * switch behind most published agent incidents, and the research is unanimous
+   * that the remedy is to make the dangerous class unsilenceable rather than to
+   * warn about it. The card does not offer the option; this refuses it anyway,
+   * because a control that is merely hidden is not a control.
+   */
+  async grantAutoApproval(actor: UserPrincipal, rawInput: unknown): Promise<{ tools: string[] }> {
+    requirePermission(actor, "ai.use");
+
+    const parsed = aiAutoApprovalInputSchema.safeParse(rawInput);
+    if (!parsed.success) throw new DomainError("VALIDATION_FAILED", "That tool is not valid.");
+
+    const tool = findTool(parsed.data.tool);
+    if (!tool) throw new DomainError("NOT_FOUND", "Rectangle does not have that tool.");
+    if (tool.readOnly) {
+      throw new DomainError("VALIDATION_FAILED", "That tool never asks for approval.");
+    }
+    if (tool.destructive) {
+      throw new DomainError(
+        "VALIDATION_FAILED",
+        "Actions that cannot be undone always ask. This one cannot be switched off.",
+      );
+    }
+    // Only what this person may do themselves. Otherwise somebody could store a
+    // standing approval for a tool they are not allowed to use, which would sit
+    // there waiting to take effect the day the permission was granted.
+    requirePermission(actor, tool.requiredPermission);
+
+    await this.autoApprovals.grant(actor.tenantId, actor.userId, tool.name);
+
+    await this.audit.append({
+      tenantId: actor.tenantId,
+      actorUserId: actor.userId,
+      action: "ai.auto_approval.grant",
+      entityType: "ai_auto_approval",
+      entityId: tool.name,
+      result: "success",
+      metadata: { tool: tool.name },
+    });
+
+    return this.listAutoApprovals(actor);
+  }
+
+  /** Starts asking again. Always allowed, whatever the tool. */
+  async revokeAutoApproval(actor: UserPrincipal, rawInput: unknown): Promise<{ tools: string[] }> {
+    requirePermission(actor, "ai.use");
+
+    const parsed = aiAutoApprovalInputSchema.safeParse(rawInput);
+    if (!parsed.success) throw new DomainError("VALIDATION_FAILED", "That tool is not valid.");
+
+    const removed = await this.autoApprovals.revoke(
+      actor.tenantId,
+      actor.userId,
+      parsed.data.tool,
+    );
+
+    if (removed) {
+      await this.audit.append({
+        tenantId: actor.tenantId,
+        actorUserId: actor.userId,
+        action: "ai.auto_approval.revoke",
+        entityType: "ai_auto_approval",
+        entityId: parsed.data.tool,
+        result: "success",
+        metadata: { tool: parsed.data.tool },
+      });
+    }
+
+    return this.listAutoApprovals(actor);
   }
 
   /** Stores what the model wants to do, for a person to approve or ignore. */
@@ -719,7 +972,7 @@ export class AiService {
     actor: UserPrincipal,
     tool: AiToolDefinition,
     args: Record<string, unknown>,
-  ): Promise<{ id: string; tool: string; summary: Record<string, unknown> }> {
+  ): Promise<AiProposal> {
     const created = await this.pending.create({
       tenantId: actor.tenantId,
       userId: actor.userId,
@@ -740,7 +993,12 @@ export class AiService {
 
     // The summary is the validated arguments, so the card shows exactly what
     // will run rather than a paraphrase the model wrote.
-    return { id: created.id, tool: tool.name, summary: args };
+    return {
+      id: created.id,
+      tool: tool.name,
+      summary: args,
+      destructive: tool.destructive === true,
+    };
   }
 
   /**

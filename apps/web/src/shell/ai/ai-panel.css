@@ -456,3 +456,34 @@
 .rect-ai-history__confirm-no:focus-visible {
   color: var(--rect-text-primary);
 }
+
+/* Several changes in one card, each still showing its own arguments. */
+.rect-ai-proposal__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A rule between items, not around them: a box per change would read as a
+   card per change, which is the interruption this card exists to avoid. */
+.rect-ai-proposal__item + .rect-ai-proposal__item {
+  border-block-start: 1px solid var(--rect-surface-divider);
+  padding-block-start: var(--rect-space-3);
+}
+
+.rect-ai-proposal__what {
+  color: var(--rect-text-primary);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-bold);
+  margin-block-end: var(--rect-space-1);
+}
+
+/* Says why there is no "do not ask again" here, rather than leaving a gap. */
+.rect-ai-proposal__always {
+  color: var(--rect-color-warning);
+  font-size: var(--rect-text-micro);
+  font-weight: var(--rect-weight-semibold);
+}

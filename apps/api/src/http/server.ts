@@ -59,6 +59,9 @@ export interface ServerDependencies {
     | "readConversation"
     | "renameConversation"
     | "deleteConversation"
+    | "listAutoApprovals"
+    | "grantAutoApproval"
+    | "revokeAutoApproval"
   >;
   aiSettingsService: Pick<
     AiSettingsService,

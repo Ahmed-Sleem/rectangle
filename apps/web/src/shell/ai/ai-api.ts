@@ -20,6 +20,12 @@ export interface AiProposal {
   tool: string;
   /** The validated arguments themselves, shown verbatim. Never a paraphrase. */
   summary: Record<string, unknown>;
+  /**
+   * Cannot be undone. These never offer "do not ask again" — the server refuses
+   * such a preference even if one were sent, and the card must not imply
+   * otherwise.
+   */
+  destructive: boolean;
 }
 
 /** A step the assistant took, reported while it is still working. */
@@ -35,7 +41,10 @@ export interface AiChatResponse {
   answer: string;
   /** Which tools the answer was built from, so it can be judged. */
   usedTools: string[];
-  proposal?: AiProposal;
+  /** Changes waiting for approval. Several may come from one instruction. */
+  proposals?: AiProposal[];
+  /** Changes that ran unasked, because this person had already agreed to them. */
+  performed?: { tool: string; summary: Record<string, unknown> }[];
   /** True when it stopped because it ran out of steps, not because it finished. */
   exhausted?: boolean;
   cyclesUsed?: number;
@@ -160,10 +169,25 @@ export const shellAiApi = {
   chat: (payload: AiChatRequest) =>
     apiRequest<AiChatResponse>("/v1/ai/chat", { method: "POST", body: JSON.stringify(payload) }),
 
-  confirm: (actionId: string) =>
-    apiRequest<{ done: true; tool: string }>("/v1/ai/confirm", {
-      method: "POST",
-      body: JSON.stringify({ actionId }),
+  /** Approves one or several proposals in a single act. */
+  confirm: (actionIds: string[]) =>
+    apiRequest<{ done: true; tool: string; results: { tool: string; ok: boolean }[] }>(
+      "/v1/ai/confirm",
+      { method: "POST", body: JSON.stringify({ actionIds }) },
+    ),
+
+  listAutoApprovals: () => apiRequest<{ tools: string[] }>("/v1/ai/auto-approvals"),
+
+  grantAutoApproval: (tool: string) =>
+    apiRequest<{ tools: string[] }>("/v1/ai/auto-approvals", {
+      method: "PUT",
+      body: JSON.stringify({ tool }),
+    }),
+
+  revokeAutoApproval: (tool: string) =>
+    apiRequest<{ tools: string[] }>("/v1/ai/auto-approvals", {
+      method: "DELETE",
+      body: JSON.stringify({ tool }),
     }),
 
   listConversations: () =>

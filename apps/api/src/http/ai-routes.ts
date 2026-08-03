@@ -23,6 +23,9 @@ export async function registerAiRoutes(
     | "readConversation"
     | "renameConversation"
     | "deleteConversation"
+    | "listAutoApprovals"
+    | "grantAutoApproval"
+    | "revokeAutoApproval"
   >,
   aiSettingsService: Pick<AiSettingsService, "getSettings" | "saveSettings" | "saveMyProvider" | "deleteMyProvider">,
 ): Promise<void> {
@@ -102,6 +105,23 @@ export async function registerAiRoutes(
    * name whose thread is wanted, so there is no way to ask for somebody
    * else's.
    */
+  /*
+   * Tools this person has chosen not to be asked about. No id in the path: it
+   * acts on whoever is asking, so there is nowhere to name somebody else's
+   * preferences and therefore no way to change them.
+   */
+  app.get("/v1/ai/auto-approvals", async (request) =>
+    aiService.listAutoApprovals(request.principal),
+  );
+
+  app.put("/v1/ai/auto-approvals", async (request) =>
+    aiService.grantAutoApproval(request.principal, request.body),
+  );
+
+  app.delete("/v1/ai/auto-approvals", async (request) =>
+    aiService.revokeAutoApproval(request.principal, request.body),
+  );
+
   app.get("/v1/ai/conversations", async (request) => aiService.listConversations(request.principal));
 
   app.get("/v1/ai/conversations/:conversationId", async (request) =>

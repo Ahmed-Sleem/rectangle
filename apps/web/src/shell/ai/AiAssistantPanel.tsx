@@ -42,7 +42,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiClientError } from "@/shared/api/client";
 import { useAuth } from "@/shared/auth";
 import { hasPermission } from "@/shared/auth/authority";
-import { Button, EmptyState, Overlay } from "@/shared/ui";
+import { Button, Checkbox, EmptyState, Overlay } from "@/shared/ui";
 import { cn } from "@/shared/lib/cn";
 import { AiPanelToggle } from "./AiPanelToggle";
 import {
@@ -114,7 +114,9 @@ export function AiAssistantPanel({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
-  const [proposal, setProposal] = useState<AiProposal | null>(null);
+  const [proposals, setProposals] = useState<AiProposal[]>([]);
+  /** Ticked on a card to stop being asked about that kind of change again. */
+  const [silenced, setSilenced] = useState<Set<string>>(new Set());
   const [draft, setDraft] = useState("");
   const [progress, setProgress] = useState<ProgressLine[]>([]);
   const [cycle, setCycle] = useState<{ current: number; total: number } | null>(null);
@@ -261,7 +263,7 @@ export function AiAssistantPanel({
           usedTools: result.usedTools,
         },
       ]);
-      setProposal(result.proposal ?? null);
+      setProposals(result.proposals ?? []);
       setExhausted(Boolean(result.exhausted));
       setCycle(null);
       // The thread has moved to the top of the list and may have just been
@@ -271,15 +273,36 @@ export function AiAssistantPanel({
   });
 
   const confirm = useMutation({
-    mutationFn: (actionId: string) => shellAiApi.confirm(actionId),
+    mutationFn: async (actionIds: string[]) => {
+      const outcome = await shellAiApi.confirm(actionIds);
+
+      /*
+       * The standing preferences are saved after the approval, not before.
+       * If the change itself is refused, the person has not agreed to anything
+       * and should not silently acquire a preference from an act that failed.
+       * Each is sent on its own so one refusal — a tool the server will not
+       * silence — cannot discard the others.
+       */
+      for (const tool of silenced) {
+        await shellAiApi.grantAutoApproval(tool).catch(() => undefined);
+      }
+      return outcome;
+    },
     onSuccess: (result) => {
-      setProposal(null);
+      setProposals([]);
+      setSilenced(new Set());
+      const done = result.results.filter((entry) => entry.ok).length;
       setMessages((current) => [
         ...current,
         {
           id: `done-${result.tool}-${current.length}`,
           role: "assistant",
-          content: t("shell.ai.actionDone", { tool: t(`shell.ai.tool.${result.tool}`) }),
+          content:
+            done > 1
+              ? t("shell.ai.actionsDone", { count: done })
+              : t("shell.ai.actionDone", {
+                  tool: t(`shell.ai.tool.${result.tool}`, { defaultValue: result.tool }),
+                }),
           usedTools: [],
         },
       ]);
@@ -291,8 +314,8 @@ export function AiAssistantPanel({
     onSuccess: (result) => {
       setConversationId(result.conversation.id);
       setMessages(result.messages.map(fromStored));
-      // A proposal belongs to the turn that produced it, not to the thread.
-      setProposal(null);
+      // Proposals belong to the turn that produced them, not to the thread.
+      setProposals([]);
       setHistoryOpen(false);
     },
   });
@@ -311,7 +334,7 @@ export function AiAssistantPanel({
   function startNewConversation() {
     setConversationId(undefined);
     setMessages([]);
-    setProposal(null);
+    setProposals([]);
     setDraft("");
     setProgress([]);
     setCycle(null);
@@ -546,26 +569,75 @@ export function AiAssistantPanel({
           </div>
         ) : null}
 
-        {proposal ? (
+        {proposals.length > 0 ? (
+          /*
+           * One card for the whole batch. An instruction like "close these
+           * three" is one decision, and asking three times in a row is how an
+           * approval becomes a reflex — but each change still shows its own
+           * arguments, because approving a summary of four things is not
+           * approving any of them.
+           */
           <section className="rect-ai-proposal" aria-label={t("shell.ai.proposalLabel")}>
             <h3 className="rect-ai-proposal__title">
-              {t("shell.ai.proposalTitle", { tool: t(`shell.ai.tool.${proposal.tool}`) })}
+              {proposals.length === 1
+                ? t("shell.ai.proposalTitle", {
+                    tool: t(`shell.ai.tool.${proposals[0]?.tool}`, {
+                      defaultValue: proposals[0]?.tool ?? "",
+                    }),
+                  })
+                : t("shell.ai.proposalTitleMany", { count: proposals.length })}
             </h3>
             <p className="rect-ai-proposal__help">{t("shell.ai.proposalHelp")}</p>
 
-            {/*
-              * The arguments as the server validated them. Rendered from the
-              * data rather than described in prose, because this is the thing
-              * that will run and a person is being asked to approve exactly it.
-              */}
-            <dl className="rect-ai-proposal__fields">
-              {Object.entries(proposal.summary).map(([field, value]) => (
-                <div key={field} className="rect-ai-proposal__row">
-                  <dt>{t(`shell.ai.field.${field}`, { defaultValue: field })}</dt>
-                  <dd>{typeof value === "string" ? value : JSON.stringify(value)}</dd>
-                </div>
+            <ol className="rect-ai-proposal__list">
+              {proposals.map((entry) => (
+                <li key={entry.id} className="rect-ai-proposal__item">
+                  {proposals.length > 1 ? (
+                    <p className="rect-ai-proposal__what">
+                      {t(`shell.ai.tool.${entry.tool}`, { defaultValue: entry.tool })}
+                    </p>
+                  ) : null}
+
+                  {/*
+                    * The arguments as the server validated them. Rendered from
+                    * the data rather than described in prose, because this is
+                    * the thing that will run and a person is being asked to
+                    * approve exactly it.
+                    */}
+                  <dl className="rect-ai-proposal__fields">
+                    {Object.entries(entry.summary).map(([field, value]) => (
+                      <div key={field} className="rect-ai-proposal__row">
+                        <dt>{t(`shell.ai.field.${field}`, { defaultValue: field })}</dt>
+                        <dd>{typeof value === "string" ? value : JSON.stringify(value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+
+                  {/*
+                    * Offered only where it is safe to offer. Anything that
+                    * cannot be undone always asks, and the server refuses to
+                    * record a preference for it — so showing the option here
+                    * would be promising something that will not happen.
+                    */}
+                  {entry.destructive ? (
+                    <p className="rect-ai-proposal__always">{t("shell.ai.alwaysAsks")}</p>
+                  ) : (
+                    <Checkbox
+                      label={t("shell.ai.dontAskAgain", {
+                        tool: t(`shell.ai.tool.${entry.tool}`, { defaultValue: entry.tool }),
+                      })}
+                      checked={silenced.has(entry.tool)}
+                      onChange={(event) => {
+                        const next = new Set(silenced);
+                        if (event.currentTarget.checked) next.add(entry.tool);
+                        else next.delete(entry.tool);
+                        setSilenced(next);
+                      }}
+                    />
+                  )}
+                </li>
               ))}
-            </dl>
+            </ol>
 
             {confirm.error ? (
               <p className="rect-ai-panel__error" role="alert">
@@ -576,13 +648,17 @@ export function AiAssistantPanel({
             <div className="rect-ai-proposal__actions">
               <Button
                 variant="primary"
-                onClick={() => confirm.mutate(proposal.id)}
+                onClick={() => confirm.mutate(proposals.map((entry) => entry.id))}
                 disabled={confirm.isPending}
               >
                 <Check size={16} strokeWidth={2} aria-hidden />
-                {confirm.isPending ? t("shell.ai.confirming") : t("shell.ai.confirm")}
+                {confirm.isPending
+                  ? t("shell.ai.confirming")
+                  : proposals.length === 1
+                    ? t("shell.ai.confirm")
+                    : t("shell.ai.confirmAll", { count: proposals.length })}
               </Button>
-              <Button variant="ghost" onClick={() => setProposal(null)}>
+              <Button variant="ghost" onClick={() => setProposals([])}>
                 {t("shell.ai.discard")}
               </Button>
             </div>

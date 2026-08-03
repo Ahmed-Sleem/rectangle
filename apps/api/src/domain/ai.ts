@@ -545,9 +545,28 @@ export function deriveConversationTitle(firstMessage: string): string {
   return `${lastSpace > 30 ? cut.slice(0, lastSpace) : cut}…`;
 }
 
-export const aiConfirmInputSchema = z.object({
-  /** Identifies the stored proposal. The arguments are NOT sent back. */
-  actionId: z.uuid(),
+export const aiConfirmInputSchema = z
+  .object({
+    /** Identifies the stored proposal. The arguments are NOT sent back. */
+    actionId: z.uuid().optional(),
+    /**
+     * Several proposals approved together.
+     *
+     * A turn may produce more than one change — "close these three and reassign
+     * the fourth" is one instruction, not four — and asking four times in a row
+     * is how approval becomes a reflex. Each is still stored, re-read and
+     * re-authorised on its own; batching is about how many times a person is
+     * interrupted, never about how carefully each action is checked.
+     */
+    actionIds: z.array(z.uuid()).min(1).max(20).optional(),
+  })
+  .refine((value) => Boolean(value.actionId) || Boolean(value.actionIds), {
+    message: "Name the action to confirm.",
+  });
+
+/** A tool somebody no longer wants to be asked about. */
+export const aiAutoApprovalInputSchema = z.object({
+  tool: z.string().trim().min(2).max(64),
 });
 
 /**
@@ -617,4 +636,5 @@ export type AiUserProviderInput = z.infer<typeof aiUserProviderInputSchema>;
 export type AiChatInput = z.infer<typeof aiChatInputSchema>;
 export type AiRenameConversationInput = z.infer<typeof aiRenameConversationSchema>;
 export type AiConfirmInput = z.infer<typeof aiConfirmInputSchema>;
+export type AiAutoApprovalInput = z.infer<typeof aiAutoApprovalInputSchema>;
 export type AiMessage = z.infer<typeof aiMessageSchema>;

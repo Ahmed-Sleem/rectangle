@@ -37,6 +37,7 @@ import { assertDatabaseReady, createPostgresPool } from "./infrastructure/postgr
 import { PostgresEmailSettingsRepository } from "./infrastructure/postgres/email-settings-repository.js";
 import { PostgresPasskeyRepository } from "./infrastructure/postgres/passkey-repository.js";
 import {
+  PostgresAiAutoApprovalRepository,
   PostgresAiConversationRepository,
   PostgresAiPendingActionRepository,
   PostgresAiSettingsRepository,
@@ -178,6 +179,7 @@ const aiService = new AiService(
     adminService,
   }),
   new PostgresAiConversationRepository(pool),
+  new PostgresAiAutoApprovalRepository(pool),
 );
 
 const server = await createServer({

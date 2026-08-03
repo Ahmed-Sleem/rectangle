@@ -41,6 +41,8 @@ const WORKING: Settings = {
 let asked: string[] = [];
 /** Bodies posted to the confirm endpoint. */
 let confirmed: string[] = [];
+/** Bodies posted to the auto-approval endpoint. */
+let autoApproved: string[] = [];
 
 function json(body: unknown, status = 200) {
   return Promise.resolve(
@@ -54,9 +56,12 @@ function mockApi(options: {
   chat?: unknown;
   conversations?: Array<{ id: string; title: string; projectId: string | null; updatedAt: string }>;
   conversation?: { messages: unknown[] };
+  /** Makes approving fail, so ordering around it can be observed. */
+  confirmFails?: boolean;
 }) {
   asked = [];
   confirmed = [];
+  autoApproved = [];
   return vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
     const url = String(input);
 
@@ -86,9 +91,14 @@ function mockApi(options: {
       asked.push(String(init?.body));
       return json(options.chat ?? { conversationId: "c1", answer: "Four.", usedTools: [] });
     }
+    if (url.includes("/v1/ai/auto-approvals")) {
+      if (init?.method === "PUT") autoApproved.push(String(init.body));
+      return json({ tools: [] });
+    }
     if (url.includes("/v1/ai/confirm")) {
       confirmed.push(String(init?.body));
-      return json({ done: true, tool: "create_task" });
+      if (options.confirmFails) return json({ message: "refused" }, 409);
+      return json({ done: true, tool: "create_task", results: [{ tool: "create_task", ok: true }] });
     }
     if (url.match(/\/v1\/ai\/conversations\/.+/)) {
       return json({
@@ -275,11 +285,14 @@ describe("AiAssistantPanel: proposed changes wait for a person", () => {
     conversationId: "c1",
     answer: "I can add that.",
     usedTools: [],
-    proposal: {
-      id: "act-1",
-      tool: "create_task",
-      summary: { title: "Pour the slab", projectId: "p-1" },
-    },
+    proposals: [
+      {
+        id: "act-1",
+        tool: "create_task",
+        summary: { title: "Pour the slab", projectId: "p-1" },
+        destructive: false,
+      },
+    ],
   };
 
   beforeEach(async () => {
@@ -320,7 +333,7 @@ describe("AiAssistantPanel: proposed changes wait for a person", () => {
     await waitFor(() => expect(confirmed).toHaveLength(1));
     // Only an identifier. The arguments come from the server's own row, so
     // tampering with what is on screen cannot change what runs.
-    expect(JSON.parse(confirmed[0] ?? "{}")).toEqual({ actionId: "act-1" });
+    expect(JSON.parse(confirmed[0] ?? "{}")).toEqual({ actionIds: ["act-1"] });
     expect(await screen.findByText("Done. The task was created.")).toBeInTheDocument();
   });
 
@@ -565,5 +578,158 @@ describe("AiAssistantPanel: showing the work", () => {
 
     await screen.findByText("Done.");
     expect(screen.queryByRole("button", { name: "Keep going" })).not.toBeInTheDocument();
+  });
+});
+
+describe("AiAssistantPanel: approving several changes at once", () => {
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    await setRectangleLanguage("en");
+  });
+
+  const three = {
+    conversationId: "c1",
+    answer: "Three changes are waiting.",
+    usedTools: [],
+    proposals: [
+      { id: "a1", tool: "create_task", summary: { title: "Pour the slab" }, destructive: false },
+      { id: "a2", tool: "create_task", summary: { title: "Order rebar" }, destructive: false },
+      { id: "a3", tool: "update_task", summary: { taskId: "t-9", status: "done" }, destructive: false },
+    ],
+  };
+
+  /*
+   * One card, three sets of arguments. Batching is about how often somebody is
+   * interrupted, never about what they are shown — approving a summary of three
+   * things is not approving any of them.
+   */
+  it("shows every change in one card, each with its own arguments", async () => {
+    mockApi({ chat: three });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByText("Ready");
+    await user.type(screen.getByLabelText("Ask Rectangle AI"), "do three things");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    const card = await screen.findByRole("region", { name: "Waiting for your approval" });
+    expect(within(card).getByText("Pour the slab")).toBeInTheDocument();
+    expect(within(card).getByText("Order rebar")).toBeInTheDocument();
+    expect(within(card).getByText("t-9")).toBeInTheDocument();
+    // One approval control for the set, not three.
+    expect(within(card).getByRole("button", { name: "Approve all 3" })).toBeInTheDocument();
+  });
+
+  it("approves the whole set in one request", async () => {
+    mockApi({ chat: three });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByText("Ready");
+    await user.type(screen.getByLabelText("Ask Rectangle AI"), "do three things");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+    await screen.findByRole("region", { name: "Waiting for your approval" });
+
+    expect(confirmed).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "Approve all 3" }));
+
+    await waitFor(() => expect(confirmed).toHaveLength(1));
+    expect(JSON.parse(confirmed[0] ?? "{}")).toEqual({ actionIds: ["a1", "a2", "a3"] });
+  });
+
+  /*
+   * The rule the tiered design rests on: an irreversible change can never be
+   * silenced, so the option is not offered and the reason is stated instead of
+   * simply leaving a gap where the tick box was.
+   */
+  it("offers no way to silence an irreversible change", async () => {
+    mockApi({
+      chat: {
+        conversationId: "c1",
+        answer: "One deletion is waiting.",
+        usedTools: [],
+        proposals: [
+          { id: "d1", tool: "delete_task", summary: { taskId: "t-9" }, destructive: true },
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByText("Ready");
+    await user.type(screen.getByLabelText("Ask Rectangle AI"), "delete it");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    const card = await screen.findByRole("region", { name: "Waiting for your approval" });
+    expect(within(card).getByText("This cannot be undone, so it always asks.")).toBeInTheDocument();
+    expect(within(card).queryByLabelText(/Do not ask me again/)).not.toBeInTheDocument();
+  });
+
+  it("records no preference when the approval itself fails", async () => {
+    /*
+     * Ordering, tested by making the approval fail. An earlier version of this
+     * test ticked the box, approved successfully, and asserted the preference
+     * was saved — which passes whether the save happens before or after the
+     * approval, so it could not see the bug it was written for. Somebody whose
+     * change was refused has agreed to nothing and must not quietly acquire a
+     * standing preference from an act that did not happen.
+     */
+    mockApi({ chat: three, confirmFails: true });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByText("Ready");
+    await user.type(screen.getByLabelText("Ask Rectangle AI"), "do three things");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+    const card = await screen.findByRole("region", { name: "Waiting for your approval" });
+
+    await user.click(within(card).getAllByLabelText(/Do not ask me again/)[0]!);
+    expect(autoApproved).toHaveLength(0);
+
+    await user.click(within(card).getByRole("button", { name: "Approve all 3" }));
+
+    await waitFor(() => expect(confirmed).toHaveLength(1));
+    expect(autoApproved).toHaveLength(0);
+  });
+
+  it("records the preference once the change has been approved", async () => {
+    mockApi({ chat: three });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByText("Ready");
+    await user.type(screen.getByLabelText("Ask Rectangle AI"), "do three things");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+    const card = await screen.findByRole("region", { name: "Waiting for your approval" });
+
+    await user.click(within(card).getAllByLabelText(/Do not ask me again/)[0]!);
+    await user.click(within(card).getByRole("button", { name: "Approve all 3" }));
+
+    await waitFor(() => expect(autoApproved).toHaveLength(1));
+    expect(JSON.parse(autoApproved[0] ?? "{}")).toEqual({ tool: "create_task" });
+  });
+
+  /*
+   * An auto-approved action that is invisible is indistinguishable from an
+   * agent acting on its own, so the transcript has to say it happened.
+   */
+  it("says when something ran without asking", async () => {
+    mockApi({
+      chat: {
+        conversationId: "c1",
+        answer: "Added it.",
+        usedTools: [],
+        performed: [{ tool: "create_task", summary: { title: "Pour" } }],
+      },
+    });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await screen.findByText("Ready");
+    await user.type(screen.getByLabelText("Ask Rectangle AI"), "add a task");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+
+    expect(await screen.findByText("Added it.")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Waiting for your approval" })).not.toBeInTheDocument();
   });
 });

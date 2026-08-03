@@ -13,6 +13,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   AiService,
+  type AiAutoApprovalRepository,
   type AiConversationRepository,
   type AiPendingActionRepository,
   type AiToolExecutor,
@@ -195,16 +196,37 @@ class MemoryConversations implements AiConversationRepository {
   }
 }
 
+/** Tools a person has said they no longer want to be asked about. */
+class MemoryAutoApprovals implements AiAutoApprovalRepository {
+  rows = new Set<string>();
+  private key(tenantId: string, userId: string, tool: string) {
+    return `${tenantId}:${userId}:${tool}`;
+  }
+  async list(tenantId: string, userId: string) {
+    return [...this.rows]
+      .filter((row) => row.startsWith(`${tenantId}:${userId}:`))
+      .map((row) => row.split(":")[2] ?? "");
+  }
+  async grant(tenantId: string, userId: string, tool: string) {
+    this.rows.add(this.key(tenantId, userId, tool));
+  }
+  async revoke(tenantId: string, userId: string, tool: string) {
+    return this.rows.delete(this.key(tenantId, userId, tool));
+  }
+}
+
 function build(options: {
   replies: ProviderReply[];
   executors?: Record<string, AiToolExecutor>;
   pending?: MemoryPending;
   audit?: MemoryAudit;
   conversations?: MemoryConversations;
+  autoApprovals?: MemoryAutoApprovals;
 }) {
   const audit = options.audit ?? new MemoryAudit();
   const pending = options.pending ?? new MemoryPending();
   const conversations = options.conversations ?? new MemoryConversations();
+  const autoApprovals = options.autoApprovals ?? new MemoryAutoApprovals();
   const provider = new ScriptedProvider(options.replies);
   const settings = {
     resolveProvider: async () => ({
@@ -221,8 +243,9 @@ function build(options: {
     audit,
     options.executors ?? {},
     conversations,
+    autoApprovals,
   );
-  return { service, audit, pending, provider, conversations };
+  return { service, audit, pending, provider, conversations, autoApprovals };
 }
 
 describe("who may use the assistant at all", () => {
@@ -352,6 +375,7 @@ describe("the model asking for tools", () => {
       new MemoryAudit(),
       { search_risks: risks as unknown as AiToolExecutor },
       new MemoryConversations(),
+      new MemoryAutoApprovals(),
     );
 
     await service.chat(revoking, { message: "any risks?" });
@@ -449,8 +473,8 @@ describe("changing something", () => {
     });
 
     expect(create).not.toHaveBeenCalled();
-    expect(result.proposal?.tool).toBe("create_task");
-    expect(result.proposal?.summary).toMatchObject({ title: "Pour slab" });
+    expect(result.proposals?.[0]?.tool).toBe("create_task");
+    expect(result.proposals?.[0]?.summary).toMatchObject({ title: "Pour slab" });
   });
 
   it("carries it out once the person confirms", async () => {
@@ -467,7 +491,7 @@ describe("changing something", () => {
     const proposed = await service.chat(author, {
       message: "add it",
     });
-    await service.confirm(author, { actionId: proposed.proposal!.id });
+    await service.confirm(author, { actionId: proposed.proposals?.[0]!.id });
 
     expect(create).toHaveBeenCalledOnce();
     expect(vi.mocked(create).mock.calls[0]![1]).toMatchObject({ projectId, title: "Pour slab" });
@@ -489,7 +513,7 @@ describe("changing something", () => {
 
     const proposed = await service.chat(author, { message: "add" });
     await service.confirm(author, {
-      actionId: proposed.proposal!.id,
+      actionId: proposed.proposals?.[0]!.id,
       // Tampered payload, as a hostile client would send.
       title: "Delete everything",
       projectId: "99999999-9999-4999-8999-999999999999",
@@ -508,8 +532,8 @@ describe("changing something", () => {
     });
 
     const proposed = await service.chat(author, { message: "add" });
-    await service.confirm(author, { actionId: proposed.proposal!.id });
-    await expect(service.confirm(author, { actionId: proposed.proposal!.id })).rejects.toMatchObject(
+    await service.confirm(author, { actionId: proposed.proposals?.[0]!.id });
+    await expect(service.confirm(author, { actionId: proposed.proposals?.[0]!.id })).rejects.toMatchObject(
       { code: "NOT_FOUND" },
     );
 
@@ -538,7 +562,7 @@ describe("changing something", () => {
       permissions: ["ai.use", "tasks.create"] as never,
     };
     await expect(
-      service.confirm(someoneElse, { actionId: proposed.proposal!.id }),
+      service.confirm(someoneElse, { actionId: proposed.proposals?.[0]!.id }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(create).not.toHaveBeenCalled();
   });
@@ -560,7 +584,7 @@ describe("changing something", () => {
 
     const demoted = person(["ai.use"]);
     await expect(
-      service.confirm(demoted, { actionId: proposed.proposal!.id }),
+      service.confirm(demoted, { actionId: proposed.proposals?.[0]!.id }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(create).not.toHaveBeenCalled();
   });
@@ -578,7 +602,7 @@ describe("changing something", () => {
     });
 
     const proposed = await service.chat(author, { message: "add" });
-    await service.confirm(author, { actionId: proposed.proposal!.id });
+    await service.confirm(author, { actionId: proposed.proposals?.[0]!.id });
 
     const actions = audit.events.map((event) => event.action);
     expect(actions).toContain("ai.action.propose");
@@ -664,6 +688,7 @@ describe("conversations are kept", () => {
       new MemoryAudit(),
       {},
       conversations,
+      new MemoryAutoApprovals(),
     );
 
     await expect(service.chat(person(["ai.use"]), { message: "did this survive" })).rejects.toThrow();
@@ -698,6 +723,7 @@ describe("conversations are kept", () => {
         new MemoryAudit(),
         { search_projects: (async () => ({ found: 0 })) as unknown as AiToolExecutor },
         conversations,
+        new MemoryAutoApprovals(),
       );
 
       const result = await service.chat(person(["ai.use", "projects.read"]), { message: "slow one" });
@@ -725,6 +751,7 @@ describe("conversations are kept", () => {
       new MemoryAudit(),
       { search_projects: (async () => ({ found: 0 })) as unknown as AiToolExecutor },
       conversations,
+      new MemoryAutoApprovals(),
     );
 
     const result = await service.chat(person(["ai.use", "projects.read"]), { message: "round and round" });
@@ -880,6 +907,7 @@ describe("the reasoning budget", () => {
       new MemoryAudit(),
       { search_projects: (async () => ({ found: 0 })) as unknown as AiToolExecutor },
       conversations,
+      new MemoryAutoApprovals(),
     );
     return { service, conversations, provider };
   }
@@ -924,6 +952,7 @@ describe("the reasoning budget", () => {
       new MemoryAudit(),
       { search_projects: (async () => ({ found: 0 })) as unknown as AiToolExecutor },
       conversations,
+      new MemoryAutoApprovals(),
     );
 
     await service.chat(person(["ai.use", "projects.read"]), { message: "dig" });
@@ -956,6 +985,7 @@ describe("the reasoning budget", () => {
       new MemoryAudit(),
       { search_projects: (async () => ({ found: 0 })) as unknown as AiToolExecutor },
       conversations,
+      new MemoryAutoApprovals(),
     );
 
     await service.chat(person(["ai.use", "projects.read"]), { message: "dig" });
@@ -980,6 +1010,7 @@ describe("the reasoning budget", () => {
       new MemoryAudit(),
       {},
       conversations,
+      new MemoryAutoApprovals(),
     );
     const actor = person(["ai.use"]);
 
@@ -1040,5 +1071,218 @@ describe("the reasoning budget", () => {
 
     const observation = events.find((event) => event.type === "observation");
     expect(observation?.summary).toBe("nothing found");
+  });
+});
+
+describe("approving changes", () => {
+  const author = () => person(["ai.use", "tasks.create", "tasks.edit", "tasks.delete"]);
+
+  /*
+   * One instruction often means several changes. The loop used to return on the
+   * first write, so "close these three" produced a card, then another turn,
+   * then another card — three interruptions for one instruction, which is
+   * exactly how an approval becomes a reflex.
+   */
+  it("gathers several changes from one turn instead of stopping at the first", async () => {
+    const { service } = build({
+      replies: [
+        {
+          content: "I can do all three.",
+          toolCalls: [
+            toolCall("create_task", { projectId, title: "Pour the slab" }),
+            toolCall("create_task", { projectId, title: "Order rebar" }),
+            toolCall("create_task", { projectId, title: "Book the crane" }),
+          ],
+        },
+        { content: "Three tasks are waiting for your approval.", toolCalls: [] },
+      ],
+    });
+
+    const result = await service.chat(author(), { message: "add three tasks" });
+
+    expect(result.proposals).toHaveLength(3);
+    expect(result.proposals?.map((entry) => entry.summary.title)).toEqual([
+      "Pour the slab",
+      "Order rebar",
+      "Book the crane",
+    ]);
+  });
+
+  it("approves a batch, and each one is still executed on its own", async () => {
+    const created: string[] = [];
+    const { service } = build({
+      replies: [
+        {
+          content: "",
+          toolCalls: [
+            toolCall("create_task", { projectId, title: "One" }),
+            toolCall("create_task", { projectId, title: "Two" }),
+          ],
+        },
+        { content: "Waiting for you.", toolCalls: [] },
+      ],
+      executors: {
+        create_task: (async (_actor: unknown, args: Record<string, unknown>) => {
+          created.push(String(args.title));
+          return { id: "t" };
+        }) as unknown as AiToolExecutor,
+      },
+    });
+
+    const actor = author();
+    const proposed = await service.chat(actor, { message: "add two" });
+    expect(created).toHaveLength(0);
+
+    const ids = (proposed.proposals ?? []).map((entry) => entry.id);
+    const outcome = await service.confirm(actor, { actionIds: ids });
+
+    expect(created).toEqual(["One", "Two"]);
+    expect(outcome.results.every((entry) => entry.ok)).toBe(true);
+  });
+
+  /*
+   * A batch is a convenience for the person, not a relaxation of the rule. Each
+   * action is re-read and re-authorised, so one that has expired or lost its
+   * permission fails alone rather than taking the others with it.
+   */
+  it("carries out the rest when one of a batch cannot be done", async () => {
+    const created: string[] = [];
+    const { service } = build({
+      replies: [
+        {
+          content: "",
+          toolCalls: [
+            toolCall("create_task", { projectId, title: "Good" }),
+            toolCall("create_task", { projectId, title: "Also good" }),
+          ],
+        },
+        { content: "Waiting.", toolCalls: [] },
+      ],
+      executors: {
+        create_task: (async (_actor: unknown, args: Record<string, unknown>) => {
+          created.push(String(args.title));
+          return { id: "t" };
+        }) as unknown as AiToolExecutor,
+      },
+    });
+
+    const actor = author();
+    const proposed = await service.chat(actor, { message: "add two" });
+    const ids = (proposed.proposals ?? []).map((entry) => entry.id);
+
+    const outcome = await service.confirm(actor, {
+      // A real id and one that was never proposed.
+      actionIds: [ids[0]!, "99999999-9999-4999-8999-999999999999"],
+    });
+
+    expect(created).toEqual(["Good"]);
+    expect(outcome.results.filter((entry) => entry.ok)).toHaveLength(1);
+    expect(outcome.results.filter((entry) => !entry.ok)).toHaveLength(1);
+  });
+});
+
+describe("not being asked again", () => {
+  const author = () => person(["ai.use", "tasks.create", "tasks.edit", "tasks.delete"]);
+
+  it("runs a pre-approved change without asking, and says that it did", async () => {
+    const created: string[] = [];
+    const autoApprovals = new MemoryAutoApprovals();
+    await autoApprovals.grant(tenantId, userId, "create_task");
+
+    const { service } = build({
+      replies: [
+        { content: "", toolCalls: [toolCall("create_task", { projectId, title: "Pour" })] },
+        { content: "Added it.", toolCalls: [] },
+      ],
+      executors: {
+        create_task: (async (_actor: unknown, args: Record<string, unknown>) => {
+          created.push(String(args.title));
+          return { id: "t" };
+        }) as unknown as AiToolExecutor,
+      },
+      autoApprovals,
+    });
+
+    const result = await service.chat(author(), { message: "add a task" });
+
+    expect(created).toEqual(["Pour"]);
+    // Nothing waiting, and the answer reports what happened — an auto-approved
+    // action that is invisible is indistinguishable from an agent acting alone.
+    expect(result.proposals).toBeUndefined();
+    expect(result.performed).toEqual([
+      { tool: "create_task", summary: { projectId, title: "Pour" } },
+    ]);
+  });
+
+  /*
+   * The rule the whole tiered design rests on. A blanket "never ask again" over
+   * deletions is the switch behind most published agent incidents; the remedy
+   * the research agrees on is to make that class unsilenceable rather than to
+   * warn about it.
+   */
+  it("refuses to stop asking about anything irreversible", async () => {
+    const { service } = build({ replies: [] });
+
+    await expect(
+      service.grantAutoApproval(author(), { tool: "delete_task" }),
+    ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+  });
+
+  it("still asks about a destructive tool even if the row somehow exists", async () => {
+    const autoApprovals = new MemoryAutoApprovals();
+    // Written straight to storage, bypassing the service that would refuse it.
+    await autoApprovals.grant(tenantId, userId, "delete_task");
+
+    const deleted: string[] = [];
+    const { service } = build({
+      replies: [
+        { content: "", toolCalls: [toolCall("delete_task", { taskId: projectId })] },
+        { content: "Waiting.", toolCalls: [] },
+      ],
+      executors: {
+        delete_task: (async (_actor: unknown, args: Record<string, unknown>) => {
+          deleted.push(String(args.taskId));
+          return { deleted: true };
+        }) as unknown as AiToolExecutor,
+      },
+      autoApprovals,
+    });
+
+    const result = await service.chat(author(), { message: "delete it" });
+
+    expect(deleted).toHaveLength(0);
+    expect(result.proposals).toHaveLength(1);
+    expect(result.proposals?.[0]?.destructive).toBe(true);
+  });
+
+  it("refuses a preference for a tool the person may not use", async () => {
+    const { service } = build({ replies: [] });
+    // Holds ai.use but not tasks.create.
+    await expect(
+      service.grantAutoApproval(person(["ai.use"]), { tool: "create_task" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("lets somebody start being asked again", async () => {
+    const autoApprovals = new MemoryAutoApprovals();
+    const { service } = build({ replies: [], autoApprovals });
+    const actor = author();
+
+    await service.grantAutoApproval(actor, { tool: "create_task" });
+    expect((await service.listAutoApprovals(actor)).tools).toEqual(["create_task"]);
+
+    await service.revokeAutoApproval(actor, { tool: "create_task" });
+    expect((await service.listAutoApprovals(actor)).tools).toEqual([]);
+  });
+
+  it("keeps one person's preferences away from another's", async () => {
+    const autoApprovals = new MemoryAutoApprovals();
+    const { service } = build({ replies: [], autoApprovals });
+    const owner = author();
+    const colleague: UserPrincipal = { ...owner, userId: "44444444-4444-4444-8444-444444444444" };
+
+    await service.grantAutoApproval(owner, { tool: "create_task" });
+
+    expect((await service.listAutoApprovals(colleague)).tools).toEqual([]);
   });
 });
