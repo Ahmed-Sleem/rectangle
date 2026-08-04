@@ -507,7 +507,14 @@ describe("focus indicators", () => {
        * paints its own beneath itself.
        */
       expect(shellCss).not.toMatch(/\.rect-panel__body::before/u);
-      expect(shellCss).toMatch(/\.rect-panel__body::after/u);
+      /*
+       * Drawn on the panel, not on the body. The body scrolls, and a decoration
+       * pinned to the edge of a scrolling element drifts with its content —
+       * absolute resolves against the whole scrollable canvas, sticky against
+       * the last flex child. Both were tried and both moved.
+       */
+      expect(shellCss).toMatch(/\.rect-panel::after/u);
+      expect(shellCss).not.toMatch(/\.rect-panel__body::after/u);
     });
 
     it("defines every canvas token it uses", () => {
@@ -526,13 +533,13 @@ describe("focus indicators", () => {
        * its job. The scroll affordance is drawn by overlay layers instead.
        */
       expect(shellCss).not.toMatch(/mask-image/u);
-      expect(shellCss).toMatch(/\.rect-panel__body::after/u);
+      expect(shellCss).toMatch(/\.rect-panel::after/u);
     });
 
     it("keeps the edge line beneath the toolbar", () => {
       // Both are sticky; whichever has the higher z-index wins, and it must be
       // the toolbar or the line paints over the controls.
-      const fadeLayer = shellCss.slice(shellCss.indexOf(".rect-panel__body::after"));
+      const fadeLayer = shellCss.slice(shellCss.indexOf(".rect-panel::after"));
       expect(fadeLayer).toMatch(/z-index:\s*1/u);
       expect(toolbarCss).toMatch(/\.rect-toolbar\s*\{[^}]*z-index:\s*2/u);
     });

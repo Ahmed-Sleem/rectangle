@@ -316,21 +316,24 @@
  * appearing to damage it.
  */
 /*
- * The hairline that says "there is more below".
+ * The hairline at the bottom of the canvas, and the reason it is on the PANEL.
  *
- * Painted on the panel rather than inside the scroller, because a sticky
- * pseudo-element in a flex column sticks to the end of the LAST CHILD, not to
- * the bottom of the container. Whenever the content stopped short of the
- * viewport — which is what happens the moment the canvas narrows and the page
- * reflows taller and thinner — the line came to rest in the middle of the page
- * with nothing beneath it. That is the stray horizontal line reported on the
- * activity page twice.
+ * It has been three things now and each failed for a different reason worth
+ * recording, because both obvious answers are wrong here.
  *
- * Absolutely positioned against the panel it belongs to, so it is always on the
- * canvas's own bottom edge and cannot drift. The panel already establishes a
- * containing block.
+ * `position: sticky` on the body's own pseudo-element sticks to the end of the
+ * last child, not to the scrollport, because the body is a flex column — so it
+ * rode up the page with the content. `position: absolute` is measured against
+ * the padding box, which for a scroll container is the whole scrollable canvas
+ * rather than the visible part, so it sat below the fold and drifted as the
+ * page moved: measured at y=1002 while the panel ended at y=765.
+ *
+ * Both failed for the same underlying reason. The scrolling element cannot host
+ * a line that is meant to stay still relative to the viewport, because
+ * everything inside it moves. So the line belongs to the PANEL, which does not
+ * scroll, and is placed on its bottom edge where it cannot drift at all.
  */
-.rect-panel__body::after {
+.rect-panel::after {
   content: "";
   position: absolute;
   inset-inline: 0;
@@ -338,14 +341,21 @@
   block-size: 1px;
   background: var(--rect-surface-divider);
   opacity: var(--rect-scroll-edge-opacity);
-  transition: opacity var(--rect-motion-nav);
+  transition: opacity var(--rect-motion-control);
   z-index: 1;
   pointer-events: none;
 }
 
 /* Shown only while something is actually hidden below, so a page that fits is
    never given an edge with nothing beyond it. */
-.rect-panel__body[data-scroll-bottom="false"] {
+/*
+ * Set on the PANEL, because the line is drawn there now. A custom property set
+ * on the scrolling child could never be read by its parent's pseudo-element —
+ * inheritance runs down, not up — so the line would have been permanently
+ * invisible. The body still carries the data attribute, since that is what the
+ * scroll observer writes; the panel simply reads it from a descendant selector.
+ */
+.rect-panel:has(.rect-panel__body[data-scroll-bottom="false"]) {
   --rect-scroll-edge-opacity: 1;
 }
 

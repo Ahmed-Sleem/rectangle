@@ -3,9 +3,16 @@
 .rect-activity-page {
   display: grid;
   gap: var(--rect-space-5);
-  /* Header, toolbar, summary row and the page's own gaps, so the scrolling
-     trail can size itself against what is left of the viewport. */
-  --rect-activity-reserved: 22rem;
+  /*
+   * How far down the scrollport the pinned toolbar reaches, so the day heading
+   * rests on its bottom edge instead of sliding under it.
+   *
+   * The fallback is only for the first paint, before the bar has measured
+   * itself; the real value is published by the toolbar on mount and on every
+   * resize, because the bar is one row on a narrow screen and two on a wide one
+   * and any constant written here would be wrong on one of them.
+   */
+  --rect-activity-toolbar-height: var(--rect-toolbar-height, 7rem);
 }
 
 .rect-activity-day {
@@ -47,9 +54,15 @@
    * mask dissolves the rows passing underneath instead of cutting them, the
    * same treatment the page toolbar needs and for the same reason.
    */
-  inset-block-start: calc(var(--rect-space-4) * -1);
-  padding-block: calc(var(--rect-space-4) + var(--rect-space-2)) var(--rect-space-2);
-  margin-block-start: calc(var(--rect-space-4) * -1);
+  /*
+   * Now that the trail scrolls with the page rather than inside itself, this
+   * pins against the panel's scrollport — where the page toolbar is already
+   * resting. Without the offset it would slide underneath the toolbar and the
+   * date would be hidden by it, so the heading comes to rest exactly where the
+   * toolbar's bottom edge is.
+   */
+  inset-block-start: var(--rect-activity-toolbar-height);
+  padding-block: var(--rect-space-2);
   mask-image: linear-gradient(
     to bottom,
     rgb(0 0 0) calc(100% - var(--rect-toolbar-fade)),
@@ -224,17 +237,25 @@
   border-radius: var(--rect-radius-lg);
   padding: var(--rect-space-4);
   /*
-   * The trail scrolls within itself rather than driving the whole page, so the
-   * breakdowns beside it stay in view while a long history is read. Capped
-   * against the viewport so it never grows taller than the screen it is in.
+   * The trail scrolls with the page, not inside itself. This is the reported
+   * "random horizontal line", and it took four attempts because the line was
+   * never drawn by anything — it is a cut.
    *
-   * `dvh`, not `vh`: mobile browser chrome makes `vh` taller than the visible
-   * area, so the bottom of the list sat under the address bar. This was the
-   * only `vh` left in the product.
+   * The trail used to be its own scroll region, capped at the viewport height
+   * less a fixed 22rem guess at what sat above it. That guess cannot be right:
+   * measured on this page the cap put the trail's bottom edge at y=850 while
+   * the panel it lives in ends at y=765. Its last eighty-five pixels were
+   * therefore outside the visible area, and entries were sliced across the
+   * panel edge with no fade and nothing beneath them — which reads exactly like
+   * a rule drawn across the page, and moved as the page scrolled, which is the
+   * "lag" that was described.
+   *
+   * A nested scroller was the wrong shape here anyway. Two scroll regions on
+   * one screen means a wheel gesture does different things a few pixels apart,
+   * and it is why the day heading and the page toolbar each needed their own
+   * sticky treatment against different scrollports. One scrolling surface, the
+   * panel's, and everything on the page moves together.
    */
-  max-block-size: calc(100dvh - var(--rect-activity-reserved));
-  overflow-y: auto;
-  /* The day headings stick inside this container now, not the page. */
   padding-inline-end: var(--rect-space-1);
 }
 

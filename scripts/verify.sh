@@ -50,6 +50,7 @@ run_step "logical properties" node scripts/checks/logical-properties.mjs
 run_step "duplicate css" node scripts/checks/duplicate-css.mjs
 run_step "flex axis" node scripts/checks/flex-axis.mjs
 run_step "sticky bars cover their gap" node scripts/checks/sticky-cover.mjs
+run_step "scroller edges" node scripts/checks/scroller-edges.mjs
 run_step "one opening animation" node scripts/checks/one-opening.mjs
 run_step "motion tokens" node scripts/checks/motion-tokens.mjs
 run_step "pglite budget" node scripts/checks/pglite-budget.mjs

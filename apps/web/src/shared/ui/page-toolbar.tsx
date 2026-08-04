@@ -11,7 +11,7 @@
  * and clear them — none of which is possible when they arrive as opaque JSX.
  */
 import { Filter, RefreshCw, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/shared/lib/cn";
 import { Badge, Button, Checkbox, IconButton } from "./primitives";
@@ -147,8 +147,34 @@ export function PageToolbar<T extends string>({
 
   const active = filters.filter(isActive);
 
+  /*
+   * The bar publishes its own height, and anything that has to sit below it
+   * reads that rather than guessing.
+   *
+   * The activity day heading pins inside the same scrollport as this bar, so it
+   * needs to come to rest exactly where the bar's bottom edge is. That number
+   * was a constant in a stylesheet, and a constant is a guess: the bar is one
+   * row on a narrow screen and two on a wide one, and it grows with the filter
+   * chips. Measured and republished on resize, it cannot be wrong.
+   */
+  const barRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const node = barRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return undefined;
+
+    const publish = () => {
+      node.style.setProperty("--rect-toolbar-height", `${Math.round(node.offsetHeight)}px`);
+    };
+
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className={cn("rect-toolbar", className)}>
+    <div ref={barRef} className={cn("rect-toolbar", className)}>
       <div className="rect-toolbar__row">
         {search ? (
           /*
