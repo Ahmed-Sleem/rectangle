@@ -1098,6 +1098,37 @@ describe("a conversation belongs to one person", () => {
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
+  /*
+   * The owner asked that each conversation be "totally new". The structure
+   * already enforces it — every read is scoped by conversation id — but nothing
+   * proved that the transcript sent to the model contains only this thread, and
+   * a leak there would be invisible: the answer would simply be informed by
+   * something the person had said in a conversation they thought was separate.
+   *
+   * Asserted against the provider's own request rather than against the stored
+   * rows, because what matters is not where the messages live but which of them
+   * reach the model.
+   */
+  it("sends the model one conversation, never a word of another", async () => {
+    const conversations = new MemoryConversations();
+    const owner = person(["ai.use"]);
+
+    const first = build({ replies: [{ content: "noted", toolCalls: [] }], conversations });
+    const started = await first.service.chat(owner, { message: "the secret is rhubarb" });
+
+    const second = build({ replies: [{ content: "second", toolCalls: [] }], conversations });
+    await second.service.chat(owner, { message: "what is the secret?" });
+
+    const sent = JSON.stringify(second.provider.requests[0]?.messages ?? []);
+    expect(sent).toContain("what is the secret?");
+    expect(sent).not.toContain("rhubarb");
+    // And the first thread is still whole, so nothing was moved rather than kept apart.
+    const original = await second.service.readConversation(owner, {
+      conversationId: started.conversationId,
+    });
+    expect(original.messages.some((m) => m.content.includes("rhubarb"))).toBe(true);
+  });
+
   it("refuses the whole conversation surface without the permission", async () => {
     const { service } = build({ replies: [] });
     const stranger = person([]);
