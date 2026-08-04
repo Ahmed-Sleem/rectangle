@@ -50,7 +50,18 @@ import { hasPermission, type UserPrincipal } from "./auth.js";
  * Declared here rather than only in the migration so the API, the screen and
  * the database agree without three people remembering the same two numbers.
  */
-export const AI_CYCLE_BOUNDS = { min: 1, max: 30, default: 10 } as const;
+/*
+ * The default is five, and it was ten until the cost of a cycle was measured.
+ *
+ * Every cycle re-sends the system prompt and all twenty-six tool schemas,
+ * because the provider's API is stateless — about 3,800 tokens before the
+ * conversation itself. Ten cycles is therefore roughly 38,000 input tokens for
+ * one question, and a common rate limit is 12,000 a minute, so the ceiling I
+ * had chosen could not be reached without failing partway through. Five is
+ * still more steps than almost any question needs — search, read, answer is
+ * three — and anybody who wants more can raise it, up to thirty.
+ */
+export const AI_CYCLE_BOUNDS = { min: 1, max: 30, default: 5 } as const;
 
 /**
  * How long a single reply may be, in tokens.

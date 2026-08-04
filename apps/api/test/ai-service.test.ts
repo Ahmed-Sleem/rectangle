@@ -20,6 +20,7 @@ import {
 } from "../src/application/ai-service.js";
 import type { AiSettingsService } from "../src/application/ai-settings-service.js";
 import type { AiProviderClient, ProviderReply, ProviderRequest } from "../src/infrastructure/ai-provider.js";
+import { DomainError } from "../src/domain/errors.js";
 import type { AuditEventInput, AuditRepository } from "../src/application/project-service.js";
 import type { UserPrincipal } from "../src/domain/auth.js";
 import { AI_LIMITS } from "../src/domain/ai.js";
@@ -292,12 +293,14 @@ function build(options: {
   audit?: MemoryAudit;
   conversations?: MemoryConversations;
   autoApprovals?: MemoryAutoApprovals;
+  /** A stand-in for the model, when a test needs it to fail in a specific way. */
+  provider?: AiProviderClient & { requests: ProviderRequest[] };
 }) {
   const audit = options.audit ?? new MemoryAudit();
   const pending = options.pending ?? new MemoryPending();
   const conversations = options.conversations ?? new MemoryConversations();
   const autoApprovals = options.autoApprovals ?? new MemoryAutoApprovals();
-  const provider = new ScriptedProvider(options.replies);
+  const provider = options.provider ?? new ScriptedProvider(options.replies);
   const settings = {
     resolveProvider: async () => ({
       baseUrl: "https://provider.test/v1",
@@ -1180,6 +1183,114 @@ describe("a conversation belongs to one person", () => {
 
     expect(result).toEqual({ deleted: 0 });
     expect(audit.events.some((entry) => entry.action === "ai.conversation.delete_all")).toBe(true);
+  });
+
+  /*
+   * The transcript is replayed on every cycle, so a big search result is re-sent
+   * on every subsequent step even though the model has already drawn its
+   * conclusion from it. Measured against the real registry, the fixed cost of a
+   * cycle is about 3,800 tokens before the conversation, and a common rate limit
+   * is 12,000 a minute — so the part that grows is the part that has to be
+   * contained. This is what turned a three-step question into a 429 partway
+   * through.
+   */
+  it("stops re-sending tool results the model has already reasoned over", async () => {
+    const bulky = "row ".repeat(400);
+    const { service, provider } = build({
+      replies: [
+        { content: "", toolCalls: [toolCall("search_projects", { query: "a" })] },
+        { content: "", toolCalls: [toolCall("search_tasks", { query: "b" })] },
+        { content: "", toolCalls: [toolCall("search_risks", { query: "c" })] },
+        { content: "done", toolCalls: [] },
+      ],
+      executors: {
+        search_projects: async () => bulky,
+        search_tasks: async () => bulky,
+        search_risks: async () => bulky,
+      },
+    });
+
+    await service.chat(person(["ai.use", "projects.read", "tasks.read", "risks.read"]), {
+      message: "look at everything",
+    });
+
+    const last = provider.requests[provider.requests.length - 1];
+    const observations = (last?.messages ?? []).filter((m) => m.role === "tool");
+    expect(observations.length).toBeGreaterThanOrEqual(3);
+
+    // The oldest is cut down; the two most recent are whole, because those are
+    // the ones the model is still working from.
+    const oldest = observations[0]?.content ?? "";
+    expect(oldest.length).toBeLessThan(bulky.length);
+    // And it says it was cut, so the model does not read a truncated list as a
+    // complete one and quote a total from it.
+    expect(oldest).toMatch(/shortened/iu);
+
+    const newest = observations[observations.length - 1]?.content ?? "";
+    expect(newest.length).toBeGreaterThan(bulky.length / 2);
+  });
+
+  it("never shortens what the person actually said", async () => {
+    // No trailing space: the message is trimmed on the way in, and a fixture
+    // that ignores that fails on the trim rather than on the thing under test.
+    const essay = `I need help with this: ${"detail ".repeat(300)}`.trim();
+    const { service, provider } = build({
+      replies: [
+        { content: "", toolCalls: [toolCall("search_projects", { query: "a" })] },
+        { content: "", toolCalls: [toolCall("search_tasks", { query: "b" })] },
+        { content: "", toolCalls: [toolCall("search_risks", { query: "c" })] },
+        { content: "ok", toolCalls: [] },
+      ],
+      executors: {
+        search_projects: async () => "x".repeat(2000),
+        search_tasks: async () => "x".repeat(2000),
+        search_risks: async () => "x".repeat(2000),
+      },
+    });
+
+    await service.chat(person(["ai.use", "projects.read", "tasks.read", "risks.read"]), {
+      message: essay,
+    });
+
+    const last = provider.requests[provider.requests.length - 1];
+    const asked = (last?.messages ?? []).find((m) => m.role === "user");
+    // A paraphrase of the question is a different question.
+    expect(asked?.content).toBe(essay);
+  });
+
+  /*
+   * A turn the provider refused must not end the conversation. Groq validates
+   * the model's generated arguments itself and answers 400, so the loop never
+   * sees a reply to feed back — without recovery a single malformed call meant
+   * no answer at all, which is what "it just says it could not answer" was.
+   */
+  it("recovers when the provider refuses the model's own tool call", async () => {
+    let calls = 0;
+    const provider = {
+      requests: [] as ProviderRequest[],
+      async complete(request: ProviderRequest): Promise<ProviderReply> {
+        this.requests.push(request);
+        calls += 1;
+        if (calls === 1) {
+          throw new DomainError(
+            "UPSTREAM_TOOL_CALL_REJECTED",
+            "The model produced a tool call its provider refused.",
+          );
+        }
+        return { content: "Nile Tower is worst.", toolCalls: [] };
+      },
+    };
+
+    const { service } = build({ replies: [], provider });
+
+    const result = await service.chat(person(["ai.use", "projects.read"]), {
+      message: "which project is worst?",
+    });
+
+    expect(result.answer).toContain("Nile Tower");
+    // The correction was handed back, so the model knew what to fix.
+    const second = provider.requests[1];
+    expect(JSON.stringify(second?.messages ?? [])).toContain("not valid");
   });
 
   it("refuses the whole conversation surface without the permission", async () => {

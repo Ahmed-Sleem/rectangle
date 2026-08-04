@@ -198,6 +198,51 @@ export class OpenAiCompatibleProvider implements AiProviderClient {
        * provider's own words, which are usually more specific than anything
        * this layer could invent.
        */
+      /*
+       * Rate limited, which is a wait rather than a fault. Providers meter by
+       * tokens per minute, and a long question can exhaust a minute's budget
+       * partway through its own loop — so this is not "the model is broken", it
+       * is "ask again shortly", and saying the second thing is the difference
+       * between a person retrying and a person concluding the feature is dead.
+       *
+       * `retry-after` is honoured when the provider sends one; most send
+       * seconds, some send a date, and an unreadable value simply means no
+       * advice rather than an error about the advice.
+       */
+      if (response.status === 429) {
+        const advice = response.headers.get("retry-after");
+        const seconds = advice && /^\d+$/u.test(advice) ? Number(advice) : undefined;
+
+        throw new DomainError(
+          "RATE_LIMITED",
+          "The model is busy right now — it has hit its limit for this minute. Try again shortly.",
+          seconds === undefined ? undefined : { retryAfterSeconds: seconds },
+        );
+      }
+
+      /*
+       * The model produced a tool call its own provider rejected.
+       *
+       * Groq validates the arguments the model generates and answers 400 with
+       * `tool_use_failed` rather than passing them on. Observed against the
+       * real endpoint: given twenty-six tools it will sometimes call
+       * `search_projects` with the required `query` missing, and the whole
+       * request dies — no answer, no chance for the model to correct itself,
+       * because the loop never sees a reply to feed back.
+       *
+       * That is a bad turn, not a broken provider, and it is recoverable: the
+       * loop already knows how to hand an "those arguments are not valid"
+       * observation back to the model, which is exactly what happens when OUR
+       * validation catches the same mistake. Reported as its own code so the
+       * harness can do that instead of ending the conversation.
+       */
+      if (response.status === 400 && body.includes("tool_use_failed")) {
+        throw new DomainError(
+          "UPSTREAM_TOOL_CALL_REJECTED",
+          "The model produced a tool call its provider refused.",
+        );
+      }
+
       if (response.status === 401 || response.status === 403) {
         throw new DomainError(
           "CONFIGURATION_REQUIRED",

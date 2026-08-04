@@ -22,6 +22,8 @@ const statusByCode = {
    * was asked of it — the transcript simply grew past what the model can read.
    */
   CONTEXT_TOO_LONG: 413,
+  /* 502: we asked on the caller's behalf and the exchange did not complete. */
+  UPSTREAM_TOOL_CALL_REJECTED: 502,
   RATE_LIMITED: 429,
 } as const;
 

@@ -23,6 +23,12 @@ export type DomainErrorCode =
    * imply and the client must be able to distinguish in order to offer it.
    */
   | "CONTEXT_TOO_LONG"
+  /*
+   * The model generated arguments its own provider would not accept. Distinct
+   * from an unavailable provider: the connection is healthy and the turn is
+   * retryable, so the loop feeds the failure back rather than giving up.
+   */
+  | "UPSTREAM_TOOL_CALL_REJECTED"
   | "RATE_LIMITED";
 
 export class DomainError extends Error {

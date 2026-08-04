@@ -500,11 +500,13 @@ export class AiService {
        * transcript is worse than saying nothing — it is confidently wrong.
        */
       const withBudget: ProviderMessage[] = [
-        ...messages,
+        ...withTrimmedObservations(messages),
         { role: "system", content: cycleBudgetPrompt(cyclesUsed, cycleLimit) },
       ];
 
-      const reply = await this.provider.complete({
+      let reply;
+      try {
+        reply = await this.provider.complete({
         baseUrl: provider.baseUrl,
         model: provider.model,
         apiKey: provider.apiKey,
@@ -521,8 +523,30 @@ export class AiService {
         timeoutMs: Math.min(AI_LIMITS.modelTimeoutMs, Math.max(1_000, deadline - Date.now())),
         // Belongs to whichever configuration is in use, so a person on their
         // own key is not held to the company's ceiling.
-        ...(provider.maxOutputTokens ? { maxOutputTokens: provider.maxOutputTokens } : {}),
-      });
+          ...(provider.maxOutputTokens ? { maxOutputTokens: provider.maxOutputTokens } : {}),
+        });
+      } catch (error) {
+        /*
+         * The provider refused the model's own tool call. Recoverable, and the
+         * loop already knows how: the same correction is fed back when OUR
+         * validation catches bad arguments, and a model told what it got wrong
+         * usually fixes it on the next turn. Anything else is a real failure
+         * and is rethrown.
+         *
+         * Observed against Groq, which validates generated arguments itself and
+         * answers 400 rather than passing them on — so without this a single
+         * malformed call ends the whole conversation with no answer at all.
+         */
+        if (!(error instanceof DomainError) || error.code !== "UPSTREAM_TOOL_CALL_REJECTED") {
+          throw error;
+        }
+
+        messages.push({
+          role: "system",
+          content: TOOL_MESSAGES.invalidArguments,
+        });
+        continue;
+      }
 
       if (reply.toolCalls.length === 0) {
         return finish({ answer: reply.content.trim(), usedTools, cyclesUsed, cycleLimit });
@@ -1339,7 +1363,68 @@ function toJsonSchema(tool: AiToolDefinition): Record<string, unknown> {
   if (!schema.properties) schema.properties = {};
   if (!schema.type) schema.type = "object";
 
-  return withoutUnsupportedPatterns(schema) as Record<string, unknown>;
+  return compactForProvider(withoutUnsupportedPatterns(schema)) as Record<string, unknown>;
+}
+
+/**
+ * Strips what the model cannot act on, because every byte is re-sent every cycle.
+ *
+ * The loop is a ReAct loop and the provider's API is stateless, so the whole
+ * tool list travels with every single call. Measured against the real registry:
+ * the schemas were 2,914 tokens of a 4,138-token fixed cost, seventy per cent of
+ * a request before anybody had said anything. At ten cycles that is roughly
+ * 41,000 input tokens for one question, against a rate limit of 12,000 a minute
+ * — so a question that took three steps failed with a 429 partway through, which
+ * is exactly what was reported.
+ *
+ * What goes, and why none of it is a loss:
+ *
+ *  - `maxLength`. A model cannot count characters and does not shorten a title
+ *    because a schema said 200. Zod enforces it when the arguments come back,
+ *    which is the only place it was ever really enforced.
+ *
+ * `minLength` is KEPT. It is two short numbers, and it is the only thing that
+ * distinguishes "this field is required" from "this field must actually contain
+ * something" — a distinction worth its bytes on a search whose whole purpose is
+ * the term.
+ *  - `format` on a uuid. It follows an example it was given or it invents one;
+ *    the word "uuid" in a format field changes neither. The prompt now states
+ *    the identifier rule in prose, which is what actually fixed that behaviour.
+ *  - The `anyOf` wrapper around a nullable field, flattened to the type itself.
+ *    Three lines and two braces to say "or null" on a field the model either
+ *    sends or omits.
+ *
+ * What stays, deliberately: `enum`, because it is the only way the model learns
+ * the permitted values and guessing them fails; `type`, obviously; integer
+ * `minimum`/`maximum`, because a 1-5 score is meaningless without them and they
+ * are two short numbers; and `required`, which decides whether a call is even
+ * well-formed.
+ */
+function compactForProvider(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(compactForProvider);
+  if (node === null || typeof node !== "object") return node;
+
+  const source = node as Record<string, unknown>;
+
+  /*
+   * `{ anyOf: [X, { type: "null" }] }` is Zod's rendering of a nullable field.
+   * Collapsed to X, since a model omits a field it has no value for rather than
+   * sending null, and Zod still accepts either on the way back.
+   */
+  const anyOf = source.anyOf;
+  if (Array.isArray(anyOf) && anyOf.length === 2) {
+    const nonNull = anyOf.filter(
+      (entry) => !(entry !== null && typeof entry === "object" && (entry as { type?: string }).type === "null"),
+    );
+    if (nonNull.length === 1 && nonNull[0] !== undefined) return compactForProvider(nonNull[0]);
+  }
+
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (key === "maxLength" || key === "format") continue;
+    result[key] = compactForProvider(value);
+  }
+  return result;
 }
 
 /**
@@ -1377,6 +1462,47 @@ function withoutUnsupportedPatterns(node: unknown): unknown {
   }
 
   return node;
+}
+
+/** How many tool results are replayed in full before the older ones are cut down. */
+const VERBATIM_OBSERVATIONS = 2;
+
+/** Longest an older tool result may be once it has been reasoned over. */
+const TRIMMED_OBSERVATION_CHARS = 240;
+
+/**
+ * Shortens tool results the model has already read.
+ *
+ * The transcript is replayed on every cycle, so a search that returned twenty
+ * rows is re-sent in full on cycle two, three and four even though the model
+ * has already drawn its conclusion from it and moved on. That is the part of a
+ * request that grows, and it grows fastest exactly when a question is
+ * interesting enough to need several steps.
+ *
+ * Only tool OUTPUT is touched, and only output the model has had at least two
+ * turns to use. What a person wrote is never shortened — their words are the
+ * question, and a paraphrase of the question is a different question. The
+ * system prompt is never shortened either.
+ *
+ * The trim says plainly that it is a trim. A silently truncated list reads to a
+ * model as a complete list that happened to be short, and it will state a total
+ * from it; told that the rest was cut, it asks again if it needs the detail.
+ */
+function withTrimmedObservations(messages: ProviderMessage[]): ProviderMessage[] {
+  const toolIndexes = messages.flatMap((message, index) => (message.role === "tool" ? [index] : []));
+  if (toolIndexes.length <= VERBATIM_OBSERVATIONS) return messages;
+
+  const keepFrom = toolIndexes[toolIndexes.length - VERBATIM_OBSERVATIONS] ?? 0;
+
+  return messages.map((message, index) => {
+    if (message.role !== "tool" || index >= keepFrom) return message;
+    if (message.content.length <= TRIMMED_OBSERVATION_CHARS) return message;
+
+    return {
+      ...message,
+      content: `${message.content.slice(0, TRIMMED_OBSERVATION_CHARS)} … [earlier result shortened to save room; call the tool again if you need the rest]`,
+    };
+  });
 }
 
 /** Parses the model's argument string without throwing on nonsense. */

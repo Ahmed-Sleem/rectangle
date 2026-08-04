@@ -179,6 +179,45 @@ describe("the request a real provider receives", () => {
     });
   });
 
+  /*
+   * Groq validates the arguments the model itself generated and answers 400
+   * with `tool_use_failed` rather than passing them on. Observed against the
+   * live endpoint: with twenty-six tools it will sometimes call
+   * `search_projects` with the required `query` missing. Reported as its own
+   * code so the loop can feed the correction back instead of ending the
+   * conversation, which is what a bad turn deserves and a broken provider does
+   * not.
+   */
+  it("tells a refused tool call apart from a broken provider", async () => {
+    status = 400;
+    reply = {
+      error: {
+        message: "tool call validation failed: parameters for tool search_projects did not match schema",
+        type: "invalid_request_error",
+        code: "tool_use_failed",
+      },
+    };
+
+    await expect(new OpenAiCompatibleProvider().complete(request())).rejects.toMatchObject({
+      code: "UPSTREAM_TOOL_CALL_REJECTED",
+    });
+  });
+
+  /*
+   * A rate limit is a wait, not a fault. Providers meter by tokens per minute
+   * and a long question can exhaust a minute inside its own loop, so saying
+   * "try again shortly" is the difference between a person retrying and a
+   * person concluding the feature is dead.
+   */
+  it("reports a rate limit as something to wait out", async () => {
+    status = 429;
+    reply = { error: { message: "Rate limit reached for model ... on tokens per minute (TPM)" } };
+
+    await expect(new OpenAiCompatibleProvider().complete(request())).rejects.toMatchObject({
+      code: "RATE_LIMITED",
+    });
+  });
+
   it("never lets the key reach an error message", async () => {
     status = 500;
     // A provider echoing the key back is the case this defends against.
