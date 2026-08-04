@@ -16,6 +16,7 @@ import {
 } from "@/shared/ui";
 import { useRectangleI18n, type RectangleLanguage } from "@/shared/i18n";
 import { AiAssistant } from "./AiAssistant";
+import { adminApi } from "@/features/team/admin-api";
 import { PermissionReference } from "./PermissionReference";
 import { EmailDelivery } from "./EmailDelivery";
 import { SeparationRules } from "./SeparationRules";
@@ -44,6 +45,32 @@ export default function SettingsPage() {
 
   // Only one section is expanded at a time so the page stays scannable.
   const [openSection, setOpenSection] = useState<SectionId | null>("language");
+
+  /*
+   * Counts for the two access sections, shown on their closed headers.
+   *
+   * The sections were already collapsed and open one at a time, so length was
+   * never the fault — the fault is that a closed header said nothing, and both
+   * of these are audit artefacts somebody checks rather than reads. "28
+   * permissions" and "2 rules" answer the question most visits are actually
+   * asking, and anybody who needs the matrix itself still opens it.
+   *
+   * Fetched here rather than inside the sections because a section only loads
+   * its own data once it is open, which is correct for the matrix and useless
+   * for a summary that has to be there before anybody opens anything. Small,
+   * cached, and only for somebody who may see them at all.
+   */
+  const accessSummary = useQuery({
+    queryKey: ["settings", "access-summary"],
+    queryFn: async () => {
+      const [permissions, rules] = await Promise.all([
+        adminApi.permissions(),
+        adminApi.separationRules(),
+      ]);
+      return { permissions: permissions.permissions.length, rules: rules.rules.length };
+    },
+    enabled: canManageCompany,
+  });
   const toggleSection = (id: SectionId) =>
     setOpenSection((current) => (current === id ? null : id));
 
@@ -124,6 +151,11 @@ export default function SettingsPage() {
           title={t("settings.permissionsTitle")}
           description={t("settings.permissionsDescription")}
           icon={<BookOpen size={18} strokeWidth={2} />}
+          status={
+            accessSummary.data
+              ? t("settings.permissionsCount", { count: accessSummary.data.permissions })
+              : undefined
+          }
           open={openSection === "permissions"}
           onToggle={() => toggleSection("permissions")}
         >
@@ -142,6 +174,11 @@ export default function SettingsPage() {
           title={t("settings.separationTitle")}
           description={t("settings.separationDescription")}
           icon={<ShieldCheck size={18} strokeWidth={2} />}
+          status={
+            accessSummary.data
+              ? t("settings.separationCount", { count: accessSummary.data.rules })
+              : undefined
+          }
           open={openSection === "separation"}
           onToggle={() => toggleSection("separation")}
         >

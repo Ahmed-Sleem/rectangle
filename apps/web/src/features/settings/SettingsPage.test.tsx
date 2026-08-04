@@ -35,12 +35,41 @@ describe("SettingsPage", () => {
       if (String(input).includes("permission-reference")) {
         return Promise.resolve(new Response(JSON.stringify({ permissions: [], projectRoles: [], standings: [], deletionRule: { requiresProjectAdmin: true, manageAllInsufficient: true } }), { status: 200, headers: { "Content-Type": "application/json" } }));
       }
+      /*
+       * Before the separation-rules branch, and before the catch-all: the
+       * summary on the closed headers reads both endpoints, and a mock that
+       * answered this one with an email payload would make the count silently
+       * absent rather than wrong — which looks like the feature not working.
+       */
+      if (String(input).includes("/permissions")) {
+        return Promise.resolve(new Response(JSON.stringify({ permissions: [{ key: "projects.read", label: "View projects", group: "projects" }, { key: "tasks.read", label: "View tasks", group: "tasks" }] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+      }
       if (String(input).includes("separation-rules")) {
         return Promise.resolve(new Response(JSON.stringify({ rules: [] }), { status: 200, headers: { "Content-Type": "application/json" } }));
       }
       return Promise.resolve(new Response(JSON.stringify({ emailSettings: { configured: false, enabled: false, hasPassword: false } }), { status: 200, headers: { "Content-Type": "application/json" } }));
     });
     await setRectangleLanguage("en");
+  });
+
+  /*
+   * Both sections are audit artefacts — a permission matrix and a duties matrix
+   * are what an auditor is shown — so they are consulted at a review rather
+   * than read day to day. They were already collapsed, so length was never the
+   * fault; the fault was that a closed header said nothing at all. The count
+   * answers what most visits are actually asking without opening anything.
+   */
+  it("says how much is inside the access sections before they are opened", async () => {
+    renderSettingsPage();
+
+    // The section header, not every button whose label contains the word.
+    const permissions = await screen.findByRole("button", { name: /^Permissions/ });
+    await waitFor(() => expect(permissions).toHaveTextContent("2 permissions"));
+    // Still closed: the summary is instead of opening it, not as well as.
+    expect(permissions).toHaveAttribute("aria-expanded", "false");
+
+    const separation = screen.getByRole("button", { name: /^Separation of duties/ });
+    expect(separation).toHaveTextContent("No rules");
   });
 
   it("exposes each section as a labelled disclosure with readable state", async () => {

@@ -261,6 +261,11 @@ export const resources = {
         emailTestFailed: "Test message could not be sent.",
         emailRequiredFirst: "Save your mail server details before sending a test.",
         permissionsTitle: "Permissions",
+        permissionsCount_one: "{{count}} permission",
+        permissionsCount_other: "{{count}} permissions",
+        separationCount_zero: "No rules",
+        separationCount_one: "{{count}} rule",
+        separationCount_other: "{{count}} rules",
         permissionsDescription:
           "Every permission the product has, what it allows, and who currently holds it.",
         separationTitle: "Separation of duties",
@@ -659,7 +664,12 @@ export const resources = {
         emailTestFailed: "تعذّر إرسال الرسالة التجريبية.",
         emailRequiredFirst: "احفظ بيانات خادم البريد قبل الإرسال التجريبي.",
         permissionsTitle: "الصلاحيات",
-        permissionsDescription:
+permissionsCount_one: "صلاحية واحدة",
+        permissionsCount_other: "{{count}} صلاحية",
+        separationCount_zero: "لا توجد قواعد",
+        separationCount_one: "قاعدة واحدة",
+        separationCount_other: "{{count}} قواعد",
+                permissionsDescription:
           "كل صلاحية في المنتج، وما تتيحه، ومن يملكها حاليًا.",
         separationTitle: "الفصل بين المهام",
         separationDescription:

@@ -207,6 +207,59 @@ describe("Select", () => {
     );
   });
 
+  /*
+   * Reported against the team table: the role dropdown was given the full width
+   * of a form field, so one column of a dense list became whitespace with a
+   * bordered box in every row, and the table read as a form to fill in.
+   */
+  it("sizes itself to its value inside a table row", () => {
+    render(
+      <Select variant="inline" aria-label="Role" defaultValue="viewer">
+        <option value="viewer">Viewer</option>
+        <option value="manager">Project manager</option>
+      </Select>,
+    );
+
+    const trigger = screen.getByRole("combobox", { name: "Role" });
+    expect(trigger.closest(".rect-select")).toHaveClass("rect-select--inline");
+    expect(trigger.closest(".rect-select")).not.toHaveClass("rect-select--field");
+  });
+
+  it("still fills its column in a form", () => {
+    render(
+      <Field label="Status">
+        <Select defaultValue="active">
+          <option value="active">Active</option>
+        </Select>
+      </Field>,
+    );
+
+    expect(
+      screen.getByRole("combobox", { name: "Status" }).closest(".rect-select"),
+    ).toHaveClass("rect-select--field");
+  });
+
+  /*
+   * The trigger names the CHOSEN value, never the whole list. Worth pinning:
+   * the reported paste read "Project owner Project manager Team member Viewer
+   * Project owner", which is what a control announcing all its options looks
+   * like when it is copied out of a page.
+   */
+  it("announces the chosen value, not every option", () => {
+    render(
+      <Select variant="inline" aria-label="Role" defaultValue="manager">
+        <option value="owner">Project owner</option>
+        <option value="manager">Project manager</option>
+        <option value="viewer">Viewer</option>
+      </Select>,
+    );
+
+    const trigger = screen.getByRole("combobox", { name: "Role" });
+    expect(trigger).toHaveTextContent("Project manager");
+    expect(trigger).not.toHaveTextContent("Viewer");
+    expect(trigger).not.toHaveTextContent("Project owner");
+  });
+
   it("follows a value changed from outside", async () => {
     function Controlled() {
       const [value, setValue] = useState("red");

@@ -58,6 +58,17 @@ import "./select.css";
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   invalid?: boolean;
   /**
+   * `inline` is for a dropdown sitting in a table row rather than in a form.
+   *
+   * The two want opposite things. A field in a form should fill its column, so
+   * a row of inputs lines up down the page; a control in a table cell should be
+   * only as wide as the value it shows, or one column of a dense table is given
+   * over to whitespace and the row stops reading as a row. It is also quieter
+   * at rest — a table with a bordered box in every row reads as a form somebody
+   * has to fill in rather than a list they are looking at.
+   */
+  variant?: "field" | "inline";
+  /**
    * The caller's own handle on the underlying element.
    *
    * Declared explicitly because this is not a `forwardRef` component and React
@@ -135,6 +146,7 @@ function readChoices(children: ReactNode): Choice[] {
 export function Select({
   className,
   invalid,
+  variant = "field",
   children,
   disabled,
   id,
@@ -440,7 +452,7 @@ export function Select({
   const [host, setHost] = useState<HTMLElement | null>(null);
 
   return (
-    <span className={cn("rect-select", className)}>
+    <span className={cn("rect-select", `rect-select--${variant}`, className)}>
       {/*
         * The real control. Kept in the DOM and kept working: it holds the
         * value, it is what `register()` attaches to, and it is what the form

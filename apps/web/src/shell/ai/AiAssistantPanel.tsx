@@ -587,6 +587,77 @@ export function AiAssistantPanel({
    */
   const historyBody = (
     <>
+        {/*
+          * The bar belongs to the window header, and the list runs under it.
+          *
+          * It was pinned at the top, which put a floating strip over the rows —
+          * reported as the search bar "hovering over" the conversations. At the
+          * foot it is the one fixed thing on the surface and the list runs
+          * behind it, which is the composer pattern this panel already uses
+          * directly below: a bar anchored at the bottom of a scrolling column.
+          * Two surfaces in the same panel that behave the same way.
+          */}
+        <div className="rect-ai-history__foot">
+          <SearchInput
+            className="rect-ai-history__search"
+            label={t("shell.ai.historySearch")}
+            placeholder={t("shell.ai.historySearchPlaceholder")}
+            value={searchTerm}
+            onChange={setSearchTerm}
+            onFocus={() => setSearchOpen(true)}
+            onBlur={() => setSearchOpen(false)}
+          />
+
+          {/*
+            * The button yields the width to the field.
+            *
+            * Hidden rather than shrunk while the field is in use, because a
+            * cramped field is the thing being fixed and a button nobody is
+            * reaching for at that moment costs nothing to remove. It comes back
+            * the moment the field is left empty and unfocused.
+            *
+            * Absent entirely when there is nothing to delete: a control whose
+            * only outcome is "deleted 0" is a control that should not be there.
+            */}
+          {searchExpanded || conversations.length === 0 ? null : deleteAllPending ? (
+            /*
+              * Confirmed in place, never in a window over the window. This
+              * cannot be undone, so it must be asked; but a dialog stacked on
+              * the history to ask one question moves somebody away from the
+              * thing they are deciding about. Same rule as deleting one.
+              */
+            <span className="rect-ai-history__confirm">
+              <button
+                type="button"
+                className="rect-ai-history__confirm-yes"
+                onClick={() => {
+                  removeAllConversations.mutate();
+                  setDeleteAllPending(false);
+                }}
+                disabled={removeAllConversations.isPending}
+              >
+                {t("shell.ai.historyDeleteAllConfirm", { count: conversations.length })}
+              </button>
+              <button
+                type="button"
+                className="rect-ai-history__confirm-no"
+                onClick={() => setDeleteAllPending(false)}
+              >
+                {t("common.cancel")}
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="rect-ai-history__delete-all"
+              onClick={() => setDeleteAllPending(true)}
+            >
+              <Trash2 size={15} strokeWidth={2} aria-hidden />
+              {t("shell.ai.historyDeleteAll")}
+            </button>
+          )}
+        </div>
+
         {history.isPending ? (
           <p className="rect-ai-history__note">{t("common.loading")}</p>
         ) : history.isError ? (
@@ -679,78 +750,6 @@ export function AiAssistantPanel({
             )}
           </ul>
         )}
-
-        {/*
-          * The bar sits at the foot and the list scrolls under it, ending at
-          * the container's end.
-          *
-          * It was pinned at the top, which put a floating strip over the rows —
-          * reported as the search bar "hovering over" the conversations. At the
-          * foot it is the one fixed thing on the surface and the list runs
-          * behind it, which is the composer pattern this panel already uses
-          * directly below: a bar anchored at the bottom of a scrolling column.
-          * Two surfaces in the same panel that behave the same way.
-          */}
-        <div className="rect-ai-history__foot">
-          <SearchInput
-            className="rect-ai-history__search"
-            label={t("shell.ai.historySearch")}
-            placeholder={t("shell.ai.historySearchPlaceholder")}
-            value={searchTerm}
-            onChange={setSearchTerm}
-            onFocus={() => setSearchOpen(true)}
-            onBlur={() => setSearchOpen(false)}
-          />
-
-          {/*
-            * The button yields the width to the field.
-            *
-            * Hidden rather than shrunk while the field is in use, because a
-            * cramped field is the thing being fixed and a button nobody is
-            * reaching for at that moment costs nothing to remove. It comes back
-            * the moment the field is left empty and unfocused.
-            *
-            * Absent entirely when there is nothing to delete: a control whose
-            * only outcome is "deleted 0" is a control that should not be there.
-            */}
-          {searchExpanded || conversations.length === 0 ? null : deleteAllPending ? (
-            /*
-              * Confirmed in place, never in a window over the window. This
-              * cannot be undone, so it must be asked; but a dialog stacked on
-              * the history to ask one question moves somebody away from the
-              * thing they are deciding about. Same rule as deleting one.
-              */
-            <span className="rect-ai-history__confirm">
-              <button
-                type="button"
-                className="rect-ai-history__confirm-yes"
-                onClick={() => {
-                  removeAllConversations.mutate();
-                  setDeleteAllPending(false);
-                }}
-                disabled={removeAllConversations.isPending}
-              >
-                {t("shell.ai.historyDeleteAllConfirm", { count: conversations.length })}
-              </button>
-              <button
-                type="button"
-                className="rect-ai-history__confirm-no"
-                onClick={() => setDeleteAllPending(false)}
-              >
-                {t("common.cancel")}
-              </button>
-            </span>
-          ) : (
-            <button
-              type="button"
-              className="rect-ai-history__delete-all"
-              onClick={() => setDeleteAllPending(true)}
-            >
-              <Trash2 size={15} strokeWidth={2} aria-hidden />
-              {t("shell.ai.historyDeleteAll")}
-            </button>
-          )}
-        </div>
 
         {removeAllConversations.error ? (
           <p className="rect-ai-panel__error" role="alert">

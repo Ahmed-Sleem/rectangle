@@ -494,19 +494,39 @@
  * `sticky` at the end rather than `fixed`, so it belongs to the scroll region
  * and cannot escape the window it is part of.
  */
+/*
+ * The bar is part of the window header, and the list runs beneath it.
+ *
+ * It has been in three places now, and the reasoning is worth keeping. Pinned
+ * at the top with the container's own padding above it, it came to rest 16px
+ * down and rows slid through the strip between it and the header — a bar
+ * apparently floating over the conversations. Moved to the foot that went away
+ * but put the control furthest from the title it belongs to.
+ *
+ * This is the treatment that worked for the activity day heading: the negative
+ * inset pulls it onto the header's own bottom edge, the matching padding gives
+ * the space back as its own, and the trailing mask dissolves rows passing
+ * underneath rather than cutting them. So there is no seam above it and no hard
+ * edge below it, and it reads as the bottom of the header rather than as a
+ * separate thing resting on the list.
+ */
 .rect-ai-history__foot {
   display: flex;
   align-items: center;
   gap: var(--rect-space-2);
   position: sticky;
-  inset-block-end: 0;
+  inset-block-start: calc(var(--rect-space-4) * -1);
   z-index: 1;
-  margin-block-start: var(--rect-space-2);
-  padding-block-start: var(--rect-space-2);
-  /* Opaque, and reaching the container's edges, or rows show through the bar
-     as they pass behind it. */
+  margin-block-start: calc(var(--rect-space-4) * -1);
+  padding-block: var(--rect-space-4) var(--rect-space-2);
+  margin-block-end: var(--rect-space-2);
+  /* Opaque, or rows read through the bar as they pass behind it. */
   background: var(--rect-surface-bg);
-  border-block-start: 1px solid var(--rect-surface-divider);
+  mask-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0) calc(100% - var(--rect-toolbar-fade)),
+    rgb(0 0 0 / 0) 100%
+  );
 }
 
 /*

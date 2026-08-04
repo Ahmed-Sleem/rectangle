@@ -378,6 +378,7 @@ export default function ProjectDetailPage() {
                 header: t("projects.memberRole"),
                 accessor: (member) => canManageTeam ? (
                   <Select
+                    variant="inline"
                     aria-label={t("projects.memberRoleFor", { name: member.displayName })}
                     value={member.role}
                     disabled={changeRole.isPending}
