@@ -48,7 +48,7 @@
   overflow: hidden;
   position: relative;
   z-index: var(--rect-z-panel);
-  animation: rect-ai-panel-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rect-ai-panel-in 340ms var(--rect-ease-out) both;
   transition:
     width var(--rect-motion-menu),
     min-width var(--rect-motion-menu),
@@ -60,7 +60,7 @@
 
 .rect-ai-panel--closing {
   pointer-events: none;
-  animation: rect-ai-panel-out 240ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: rect-ai-panel-out 240ms var(--rect-ease-standard) both;
 }
 
 .rect-ai-panel:hover {

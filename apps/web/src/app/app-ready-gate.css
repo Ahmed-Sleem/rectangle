@@ -23,7 +23,7 @@
 }
 
 .rect-boot__letter {
-  animation: rect-boot-letter 3.2s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  animation: rect-boot-letter 3.2s var(--rect-ease-brand) infinite;
   backface-visibility: hidden;
   color: var(--rect-nav-text-emphasis);
   display: inline-block;

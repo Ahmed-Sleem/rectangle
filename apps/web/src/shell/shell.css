@@ -1253,13 +1253,13 @@
 /* ── Final motion polish: black canvas menu FAB + smoother rail contraction ── */
 
 .rect-app {
-  transition: gap 380ms cubic-bezier(0.18, 0.95, 0.22, 1.02);
+  transition: gap 380ms var(--rect-ease-out);
 }
 
 .rect-nav {
   transition:
-    width 390ms cubic-bezier(0.18, 0.95, 0.22, 1.02),
-    padding 390ms cubic-bezier(0.18, 0.95, 0.22, 1.02),
+    width 390ms var(--rect-ease-out),
+    padding 390ms var(--rect-ease-out),
     opacity 220ms ease;
 }
 
@@ -1269,9 +1269,9 @@
 .rect-nav-item__icon {
   transition:
     opacity 240ms ease,
-    transform 320ms cubic-bezier(0.18, 0.95, 0.22, 1.02),
-    width 390ms cubic-bezier(0.18, 0.95, 0.22, 1.02),
-    font-size 320ms cubic-bezier(0.18, 0.95, 0.22, 1.02),
+    transform 320ms var(--rect-ease-out),
+    width 390ms var(--rect-ease-out),
+    font-size 320ms var(--rect-ease-out),
     background var(--rect-motion-nav),
     color var(--rect-motion-nav);
 }
@@ -1289,7 +1289,7 @@
     background var(--rect-motion-nav),
     border-color var(--rect-motion-nav),
     color var(--rect-motion-nav),
-    transform 320ms cubic-bezier(0.18, 0.95, 0.22, 1.08),
+    transform 320ms var(--rect-ease-spring),
     box-shadow var(--rect-motion-nav);
 }
 

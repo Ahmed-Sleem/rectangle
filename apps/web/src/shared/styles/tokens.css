@@ -297,17 +297,67 @@
   --rect-ai-panel-width-tablet: 320px;
   --rect-ai-panel-width-collapsed: 0px;
 
-  /* Motion */
-  --rect-motion-menu: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  --rect-motion-layout: 390ms cubic-bezier(0.18, 0.95, 0.22, 1.02);
-  --rect-motion-nav: 0.18s ease;
-  --rect-motion-toggle: 0.2s ease;
-  --rect-motion-spring: 0.28s var(--rect-ease-spring);
+  /* ── MOTION ──────────────────────────────────────────────────────────────
+   *
+   * THE MOTION HUB. Every movement in the product is one of six ROLES, and a
+   * role carries its duration and its easing together so the two cannot drift
+   * apart.
+   *
+   * This replaces a set that had grown to thirty distinct raw durations and
+   * eight raw curves written inline — four of which duplicated a token that
+   * already existed, one of them retyped in seven places. Most of those
+   * durations differed by amounts nobody can perceive, which is drift rather
+   * than design: the same kind of movement was simply written slightly
+   * differently each time somebody needed it.
+   *
+   * Two rival families made that inevitable. `--rect-motion-*` combined a
+   * duration and an easing, `--rect-duration-*` plus `--rect-ease-*` split
+   * them, and both existed for the same ideas — `--rect-motion-menu` said 0.35s
+   * while `--rect-duration-menu` said 160ms, for one component. New code picked
+   * whichever it happened to see, and reached for a raw value when neither
+   * fitted. There is one family now.
+   *
+   * WHICH ROLE TO USE:
+   *   control  a thing responding to the pointer — hover, press, focus.
+   *   surface  something appearing or leaving — windows, menus, dropdowns.
+   *   layout   something changing size or place — a panel opening, a rail
+   *            collapsing. Longer, because a bigger distance needs longer to
+   *            stay readable.
+   *   emphasis a deliberate flourish, and the only role that overshoots.
+   *   reveal   a field unfolding from an icon. Its own role because it is a
+   *            larger, more noticeable movement than a control changing state.
+   *   spinner  continuous rotation. Linear, or it appears to stutter.
+   */
+  --rect-motion-control: 180ms var(--rect-ease-standard);
+  --rect-motion-surface: var(--rect-duration-surface-in) var(--rect-ease-out);
+  --rect-motion-layout: 320ms var(--rect-ease-out);
+  --rect-motion-emphasis: 280ms var(--rect-ease-spring);
+  --rect-motion-reveal: var(--rect-duration-reveal) var(--rect-ease-reveal);
+  --rect-motion-spinner: 900ms linear;
+  /* The loading wordmark. A brand animation rather than a surface, and the only
+     movement in the product with its own curve — kept as a token so it is still
+     changed in one place. */
+  --rect-ease-brand: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /*
+   * Kept as aliases, not as a second family. Seventy-two declarations read
+   * `--rect-motion-nav` and twenty-six read `--rect-motion-spring`; pointing
+   * them at a role is one edit and touching a hundred files is not, and the
+   * value each resolves to is now the role's. New code should name the role.
+   */
+  --rect-motion-nav: var(--rect-motion-control);
+  --rect-motion-spring: var(--rect-motion-emphasis);
+  --rect-motion-menu: var(--rect-motion-surface);
+  --rect-motion-label: var(--rect-motion-control);
 
   /* Pure easing curves. Use these in `animation` shorthands, where a token that
      also carries a duration would be read as the animation-delay. */
   --rect-ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --rect-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* The everyday curve for a control changing state. Was written as the bare
+     keyword `ease` in thirty-three places, which is a different curve from this
+     one and from itself depending on the property. */
+  --rect-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Overlay motion. Fast enough to feel instant, slow enough to read as motion. */
   /* Slightly longer than a hover so the width change reads as deliberate
