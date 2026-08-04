@@ -80,7 +80,27 @@ for (const path of stylesheets(WEB_SRC)) {
      * answer and says so on the face of the rule.
      */
     const coversGap = /margin-block-end:/.test(rule.body) || /\bmargin:/.test(rule.body);
-    if (coversGap) continue;
+
+    /*
+     * And it must not end in a hard edge either.
+     *
+     * Covering the gap was necessary and not sufficient — that fix shipped and
+     * the reported line survived it. Nothing clips: content simply scrolls
+     * behind an opaque bar, and a rounded card edge vanishing under a straight
+     * one is read as a rule drawn across the page. Only a soft trailing edge
+     * removes it, so a pinned bar must fade where content passes beneath.
+     */
+    const fadesOut = /mask-image:/.test(rule.body);
+
+    if (coversGap && fadesOut) continue;
+
+    if (!coversGap || !fadesOut) {
+      offences.push(
+        `${relative(ROOT, path)}  ${rule.selector}` +
+          (coversGap ? " (covers the gap but ends in a hard edge)" : " (does not cover the gap)"),
+      );
+      continue;
+    }
 
     offences.push(`${relative(ROOT, path)}  ${rule.selector}`);
   }

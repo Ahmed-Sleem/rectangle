@@ -62,6 +62,27 @@
    */
   margin-block-end: calc(var(--rect-grid-gap) * -1);
   padding-block-end: calc(var(--rect-space-2) + var(--rect-grid-gap));
+  /*
+   * The bar's own trailing edge is softened, and this is the actual fix for the
+   * line reported four times.
+   *
+   * Nothing was ever clipping anything — the ancestor chain was walked and every
+   * element is `overflow: visible`. Cards simply scroll BEHIND this opaque bar,
+   * and a rounded card edge disappearing under a straight opaque one reads as a
+   * rule drawn across the page. It looked random because it only appears while
+   * something happens to be straddling this edge, and only on pages with enough
+   * content to scroll — which is why every probe on a near-empty instance
+   * missed it, and why two earlier "fixes" changed real but unrelated things.
+   *
+   * A mask fades the last few pixels of the bar instead of ending it abruptly,
+   * so content passing underneath dissolves rather than being guillotined. This
+   * is the standard treatment for content scrolling under a pinned surface.
+   */
+  mask-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0) calc(100% - var(--rect-toolbar-fade)),
+    rgb(0 0 0 / 0) 100%
+  );
 }
 
 /*

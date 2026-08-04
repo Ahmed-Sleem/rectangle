@@ -338,6 +338,16 @@
    * Ease-out and no spring: an overshoot reads as playful once and as sloppy
    * every time after, and these are working surfaces.
    */
+  /*
+   * How far a pinned bar dissolves at its trailing edge.
+   *
+   * Enough that a card's border and its rounded corner have both faded before
+   * the bar ends, and small enough that the bar still reads as a solid surface
+   * rather than a gradient. Eight pixels is roughly the corner radius of the
+   * cards that pass beneath it.
+   */
+  --rect-toolbar-fade: 8px;
+
   --rect-duration-surface-in: 170ms;
   --rect-ease-surface-in: var(--rect-ease-out);
   --rect-surface-in-rise: 6px;

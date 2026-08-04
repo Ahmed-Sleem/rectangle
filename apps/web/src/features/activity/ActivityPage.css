@@ -29,11 +29,32 @@
   gap: var(--rect-space-3);
   justify-content: space-between;
   margin: 0;
-  padding-block: var(--rect-space-2);
   position: sticky;
-  /* Sticks to the top of the scrolling trail, which is its own container now. */
-  inset-block-start: 0;
   z-index: 1;
+
+  /*
+   * Pinned flush to the top of the trail, and nothing shows above or beneath it.
+   *
+   * It used to pin at zero while the container carried sixteen pixels of
+   * padding above. A sticky child's inset is measured from the scrollport, so
+   * the heading came to rest that far down and entries slid through the strip
+   * between it and the card's edge — which is what made it read as a label
+   * hovering over the list rather than a header belonging to it.
+   *
+   * The negative inset pulls it up onto the padding so it lands on the card's
+   * own top edge, and the matching padding gives the space back as its own, so
+   * the pinned heading is the top of the surface with no seam. The trailing
+   * mask dissolves the rows passing underneath instead of cutting them, the
+   * same treatment the page toolbar needs and for the same reason.
+   */
+  inset-block-start: calc(var(--rect-space-4) * -1);
+  padding-block: calc(var(--rect-space-4) + var(--rect-space-2)) var(--rect-space-2);
+  margin-block-start: calc(var(--rect-space-4) * -1);
+  mask-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0) calc(100% - var(--rect-toolbar-fade)),
+    rgb(0 0 0 / 0) 100%
+  );
 }
 
 /* A deliberate element rather than a bare line of text. */
