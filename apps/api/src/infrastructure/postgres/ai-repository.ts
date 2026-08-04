@@ -511,6 +511,22 @@ export class PostgresAiConversationRepository implements AiConversationRepositor
     );
     return (result.rowCount ?? 0) > 0;
   }
+
+  /**
+   * Everything this person has said to the assistant.
+   *
+   * There is no parameter for whose threads to clear, and that absence is the
+   * safety: the statement cannot be pointed at anybody else because there is
+   * nowhere to name them. The messages go with the rows by cascade, as they do
+   * for a single deletion.
+   */
+  async removeAll(tenantId: string, userId: string): Promise<number> {
+    const result = await this.pool.query(
+      "delete from ai_conversations where tenant_id = $1 and user_id = $2",
+      [tenantId, userId],
+    );
+    return result.rowCount ?? 0;
+  }
 }
 
 /**

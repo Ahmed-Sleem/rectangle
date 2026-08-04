@@ -251,6 +251,19 @@ class MemoryConversations implements AiConversationRepository {
     this.said = this.said.filter((row) => row.conversationId !== id);
     return this.rows.length < before;
   }
+
+  /*
+   * Faithful in the respect the service depends on: it removes this person's
+   * threads and nobody else's, and takes the messages with them. A fake that
+   * cleared everything would let a scoping mistake through while looking green.
+   */
+  async removeAll(tenantId: string, userId: string) {
+    const mine = this.rows.filter((row) => row.tenantId === tenantId && row.userId === userId);
+    const ids = new Set(mine.map((row) => row.id));
+    this.rows = this.rows.filter((row) => !ids.has(row.id));
+    this.said = this.said.filter((row) => !ids.has(row.conversationId));
+    return mine.length;
+  }
 }
 
 /** Tools a person has said they no longer want to be asked about. */
@@ -1129,6 +1142,46 @@ describe("a conversation belongs to one person", () => {
     expect(original.messages.some((m) => m.content.includes("rhubarb"))).toBe(true);
   });
 
+  it("clears every thread this person owns, and nobody else's", async () => {
+    const conversations = new MemoryConversations();
+    const { service, audit } = build({ replies: [], conversations });
+    const owner = person(["ai.use"]);
+
+    for (const title of ["first", "second", "third"]) {
+      const created = await conversations.create({ tenantId, userId, title, projectId: null });
+      await conversations.appendMessage({
+        tenantId,
+        conversationId: created.id,
+        role: "user",
+        content: `said in ${title}`,
+        usedTools: [],
+      });
+    }
+    // A colleague's thread, which must survive.
+    await conversations.create({ tenantId, userId: otherUserId, title: "theirs", projectId: null });
+
+    const result = await service.deleteAllConversations(owner);
+
+    expect(result).toEqual({ deleted: 3 });
+    expect(conversations.rows.map((row) => row.title)).toEqual(["theirs"]);
+    // The messages went with them rather than being orphaned.
+    expect(conversations.said).toHaveLength(0);
+    expect(audit.events.some((entry) => entry.action === "ai.conversation.delete_all")).toBe(true);
+  });
+
+  it("records an attempt to clear a history even when there was none", async () => {
+    /*
+     * A record that only appears on success cannot answer "did anybody try",
+     * which is the question an audit trail exists for.
+     */
+    const { service, audit } = build({ replies: [] });
+
+    const result = await service.deleteAllConversations(person(["ai.use"]));
+
+    expect(result).toEqual({ deleted: 0 });
+    expect(audit.events.some((entry) => entry.action === "ai.conversation.delete_all")).toBe(true);
+  });
+
   it("refuses the whole conversation surface without the permission", async () => {
     const { service } = build({ replies: [] });
     const stranger = person([]);
@@ -1136,6 +1189,7 @@ describe("a conversation belongs to one person", () => {
 
     await expect(service.listConversations(stranger)).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(service.branchConversation(stranger, { conversationId: anyId })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(service.deleteAllConversations(stranger)).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(service.readConversation(stranger, { conversationId: anyId })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(service.renameConversation(stranger, { conversationId: anyId, title: "x" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(service.deleteConversation(stranger, { conversationId: anyId })).rejects.toMatchObject({ code: "FORBIDDEN" });

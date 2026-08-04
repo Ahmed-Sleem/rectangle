@@ -162,6 +162,8 @@ export interface AiConversationRepository {
   }): Promise<StoredAiMessage>;
   rename(tenantId: string, userId: string, id: string, title: string): Promise<boolean>;
   remove(tenantId: string, userId: string, id: string): Promise<boolean>;
+  /** Every thread this person owns. Returns how many were removed. */
+  removeAll(tenantId: string, userId: string): Promise<number>;
 }
 
 /**
@@ -922,6 +924,42 @@ export class AiService {
     });
 
     return { deleted: true };
+  }
+
+  /**
+   * Clearing the whole history.
+   *
+   * Offered because the alternative is deleting forty threads one at a time,
+   * which is not a safer act — it is the same act, performed so tediously that
+   * people stop reading the confirmations. The card asks once, in place, and
+   * says how many are about to go.
+   *
+   * Scoped by the asker alone: there is no parameter for whose history this is,
+   * so no request can reach anybody else's. The count is returned rather than a
+   * bare acknowledgement, because "deleted 12 conversations" is checkable
+   * against what the person believed they had and a plain success is not.
+   */
+  async deleteAllConversations(actor: UserPrincipal): Promise<{ deleted: number }> {
+    requirePermission(actor, "ai.use");
+
+    const deleted = await this.conversations.removeAll(actor.tenantId, actor.userId);
+
+    /*
+     * Recorded even when it removed nothing. An attempt to erase a history is
+     * worth knowing about whether or not there was one to erase, and a record
+     * that only appears on success cannot answer "did anybody try".
+     */
+    await this.audit.append({
+      tenantId: actor.tenantId,
+      actorUserId: actor.userId,
+      action: "ai.conversation.delete_all",
+      entityType: "ai_conversation",
+      entityId: actor.userId,
+      result: "success",
+      metadata: { deleted },
+    });
+
+    return { deleted };
   }
 
   /**

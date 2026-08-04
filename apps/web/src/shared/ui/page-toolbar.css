@@ -43,6 +43,25 @@
   /* Cancels the panel gutter so the bar spans the full content width. */
   margin-inline: calc(var(--rect-space-05) * -1);
   padding-inline: var(--rect-space-05);
+  /*
+   * The bar must also cover the column gap beneath it, and this is the fix for
+   * a fault reported three times as "a random horizontal line in the middle of
+   * the page".
+   *
+   * The bar is a flex child of a column with `gap`, so between its bottom edge
+   * and the first card there was a 12px strip belonging to neither. The bar's
+   * background stopped at its own box, so once the page scrolled, rows travelled
+   * through that transparent strip and were sliced across — measured on the
+   * activity page, the pixel directly under the hairline was a KPI card's label
+   * with its top half cut away. What reads as a stray line is that cut, and the
+   * hairline sitting on top of it.
+   *
+   * The negative margin pulls the bar's box down over the gap and the padding
+   * gives the space back to the content, so the painted surface is continuous
+   * from the header to the first card with nothing able to show through.
+   */
+  margin-block-end: calc(var(--rect-grid-gap) * -1);
+  padding-block-end: calc(var(--rect-space-2) + var(--rect-grid-gap));
 }
 
 /*

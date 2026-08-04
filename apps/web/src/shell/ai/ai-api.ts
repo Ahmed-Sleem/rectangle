@@ -227,6 +227,10 @@ export const shellAiApi = {
     return apiRequest<AiConversationPage>(`/v1/ai/conversations${suffix}`);
   },
 
+  /** Clears this person's whole history. Returns how many went. */
+  deleteAllConversations: () =>
+    apiRequest<{ deleted: number }>("/v1/ai/conversations/all", { method: "DELETE" }),
+
   /** Starts a fresh thread carrying the tail of one that outgrew the model. */
   branchConversation: (conversationId: string) =>
     apiRequest<{ conversation: AiConversationSummary; messages: AiStoredMessage[] }>(

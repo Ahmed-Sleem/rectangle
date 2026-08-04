@@ -651,7 +651,9 @@
 }
 
 .rect-overlay__surface[data-state="open"] {
-  animation: rect-overlay-surface-in var(--rect-duration-overlay) var(--rect-ease-spring) both;
+  /* The shared opening motion. Was its own keyframe at its own duration with a
+     spring; every surface in the product now arrives the same way. */
+  animation: rect-surface-in var(--rect-duration-surface-in) var(--rect-ease-surface-in) both;
 }
 
 .rect-overlay__surface[data-state="closed"] {
@@ -819,7 +821,7 @@
 }
 
 @keyframes rect-overlay-surface-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  from { opacity: 0; transform: translateY(var(--rect-surface-in-rise)) scale(var(--rect-surface-in-scale)); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 

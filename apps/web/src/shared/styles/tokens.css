@@ -317,6 +317,32 @@
      movement than a field widening, so it is given room to be seen. */
   --rect-duration-reveal: 380ms;
   --rect-ease-reveal: cubic-bezier(0.32, 0.72, 0, 1);
+  /*
+   * HOW EVERY SURFACE OPENS. One definition, read by all of them.
+   *
+   * There were six: the window, the canvas sheet, the user menu, the dropdown,
+   * the assistant panel and the toast each had their own keyframes, their own
+   * duration and their own easing, two of them written as raw cubic-beziers
+   * rather than tokens. They were all doing the same thing — fade up, rise a
+   * little, settle from slightly small — with numbers that happened to differ,
+   * so opening two things in a row felt like two different products.
+   *
+   * These four values are that motion. A surface that opens uses
+   * `rect-surface-in`; nothing declares its own timing. The §0.3 test — to
+   * change how everything in the product opens, how many files must be edited?
+   * — answers one, this one.
+   *
+   * 170ms because the published guidance for an entering element of this size
+   * is 150-200ms: below that it appears rather than arrives, and above 250ms a
+   * control somebody opens dozens of times an hour starts to feel slow.
+   * Ease-out and no spring: an overshoot reads as playful once and as sloppy
+   * every time after, and these are working surfaces.
+   */
+  --rect-duration-surface-in: 170ms;
+  --rect-ease-surface-in: var(--rect-ease-out);
+  --rect-surface-in-rise: 6px;
+  --rect-surface-in-scale: 0.985;
+
   --rect-duration-overlay: 140ms;
   --rect-duration-overlay-scrim: 110ms;
   /* Exit is quicker than entry. An element that lingers on the way out reads as

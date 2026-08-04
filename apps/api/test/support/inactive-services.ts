@@ -78,6 +78,7 @@ export const inactiveAiService = {
   readConversation(): never { throw new Error("not used"); },
   renameConversation(): never { throw new Error("not used"); },
   deleteConversation(): never { throw new Error("not used"); },
+  deleteAllConversations(): never { throw new Error("not used"); },
   listAutoApprovals(): never { throw new Error("not used"); },
   grantAutoApproval(): never { throw new Error("not used"); },
   revokeAutoApproval(): never { throw new Error("not used"); },

@@ -190,3 +190,41 @@ html[dir="rtl"] .rect-app {
     animation: none;
   }
 }
+
+
+/*
+ * The one way a surface opens.
+ *
+ * Defined here rather than in any component's stylesheet because six of them
+ * had written their own version of it and the copies had drifted. A window, a
+ * sheet, a menu, a dropdown and a panel are different things that appear the
+ * same way, and appearing the same way is what makes them feel like one
+ * product. Every value comes from the theme, so the motion is changed in one
+ * place for all of them.
+ */
+@keyframes rect-surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--rect-surface-in-rise)) scale(var(--rect-surface-in-scale));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/*
+ * Applied by anything that opens. A class rather than a mixin because CSS has
+ * no mixins, and repeating three declarations in six files is precisely the
+ * duplication this replaces.
+ */
+.rect-surface-in {
+  animation: rect-surface-in var(--rect-duration-surface-in) var(--rect-ease-surface-in) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rect-surface-in {
+    animation: none;
+  }
+}

@@ -252,9 +252,22 @@
    * have been for.
    */
   scroll-padding-block-end: var(--rect-space-4);
-  /* overflow-x clips at the border box, so a control sitting flush against the
-     edge loses part of its focus ring. This keeps content off the clip line. */
-  padding-inline: var(--rect-space-05);
+  /*
+   * Keeps painted edges off the clip line.
+   *
+   * `overflow-x` clips at the border box, so anything reaching the full content
+   * width has its own border cut in half by the clip rather than drawn. On the
+   * settings page, where the sections are full width and bordered, that showed
+   * as a hard vertical rule down the right of the panel for the whole height of
+   * the scroll — measured at x=871 against a clip line at 873, with the section
+   * border landing exactly on it. It was reported as a stray line in the
+   * assistant's settings section, and it belongs to no section: it is the
+   * scrollport cutting every one of them.
+   *
+   * Two pixels was enough for a focus ring and not for a border plus the
+   * antialiasing beside it. Four gives both room to be drawn whole.
+   */
+  padding-inline: var(--rect-space-1);
   border-radius: 0;
   /*
    * No leading padding, and this is load-bearing rather than a taste choice.
@@ -648,7 +661,7 @@
 }
 
 .rect-canvas-sheet[data-state="open"] {
-  animation: rect-canvas-sheet-in 180ms var(--rect-ease-spring, ease-out) both;
+  animation: rect-surface-in var(--rect-duration-surface-in) var(--rect-ease-surface-in) both;
 }
 
 .rect-canvas-sheet[data-state="closed"] {
@@ -660,18 +673,6 @@
  * A window appears; a panel arrives from where it lives, which is what tells
  * somebody this is the rail rather than a dialog about the rail.
  */
-@keyframes rect-canvas-sheet-in {
-  from {
-    opacity: 0;
-    transform: translateX(-8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 @keyframes rect-canvas-sheet-out {
   from {
     opacity: 1;
@@ -686,18 +687,6 @@
 
 .rect-canvas-sheet--ai[data-state="open"] {
   animation-name: rect-canvas-sheet-in-end;
-}
-
-@keyframes rect-canvas-sheet-in-end {
-  from {
-    opacity: 0;
-    transform: translateX(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
 }
 
 /*
@@ -1544,22 +1533,11 @@ html[dir="rtl"] .rect-user-menu__panel {
 }
 
 .rect-user-menu__panel[data-state="open"] {
-  animation: rect-menu-in var(--rect-duration-menu) var(--rect-ease-out) both;
+  animation: rect-surface-in var(--rect-duration-surface-in) var(--rect-ease-surface-in) both;
 }
 
 .rect-user-menu__panel[data-state="closed"] {
   animation: rect-menu-out var(--rect-duration-menu-exit) var(--rect-ease-in) both;
-}
-
-@keyframes rect-menu-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
 }
 
 @keyframes rect-menu-out {

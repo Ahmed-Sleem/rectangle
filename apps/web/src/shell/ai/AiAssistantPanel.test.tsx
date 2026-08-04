@@ -866,6 +866,92 @@ describe("AiAssistantPanel: page context and history", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("clears the whole history behind an inline confirmation", async () => {
+    let cleared = false;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = typeof input === "string" ? input : String(input);
+
+      if (url.includes("/v1/ai/conversations/all") && init?.method === "DELETE") {
+        cleared = true;
+        return json({ deleted: 2 });
+      }
+      if (url.includes("/v1/ai/conversations")) {
+        return json({
+          conversations: cleared
+            ? []
+            : [
+                { id: "a", title: "steel delivery", projectId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+                { id: "b", title: "concrete pour", projectId: null, updatedAt: "2026-01-02T00:00:00.000Z" },
+              ],
+          nextCursor: null,
+        });
+      }
+      return json({ aiSettings: WORKING });
+    });
+
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("Ready");
+    await user.click(screen.getByRole("button", { name: "Past conversations" }));
+
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByText("steel delivery");
+
+    await user.click(within(dialog).getByRole("button", { name: /Delete all/ }));
+
+    /*
+     * Asked in place rather than in a window over the window, and the count is
+     * named — "delete all 2" is checkable against what somebody believes they
+     * have, where a bare "are you sure" is not.
+     */
+    const confirm = await within(dialog).findByRole("button", { name: "Delete all 2?" });
+    expect(within(dialog).queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(confirm);
+
+    await waitFor(() => expect(cleared).toBe(true));
+    expect(await within(dialog).findByText("No conversations yet")).toBeInTheDocument();
+  });
+
+  it("gives the row to the field while it is being searched", async () => {
+    mockApi({
+      conversations: [
+        { id: "a", title: "steel delivery", projectId: null, updatedAt: "2026-01-01T00:00:00.000Z" },
+      ],
+    });
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("Ready");
+    await user.click(screen.getByRole("button", { name: "Past conversations" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(await within(dialog).findByRole("button", { name: /Delete all/ })).toBeInTheDocument();
+
+    /*
+     * The button yields the width rather than being squeezed. A cramped field
+     * is the thing being fixed, and nobody is reaching for "delete all" in the
+     * moment they are typing a search.
+     */
+    await user.click(within(dialog).getByLabelText("Search your conversations"));
+
+    await waitFor(() =>
+      expect(within(dialog).queryByRole("button", { name: /Delete all/ })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("offers nothing to delete when there is nothing to delete", async () => {
+    mockApi({ conversations: [] });
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("Ready");
+    await user.click(screen.getByRole("button", { name: "Past conversations" }));
+
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByText("No conversations yet");
+    // A control whose only outcome is "deleted 0" should not be on the screen.
+    expect(within(dialog).queryByRole("button", { name: /Delete all/ })).not.toBeInTheDocument();
+  });
+
   it("reads in Arabic", async () => {
     await setRectangleLanguage("ar");
     mockApi({});

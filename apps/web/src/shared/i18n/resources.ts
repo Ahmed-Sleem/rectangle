@@ -338,6 +338,9 @@ export const resources = {
           historyMore: "Show older",
           historyLoadingMore: "Loading older conversations",
           historyEnd: "That is all of them.",
+          historyDeleteAll: "Delete all",
+          historyDeleteAllConfirm: "Delete all {{count}}?",
+          historyDeleteAllFailed: "Your conversations could not be deleted.",
           tooLongTitle: "This conversation is too long to continue",
           tooLongText:
             "It has grown past what the model can read in one go. Start a new one carrying the last ten messages, and this conversation stays saved.",
@@ -735,6 +738,9 @@ export const resources = {
           historyMore: "عرض الأقدم",
           historyLoadingMore: "جارٍ تحميل المحادثات الأقدم",
           historyEnd: "هذه كل المحادثات.",
+          historyDeleteAll: "حذف الكل",
+          historyDeleteAllConfirm: "حذف كل الـ{{count}}؟",
+          historyDeleteAllFailed: "تعذّر حذف محادثاتك.",
           tooLongTitle: "هذه المحادثة أطول من أن تكمل",
           tooLongText:
             "لقد تجاوزت ما يستطيع النموذج قراءته دفعة واحدة. ابدأ محادثة جديدة تحمل آخر عشر رسائل، وستبقى هذه المحادثة محفوظة.",

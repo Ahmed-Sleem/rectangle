@@ -483,20 +483,93 @@
 }
 
 /*
- * The field is pinned above the list rather than scrolling away with it. It is
- * how somebody narrows a long list, so it has to stay reachable once they are
- * a hundred rows down — which is exactly when they want it.
+ * The bar at the foot of the window, and the list slides under it.
+ *
+ * It used to be pinned to the TOP, which is what made it read as a strip
+ * floating over the conversations as they scrolled past. At the foot it is the
+ * one fixed thing on the surface, the list ends beneath it, and it matches the
+ * composer directly below this panel — the same shape in the same place doing
+ * the same job.
+ *
+ * `sticky` at the end rather than `fixed`, so it belongs to the scroll region
+ * and cannot escape the window it is part of.
+ */
+.rect-ai-history__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--rect-space-2);
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
+  margin-block-start: var(--rect-space-2);
+  padding-block-start: var(--rect-space-2);
+  /* Opaque, and reaching the container's edges, or rows show through the bar
+     as they pass behind it. */
+  background: var(--rect-surface-bg);
+  border-block-start: 1px solid var(--rect-surface-divider);
+}
+
+/*
+ * The same round style as every other control here — the pill radius, not the
+ * field radius, because this bar sits beside a pill button and two different
+ * corner treatments on one row is what makes a row look assembled from parts.
  */
 .rect-ai-history__search {
-  position: sticky;
-  inset-block-start: 0;
-  z-index: 1;
-  margin-block-end: var(--rect-space-3);
-  background: var(--rect-surface-bg);
+  flex: 1;
+  min-inline-size: 0;
+  background: var(--rect-card-bg);
   border: 1px solid var(--rect-card-border);
-  border-radius: var(--rect-radius-md);
+  border-radius: var(--rect-pill-radius);
   padding: 0 var(--rect-space-3);
   min-block-size: var(--rect-control-standard);
+  transition:
+    background var(--rect-motion-nav),
+    border-color var(--rect-motion-nav),
+    box-shadow var(--rect-motion-nav);
+}
+
+.rect-ai-history__search:hover {
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-toggle-border-hover);
+}
+
+.rect-ai-history__search:focus-within {
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-toggle-border-hover);
+  box-shadow: var(--rect-shadow-toggle);
+}
+
+/*
+ * Clearing the lot. Pill, to match the field beside it, and quiet until it is
+ * hovered: it is the most destructive control on the surface and should not be
+ * the loudest thing on it.
+ */
+.rect-ai-history__delete-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rect-space-1);
+  flex-shrink: 0;
+  min-block-size: var(--rect-control-standard);
+  padding: 0 var(--rect-space-3);
+  background: var(--rect-card-bg);
+  border: 1px solid var(--rect-card-border);
+  border-radius: var(--rect-pill-radius);
+  color: var(--rect-text-secondary);
+  font-family: var(--rect-font);
+  font-size: var(--rect-text-label);
+  font-weight: var(--rect-weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--rect-motion-nav),
+    border-color var(--rect-motion-nav),
+    color var(--rect-motion-nav);
+}
+
+.rect-ai-history__delete-all:hover {
+  background: var(--rect-surface-bg-hover);
+  border-color: var(--rect-color-danger);
+  color: var(--rect-color-danger);
 }
 
 /*

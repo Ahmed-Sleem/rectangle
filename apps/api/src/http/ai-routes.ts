@@ -24,6 +24,7 @@ export async function registerAiRoutes(
     | "readConversation"
     | "renameConversation"
     | "deleteConversation"
+    | "deleteAllConversations"
     | "listAutoApprovals"
     | "grantAutoApproval"
     | "revokeAutoApproval"
@@ -157,6 +158,15 @@ export async function registerAiRoutes(
       ...(request.body as Record<string, unknown>),
       ...(request.params as Record<string, unknown>),
     }),
+  );
+
+  /*
+   * Before the parameterised route, deliberately. Fastify matches a static
+   * segment ahead of a parameter, but the ordering is stated here anyway so
+   * nobody later reads "all" as a conversation id.
+   */
+  app.delete("/v1/ai/conversations/all", async (request) =>
+    aiService.deleteAllConversations(request.principal),
   );
 
   app.delete("/v1/ai/conversations/:conversationId", async (request) =>
