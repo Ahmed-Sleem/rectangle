@@ -434,6 +434,27 @@
  * and any future duplicate is visible on sight.
  */
 /*
+ * The history when it has taken the panel, on a phone.
+ *
+ * It is the panel's scrolling body that scrolls it, exactly as the transcript
+ * is scrolled — the list itself never grows its own scroll region, on either
+ * layout. `flex: 1` so a short list still fills the space rather than leaving
+ * the assistant looking half-loaded beneath it.
+ */
+.rect-ai-history-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rect-space-2);
+  flex: 1;
+  min-block-size: 0;
+}
+
+.rect-ai-history-pane__help {
+  color: var(--rect-text-secondary);
+  font-size: var(--rect-text-label);
+}
+
+/*
  * The list does not scroll. The window it sits in does.
  *
  * It used to carry `max-block-size: min(60dvh, 420px)` and its own

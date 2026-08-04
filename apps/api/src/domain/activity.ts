@@ -47,6 +47,25 @@ const SENSITIVITY_BY_PREFIX: ReadonlyArray<[string, ActivitySensitivity]> = [
   ["auth.", "security"],
   ["profile.", "personal"],
   ["passkey.", "personal"],
+  /*
+   * What the assistant did, and what a person told it it could do unasked.
+   *
+   * Unclassified these fell through to `administrative`, which is the most
+   * restrictive class and means administrators only — so somebody could not see
+   * the actions their own assistant had taken on their behalf. That is the
+   * wrong answer twice over. It is their activity, performed as them; and the
+   * whole approval design rests on every action being visible to the person who
+   * approved it, or who agreed in advance not to be asked. An audit trail that
+   * hides an agent's work from its principal is not an audit trail.
+   *
+   * `personal` rather than `operational`: these describe a person's own
+   * relationship with the assistant — their conversations, their standing
+   * approvals — and are visible to them or to a full administrator. The work
+   * itself is separate. Creating a task through the assistant still writes
+   * `task.create`, classified `operational` and visible with the record, and it
+   * carries the assistant attribution alongside.
+   */
+  ["ai.", "personal"],
 ];
 
 const SENSITIVITY_BY_ACTION: Readonly<Record<string, ActivitySensitivity>> = {

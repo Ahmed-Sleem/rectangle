@@ -61,6 +61,7 @@ run_step "docker build simulation" ./scripts/checks/docker-build-sim.sh
 # steps above: it starts the real API serving the real bundle against a real
 # PostgreSQL and drives a browser through it.
 run_step "audit coverage" node ./scripts/checks/audit-coverage.mjs
+run_step "assistant capability parity" node ./scripts/checks/ai-tool-parity.mjs
 run_step "end-to-end sign-in flows" ./scripts/checks/e2e.sh
 
 echo "\n[verify] All checks passed"

@@ -53,6 +53,7 @@ import {
   type AiStoredMessage,
 } from "./ai-api";
 import type { AiAssistantPanelProps } from "./ai-types";
+import { useIsHandset } from "@/shared/lib/useIsHandset";
 import { useScreenContext } from "./useScreenContext";
 import "./ai-panel.css";
 
@@ -112,6 +113,7 @@ export function AiAssistantPanel({
   const [shouldRender, setShouldRender] = useState(!collapsed);
   const [isClosing, setIsClosing] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const isHandset = useIsHandset();
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [proposals, setProposals] = useState<AiProposal[]>([]);
@@ -541,6 +543,133 @@ export function AiAssistantPanel({
     ask.mutate({ message });
   };
 
+  /*
+   * The list itself, defined once and placed twice.
+   *
+   * On a desktop it belongs in a window over the panel: the panel is narrow,
+   * the messages are what somebody is there to read, and a permanent index
+   * would take width from the thing it indexes.
+   *
+   * On a phone the assistant is already occupying the canvas, so a window over
+   * it is a sheet on top of a sheet — two dialogs deep, the second floating
+   * outside the frame every other surface respects, with the first dimmed
+   * behind it. Measured at 390px: the history sat at x=12 and 366 wide while
+   * the canvas was at x=27 and 336 wide. There the list replaces the panel's
+   * contents instead, which is what the menu and the assistant already do.
+   *
+   * One definition either way. Rendering the rows twice would be the copy that
+   * stops receiving fixes.
+   */
+  const historyBody = (
+    <>
+        {/*
+          * The field is outside every branch below, so it does not vanish the
+          * moment a search returns nothing — which is precisely when somebody
+          * needs it, to correct what they typed.
+          */}
+        <SearchInput
+          className="rect-ai-history__search"
+          label={t("shell.ai.historySearch")}
+          placeholder={t("shell.ai.historySearchPlaceholder")}
+          value={searchTerm}
+          onChange={setSearchTerm}
+        />
+
+        {history.isPending ? (
+          <p className="rect-ai-history__note">{t("common.loading")}</p>
+        ) : history.isError ? (
+          <p className="rect-ai-history__note" role="alert">
+            {t("shell.ai.historyFailed")}
+          </p>
+        ) : conversations.length === 0 ? (
+          /*
+            * Two different facts, two different sentences. "You have none yet"
+            * invites a first question; "nothing matched" tells somebody who
+            * plainly does have conversations to try another word. Showing the
+            * first to a person whose search missed would be telling them their
+            * history had been lost.
+            */
+          appliedSearch ? (
+            <EmptyState
+              title={t("shell.ai.historyNoMatchTitle")}
+              message={t("shell.ai.historyNoMatchText")}
+            />
+          ) : (
+            <EmptyState title={t("shell.ai.historyEmptyTitle")} message={t("shell.ai.historyEmptyText")} />
+          )
+        ) : (
+          <ul className="rect-ai-history">
+            {conversations.map((conversation) => (
+              <li key={conversation.id} className="rect-ai-history__item">
+                <button
+                  type="button"
+                  className="rect-ai-history__open"
+                  onClick={() => openConversation.mutate(conversation.id)}
+                >
+                  <span className="rect-ai-history__title">{conversation.title}</span>
+                  <span className="rect-ai-history__meta">
+                    {new Date(conversation.updatedAt).toLocaleDateString()}
+                  </span>
+                </button>
+                {/*
+                  * Confirmed in place rather than in a window over the window.
+                  * A conversation cannot be recovered, so it must be asked; but
+                  * stacking a dialog on top of the history list to ask a
+                  * one-word question moves the person away from the thing they
+                  * are deciding about.
+                  */}
+                {pendingDelete === conversation.id ? (
+                  <span className="rect-ai-history__confirm">
+                    <button
+                      type="button"
+                      className="rect-ai-history__confirm-yes"
+                      onClick={() => {
+                        removeConversation.mutate(conversation.id);
+                        setPendingDelete(null);
+                      }}
+                      disabled={removeConversation.isPending}
+                    >
+                      {t("shell.ai.deleteConfirm")}
+                    </button>
+                    <button
+                      type="button"
+                      className="rect-ai-history__confirm-no"
+                      onClick={() => setPendingDelete(null)}
+                    >
+                      {t("common.cancel")}
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="rect-ai-history__delete"
+                    onClick={() => setPendingDelete(conversation.id)}
+                    aria-label={t("shell.ai.deleteConversation", { title: conversation.title })}
+                    title={t("shell.ai.deleteConversation", { title: conversation.title })}
+                  >
+                    <Trash2 size={15} strokeWidth={2} aria-hidden />
+                  </button>
+                )}
+              </li>
+            ))}
+
+            {/*
+              * Watched rather than pressed. It sits after the last row inside
+              * the window's own scroll region, so reaching it means there is
+              * more list below than above and the next page is worth fetching.
+              */}
+            {history.hasNextPage ? (
+              <li ref={sentinelRef} className="rect-ai-history__more" aria-hidden={!history.isFetchingNextPage}>
+                {history.isFetchingNextPage ? t("shell.ai.historyLoadingMore") : null}
+              </li>
+            ) : (
+              <li className="rect-ai-history__end">{t("shell.ai.historyEnd")}</li>
+            )}
+          </ul>
+        )}
+    </>
+  );
+
   return (
     <aside
       className={cn("rect-ai-panel", isClosing && "rect-ai-panel--closing")}
@@ -563,7 +692,17 @@ export function AiAssistantPanel({
           <button
             type="button"
             className="rect-ai-toggle"
-            onClick={() => setHistoryOpen(true)}
+            /*
+             * The same control opens and closes it. On a phone the list takes
+             * the panel, so this is the way back to the conversation — and a
+             * button that only opens would strand somebody on a screen with no
+             * exit but the one that shuts the whole assistant.
+             */
+            onClick={() => {
+              setHistoryOpen((wasOpen) => !wasOpen);
+              setPendingDelete(null);
+            }}
+            aria-expanded={historyOpen}
             aria-label={t("shell.ai.history")}
             title={t("shell.ai.history")}
           >
@@ -583,7 +722,19 @@ export function AiAssistantPanel({
       </header>
 
       <div className="rect-ai-panel__body" id="rectangle-ai-panel-body" ref={transcriptRef}>
-        {blocker ? (
+        {historyOpen && isHandset ? (
+          /*
+           * On a phone the list takes the panel rather than floating over it.
+           * The assistant is already the canvas here, so a window on top would
+           * be the second dialog deep — which is the fault that was reported,
+           * and which the menu and the assistant were both fixed for earlier.
+           * The header's own control closes it, exactly as it opened it.
+           */
+          <section className="rect-ai-history-pane" aria-label={t("shell.ai.history")}>
+            <p className="rect-ai-history-pane__help">{t("shell.ai.historyHelp")}</p>
+            {historyBody}
+          </section>
+        ) : blocker ? (
           /*
            * The honest unavailable state. It names the cause and, when the
            * reader can act, gives them the way to — rather than a disabled box
@@ -878,7 +1029,7 @@ export function AiAssistantPanel({
         * read, so a permanent list would take width from the thing it indexes.
         */}
       <Overlay
-        open={historyOpen}
+        open={historyOpen && !isHandset}
         title={t("shell.ai.history")}
         description={t("shell.ai.historyHelp")}
         size="sm"
@@ -887,111 +1038,7 @@ export function AiAssistantPanel({
           setPendingDelete(null);
         }}
       >
-        {/*
-          * The field is outside every branch below, so it does not vanish the
-          * moment a search returns nothing — which is precisely when somebody
-          * needs it, to correct what they typed.
-          */}
-        <SearchInput
-          className="rect-ai-history__search"
-          label={t("shell.ai.historySearch")}
-          placeholder={t("shell.ai.historySearchPlaceholder")}
-          value={searchTerm}
-          onChange={setSearchTerm}
-        />
-
-        {history.isPending ? (
-          <p className="rect-ai-history__note">{t("common.loading")}</p>
-        ) : history.isError ? (
-          <p className="rect-ai-history__note" role="alert">
-            {t("shell.ai.historyFailed")}
-          </p>
-        ) : conversations.length === 0 ? (
-          /*
-            * Two different facts, two different sentences. "You have none yet"
-            * invites a first question; "nothing matched" tells somebody who
-            * plainly does have conversations to try another word. Showing the
-            * first to a person whose search missed would be telling them their
-            * history had been lost.
-            */
-          appliedSearch ? (
-            <EmptyState
-              title={t("shell.ai.historyNoMatchTitle")}
-              message={t("shell.ai.historyNoMatchText")}
-            />
-          ) : (
-            <EmptyState title={t("shell.ai.historyEmptyTitle")} message={t("shell.ai.historyEmptyText")} />
-          )
-        ) : (
-          <ul className="rect-ai-history">
-            {conversations.map((conversation) => (
-              <li key={conversation.id} className="rect-ai-history__item">
-                <button
-                  type="button"
-                  className="rect-ai-history__open"
-                  onClick={() => openConversation.mutate(conversation.id)}
-                >
-                  <span className="rect-ai-history__title">{conversation.title}</span>
-                  <span className="rect-ai-history__meta">
-                    {new Date(conversation.updatedAt).toLocaleDateString()}
-                  </span>
-                </button>
-                {/*
-                  * Confirmed in place rather than in a window over the window.
-                  * A conversation cannot be recovered, so it must be asked; but
-                  * stacking a dialog on top of the history list to ask a
-                  * one-word question moves the person away from the thing they
-                  * are deciding about.
-                  */}
-                {pendingDelete === conversation.id ? (
-                  <span className="rect-ai-history__confirm">
-                    <button
-                      type="button"
-                      className="rect-ai-history__confirm-yes"
-                      onClick={() => {
-                        removeConversation.mutate(conversation.id);
-                        setPendingDelete(null);
-                      }}
-                      disabled={removeConversation.isPending}
-                    >
-                      {t("shell.ai.deleteConfirm")}
-                    </button>
-                    <button
-                      type="button"
-                      className="rect-ai-history__confirm-no"
-                      onClick={() => setPendingDelete(null)}
-                    >
-                      {t("common.cancel")}
-                    </button>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="rect-ai-history__delete"
-                    onClick={() => setPendingDelete(conversation.id)}
-                    aria-label={t("shell.ai.deleteConversation", { title: conversation.title })}
-                    title={t("shell.ai.deleteConversation", { title: conversation.title })}
-                  >
-                    <Trash2 size={15} strokeWidth={2} aria-hidden />
-                  </button>
-                )}
-              </li>
-            ))}
-
-            {/*
-              * Watched rather than pressed. It sits after the last row inside
-              * the window's own scroll region, so reaching it means there is
-              * more list below than above and the next page is worth fetching.
-              */}
-            {history.hasNextPage ? (
-              <li ref={sentinelRef} className="rect-ai-history__more" aria-hidden={!history.isFetchingNextPage}>
-                {history.isFetchingNextPage ? t("shell.ai.historyLoadingMore") : null}
-              </li>
-            ) : (
-              <li className="rect-ai-history__end">{t("shell.ai.historyEnd")}</li>
-            )}
-          </ul>
-        )}
+        {historyBody}
       </Overlay>
     </aside>
   );

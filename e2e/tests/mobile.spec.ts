@@ -205,6 +205,43 @@ test("the assistant's composer stays on screen, not pushed off the bottom", asyn
   }
 });
 
+test("past conversations take the canvas rather than floating over the assistant", async ({ page }) => {
+  await page.setViewportSize(IPHONE);
+  await signIn(page);
+
+  await page.getByRole("button", { name: /open ai panel/iu }).click();
+  await expect(page.getByRole("dialog", { name: /ai assistant|مساعد/iu })).toBeVisible();
+
+  await page.getByRole("button", { name: /past conversations|المحادثات/iu }).click();
+  await expect(page.getByPlaceholder(/search by title|ابحث بالعنوان/iu)).toBeVisible();
+
+  /*
+   * The fault, as reported and as measured before the fix: the list opened as
+   * a window on top of the assistant, so there were two dialogs and the second
+   * one floated outside the frame every other surface respects — at x=12 and
+   * 366 wide on a 390px screen, while the canvas was at x=27 and 336 wide.
+   *
+   * Both halves are asserted because either alone can pass while the fault is
+   * present. One dialog with the wrong geometry is a sheet that still escapes
+   * the frame; correct geometry with two dialogs is the old window happening to
+   * line up.
+   */
+  await expect(page.locator(".rect-overlay")).toHaveCount(0);
+  expect(await page.getByRole("dialog").count()).toBe(1);
+
+  const canvas = await page.locator("#main-content").boundingBox();
+  const list = await page.locator(".rect-ai-history-pane").boundingBox();
+  expect(list).not.toBeNull();
+  expect(canvas).not.toBeNull();
+  expect(list!.x).toBeGreaterThanOrEqual(canvas!.x);
+  expect(list!.x + list!.width).toBeLessThanOrEqual(canvas!.x + canvas!.width + 1);
+
+  // The control that opened it closes it, which on a phone is the only way back
+  // to the conversation.
+  await page.getByRole("button", { name: /past conversations|المحادثات/iu }).click();
+  await expect(page.getByPlaceholder(/search by title|ابحث بالعنوان/iu)).toBeHidden();
+});
+
 test("only one sheet is open at a time", async ({ page }) => {
   await page.setViewportSize(ANDROID);
   await signIn(page);

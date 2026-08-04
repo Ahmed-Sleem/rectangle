@@ -53,6 +53,30 @@ describe("activity sensitivity", () => {
     expect(classifyActivity("email_settings.update")).toBe("administrative");
   });
 
+  /*
+   * The assistant acts as a person, so what it did is that person's own record.
+   * Unclassified these fell through to `administrative`, meaning administrators
+   * only — somebody could not see the actions their own assistant had taken for
+   * them. The approval design rests on every action being visible to whoever
+   * approved it, or agreed in advance not to be asked, so hiding them from the
+   * principal defeated the point of recording them.
+   */
+  it("shows a person what their own assistant did", () => {
+    expect(classifyActivity("ai.action.confirm")).toBe("personal");
+    expect(classifyActivity("ai.action.auto")).toBe("personal");
+    expect(classifyActivity("ai.auto_approval.grant")).toBe("personal");
+    expect(classifyActivity("ai.conversation.delete")).toBe("personal");
+  });
+
+  /*
+   * The work the assistant does is still filed as work. Creating a task through
+   * it writes `task.create`, which stays operational and visible with the
+   * record; only the assistant's own affairs are personal.
+   */
+  it("still files the work itself as work, whoever asked for it", () => {
+    expect(classifyActivity("task.create")).toBe("operational");
+  });
+
   it("treats an unrecognised action as administrative rather than public", () => {
     // Failing closed is the only safe default for a value that decides who may
     // read the row. A new action added without a decision must not leak.
